@@ -107,10 +107,7 @@ public class JpaWhoManagementService implements WhoManagementService {
         rolePermissionRepository.deleteByRoleId(roleId);
 
         // Delete user-role assignments
-        // Note: We need to find and delete all user roles manually
-        userRoleRepository.findAll().stream()
-            .filter(ur -> ur.getRoleId().equals(roleId))
-            .forEach(userRoleRepository::delete);
+        userRoleRepository.deleteByRoleId(roleId);
 
         // Delete role
         roleRepository.deleteById(roleId);
