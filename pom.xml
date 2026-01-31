@@ -26,9 +26,7 @@
         <module>who-jpa</module>
         <module>who-security</module>
         <module>who-web</module>
-        <!-- TODO: Uncomment as modules are created
         <module>who-starter</module>
-        -->
     </modules>
 
     <dependencyManagement>
