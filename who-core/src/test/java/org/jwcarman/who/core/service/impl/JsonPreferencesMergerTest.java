@@ -27,7 +27,7 @@ class JsonPreferencesMergerTest {
     private final JsonPreferencesMerger merger = new JsonPreferencesMerger();
 
     @Test
-    void testSimpleMerge() throws Exception {
+    void testSimpleMerge() {
         JsonNode layer1 = mapper.readTree("{\"a\": 1, \"b\": 2}");
         JsonNode layer2 = mapper.readTree("{\"b\": 3, \"c\": 4}");
 
@@ -39,7 +39,7 @@ class JsonPreferencesMergerTest {
     }
 
     @Test
-    void testNullHandling() throws Exception {
+    void testNullHandling() {
         JsonNode layer1 = mapper.readTree("{\"a\": 1, \"b\": 2}");
         JsonNode layer2 = mapper.readTree("{\"b\": null, \"c\": 3}");
 
@@ -51,7 +51,7 @@ class JsonPreferencesMergerTest {
     }
 
     @Test
-    void testMultipleLayers() throws Exception {
+    void testMultipleLayers() {
         JsonNode layer1 = mapper.readTree("{\"a\": 1, \"nested\": {\"x\": 10}}");
         JsonNode layer2 = mapper.readTree("{\"b\": 2, \"nested\": {\"y\": 20}}");
         JsonNode layer3 = mapper.readTree("{\"c\": 3, \"nested\": {\"x\": 30}}");

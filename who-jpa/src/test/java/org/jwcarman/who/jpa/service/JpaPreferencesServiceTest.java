@@ -60,7 +60,7 @@ class JpaPreferencesServiceTest {
     }
 
     @Test
-    void getPreferences_whenNotStored_returnsDefaults() throws Exception {
+    void getPreferences_whenNotStored_returnsDefaults() {
         // Given
         UUID userId = UUID.randomUUID();
         String namespace = "ui";
@@ -78,7 +78,7 @@ class JpaPreferencesServiceTest {
     }
 
     @Test
-    void getPreferences_whenStored_returnsStoredPreferences() throws Exception {
+    void getPreferences_whenStored_returnsStoredPreferences() {
         // Given
         UUID userId = UUID.randomUUID();
         String namespace = "ui";
@@ -100,7 +100,7 @@ class JpaPreferencesServiceTest {
     }
 
     @Test
-    void setPreferences_savesJsonToRepository() throws Exception {
+    void setPreferences_savesJsonToRepository() {
         // Given
         UUID userId = UUID.randomUUID();
         String namespace = "ui";
@@ -114,7 +114,7 @@ class JpaPreferencesServiceTest {
     }
 
     @Test
-    void mergePreferences_mergesMultipleLayers() throws Exception {
+    void mergePreferences_mergesMultipleLayers() {
         // Given
         TestPrefs defaults = new TestPrefs("light", 12, false);
         TestPrefs orgPrefs = new TestPrefs("dark", 0, false);
