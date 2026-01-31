@@ -18,6 +18,7 @@ package org.jwcarman.who.jpa.service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.jwcarman.who.core.exception.WhoException;
 import org.jwcarman.who.core.service.PreferencesService;
 import org.jwcarman.who.core.service.impl.JsonPreferencesMerger;
 import org.jwcarman.who.jpa.entity.UserPreferencesEntity;
@@ -51,14 +52,14 @@ public class JpaPreferencesService implements PreferencesService {
             try {
                 return objectMapper.readValue("{}", type);
             } catch (JacksonException e) {
-                throw new RuntimeException("Failed to deserialize default preferences", e);
+                throw new WhoException("Failed to deserialize default preferences", e);
             }
         }
 
         try {
             return objectMapper.readValue(entity.get().getPrefsJson(), type);
         } catch (JacksonException e) {
-            throw new RuntimeException("Failed to deserialize preferences", e);
+            throw new WhoException("Failed to deserialize preferences", e);
         }
     }
 
@@ -78,7 +79,7 @@ public class JpaPreferencesService implements PreferencesService {
 
             repository.save(entity);
         } catch (JacksonException e) {
-            throw new RuntimeException("Failed to serialize preferences", e);
+            throw new WhoException("Failed to serialize preferences", e);
         }
     }
 
@@ -98,7 +99,7 @@ public class JpaPreferencesService implements PreferencesService {
             JsonNode merged = merger.merge(jsonLayers);
             return objectMapper.treeToValue(merged, type);
         } catch (JacksonException e) {
-            throw new RuntimeException("Failed to merge preferences", e);
+            throw new WhoException("Failed to merge preferences", e);
         }
     }
 }
