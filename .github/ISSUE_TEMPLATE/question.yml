@@ -8,8 +8,8 @@ body:
         Have a question? We're here to help!
 
         Before asking, please check:
-        - [README documentation](https://github.com/jwcarman/jpa-utils#readme)
-        - [Existing issues](https://github.com/jwcarman/jpa-utils/issues)
+        - [README documentation](https://github.com/jwcarman/who#readme)
+        - [Existing issues](https://github.com/jwcarman/who/issues)
 
   - type: textarea
     id: question
@@ -42,7 +42,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: JPA Utilities Version
+      label: Who Version
       description: Which version are you using?
       placeholder: e.g., 1.0.0
     validations:
