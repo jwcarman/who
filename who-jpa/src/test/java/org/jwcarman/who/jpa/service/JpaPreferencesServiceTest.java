@@ -1,0 +1,100 @@
+package org.jwcarman.who.jpa.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.jpa.entity.UserPreferencesEntity;
+import org.jwcarman.who.jpa.repository.UserPreferencesRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class JpaPreferencesServiceTest {
+
+    @Mock
+    private UserPreferencesRepository repository;
+
+    private JpaPreferencesService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new JpaPreferencesService(repository, new ObjectMapper());
+    }
+
+    static class TestPrefs {
+        public String theme;
+        public int fontSize;
+        public boolean notifications;
+
+        public TestPrefs() {}
+
+        public TestPrefs(String theme, int fontSize, boolean notifications) {
+            this.theme = theme;
+            this.fontSize = fontSize;
+            this.notifications = notifications;
+        }
+    }
+
+    @Test
+    void getPreferences_whenNotStored_returnsDefaults() throws Exception {
+        // Given
+        UUID userId = UUID.randomUUID();
+        String namespace = "ui";
+        when(repository.findByUserIdAndNamespace(userId, namespace))
+            .thenReturn(Optional.empty());
+
+        // When
+        TestPrefs prefs = service.getPreferences(userId, namespace, TestPrefs.class);
+
+        // Then
+        assertThat(prefs).isNotNull();
+        assertThat(prefs.theme).isNull();
+        assertThat(prefs.fontSize).isZero();
+        assertThat(prefs.notifications).isFalse();
+    }
+
+    @Test
+    void getPreferences_whenStored_returnsStoredPreferences() throws Exception {
+        // Given
+        UUID userId = UUID.randomUUID();
+        String namespace = "ui";
+        UserPreferencesEntity entity = new UserPreferencesEntity();
+        entity.setUserId(userId);
+        entity.setNamespace(namespace);
+        entity.setPrefsJson("{\"theme\":\"dark\",\"fontSize\":14,\"notifications\":true}");
+
+        when(repository.findByUserIdAndNamespace(userId, namespace))
+            .thenReturn(Optional.of(entity));
+
+        // When
+        TestPrefs prefs = service.getPreferences(userId, namespace, TestPrefs.class);
+
+        // Then
+        assertThat(prefs.theme).isEqualTo("dark");
+        assertThat(prefs.fontSize).isEqualTo(14);
+        assertThat(prefs.notifications).isTrue();
+    }
+
+    @Test
+    void setPreferences_savesJsonToRepository() throws Exception {
+        // Given
+        UUID userId = UUID.randomUUID();
+        String namespace = "ui";
+        TestPrefs prefs = new TestPrefs("light", 16, false);
+
+        // When
+        service.setPreferences(userId, namespace, prefs);
+
+        // Then
+        verify(repository).save(any(UserPreferencesEntity.class));
+    }
+}

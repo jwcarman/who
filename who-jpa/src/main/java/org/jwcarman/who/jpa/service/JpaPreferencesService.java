@@ -1,0 +1,84 @@
+package org.jwcarman.who.jpa.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jwcarman.who.core.service.PreferencesService;
+import org.jwcarman.who.core.service.impl.JsonPreferencesMerger;
+import org.jwcarman.who.jpa.entity.UserPreferencesEntity;
+import org.jwcarman.who.jpa.repository.UserPreferencesRepository;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class JpaPreferencesService implements PreferencesService {
+
+    private final UserPreferencesRepository repository;
+    private final ObjectMapper objectMapper;
+    private final JsonPreferencesMerger merger;
+
+    public JpaPreferencesService(UserPreferencesRepository repository, ObjectMapper objectMapper) {
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+        this.merger = new JsonPreferencesMerger();
+    }
+
+    @Override
+    public <T> T getPreferences(UUID userId, String namespace, Class<T> type) {
+        Optional<UserPreferencesEntity> entity = repository.findByUserIdAndNamespace(userId, namespace);
+
+        if (entity.isEmpty()) {
+            // Return defaults (empty instance)
+            try {
+                return objectMapper.readValue("{}", type);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to deserialize default preferences", e);
+            }
+        }
+
+        try {
+            return objectMapper.readValue(entity.get().getPrefsJson(), type);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to deserialize preferences", e);
+        }
+    }
+
+    @Override
+    public <T> void setPreferences(UUID userId, String namespace, T preferences) {
+        try {
+            String json = objectMapper.writeValueAsString(preferences);
+
+            UserPreferencesEntity entity = new UserPreferencesEntity();
+            entity.setUserId(userId);
+            entity.setNamespace(namespace);
+            entity.setPrefsJson(json);
+
+            repository.save(entity);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize preferences", e);
+        }
+    }
+
+    @Override
+    @SafeVarargs
+    public final <T> T mergePreferences(Class<T> type, T... layers) {
+        if (layers.length == 0) {
+            return null;
+        }
+
+        try {
+            JsonNode[] jsonLayers = new JsonNode[layers.length];
+            for (int i = 0; i < layers.length; i++) {
+                jsonLayers[i] = objectMapper.valueToTree(layers[i]);
+            }
+
+            JsonNode merged = merger.merge(jsonLayers);
+            return objectMapper.treeToValue(merged, type);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to merge preferences", e);
+        }
+    }
+}
