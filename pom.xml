@@ -26,7 +26,8 @@
         <module>who-jpa</module>
         <module>who-security</module>
         <module>who-web</module>
-        <module>who-starter</module>
+        <module>who-autoconfig</module>
+        <module>who-spring-boot-starter</module>
     </modules>
 
     <dependencyManagement>

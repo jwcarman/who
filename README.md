@@ -17,7 +17,8 @@ A reusable Spring Boot library for OAuth2/JWT authentication, internal identity 
 - `who-jpa` - JPA entities and repositories (Hibernate auto-generation)
 - `who-security` - Spring Security integration
 - `who-web` - REST controllers (optional)
-- `who-starter` - Spring Boot auto-configuration
+- `who-autoconfig` - Spring Boot auto-configuration
+- `who-spring-boot-starter` - Spring Boot starter (aggregates all modules)
 
 ## Quick Start
 
@@ -26,7 +27,7 @@ A reusable Spring Boot library for OAuth2/JWT authentication, internal identity 
 ```xml
 <dependency>
     <groupId>org.jwcarman.who</groupId>
-    <artifactId>who-starter</artifactId>
+    <artifactId>who-spring-boot-starter</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
