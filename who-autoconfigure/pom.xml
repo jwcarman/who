@@ -11,9 +11,9 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>who-autoconfig</artifactId>
-    <name>Who - Auto-Configuration</name>
-    <description>Auto-configuration for Who library</description>
+    <artifactId>who-autoconfigure</artifactId>
+    <name>Who - Autoconfigure</name>
+    <description>Spring Boot autoconfigure for Who library</description>
 
     <dependencies>
         <dependency>

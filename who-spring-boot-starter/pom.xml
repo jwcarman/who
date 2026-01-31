@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-autoconfig</artifactId>
+            <artifactId>who-autoconfigure</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
