@@ -97,4 +97,20 @@ class JpaPreferencesServiceTest {
         // Then
         verify(repository).save(any(UserPreferencesEntity.class));
     }
+
+    @Test
+    void mergePreferences_mergesMultipleLayers() throws Exception {
+        // Given
+        TestPrefs defaults = new TestPrefs("light", 12, false);
+        TestPrefs orgPrefs = new TestPrefs("dark", 0, false);
+        TestPrefs userPrefs = new TestPrefs(null, 16, true);
+
+        // When
+        TestPrefs merged = service.mergePreferences(TestPrefs.class, defaults, orgPrefs, userPrefs);
+
+        // Then
+        assertThat(merged.theme).isEqualTo("dark");
+        assertThat(merged.fontSize).isEqualTo(16);
+        assertThat(merged.notifications).isTrue();
+    }
 }

@@ -8,12 +8,14 @@ import org.jwcarman.who.core.service.impl.JsonPreferencesMerger;
 import org.jwcarman.who.jpa.entity.UserPreferencesEntity;
 import org.jwcarman.who.jpa.repository.UserPreferencesRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Transactional
 public class JpaPreferencesService implements PreferencesService {
 
     private final UserPreferencesRepository repository;
@@ -51,9 +53,13 @@ public class JpaPreferencesService implements PreferencesService {
         try {
             String json = objectMapper.writeValueAsString(preferences);
 
-            UserPreferencesEntity entity = new UserPreferencesEntity();
-            entity.setUserId(userId);
-            entity.setNamespace(namespace);
+            UserPreferencesEntity entity = repository.findByUserIdAndNamespace(userId, namespace)
+                    .orElseGet(() -> {
+                        UserPreferencesEntity newEntity = new UserPreferencesEntity();
+                        newEntity.setUserId(userId);
+                        newEntity.setNamespace(namespace);
+                        return newEntity;
+                    });
             entity.setPrefsJson(json);
 
             repository.save(entity);
