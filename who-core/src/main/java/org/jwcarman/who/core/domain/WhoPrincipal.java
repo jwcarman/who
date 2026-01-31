@@ -1,6 +1,5 @@
 package org.jwcarman.who.core.domain;
 
-import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 
@@ -10,11 +9,9 @@ import java.util.UUID;
  */
 public record WhoPrincipal(
     UUID userId,
-    String issuer,
-    String subject,
     Set<String> permissions
 ) {
     public WhoPrincipal {
-        permissions = Collections.unmodifiableSet(Set.copyOf(permissions));
+        permissions = Set.copyOf(permissions);
     }
 }

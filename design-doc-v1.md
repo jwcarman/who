@@ -136,9 +136,9 @@ Applications can enforce authorization using standard mechanisms:
 ### 6.1 WhoPrincipal
 A principal object used by Spring Security authentication:
 - `UUID userId`
-- `String issuer`
-- `String subject`
 - `Set<String> permissions`
+
+External identity information (issuer/subject) is available in the JWT but not carried in the principal. The principal focuses on authorization (internal user identity and permissions) rather than authentication details.
 
 ### 6.2 ExternalIdentityKey
 - `String issuer`

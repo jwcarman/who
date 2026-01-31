@@ -12,15 +12,11 @@ class WhoPrincipalTest {
     @Test
     void shouldCreatePrincipalWithRequiredFields() {
         UUID userId = UUID.randomUUID();
-        String issuer = "https://auth.example.com";
-        String subject = "user123";
         Set<String> permissions = Set.of("billing.invoice.read", "billing.invoice.write");
 
-        WhoPrincipal principal = new WhoPrincipal(userId, issuer, subject, permissions);
+        WhoPrincipal principal = new WhoPrincipal(userId, permissions);
 
         assertThat(principal.userId()).isEqualTo(userId);
-        assertThat(principal.issuer()).isEqualTo(issuer);
-        assertThat(principal.subject()).isEqualTo(subject);
         assertThat(principal.permissions()).containsExactlyInAnyOrder(
             "billing.invoice.read", "billing.invoice.write");
     }
@@ -28,8 +24,7 @@ class WhoPrincipalTest {
     @Test
     void shouldReturnImmutablePermissionsSet() {
         UUID userId = UUID.randomUUID();
-        WhoPrincipal principal = new WhoPrincipal(
-            userId, "iss", "sub", Set.of("perm1"));
+        WhoPrincipal principal = new WhoPrincipal(userId, Set.of("perm1"));
 
         assertThat(principal.permissions()).isUnmodifiable();
     }

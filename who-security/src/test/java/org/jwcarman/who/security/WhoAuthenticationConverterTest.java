@@ -59,8 +59,6 @@ class WhoAuthenticationConverterTest {
 
         WhoPrincipal principal = (WhoPrincipal) auth.getPrincipal();
         assertThat(principal.userId()).isEqualTo(userId);
-        assertThat(principal.issuer()).isEqualTo(issuer);
-        assertThat(principal.subject()).isEqualTo(subject);
         assertThat(principal.permissions()).containsExactlyInAnyOrder(
             "billing.invoice.read", "billing.invoice.write");
 

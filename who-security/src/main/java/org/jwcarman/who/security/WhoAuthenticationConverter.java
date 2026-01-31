@@ -43,7 +43,7 @@ public class WhoAuthenticationConverter implements Converter<Jwt, AbstractAuthen
         }
 
         Set<String> permissions = entitlementsService.resolvePermissions(userId);
-        WhoPrincipal principal = new WhoPrincipal(userId, issuer, subject, permissions);
+        WhoPrincipal principal = new WhoPrincipal(userId, permissions);
 
         Collection<GrantedAuthority> authorities = permissions.stream()
             .map(SimpleGrantedAuthority::new)
