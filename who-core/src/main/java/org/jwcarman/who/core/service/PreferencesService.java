@@ -33,6 +33,6 @@ public interface PreferencesService {
      * @param layers preference layers to merge
      * @return merged preferences
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // Varargs generic array creation is safe here
     <T> T mergePreferences(Class<T> type, T... layers);
 }
