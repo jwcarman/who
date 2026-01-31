@@ -2,9 +2,11 @@ package org.jwcarman.who.jpa.repository;
 
 import org.jwcarman.who.jpa.entity.RolePermissionEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,5 +18,7 @@ public interface RolePermissionRepository extends JpaRepository<RolePermissionEn
     @Query("SELECT rp.permission FROM RolePermissionEntity rp WHERE rp.roleId IN :roleIds")
     List<String> findPermissionsByRoleIds(@Param("roleIds") List<UUID> roleIds);
 
+    @Modifying
+    @Transactional
     void deleteByRoleId(UUID roleId);
 }
