@@ -1,7 +1,7 @@
 package org.jwcarman.who.core.service.impl;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -14,7 +14,7 @@ public class JsonPreferencesMerger {
             return null;
         }
 
-        ObjectNode result = layers[0].deepCopy();
+        ObjectNode result = (ObjectNode) layers[0].deepCopy();
         for (int i = 1; i < layers.length; i++) {
             deepMerge(result, layers[i]);
         }
@@ -26,7 +26,7 @@ public class JsonPreferencesMerger {
             return;
         }
 
-        Iterator<Map.Entry<String, JsonNode>> fields = source.fields();
+        Iterator<Map.Entry<String, JsonNode>> fields = ((ObjectNode) source).properties().iterator();
         while (fields.hasNext()) {
             Map.Entry<String, JsonNode> entry = fields.next();
             String fieldName = entry.getKey();

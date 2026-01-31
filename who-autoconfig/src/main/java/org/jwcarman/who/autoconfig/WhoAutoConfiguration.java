@@ -1,6 +1,6 @@
 package org.jwcarman.who.autoconfig;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.jwcarman.who.core.service.UserProvisioningPolicy;
 import org.jwcarman.who.jpa.repository.ExternalIdentityRepository;
 import org.jwcarman.who.jpa.repository.UserRepository;

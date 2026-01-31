@@ -1,6 +1,6 @@
 package org.jwcarman.who.web;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.PreferencesService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
