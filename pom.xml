@@ -25,8 +25,8 @@
         <module>who-core</module>
         <module>who-jpa</module>
         <module>who-security</module>
-        <!-- TODO: Uncomment as modules are created
         <module>who-web</module>
+        <!-- TODO: Uncomment as modules are created
         <module>who-starter</module>
         -->
     </modules>
