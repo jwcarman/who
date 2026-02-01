@@ -85,6 +85,46 @@ public class WhoSecurityAutoConfiguration {
     }
 
     /**
+     * Provides a security filter chain for general API endpoints.
+     * <p>
+     * This filter chain has {@code @Order(2)} to ensure it is processed after the invitation
+     * acceptance filter chain but before any default filter chains. It matches all {@code /api/**}
+     * endpoints and configures them as stateless OAuth2 resource server endpoints that accept
+     * JWT tokens for authentication.
+     * <p>
+     * The JWT authentication converter ({@link WhoAuthenticationConverter}) is used to map
+     * external identities from JWTs to internal user IDs and load their permissions.
+     * CSRF protection is disabled as this is a stateless API endpoint.
+     * <p>
+     * This bean is only created if no bean named "apiSecurityFilterChain" is already defined.
+     *
+     * @param http the HttpSecurity builder for configuring security
+     * @param jwtAuthenticationConverter the converter for mapping JWTs to Who authentication tokens
+     * @return the configured SecurityFilterChain
+     * @throws Exception if an error occurs during security configuration
+     */
+    @Bean
+    @Order(2)
+    @ConditionalOnMissingBean(name = "apiSecurityFilterChain")
+    public SecurityFilterChain apiSecurityFilterChain(
+            HttpSecurity http,
+            WhoAuthenticationConverter jwtAuthenticationConverter) {
+        http
+            .securityMatcher("/api/**")
+            .authorizeHttpRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable());
+
+        return http.build();
+    }
+
+    /**
      * Provides the JWT authentication converter for translating JWTs into Who authentication tokens.
      * <p>
      * This converter extracts the external identity information from JWT tokens (issuer and subject),
