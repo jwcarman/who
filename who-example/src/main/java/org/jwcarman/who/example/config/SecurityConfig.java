@@ -61,7 +61,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) {
         http
             .securityMatcher("/oauth2/**", "/.well-known/**")
             .authorizeHttpRequests(authorize -> authorize
@@ -76,7 +76,7 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain apiSecurityFilterChain(
             HttpSecurity http,
-            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter) throws Exception {
+            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter) {
         http
             .securityMatcher("/api/**")
             .authorizeHttpRequests(authorize -> authorize
@@ -93,7 +93,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(3)
-    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) {
         http
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/", "/authorized", "/tasks.html").permitAll()
