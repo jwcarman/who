@@ -49,12 +49,27 @@ public class WhoJdbcInitializationConfiguration {
         if (enabled) {
             ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
             populator.addScript(new ClassPathResource("org/jwcarman/who/jdbc/schema.sql"));
-            populator.addScript(new ClassPathResource("org/jwcarman/who/jdbc/data.sql"));
+
+            // Use database-specific data file
+            String dataScript = getDataScript(dataSource);
+            populator.addScript(new ClassPathResource(dataScript));
             populator.setContinueOnError(false);
             initializer.setDatabasePopulator(populator);
         }
 
         return initializer;
+    }
+
+    private String getDataScript(DataSource dataSource) {
+        // Check if H2 embedded database
+        if (EmbeddedDatabaseConnection.isEmbedded(dataSource)) {
+            EmbeddedDatabaseConnection connection = EmbeddedDatabaseConnection.get(dataSource.getClass().getClassLoader());
+            if (connection == EmbeddedDatabaseConnection.H2) {
+                return "org/jwcarman/who/jdbc/data-h2.sql";
+            }
+        }
+        // Default to PostgreSQL
+        return "org/jwcarman/who/jdbc/data-postgresql.sql";
     }
 
     private boolean shouldInitialize(DataSource dataSource, WhoJdbcProperties.DatabaseInitializationMode mode) {
