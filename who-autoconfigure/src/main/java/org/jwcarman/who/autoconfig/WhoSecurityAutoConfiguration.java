@@ -21,10 +21,15 @@ import org.jwcarman.who.security.WhoAuthenticationConverter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Auto-configuration for Who Spring Security integration.
@@ -32,6 +37,27 @@ import org.springframework.security.oauth2.jwt.Jwt;
 @AutoConfiguration
 @EnableMethodSecurity
 public class WhoSecurityAutoConfiguration {
+
+    @Bean
+    @Order(1)
+    @ConditionalOnMissingBean(name = "invitationAcceptanceFilterChain")
+    public SecurityFilterChain invitationAcceptanceFilterChain(
+            HttpSecurity http,
+            JwtDecoder jwtDecoder) throws Exception {
+        http
+            .securityMatcher("/api/invitations/accept")
+            .authorizeHttpRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.decoder(jwtDecoder))
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable());
+
+        return http.build();
+    }
 
     @Bean
     @ConditionalOnMissingBean
