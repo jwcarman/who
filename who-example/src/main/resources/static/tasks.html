@@ -95,6 +95,218 @@
             return { codeVerifier, codeChallenge };
         }
 
+        // ============================================================================
+        // OAuth2 Configuration
+        // ============================================================================
+
+        const OAUTH_CONFIG = {
+            clientId: 'demo-client',
+            redirectUri: window.location.origin + '/tasks.html',
+            authorizationEndpoint: '/oauth2/authorize',
+            tokenEndpoint: '/oauth2/token',
+            scopes: 'read write'
+        };
+
+        // ============================================================================
+        // Token Management
+        // ============================================================================
+
+        /**
+         * Get access token from sessionStorage
+         */
+        function getAccessToken() {
+            return sessionStorage.getItem('access_token');
+        }
+
+        /**
+         * Get refresh token from sessionStorage
+         */
+        function getRefreshToken() {
+            return sessionStorage.getItem('refresh_token');
+        }
+
+        /**
+         * Get token expiration timestamp
+         */
+        function getTokenExpiry() {
+            const expiry = sessionStorage.getItem('token_expiry');
+            return expiry ? parseInt(expiry, 10) : 0;
+        }
+
+        /**
+         * Check if access token is expired or about to expire (within 30 seconds)
+         */
+        function isTokenExpired() {
+            const expiry = getTokenExpiry();
+            const now = Math.floor(Date.now() / 1000);
+            return expiry - now < 30;
+        }
+
+        /**
+         * Store tokens in sessionStorage
+         */
+        function storeTokens(tokenResponse) {
+            sessionStorage.setItem('access_token', tokenResponse.access_token);
+            if (tokenResponse.refresh_token) {
+                sessionStorage.setItem('refresh_token', tokenResponse.refresh_token);
+            }
+            // Calculate expiry timestamp
+            const expiresIn = tokenResponse.expires_in || 300;
+            const expiry = Math.floor(Date.now() / 1000) + expiresIn;
+            sessionStorage.setItem('token_expiry', expiry.toString());
+        }
+
+        /**
+         * Clear all tokens from sessionStorage
+         */
+        function clearTokens() {
+            sessionStorage.removeItem('access_token');
+            sessionStorage.removeItem('refresh_token');
+            sessionStorage.removeItem('token_expiry');
+            sessionStorage.removeItem('code_verifier');
+        }
+
+        /**
+         * Parse JWT to extract claims (without verification - server validates)
+         */
+        function parseJWT(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error('Failed to parse JWT:', e);
+                return null;
+            }
+        }
+
+        /**
+         * Get username from access token
+         */
+        function getUsername() {
+            const token = getAccessToken();
+            if (!token) return null;
+            const claims = parseJWT(token);
+            return claims ? claims.sub : null;
+        }
+
+        // ============================================================================
+        // OAuth2 Authorization Flow
+        // ============================================================================
+
+        /**
+         * Start OAuth2 authorization code flow with PKCE
+         */
+        async function startLogin() {
+            const pkce = await generatePKCE();
+
+            // Store code verifier for later token exchange
+            sessionStorage.setItem('code_verifier', pkce.codeVerifier);
+
+            // Build authorization URL
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: OAUTH_CONFIG.clientId,
+                redirect_uri: OAUTH_CONFIG.redirectUri,
+                scope: OAUTH_CONFIG.scopes,
+                code_challenge: pkce.codeChallenge,
+                code_challenge_method: 'S256'
+            });
+
+            const authUrl = `${OAUTH_CONFIG.authorizationEndpoint}?${params.toString()}`;
+            window.location.href = authUrl;
+        }
+
+        /**
+         * Handle OAuth2 callback and exchange code for token
+         */
+        async function handleCallback() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const error = params.get('error');
+
+            if (error) {
+                throw new Error(`OAuth2 error: ${error} - ${params.get('error_description')}`);
+            }
+
+            if (!code) {
+                return false; // No callback in progress
+            }
+
+            const codeVerifier = sessionStorage.getItem('code_verifier');
+            if (!codeVerifier) {
+                throw new Error('No code verifier found - PKCE flow broken');
+            }
+
+            // Exchange code for token
+            const tokenResponse = await fetch(OAUTH_CONFIG.tokenEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    code: code,
+                    redirect_uri: OAUTH_CONFIG.redirectUri,
+                    client_id: OAUTH_CONFIG.clientId,
+                    code_verifier: codeVerifier
+                })
+            });
+
+            if (!tokenResponse.ok) {
+                const error = await tokenResponse.text();
+                throw new Error(`Token exchange failed: ${error}`);
+            }
+
+            const tokens = await tokenResponse.json();
+            storeTokens(tokens);
+
+            // Clean up: remove code from URL
+            window.history.replaceState({}, document.title, OAUTH_CONFIG.redirectUri);
+
+            return true;
+        }
+
+        /**
+         * Refresh access token using refresh token
+         */
+        async function refreshAccessToken() {
+            const refreshToken = getRefreshToken();
+            if (!refreshToken) {
+                throw new Error('No refresh token available');
+            }
+
+            const response = await fetch(OAUTH_CONFIG.tokenEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                    client_id: OAUTH_CONFIG.clientId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Token refresh failed');
+            }
+
+            const tokens = await response.json();
+            storeTokens(tokens);
+        }
+
+        /**
+         * Logout - clear tokens and redirect to login
+         */
+        function logout() {
+            clearTokens();
+            window.location.reload();
+        }
+
         // Application will go here
         console.log('Task Manager SPA loaded');
     </script>
