@@ -23,6 +23,11 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * JDBC implementation of {@link UserPreferencesRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_user_preferences} table.
+ */
 @Repository
 public class JdbcUserPreferencesRepository implements UserPreferencesRepository {
 
@@ -38,6 +43,11 @@ public class JdbcUserPreferencesRepository implements UserPreferencesRepository 
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcUserPreferencesRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcUserPreferencesRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

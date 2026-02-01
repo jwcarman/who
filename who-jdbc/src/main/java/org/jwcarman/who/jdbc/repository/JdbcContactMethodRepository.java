@@ -28,6 +28,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * JDBC implementation of {@link ContactMethodRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_contact_method} table.
+ */
 @Repository
 public class JdbcContactMethodRepository implements ContactMethodRepository {
 
@@ -51,6 +56,11 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcContactMethodRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcContactMethodRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

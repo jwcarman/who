@@ -23,6 +23,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * JDBC implementation of {@link PermissionRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_permission} table.
+ */
 @Repository
 public class JdbcPermissionRepository implements PermissionRepository {
 
@@ -36,6 +41,11 @@ public class JdbcPermissionRepository implements PermissionRepository {
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcPermissionRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcPermissionRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

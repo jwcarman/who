@@ -28,7 +28,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Core implementation of ContactMethodService with business logic.
+ * Default implementation of {@link ContactMethodService} with business logic.
+ * <p>
+ * This implementation manages user contact methods (email, phone, etc.) and coordinates
+ * with the {@link ContactConfirmationNotifier} SPI for sending verification notifications.
  */
 public class DefaultContactMethodService implements ContactMethodService {
 
@@ -36,6 +39,12 @@ public class DefaultContactMethodService implements ContactMethodService {
     private final UserRepository userRepository;
     private final ContactConfirmationNotifier notifier;
 
+    /**
+     * Constructs a new DefaultContactMethodService with required dependencies.
+     *
+     * @param repository repository for contact method persistence
+     * @param notifier SPI for sending contact verification notifications
+     */
     public DefaultContactMethodService(ContactMethodRepository repository,
                                      UserRepository userRepository,
                                      ContactConfirmationNotifier notifier) {

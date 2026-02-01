@@ -29,12 +29,40 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Auto-configuration for Who Spring Security integration.
+ * Spring Boot auto-configuration for Who Spring Security integration.
+ * <p>
+ * This configuration sets up the Spring Security infrastructure required for OAuth2/JWT
+ * authentication with the Who framework, including:
+ * <ul>
+ *   <li>Security filter chains for various endpoints</li>
+ *   <li>JWT authentication converter for mapping external identities to internal users</li>
+ *   <li>Method-level security annotations via {@code @EnableMethodSecurity}</li>
+ * </ul>
+ * <p>
+ * All beans can be overridden by providing custom implementations in your application configuration.
  */
 @AutoConfiguration
 @EnableMethodSecurity
 public class WhoSecurityAutoConfiguration {
 
+    /**
+     * Provides a security filter chain for invitation acceptance endpoints.
+     * <p>
+     * This filter chain has {@code @Order(1)} to ensure it is processed before other filter chains.
+     * It matches the {@code /api/invitations/accept} endpoint and configures it as a stateless
+     * OAuth2 resource server endpoint that accepts JWT tokens for authentication.
+     * <p>
+     * This special configuration allows invitation acceptance to occur without requiring the user
+     * to already be provisioned in the system - the invitation token itself provides authentication.
+     * CSRF protection is disabled as this is a stateless API endpoint.
+     * <p>
+     * This bean is only created if no bean named "invitationAcceptanceFilterChain" is already defined.
+     *
+     * @param http the HttpSecurity builder for configuring security
+     * @param jwtDecoder the JWT decoder for validating tokens
+     * @return the configured SecurityFilterChain
+     * @throws Exception if an error occurs during security configuration
+     */
     @Bean
     @Order(1)
     @ConditionalOnMissingBean(name = "invitationAcceptanceFilterChain")
@@ -56,6 +84,20 @@ public class WhoSecurityAutoConfiguration {
         return http.build();
     }
 
+    /**
+     * Provides the JWT authentication converter for translating JWTs into Who authentication tokens.
+     * <p>
+     * This converter extracts the external identity information from JWT tokens (issuer and subject),
+     * resolves them to internal user IDs using the {@link IdentityResolver}, loads the user's roles
+     * and permissions, and creates a {@link org.jwcarman.who.core.domain.WhoPrincipal} containing
+     * the complete user identity and authorization information.
+     * <p>
+     * This bean is only created if no custom JWT authentication converter is defined.
+     *
+     * @param identityResolver the resolver for mapping external identities to internal user IDs
+     * @param userService the user service for loading user details and permissions
+     * @return a WhoAuthenticationConverter instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public WhoAuthenticationConverter jwtAuthenticationConverter(

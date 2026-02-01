@@ -29,6 +29,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * JDBC implementation of {@link InvitationRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_invitation} table.
+ */
 @Repository
 public class JdbcInvitationRepository implements InvitationRepository {
 
@@ -57,6 +62,11 @@ public class JdbcInvitationRepository implements InvitationRepository {
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcInvitationRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcInvitationRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

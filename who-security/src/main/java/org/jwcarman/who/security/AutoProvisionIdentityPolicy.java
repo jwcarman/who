@@ -26,7 +26,29 @@ import org.slf4j.LoggerFactory;
 import java.util.UUID;
 
 /**
- * Policy that automatically provisions new users for unknown external identities.
+ * Provisioning policy that automatically creates new users for unknown external identities.
+ * <p>
+ * When an authenticated user presents an external identity (from OAuth2/JWT) that is not
+ * yet mapped to an internal user, this policy automatically:
+ * <ol>
+ *   <li>Creates a new user account with {@link UserStatus#ACTIVE} status</li>
+ *   <li>Links the external identity to the new user account</li>
+ *   <li>Returns the new user ID for immediate authentication</li>
+ * </ol>
+ * <p>
+ * This policy is useful for self-service scenarios where any authenticated external user
+ * should be granted access. The new user starts with no roles or permissions until they
+ * are explicitly assigned.
+ * <p>
+ * To enable this policy, set the configuration property:
+ * <pre>{@code
+ * who.provisioning.auto-provision=true
+ * }</pre>
+ * <p>
+ * All provisioning actions are logged at INFO level for audit purposes.
+ *
+ * @see UserProvisioningPolicy
+ * @see DenyUnknownIdentityPolicy
  */
 public class AutoProvisionIdentityPolicy implements UserProvisioningPolicy {
 
@@ -35,12 +57,27 @@ public class AutoProvisionIdentityPolicy implements UserProvisioningPolicy {
     private final UserService userService;
     private final IdentityService identityService;
 
+    /**
+     * Constructs a new AutoProvisionIdentityPolicy with required services.
+     *
+     * @param userService the service for creating new users
+     * @param identityService the service for linking external identities
+     */
     public AutoProvisionIdentityPolicy(UserService userService,
                                       IdentityService identityService) {
         this.userService = userService;
         this.identityService = identityService;
     }
 
+    /**
+     * Handles an unknown external identity by auto-provisioning a new user.
+     * <p>
+     * Creates a new ACTIVE user, links the external identity to it, and returns
+     * the new user ID. The operation is logged for audit purposes.
+     *
+     * @param identityKey the external identity key (issuer and subject)
+     * @return the newly created user's ID
+     */
     @Override
     public UUID handleUnknownIdentity(ExternalIdentityKey identityKey) {
         log.info("Auto-provisioning new user for identity: issuer={}, subject={}",

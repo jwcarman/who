@@ -52,7 +52,22 @@ import org.springframework.context.annotation.ComponentScan;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Auto-configuration for Who library.
+ * Spring Boot auto-configuration for the Who identity and entitlements framework.
+ * <p>
+ * This configuration automatically sets up the core Who services and infrastructure components
+ * when the library is on the classpath. It provides default implementations that can be overridden
+ * by defining custom beans.
+ * <p>
+ * Component scanning is enabled for:
+ * <ul>
+ *   <li>{@code org.jwcarman.who.jdbc.repository} - JDBC repository implementations</li>
+ *   <li>{@code org.jwcarman.who.security} - Spring Security integration components</li>
+ *   <li>{@code org.jwcarman.who.web} - REST controllers (if who-web module is included)</li>
+ * </ul>
+ * <p>
+ * Configuration properties are bound from {@link WhoProperties}.
+ *
+ * @see WhoProperties
  */
 @AutoConfiguration
 @EnableConfigurationProperties(WhoProperties.class)
@@ -63,12 +78,31 @@ import tools.jackson.databind.ObjectMapper;
 })
 public class WhoAutoConfiguration {
 
+    /**
+     * Provides a default Jackson ObjectMapper for JSON serialization/deserialization.
+     * <p>
+     * This bean is only created if no other ObjectMapper bean is defined in the application context.
+     * Used by {@link PreferencesService} for storing user preferences as JSON.
+     *
+     * @return a new ObjectMapper instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
     }
 
+    /**
+     * Provides the default identity resolver for mapping external identities to internal user IDs.
+     * <p>
+     * The identity resolver is responsible for linking OAuth2/JWT subject identifiers from
+     * external identity providers to stable internal user UUIDs. This bean is only created
+     * if no custom IdentityResolver bean is defined.
+     *
+     * @param repository the repository for managing external identity mappings
+     * @param provisioningPolicy the policy for handling unknown identities
+     * @return a DefaultIdentityResolver instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public IdentityResolver identityResolver(ExternalIdentityRepository repository,
@@ -76,6 +110,18 @@ public class WhoAutoConfiguration {
         return new DefaultIdentityResolver(repository, provisioningPolicy);
     }
 
+    /**
+     * Provides the default user service for managing user accounts and role assignments.
+     * <p>
+     * The user service handles user lifecycle operations, role assignments, and permission
+     * queries. This bean is only created if no custom UserService bean is defined.
+     *
+     * @param userRepository repository for user persistence
+     * @param roleRepository repository for role persistence
+     * @param userRoleRepository repository for user-role assignments
+     * @param rolePermissionRepository repository for role-permission assignments
+     * @return a DefaultUserService instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public UserService userService(UserRepository userRepository,
@@ -85,6 +131,19 @@ public class WhoAutoConfiguration {
         return new DefaultUserService(userRepository, roleRepository, userRoleRepository, rolePermissionRepository);
     }
 
+    /**
+     * Provides the default RBAC service for managing roles and permissions.
+     * <p>
+     * The RBAC service handles creation and deletion of roles, assignment of permissions to roles,
+     * and querying of role-permission relationships. This bean is only created if no custom
+     * RbacService bean is defined.
+     *
+     * @param roleRepository repository for role persistence
+     * @param rolePermissionRepository repository for role-permission assignments
+     * @param userRoleRepository repository for user-role assignments
+     * @param permissionRepository repository for permission persistence
+     * @return a DefaultRbacService instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public RbacService rbacService(RoleRepository roleRepository,
@@ -94,6 +153,17 @@ public class WhoAutoConfiguration {
         return new DefaultRbacService(roleRepository, rolePermissionRepository, userRoleRepository, permissionRepository);
     }
 
+    /**
+     * Provides the default identity service for managing external identity mappings.
+     * <p>
+     * The identity service handles linking and unlinking external identities (from OAuth2/JWT
+     * providers) to internal user accounts. This bean is only created if no custom IdentityService
+     * bean is defined.
+     *
+     * @param userRepository repository for user persistence
+     * @param externalIdentityRepository repository for external identity mappings
+     * @return a DefaultIdentityService instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public IdentityService identityService(UserRepository userRepository,
@@ -101,6 +171,16 @@ public class WhoAutoConfiguration {
         return new DefaultIdentityService(userRepository, externalIdentityRepository);
     }
 
+    /**
+     * Provides the default preferences service for managing user-specific preferences.
+     * <p>
+     * The preferences service stores and retrieves user preferences as JSON, organized by namespace.
+     * This bean is only created if no custom PreferencesService bean is defined.
+     *
+     * @param userPreferencesRepository repository for preferences persistence
+     * @param objectMapper the ObjectMapper for JSON serialization
+     * @return a DefaultPreferencesService instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public PreferencesService preferencesService(UserPreferencesRepository userPreferencesRepository,
@@ -108,6 +188,18 @@ public class WhoAutoConfiguration {
         return new DefaultPreferencesService(userPreferencesRepository, objectMapper);
     }
 
+    /**
+     * Provides the auto-provisioning policy for handling unknown external identities.
+     * <p>
+     * When enabled via {@code who.provisioning.auto-provision=true}, this policy automatically
+     * creates new user accounts when an authenticated external identity is not yet mapped to
+     * an internal user. This bean is only created if no custom UserProvisioningPolicy is defined
+     * and auto-provisioning is explicitly enabled.
+     *
+     * @param userService the user service for creating new users
+     * @param identityService the identity service for linking external identities
+     * @return an AutoProvisionIdentityPolicy instance
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(name = "who.provisioning.auto-provision", havingValue = "true")
@@ -117,6 +209,16 @@ public class WhoAutoConfiguration {
         return new AutoProvisionIdentityPolicy(userService, identityService);
     }
 
+    /**
+     * Provides the deny-unknown policy for handling unknown external identities.
+     * <p>
+     * This is the default policy when {@code who.provisioning.auto-provision} is not set or is
+     * set to {@code false}. This policy rejects authentication attempts from external identities
+     * that are not already mapped to internal users, requiring explicit user provisioning.
+     * This bean is only created if no custom UserProvisioningPolicy is defined.
+     *
+     * @return a DenyUnknownIdentityPolicy instance
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(name = "who.provisioning.auto-provision", havingValue = "false", matchIfMissing = true)

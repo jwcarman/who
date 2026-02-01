@@ -21,8 +21,39 @@ import tools.jackson.databind.node.ObjectNode;
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * Utility for merging multiple JSON preference layers into a single result.
+ * <p>
+ * This merger implements a deep merge strategy where:
+ * <ul>
+ *   <li>Later layers override earlier layers</li>
+ *   <li>Nested objects are merged recursively</li>
+ *   <li>Null values in later layers are ignored (they don't override earlier values)</li>
+ *   <li>Non-object values in later layers completely replace earlier values</li>
+ * </ul>
+ * <p>
+ * This is useful for implementing preference hierarchies where user preferences can
+ * override default preferences, with fine-grained control at the field level.
+ * <p>
+ * Example:
+ * <pre>{@code
+ * Layer 1 (defaults): {"theme": {"color": "blue", "size": "medium"}}
+ * Layer 2 (user):     {"theme": {"color": "red"}}
+ * Result:             {"theme": {"color": "red", "size": "medium"}}
+ * }</pre>
+ */
 public class JsonPreferencesMerger {
 
+    /**
+     * Merges multiple JSON layers from left to right, with later layers overriding earlier ones.
+     * <p>
+     * The first layer serves as the base, and each subsequent layer is merged into the result,
+     * overriding values from previous layers. Nested objects are merged recursively to preserve
+     * fields that are not explicitly overridden.
+     *
+     * @param layers the JSON layers to merge, ordered from lowest to highest priority
+     * @return the merged JSON result, or {@code null} if no layers are provided
+     */
     @SafeVarargs
     public final JsonNode merge(JsonNode... layers) {
         if (layers.length == 0) {
@@ -36,6 +67,19 @@ public class JsonPreferencesMerger {
         return result;
     }
 
+    /**
+     * Recursively merges source JSON into target JSON.
+     * <p>
+     * For each field in the source:
+     * <ul>
+     *   <li>If the value is null, it is skipped (doesn't override target)</li>
+     *   <li>If both target and source values are objects, merge them recursively</li>
+     *   <li>Otherwise, the source value replaces the target value</li>
+     * </ul>
+     *
+     * @param target the target object to merge into (modified in place)
+     * @param source the source object to merge from
+     */
     private void deepMerge(ObjectNode target, JsonNode source) {
         if (source == null || !source.isObject()) {
             return;

@@ -24,6 +24,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * JDBC implementation of {@link ExternalIdentityRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_external_identity} table.
+ */
 @Repository
 public class JdbcExternalIdentityRepository implements ExternalIdentityRepository {
 
@@ -41,6 +46,11 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcExternalIdentityRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcExternalIdentityRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

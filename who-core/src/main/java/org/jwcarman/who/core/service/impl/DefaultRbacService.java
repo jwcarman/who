@@ -26,7 +26,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Core implementation of RbacService with business logic.
+ * Default implementation of {@link RbacService} with business logic.
+ * <p>
+ * This implementation coordinates role and permission management across multiple repositories,
+ * enforcing business rules such as:
+ * <ul>
+ *   <li>Preventing duplicate role names</li>
+ *   <li>Validating role and permission existence before assignments</li>
+ *   <li>Cascading deletes when roles are removed</li>
+ * </ul>
  */
 public class DefaultRbacService implements RbacService {
 
@@ -35,6 +43,14 @@ public class DefaultRbacService implements RbacService {
     private final UserRoleRepository userRoleRepository;
     private final PermissionRepository permissionRepository;
 
+    /**
+     * Constructs a new DefaultRbacService with required repositories.
+     *
+     * @param roleRepository repository for role persistence
+     * @param rolePermissionRepository repository for role-permission assignments
+     * @param userRoleRepository repository for user-role assignments
+     * @param permissionRepository repository for permission persistence
+     */
     public DefaultRbacService(RoleRepository roleRepository,
                            RolePermissionRepository rolePermissionRepository,
                            UserRoleRepository userRoleRepository,

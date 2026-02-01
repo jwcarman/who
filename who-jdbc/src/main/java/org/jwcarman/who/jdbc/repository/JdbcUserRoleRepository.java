@@ -22,6 +22,12 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * JDBC implementation of {@link UserRoleRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_user_role} table
+ * which represents the many-to-many relationship between users and roles.
+ */
 @Repository
 public class JdbcUserRoleRepository implements UserRoleRepository {
 
@@ -34,6 +40,11 @@ public class JdbcUserRoleRepository implements UserRoleRepository {
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcUserRoleRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcUserRoleRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

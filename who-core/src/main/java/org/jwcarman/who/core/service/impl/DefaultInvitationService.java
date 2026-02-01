@@ -46,8 +46,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Default implementation of InvitationService.
- * Integrates with Spring Security for authentication context.
+ * Default implementation of {@link InvitationService}.
+ * <p>
+ * This implementation manages the complete invitation lifecycle:
+ * <ul>
+ *   <li>Creates invitations and sends notifications via {@link InvitationNotifier}</li>
+ *   <li>Validates invitation tokens and expiration</li>
+ *   <li>Provisions new users upon acceptance</li>
+ *   <li>Links external identities from JWT tokens</li>
+ *   <li>Assigns roles to newly provisioned users</li>
+ * </ul>
+ * <p>
+ * Integrates with Spring Security to extract authentication context during invitation acceptance.
+ * Supports configurable email verification requirements and trust settings for external issuers.
  */
 public class DefaultInvitationService implements InvitationService {
 
@@ -62,6 +73,20 @@ public class DefaultInvitationService implements InvitationService {
     private final boolean requireVerifiedEmail;
     private final boolean trustIssuerVerification;
 
+    /**
+     * Constructs a new DefaultInvitationService with required dependencies and configuration.
+     *
+     * @param invitationRepository repository for invitation persistence
+     * @param invitationNotifier SPI for sending invitation notifications
+     * @param userService service for creating and managing users
+     * @param identityService service for linking external identities
+     * @param contactMethodService service for managing contact methods
+     * @param contactMethodRepository repository for contact method queries
+     * @param roleRepository repository for role persistence
+     * @param expirationHours number of hours until invitations expire
+     * @param requireVerifiedEmail whether to require verified email addresses for acceptance
+     * @param trustIssuerVerification whether to trust email verification from external issuers
+     */
     public DefaultInvitationService(
             InvitationRepository invitationRepository,
             InvitationNotifier invitationNotifier,

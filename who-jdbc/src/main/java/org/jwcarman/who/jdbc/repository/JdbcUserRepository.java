@@ -25,6 +25,11 @@ import java.sql.Timestamp;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * JDBC implementation of {@link UserRepository}.
+ * <p>
+ * Uses Spring's {@link JdbcClient} for database access. Maps to the {@code who_user} table.
+ */
 @Repository
 public class JdbcUserRepository implements UserRepository {
 
@@ -40,6 +45,11 @@ public class JdbcUserRepository implements UserRepository {
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Constructs a new JdbcUserRepository with the provided JDBC client.
+     *
+     * @param jdbcClient the JDBC client for database access
+     */
     public JdbcUserRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }

@@ -27,7 +27,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Core implementation of PreferencesService.
+ * Default implementation of {@link PreferencesService}.
+ * <p>
+ * This implementation stores user preferences as JSON in the database and uses Jackson's
+ * {@link ObjectMapper} for serialization/deserialization. Supports preference merging
+ * via {@link JsonPreferencesMerger} for layered preference hierarchies.
  */
 public class DefaultPreferencesService implements PreferencesService {
 
@@ -35,6 +39,12 @@ public class DefaultPreferencesService implements PreferencesService {
     private final ObjectMapper objectMapper;
     private final JsonPreferencesMerger merger;
 
+    /**
+     * Constructs a new DefaultPreferencesService with required dependencies.
+     *
+     * @param repository repository for preferences persistence
+     * @param objectMapper Jackson ObjectMapper for JSON serialization
+     */
     public DefaultPreferencesService(UserPreferencesRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
         this.objectMapper = objectMapper;

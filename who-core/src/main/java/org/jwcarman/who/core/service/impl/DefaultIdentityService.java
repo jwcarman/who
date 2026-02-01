@@ -23,13 +23,26 @@ import org.jwcarman.who.core.service.IdentityService;
 import java.util.UUID;
 
 /**
- * Core implementation of IdentityService with business logic.
+ * Default implementation of {@link IdentityService} with business logic.
+ * <p>
+ * This implementation manages the linking and unlinking of external identities (from OAuth2/JWT
+ * providers) to internal user accounts, enforcing rules to prevent:
+ * <ul>
+ *   <li>Linking an external identity that's already linked to a different user</li>
+ *   <li>Unlinking identities from users they're not associated with</li>
+ * </ul>
  */
 public class DefaultIdentityService implements IdentityService {
 
     private final UserRepository userRepository;
     private final ExternalIdentityRepository externalIdentityRepository;
 
+    /**
+     * Constructs a new DefaultIdentityService with required repositories.
+     *
+     * @param userRepository repository for user persistence
+     * @param externalIdentityRepository repository for external identity mappings
+     */
     public DefaultIdentityService(UserRepository userRepository,
                                 ExternalIdentityRepository externalIdentityRepository) {
         this.userRepository = userRepository;

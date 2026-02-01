@@ -29,7 +29,10 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Core implementation of UserService with business logic.
+ * Default implementation of {@link UserService} with business logic.
+ * <p>
+ * This implementation coordinates user lifecycle operations across multiple repositories
+ * and enforces business rules such as validation of user and role existence.
  */
 public class DefaultUserService implements UserService {
 
@@ -38,6 +41,14 @@ public class DefaultUserService implements UserService {
     private final UserRoleRepository userRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
 
+    /**
+     * Constructs a new DefaultUserService with required repositories.
+     *
+     * @param userRepository repository for user persistence
+     * @param roleRepository repository for role persistence
+     * @param userRoleRepository repository for user-role assignments
+     * @param rolePermissionRepository repository for role-permission assignments
+     */
     public DefaultUserService(UserRepository userRepository,
                            RoleRepository roleRepository,
                            UserRoleRepository userRoleRepository,
