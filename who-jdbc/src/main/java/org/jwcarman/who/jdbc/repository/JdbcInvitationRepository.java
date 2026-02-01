@@ -161,8 +161,6 @@ public class JdbcInvitationRepository implements InvitationRepository {
                 WHERE 1=1
                 """);
 
-        JdbcClient.StatementSpec spec = jdbcClient.sql("");
-
         if (status != null) {
             sql.append(" AND status = :status");
         }
@@ -170,7 +168,7 @@ public class JdbcInvitationRepository implements InvitationRepository {
             sql.append(" AND created_at >= :since");
         }
 
-        spec = jdbcClient.sql(sql.toString());
+        JdbcClient.StatementSpec spec = jdbcClient.sql(sql.toString());
 
         if (status != null) {
             spec = spec.param(PARAM_STATUS, status.name());

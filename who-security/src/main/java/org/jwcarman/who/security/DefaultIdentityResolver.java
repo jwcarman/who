@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.security;
 
+import org.jwcarman.who.core.domain.ExternalIdentity;
 import org.jwcarman.who.core.domain.ExternalIdentityKey;
 import org.jwcarman.who.core.repository.ExternalIdentityRepository;
 import org.jwcarman.who.core.service.UserProvisioningPolicy;
@@ -72,7 +73,7 @@ public class DefaultIdentityResolver implements IdentityResolver {
     @Override
     public UUID resolveUserId(ExternalIdentityKey identityKey) {
         return repository.findByIssuerAndSubject(identityKey.issuer(), identityKey.subject())
-            .map(identity -> identity.userId())
+            .map(ExternalIdentity::userId)
             .orElseGet(() -> provisioningPolicy.handleUnknownIdentity(identityKey));
     }
 }

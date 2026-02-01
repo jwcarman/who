@@ -60,9 +60,9 @@ class AutoProvisionIdentityPolicyTest {
 
         verify(userService).createUser(UserStatus.ACTIVE);
         verify(identityService).linkExternalIdentity(
-            eq(userId),
-            eq("https://auth.example.com"),
-            eq("user123")
+            userId,
+            "https://auth.example.com",
+            "user123"
         );
     }
 
@@ -82,9 +82,9 @@ class AutoProvisionIdentityPolicyTest {
 
         verify(userService).createUser(UserStatus.ACTIVE);
         verify(identityService).linkExternalIdentity(
-            eq(userId),
-            eq("https://sso.company.com"),
-            eq("employee456")
+            userId,
+            "https://sso.company.com",
+            "employee456"
         );
     }
 }

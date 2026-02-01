@@ -78,7 +78,7 @@ class DefaultContactMethodServiceTest {
         assertThat(result.verified()).isFalse();
         verify(repository).save(any(ContactMethod.class));
         verify(userRepository).findById(userId);
-        verify(notifier).notifyContactAdded(eq(savedContact), eq(user));
+        verify(notifier).notifyContactAdded(savedContact, user);
     }
 
     @Test
@@ -100,7 +100,7 @@ class DefaultContactMethodServiceTest {
         assertThat(result.verifiedAt()).isNotNull();
         verify(repository).save(any(ContactMethod.class));
         verify(userRepository).findById(userId);
-        verify(notifier).notifyContactAdded(eq(savedContact), eq(user));
+        verify(notifier).notifyContactAdded(savedContact, user);
     }
 
     @Test
@@ -145,8 +145,7 @@ class DefaultContactMethodServiceTest {
 
         List<ContactMethod> result = service.findByUserId(userId);
 
-        assertThat(result).hasSize(2);
-        assertThat(result).isEqualTo(contacts);
+        assertThat(result).hasSize(2).isEqualTo(contacts);
         verify(repository).findByUserId(userId);
     }
 
