@@ -159,8 +159,7 @@ class DefaultContactMethodServiceTest {
 
         Optional<ContactMethod> result = service.findByUserIdAndType(userId, ContactType.EMAIL);
 
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(contact);
+        assertThat(result).contains(contact);
         verify(repository).findByUserIdAndType(userId, ContactType.EMAIL);
     }
 

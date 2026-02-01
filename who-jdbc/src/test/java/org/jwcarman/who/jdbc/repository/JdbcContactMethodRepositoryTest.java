@@ -95,9 +95,10 @@ class JdbcContactMethodRepositoryTest {
         Optional<ContactMethod> found = contactMethodRepository.findById(contactMethod.id());
 
         // Then
-        assertThat(found).isPresent();
-        assertThat(found.get().verified()).isTrue();
-        assertThat(found.get().verifiedAt()).isNotNull();
+        assertThat(found).hasValueSatisfying(contact -> {
+            assertThat(contact.verified()).isTrue();
+            assertThat(contact.verifiedAt()).isNotNull();
+        });
     }
 
     @Test
@@ -224,8 +225,8 @@ class JdbcContactMethodRepositoryTest {
         );
 
         // Then
-        assertThat(found).isPresent();
-        assertThat(found.get().value()).isEqualTo("test@example.com");
+        assertThat(found).hasValueSatisfying(contact ->
+            assertThat(contact.value()).isEqualTo("test@example.com"));
     }
 
     @Test
