@@ -18,18 +18,20 @@ package org.jwcarman.who.autoconfig;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.EmbeddedDatabaseConnection;
+import org.springframework.boot.sql.init.DatabaseInitializationMode;
+import org.springframework.boot.sql.init.DatabaseInitializationSettings;
 import org.springframework.boot.sql.init.dependency.DatabaseInitializationDependencyConfigurer;
+import org.springframework.boot.sql.init.SqlDataSourceScriptDatabaseInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.datasource.init.DataSourceInitializer;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import javax.sql.DataSource;
+import java.util.List;
 
 /**
  * Auto-configuration for Who JDBC schema initialization.
+ * Uses Spring Boot's built-in SQL initialization with automatic platform detection.
  */
 @Configuration
 @ConditionalOnClass(DataSource.class)
@@ -38,45 +40,31 @@ import javax.sql.DataSource;
 public class WhoJdbcInitializationConfiguration {
 
     @Bean
-    public DataSourceInitializer whoDataSourceInitializer(DataSource dataSource, WhoJdbcProperties properties) {
-        DataSourceInitializer initializer = new DataSourceInitializer();
-        initializer.setDataSource(dataSource);
+    public SqlDataSourceScriptDatabaseInitializer whoDataSourceInitializer(
+            DataSource dataSource,
+            WhoJdbcProperties properties) {
 
-        // Determine if initialization should be enabled
-        boolean enabled = shouldInitialize(dataSource, properties.getInitializeSchema());
-        initializer.setEnabled(enabled);
+        DatabaseInitializationSettings settings = new DatabaseInitializationSettings();
+        settings.setSchemaLocations(List.of("classpath:org/jwcarman/who/jdbc/schema.sql"));
+        settings.setDataLocations(List.of("classpath:org/jwcarman/who/jdbc/data.sql"));
+        settings.setContinueOnError(false);
 
-        if (enabled) {
-            ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
-            populator.addScript(new ClassPathResource("org/jwcarman/who/jdbc/schema.sql"));
+        // Map our mode to Spring Boot's mode
+        settings.setMode(mapMode(dataSource, properties.getInitializeSchema()));
 
-            // Use database-specific data file
-            String dataScript = getDataScript(dataSource);
-            populator.addScript(new ClassPathResource(dataScript));
-            populator.setContinueOnError(false);
-            initializer.setDatabasePopulator(populator);
-        }
-
-        return initializer;
+        return new SqlDataSourceScriptDatabaseInitializer(dataSource, settings);
     }
 
-    private String getDataScript(DataSource dataSource) {
-        // Check if H2 embedded database
-        if (EmbeddedDatabaseConnection.isEmbedded(dataSource)) {
-            EmbeddedDatabaseConnection connection = EmbeddedDatabaseConnection.get(dataSource.getClass().getClassLoader());
-            if (connection == EmbeddedDatabaseConnection.H2) {
-                return "org/jwcarman/who/jdbc/data-h2.sql";
-            }
-        }
-        // Default to PostgreSQL
-        return "org/jwcarman/who/jdbc/data-postgresql.sql";
-    }
+    private DatabaseInitializationMode mapMode(
+            DataSource dataSource,
+            WhoJdbcProperties.DatabaseInitializationMode mode) {
 
-    private boolean shouldInitialize(DataSource dataSource, WhoJdbcProperties.DatabaseInitializationMode mode) {
         return switch (mode) {
-            case ALWAYS -> true;
-            case EMBEDDED -> EmbeddedDatabaseConnection.isEmbedded(dataSource);
-            case NEVER -> false;
+            case ALWAYS -> DatabaseInitializationMode.ALWAYS;
+            case EMBEDDED -> EmbeddedDatabaseConnection.isEmbedded(dataSource)
+                    ? DatabaseInitializationMode.ALWAYS
+                    : DatabaseInitializationMode.NEVER;
+            case NEVER -> DatabaseInitializationMode.NEVER;
         };
     }
 }
