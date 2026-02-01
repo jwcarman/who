@@ -88,5 +88,22 @@ public class WhoAuthenticationConverter implements Converter<Jwt, AbstractAuthen
         public Object getPrincipal() {
             return principal;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            if (!super.equals(o)) return false;
+
+            WhoAuthenticationToken that = (WhoAuthenticationToken) o;
+            return principal.equals(that.principal);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = super.hashCode();
+            result = 31 * result + principal.hashCode();
+            return result;
+        }
     }
 }
