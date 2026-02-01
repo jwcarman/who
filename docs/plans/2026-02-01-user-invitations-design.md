@@ -129,22 +129,19 @@ public interface InvitationService {
 
     /**
      * Accept invitation after OAuth authentication.
+     * Extracts JWT claims from SecurityContext (JwtAuthenticationToken).
      * Creates User, links ExternalIdentity, assigns Role, optionally creates verified ContactMethod.
      *
      * @param token the invitation token
-     * @param email the email from JWT
-     * @param emailVerified the email_verified claim from JWT
-     * @param issuer the iss claim from JWT
-     * @param subject the sub claim from JWT
      * @return the accepted invitation
      * @throws InvitationNotFoundException if token invalid
      * @throws InvitationExpiredException if expired
      * @throws InvitationAlreadyAcceptedException if already used
      * @throws EmailMismatchException if JWT email doesn't match invitation email
-     * @throws EmailNotVerifiedException if require-verified-email is true but emailVerified is false
+     * @throws EmailNotVerifiedException if require-verified-email is true but email not verified
+     * @throws IllegalStateException if SecurityContext doesn't contain JwtAuthenticationToken
      */
-    Invitation accept(String token, String email, boolean emailVerified,
-                     String issuer, String subject);
+    Invitation accept(String token);
 
     /**
      * Revoke pending invitation.
@@ -200,24 +197,15 @@ public class InvitationController {
 
     /**
      * Accept invitation.
-     * Extracts JWT claims correctly to enforce security settings.
+     * Service extracts JWT claims from SecurityContext.
+     *
+     * Note: This endpoint requires a separate SecurityFilterChain that uses JWT validation
+     * without WhoAuthenticationConverter (since user doesn't exist yet).
+     * See "Security Configuration" section for example.
      */
     @PostMapping("/accept")
-    public InvitationResponse accept(
-        @RequestParam String token,
-        @AuthenticationPrincipal Jwt jwt) {  // Get JWT before WhoPrincipal conversion
-
-        String email = jwt.getClaimAsString("email");
-        Boolean emailVerified = jwt.getClaimAsBoolean("email_verified");
-        String issuer = jwt.getClaimAsString("iss");
-        String subject = jwt.getClaimAsString("sub");
-
-        Invitation invitation = invitationService.accept(
-            token, email,
-            emailVerified != null && emailVerified,
-            issuer, subject
-        );
-
+    public InvitationResponse accept(@RequestParam String token) {
+        Invitation invitation = invitationService.accept(token);
         return InvitationResponse.from(invitation);
     }
 
@@ -244,6 +232,95 @@ public class InvitationController {
             .stream()
             .map(InvitationResponse::from)
             .toList();
+    }
+}
+```
+
+## Security Configuration
+
+### Separate Filter Chain for Invitation Acceptance
+
+The `/api/invitations/accept` endpoint requires special security configuration. Since the user doesn't exist yet at invitation acceptance time, we can't use `WhoAuthenticationConverter` (which looks up users). Instead, use a separate filter chain with JWT validation only.
+
+**Application must configure:**
+
+```java
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    @Order(1)  // IMPORTANT: Before main API filter chain
+    public SecurityFilterChain invitationAcceptanceFilterChain(
+            HttpSecurity http,
+            JwtDecoder jwtDecoder) throws Exception {
+        http
+            .securityMatcher("/api/invitations/accept")
+            .authorizeHttpRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.decoder(jwtDecoder))  // JWT validation only, no custom converter
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)  // Main API filter chain with WhoAuthenticationConverter
+    public SecurityFilterChain apiSecurityFilterChain(
+            HttpSecurity http,
+            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter) throws Exception {
+        http
+            .securityMatcher("/api/**")
+            .authorizeHttpRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))  // Uses WhoAuthenticationConverter
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable());
+
+        return http.build();
+    }
+}
+```
+
+**Why this works:**
+1. Order(1) chain matches `/api/invitations/accept` first
+2. Uses standard JWT validation → creates `JwtAuthenticationToken` in SecurityContext
+3. `InvitationService.accept()` extracts `Jwt` from `JwtAuthenticationToken`
+4. Service validates claims, creates user, links identity
+5. Subsequent requests use Order(2) chain with `WhoPrincipal`
+
+**Service implementation extracts JWT:**
+```java
+@Service
+public class DefaultInvitationService implements InvitationService {
+
+    @Override
+    public Invitation accept(String token) {
+        // Extract JWT from SecurityContext
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!(auth instanceof JwtAuthenticationToken jwtAuth)) {
+            throw new IllegalStateException(
+                "Expected JwtAuthenticationToken. Ensure invitation acceptance endpoint " +
+                "uses separate filter chain with JWT validation only."
+            );
+        }
+
+        Jwt jwt = jwtAuth.getToken();
+        String email = jwt.getClaimAsString("email");
+        Boolean emailVerified = jwt.getClaimAsBoolean("email_verified");
+        String issuer = jwt.getClaimAsString("iss");
+        String subject = jwt.getClaimAsString("sub");
+
+        // Validate and process invitation...
+        return processAcceptance(token, email, emailVerified, issuer, subject);
     }
 }
 ```
