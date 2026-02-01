@@ -238,11 +238,83 @@ public class InvitationController {
 
 ## Security Configuration
 
-### Separate Filter Chain for Invitation Acceptance
+### Automatic Filter Chain Configuration (Default)
 
-The `/api/invitations/accept` endpoint requires special security configuration. Since the user doesn't exist yet at invitation acceptance time, we can't use `WhoAuthenticationConverter` (which looks up users). Instead, use a separate filter chain with JWT validation only.
+By default, Who library auto-configures the necessary security filter chains for invitation acceptance and API endpoints. This provides drop-in ready functionality with sensible defaults.
 
-**Application must configure:**
+**Default configuration (zero-config required):**
+```yaml
+who:
+  security:
+    create-filter-chains: true                        # Default - Who creates filter chains automatically
+    invitation-accept-path: /api/invitations/accept   # Configurable path for invitation acceptance
+    api-path-pattern: /api/**                         # Configurable pattern for API endpoints
+```
+
+**Who's autoconfiguration provides:**
+```java
+@Bean
+@Order(100)
+@ConditionalOnProperty(prefix = "who.security", name = "create-filter-chains",
+                       havingValue = "true", matchIfMissing = true)
+@ConditionalOnMissingBean(name = "whoInvitationSecurityFilterChain")
+public SecurityFilterChain whoInvitationSecurityFilterChain(
+        HttpSecurity http,
+        JwtDecoder jwtDecoder,
+        WhoProperties properties) throws Exception {
+    http
+        .securityMatcher(properties.getSecurity().getInvitationAcceptPath())
+        .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+        .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder)))
+        .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+        .csrf(csrf -> csrf.disable());
+    return http.build();
+}
+
+@Bean
+@Order(200)
+@ConditionalOnProperty(prefix = "who.security", name = "create-filter-chains",
+                       havingValue = "true", matchIfMissing = true)
+@ConditionalOnMissingBean(name = "whoApiSecurityFilterChain")
+public SecurityFilterChain whoApiSecurityFilterChain(
+        HttpSecurity http,
+        Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter,
+        WhoProperties properties) throws Exception {
+    http
+        .securityMatcher(properties.getSecurity().getApiPathPattern())
+        .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+        .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
+        .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+        .csrf(csrf -> csrf.disable());
+    return http.build();
+}
+```
+
+### Configuration Options
+
+**Option 1: Use defaults (recommended for most applications)**
+```yaml
+# No configuration needed - Who creates filter chains with default paths
+```
+
+**Option 2: Customize paths**
+```yaml
+who:
+  security:
+    invitation-accept-path: /auth/invite/accept  # Custom path
+    api-path-pattern: /v1/api/**                 # Custom pattern
+```
+
+**Option 3: Full manual control**
+```yaml
+who:
+  security:
+    create-filter-chains: false  # Disable auto-configuration, provide your own
+```
+
+### Manual Filter Chain Configuration (Optional)
+
+If you set `create-filter-chains: false` or need complete control, configure manually:
 
 ```java
 @Configuration
@@ -544,6 +616,25 @@ public class WhoProperties {
     private Invitations invitations = new Invitations();
 
     public static class Security {
+        /**
+         * Auto-create security filter chains for invitation acceptance and API endpoints.
+         * When true, Who configures opinionated defaults. Set false for full manual control.
+         * Default: true
+         */
+        private boolean createFilterChains = true;
+
+        /**
+         * Path for invitation acceptance endpoint (only used if createFilterChains is true).
+         * Default: /api/invitations/accept
+         */
+        private String invitationAcceptPath = "/api/invitations/accept";
+
+        /**
+         * Path pattern for API endpoints (only used if createFilterChains is true).
+         * Default: /api/**
+         */
+        private String apiPathPattern = "/api/**";
+
         /**
          * Reject authentication if email_verified claim is false.
          * Default: true
