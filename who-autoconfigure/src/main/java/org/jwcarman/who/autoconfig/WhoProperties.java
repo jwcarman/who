@@ -25,6 +25,7 @@ public class WhoProperties {
 
     private Web web = new Web();
     private Provisioning provisioning = new Provisioning();
+    private Invitation invitation = new Invitation();
 
     public Web getWeb() {
         return web;
@@ -40,6 +41,14 @@ public class WhoProperties {
 
     public void setProvisioning(Provisioning provisioning) {
         this.provisioning = provisioning;
+    }
+
+    public Invitation getInvitation() {
+        return invitation;
+    }
+
+    public void setInvitation(Invitation invitation) {
+        this.invitation = invitation;
     }
 
     public static class Web {
@@ -71,6 +80,51 @@ public class WhoProperties {
 
         public void setAutoProvision(boolean autoProvision) {
             this.autoProvision = autoProvision;
+        }
+    }
+
+    public static class Invitation {
+        /**
+         * Number of hours before an invitation expires.
+         * Default is 24 hours.
+         */
+        private int expirationHours = 24;
+
+        /**
+         * Whether to require verified email before accepting invitation.
+         * Default is true.
+         */
+        private boolean requireVerifiedEmail = true;
+
+        /**
+         * Whether to trust email verification from the issuer.
+         * If true, emails verified by the issuer are automatically trusted.
+         * Default is false.
+         */
+        private boolean trustIssuerVerification = false;
+
+        public int getExpirationHours() {
+            return expirationHours;
+        }
+
+        public void setExpirationHours(int expirationHours) {
+            this.expirationHours = expirationHours;
+        }
+
+        public boolean isRequireVerifiedEmail() {
+            return requireVerifiedEmail;
+        }
+
+        public void setRequireVerifiedEmail(boolean requireVerifiedEmail) {
+            this.requireVerifiedEmail = requireVerifiedEmail;
+        }
+
+        public boolean isTrustIssuerVerification() {
+            return trustIssuerVerification;
+        }
+
+        public void setTrustIssuerVerification(boolean trustIssuerVerification) {
+            this.trustIssuerVerification = trustIssuerVerification;
         }
     }
 }

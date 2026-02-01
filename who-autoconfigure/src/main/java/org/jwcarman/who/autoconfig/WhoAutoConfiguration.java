@@ -130,9 +130,21 @@ public class WhoAutoConfiguration {
                                                 InvitationNotifier invitationNotifier,
                                                 UserService userService,
                                                 IdentityService identityService,
-                                                ContactMethodService contactMethodService) {
-        return new DefaultInvitationService(invitationRepository, invitationNotifier, userService,
-                identityService, contactMethodService);
+                                                ContactMethodService contactMethodService,
+                                                ContactMethodRepository contactMethodRepository,
+                                                RoleRepository roleRepository,
+                                                WhoProperties properties) {
+        return new DefaultInvitationService(
+                invitationRepository,
+                invitationNotifier,
+                userService,
+                identityService,
+                contactMethodService,
+                contactMethodRepository,
+                roleRepository,
+                properties.getInvitation().getExpirationHours(),
+                properties.getInvitation().isRequireVerifiedEmail(),
+                properties.getInvitation().isTrustIssuerVerification());
     }
 
     @Bean
