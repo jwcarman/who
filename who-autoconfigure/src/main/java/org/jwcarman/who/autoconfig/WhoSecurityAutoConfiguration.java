@@ -21,8 +21,10 @@ import org.jwcarman.who.security.WhoAuthenticationConverter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 /**
  * Auto-configuration for Who Spring Security integration.
@@ -33,17 +35,9 @@ public class WhoSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtAuthenticationConverter jwtAuthenticationConverter(
+    public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter(
             IdentityResolver identityResolver,
             UserService userService) {
-        WhoAuthenticationConverter converter =
-            new WhoAuthenticationConverter(identityResolver, userService);
-
-        JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
-        jwtConverter.setJwtGrantedAuthoritiesConverter(jwt ->
-            converter.convert(jwt).getAuthorities());
-        jwtConverter.setPrincipalClaimName("sub");
-
-        return jwtConverter;
+        return new WhoAuthenticationConverter(identityResolver, userService);
     }
 }
