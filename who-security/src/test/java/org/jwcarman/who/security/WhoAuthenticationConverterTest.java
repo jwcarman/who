@@ -28,7 +28,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
