@@ -84,32 +84,23 @@ public class SimpleInvitationNotifier implements InvitationNotifier {
     public void sendInvitation(Invitation invitation) {
         String acceptanceUrl = buildAcceptanceUrl(invitation.token());
 
-        log.info("=".repeat(80));
-        log.info("INVITATION NOTIFICATION");
-        log.info("=".repeat(80));
-        log.info("To: {}", invitation.email());
-        log.info("Role ID: {}", invitation.roleId());
-        log.info("Expires: {}", invitation.expiresAt());
-        log.info("Acceptance URL: {}", acceptanceUrl);
-        log.info("=".repeat(80));
-        log.info("");
-        log.info("In production, this would send an email containing:");
-        log.info("  - A personalized greeting");
-        log.info("  - Information about the role they're being invited to");
-        log.info("  - The acceptance link (valid until {})", invitation.expiresAt());
-        log.info("  - Instructions on what to do if they didn't expect this invitation");
-        log.info("=".repeat(80));
-
-        // Production implementation would do something like:
-        // emailService.send(
-        //     to: invitation.email(),
-        //     subject: "You've been invited to join our application",
-        //     body: renderTemplate("invitation-email.html", Map.of(
-        //         "acceptanceUrl", acceptanceUrl,
-        //         "expiresAt", invitation.expiresAt(),
-        //         "roleId", invitation.roleId()
-        //     ))
-        // );
+        if(log.isInfoEnabled()){
+            log.info("=".repeat(80));
+            log.info("INVITATION NOTIFICATION");
+            log.info("=".repeat(80));
+            log.info("To: {}", invitation.email());
+            log.info("Role ID: {}", invitation.roleId());
+            log.info("Expires: {}", invitation.expiresAt());
+            log.info("Acceptance URL: {}", acceptanceUrl);
+            log.info("=".repeat(80));
+            log.info("");
+            log.info("In production, this would send an email containing:");
+            log.info("  - A personalized greeting");
+            log.info("  - Information about the role they're being invited to");
+            log.info("  - The acceptance link (valid until {})", invitation.expiresAt());
+            log.info("  - Instructions on what to do if they didn't expect this invitation");
+            log.info("=".repeat(80));
+        }
     }
 
     /**
