@@ -22,7 +22,6 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -57,7 +56,6 @@ public class SecurityConfig {
     private static final KeyPair KEY_PAIR = generateRsaKey();
 
     @Bean
-    @Order(0)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) {
         http
             .securityMatcher("/oauth2/**", "/.well-known/**")
@@ -70,7 +68,6 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Order(3)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) {
         http
             .authorizeHttpRequests(authorize -> authorize
