@@ -40,7 +40,7 @@ class ExternalIdentityKeyTest {
 
         assertThat(key1)
             .isEqualTo(key2)
-            .hasSameHashCodeAs(key2);
-        assertThat(key1).isNotEqualTo(key3);
+            .hasSameHashCodeAs(key2)
+            .isNotEqualTo(key3);
     }
 }
