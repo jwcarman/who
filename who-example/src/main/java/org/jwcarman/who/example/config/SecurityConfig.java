@@ -54,6 +54,7 @@ import java.util.UUID;
 public class SecurityConfig {
 
     private static final KeyPair KEY_PAIR = generateRsaKey();
+    private static final String DEFAULT_PASSWORD = "password";
 
     @Bean
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) {
@@ -109,19 +110,19 @@ public class SecurityConfig {
 
         UserDetails alice = User.builder()
             .username("alice")
-            .password(encoder.encode("password"))
+            .password(encoder.encode(DEFAULT_PASSWORD))
             .authorities("ROLE_USER")
             .build();
 
         UserDetails bob = User.builder()
             .username("bob")
-            .password(encoder.encode("password"))
+            .password(encoder.encode(DEFAULT_PASSWORD))
             .authorities("ROLE_USER")
             .build();
 
         UserDetails admin = User.builder()
             .username("admin")
-            .password(encoder.encode("password"))
+            .password(encoder.encode(DEFAULT_PASSWORD))
             .authorities("ROLE_ADMIN")
             .build();
 
