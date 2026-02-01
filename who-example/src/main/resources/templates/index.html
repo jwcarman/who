@@ -132,10 +132,26 @@
             </div>
         </div>
 
-        <h2>🚀 Try It Out</h2>
-        <p>Click the button below to start the OAuth2 authorization flow. You'll be asked to log in, and after authentication, you'll receive an authorization code that can be exchanged for a JWT access token.</p>
+        <h2>🎯 Interactive Task Manager</h2>
+        <p>Try the full-featured task management application with OAuth2 authentication:</p>
 
-        <a th:href="${authUrl}" class="btn">Start OAuth2 Flow →</a>
+        <a href="/tasks.html" class="btn">Open Task Manager →</a>
+
+        <div class="info-box">
+            <strong>ℹ️ Features:</strong>
+            <ul>
+                <li>Complete OAuth2 Authorization Code Flow with PKCE</li>
+                <li>Client-side SPA with automatic token refresh</li>
+                <li>Create, read, update, and delete tasks</li>
+                <li>Demonstrates Who library permission-based access control</li>
+                <li>Each user sees only their own tasks</li>
+            </ul>
+        </div>
+
+        <h2>🚀 Advanced: OAuth2 Flow with curl</h2>
+        <p>For advanced users, you can manually test the OAuth2 authorization flow and exchange codes for tokens:</p>
+
+        <a th:href="${authUrl}" class="btn btn-secondary">Start OAuth2 Flow →</a>
 
         <div class="info-box">
             <strong>ℹ️ What happens next:</strong>
