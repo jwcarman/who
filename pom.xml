@@ -227,6 +227,14 @@
         </profile>
         <profile>
             <id>release</id>
+            <modules>
+                <module>who-core</module>
+                <module>who-jdbc</module>
+                <module>who-security</module>
+                <module>who-web</module>
+                <module>who-autoconfigure</module>
+                <module>who-spring-boot-starter</module>
+            </modules>
             <build>
                 <plugins>
                     <plugin>
