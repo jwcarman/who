@@ -45,7 +45,7 @@
         </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-jpa</artifactId>
+            <artifactId>who-jdbc</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
