@@ -307,6 +307,114 @@
             window.location.reload();
         }
 
+        // ============================================================================
+        // API Client
+        // ============================================================================
+
+        /**
+         * Make authenticated API request with automatic token refresh
+         */
+        async function apiRequest(url, options = {}) {
+            // Ensure we have a valid token
+            if (isTokenExpired()) {
+                try {
+                    await refreshAccessToken();
+                } catch (e) {
+                    console.error('Token refresh failed:', e);
+                    logout();
+                    throw e;
+                }
+            }
+
+            const token = getAccessToken();
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            // Add Authorization header
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            // Handle 401 Unauthorized - token might be invalid
+            if (response.status === 401) {
+                try {
+                    await refreshAccessToken();
+                    // Retry request with new token
+                    headers.Authorization = `Bearer ${getAccessToken()}`;
+                    return await fetch(url, { ...options, headers });
+                } catch (e) {
+                    logout();
+                    throw e;
+                }
+            }
+
+            return response;
+        }
+
+        /**
+         * Fetch all tasks for current user
+         */
+        async function fetchTasks() {
+            const response = await apiRequest('/api/tasks');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tasks: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        /**
+         * Create a new task
+         */
+        async function createTask(task) {
+            const response = await apiRequest('/api/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(task)
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to create task: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        /**
+         * Update an existing task
+         */
+        async function updateTask(id, task) {
+            const response = await apiRequest(`/api/tasks/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(task)
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to update task: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        /**
+         * Delete a task
+         */
+        async function deleteTask(id) {
+            const response = await apiRequest(`/api/tasks/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to delete task: ${response.status}`);
+            }
+        }
+
         // Application will go here
         console.log('Task Manager SPA loaded');
     </script>
