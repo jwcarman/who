@@ -15,22 +15,30 @@
  */
 package org.jwcarman.who.autoconfig;
 
+import org.jwcarman.who.core.repository.ContactMethodRepository;
 import org.jwcarman.who.core.repository.ExternalIdentityRepository;
+import org.jwcarman.who.core.repository.InvitationRepository;
 import org.jwcarman.who.core.repository.PermissionRepository;
 import org.jwcarman.who.core.repository.RolePermissionRepository;
 import org.jwcarman.who.core.repository.RoleRepository;
 import org.jwcarman.who.core.repository.UserPreferencesRepository;
 import org.jwcarman.who.core.repository.UserRepository;
 import org.jwcarman.who.core.repository.UserRoleRepository;
+import org.jwcarman.who.core.service.ContactMethodService;
 import org.jwcarman.who.core.service.IdentityService;
+import org.jwcarman.who.core.service.InvitationService;
 import org.jwcarman.who.core.service.PreferencesService;
 import org.jwcarman.who.core.service.RbacService;
 import org.jwcarman.who.core.service.UserProvisioningPolicy;
 import org.jwcarman.who.core.service.UserService;
+import org.jwcarman.who.core.service.impl.DefaultContactMethodService;
 import org.jwcarman.who.core.service.impl.DefaultIdentityService;
+import org.jwcarman.who.core.service.impl.DefaultInvitationService;
 import org.jwcarman.who.core.service.impl.DefaultPreferencesService;
 import org.jwcarman.who.core.service.impl.DefaultRbacService;
 import org.jwcarman.who.core.service.impl.DefaultUserService;
+import org.jwcarman.who.core.spi.ContactConfirmationNotifier;
+import org.jwcarman.who.core.spi.InvitationNotifier;
 import org.jwcarman.who.security.AutoProvisionIdentityPolicy;
 import org.jwcarman.who.security.DefaultIdentityResolver;
 import org.jwcarman.who.security.DenyUnknownIdentityPolicy;
@@ -114,5 +122,24 @@ public class WhoAutoConfiguration {
     @ConditionalOnProperty(name = "who.provisioning.auto-provision", havingValue = "false", matchIfMissing = true)
     public UserProvisioningPolicy denyUnknownPolicy() {
         return new DenyUnknownIdentityPolicy();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public InvitationService invitationService(InvitationRepository invitationRepository,
+                                                InvitationNotifier invitationNotifier,
+                                                UserService userService,
+                                                IdentityService identityService,
+                                                ContactMethodService contactMethodService) {
+        return new DefaultInvitationService(invitationRepository, invitationNotifier, userService,
+                identityService, contactMethodService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ContactMethodService contactMethodService(ContactMethodRepository contactMethodRepository,
+                                                       UserRepository userRepository,
+                                                       ContactConfirmationNotifier contactConfirmationNotifier) {
+        return new DefaultContactMethodService(contactMethodRepository, userRepository, contactConfirmationNotifier);
     }
 }

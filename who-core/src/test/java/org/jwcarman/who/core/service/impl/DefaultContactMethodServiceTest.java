@@ -20,12 +20,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.domain.ContactMethod;
 import org.jwcarman.who.core.domain.ContactType;
+import org.jwcarman.who.core.domain.User;
+import org.jwcarman.who.core.domain.UserStatus;
 import org.jwcarman.who.core.repository.ContactMethodRepository;
+import org.jwcarman.who.core.repository.UserRepository;
 import org.jwcarman.who.core.service.ContactMethodService;
 import org.jwcarman.who.core.spi.ContactConfirmationNotifier;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +37,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,21 +48,26 @@ class DefaultContactMethodServiceTest {
     private ContactMethodRepository repository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ContactConfirmationNotifier notifier;
 
     private ContactMethodService service;
 
     @BeforeEach
     void setUp() {
-        service = new DefaultContactMethodService(repository, notifier);
+        service = new DefaultContactMethodService(repository, userRepository, notifier);
     }
 
     @Test
     void createUnverified_createsAndSavesUnverifiedContactMethod() {
         UUID userId = UUID.randomUUID();
+        User user = new User(userId, UserStatus.ACTIVE, Instant.now(), Instant.now());
         ContactMethod savedContact = ContactMethod.createUnverified(userId, ContactType.EMAIL, "alice@example.com");
 
         when(repository.save(any(ContactMethod.class))).thenReturn(savedContact);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         ContactMethod result = service.createUnverified(userId, ContactType.EMAIL, "alice@example.com");
 
@@ -67,14 +77,18 @@ class DefaultContactMethodServiceTest {
         assertThat(result.value()).isEqualTo("alice@example.com");
         assertThat(result.verified()).isFalse();
         verify(repository).save(any(ContactMethod.class));
+        verify(userRepository).findById(userId);
+        verify(notifier).notifyContactAdded(eq(savedContact), eq(user));
     }
 
     @Test
     void createVerified_createsAndSavesVerifiedContactMethod() {
         UUID userId = UUID.randomUUID();
+        User user = new User(userId, UserStatus.ACTIVE, Instant.now(), Instant.now());
         ContactMethod savedContact = ContactMethod.createVerified(userId, ContactType.EMAIL, "bob@example.com");
 
         when(repository.save(any(ContactMethod.class))).thenReturn(savedContact);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         ContactMethod result = service.createVerified(userId, ContactType.EMAIL, "bob@example.com");
 
@@ -85,6 +99,8 @@ class DefaultContactMethodServiceTest {
         assertThat(result.verified()).isTrue();
         assertThat(result.verifiedAt()).isNotNull();
         verify(repository).save(any(ContactMethod.class));
+        verify(userRepository).findById(userId);
+        verify(notifier).notifyContactAdded(eq(savedContact), eq(user));
     }
 
     @Test

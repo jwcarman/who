@@ -17,7 +17,9 @@ package org.jwcarman.who.core.service.impl;
 
 import org.jwcarman.who.core.domain.ContactMethod;
 import org.jwcarman.who.core.domain.ContactType;
+import org.jwcarman.who.core.domain.User;
 import org.jwcarman.who.core.repository.ContactMethodRepository;
+import org.jwcarman.who.core.repository.UserRepository;
 import org.jwcarman.who.core.service.ContactMethodService;
 import org.jwcarman.who.core.spi.ContactConfirmationNotifier;
 
@@ -31,24 +33,39 @@ import java.util.UUID;
 public class DefaultContactMethodService implements ContactMethodService {
 
     private final ContactMethodRepository repository;
+    private final UserRepository userRepository;
     private final ContactConfirmationNotifier notifier;
 
     public DefaultContactMethodService(ContactMethodRepository repository,
+                                     UserRepository userRepository,
                                      ContactConfirmationNotifier notifier) {
         this.repository = repository;
+        this.userRepository = userRepository;
         this.notifier = notifier;
     }
 
     @Override
     public ContactMethod createUnverified(UUID userId, ContactType type, String value) {
         ContactMethod contactMethod = ContactMethod.createUnverified(userId, type, value);
-        return repository.save(contactMethod);
+        ContactMethod saved = repository.save(contactMethod);
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        notifier.notifyContactAdded(saved, user);
+
+        return saved;
     }
 
     @Override
     public ContactMethod createVerified(UUID userId, ContactType type, String value) {
         ContactMethod contactMethod = ContactMethod.createVerified(userId, type, value);
-        return repository.save(contactMethod);
+        ContactMethod saved = repository.save(contactMethod);
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        notifier.notifyContactAdded(saved, user);
+
+        return saved;
     }
 
     @Override
