@@ -2,8 +2,8 @@
 CREATE TABLE IF NOT EXISTS who_user (
     id UUID PRIMARY KEY,
     status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    created_at TIMESTAMP(9) NOT NULL,
+    updated_at TIMESTAMP(9) NOT NULL
 );
 
 -- Role table
@@ -64,9 +64,9 @@ CREATE TABLE IF NOT EXISTS who_invitation (
     token VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(20) NOT NULL,
     invited_by UUID NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    accepted_at TIMESTAMP,
+    created_at TIMESTAMP(9) NOT NULL,
+    expires_at TIMESTAMP(9) NOT NULL,
+    accepted_at TIMESTAMP(9),
     FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE,
     FOREIGN KEY (invited_by) REFERENCES who_user(id) ON DELETE CASCADE
 );
@@ -78,8 +78,8 @@ CREATE TABLE IF NOT EXISTS who_contact_method (
     type VARCHAR(20) NOT NULL,
     "value" VARCHAR(255) NOT NULL,
     verified BOOLEAN NOT NULL DEFAULT FALSE,
-    verified_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP(9),
+    created_at TIMESTAMP(9) NOT NULL,
     FOREIGN KEY (user_id) REFERENCES who_user(id) ON DELETE CASCADE,
     UNIQUE (user_id, type),
     UNIQUE (type, "value")
