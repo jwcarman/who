@@ -43,7 +43,7 @@ public class WhoSecurityAutoConfiguration {
     @ConditionalOnMissingBean(name = "invitationAcceptanceFilterChain")
     public SecurityFilterChain invitationAcceptanceFilterChain(
             HttpSecurity http,
-            JwtDecoder jwtDecoder) throws Exception {
+            JwtDecoder jwtDecoder) {
         http
             .securityMatcher("/api/invitations/accept")
             .authorizeHttpRequests(authorize -> authorize
@@ -61,7 +61,7 @@ public class WhoSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter(
+    public WhoAuthenticationConverter jwtAuthenticationConverter(
             IdentityResolver identityResolver,
             UserService userService) {
         return new WhoAuthenticationConverter(identityResolver, userService);

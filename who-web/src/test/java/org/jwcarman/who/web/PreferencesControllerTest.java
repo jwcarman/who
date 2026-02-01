@@ -44,7 +44,7 @@ class PreferencesControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void shouldGetPreferences() throws Exception {
+    void shouldGetPreferences() {
         // Given
         UUID userId = UUID.randomUUID();
         WhoPrincipal principal = new WhoPrincipal(userId, Set.of());
@@ -52,7 +52,7 @@ class PreferencesControllerTest {
 
         JsonNode preferences = objectMapper.readTree("{\"theme\":\"dark\",\"fontSize\":14}");
         when(preferencesService.getPreferences(userId, namespace, JsonNode.class))
-            .thenReturn(preferences);
+                .thenReturn(preferences);
 
         // When
         JsonNode result = controller.getPreferences(principal, namespace);
@@ -63,7 +63,7 @@ class PreferencesControllerTest {
     }
 
     @Test
-    void shouldSetPreferences() throws Exception {
+    void shouldSetPreferences() {
         // Given
         UUID userId = UUID.randomUUID();
         WhoPrincipal principal = new WhoPrincipal(userId, Set.of());

@@ -261,7 +261,7 @@ who:
 public SecurityFilterChain whoInvitationSecurityFilterChain(
         HttpSecurity http,
         JwtDecoder jwtDecoder,
-        WhoProperties properties) throws Exception {
+        WhoProperties properties) {
     http
         .securityMatcher(properties.getSecurity().getInvitationAcceptPath())
         .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
@@ -279,7 +279,7 @@ public SecurityFilterChain whoInvitationSecurityFilterChain(
 public SecurityFilterChain whoApiSecurityFilterChain(
         HttpSecurity http,
         Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter,
-        WhoProperties properties) throws Exception {
+        WhoProperties properties) {
     http
         .securityMatcher(properties.getSecurity().getApiPathPattern())
         .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
