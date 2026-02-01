@@ -71,14 +71,17 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain resourceServerSecurityFilterChain(HttpSecurity http) {
+    public SecurityFilterChain resourceServerSecurityFilterChain(
+            HttpSecurity http,
+            org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/", "/authorized").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(Customizer.withDefaults())
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
+                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
 
         return http.build();
     }

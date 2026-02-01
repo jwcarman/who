@@ -41,7 +41,7 @@ public class TaskController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('task:read')")
+    @PreAuthorize("hasAuthority('task.own.read')")
     public List<TaskResponse> listMyTasks(@AuthenticationPrincipal WhoPrincipal principal) {
         return taskRepository.findByUserId(principal.userId())
             .stream()
@@ -50,7 +50,7 @@ public class TaskController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('task:create')")
+    @PreAuthorize("hasAuthority('task.own.write')")
     public TaskResponse createTask(
         @AuthenticationPrincipal WhoPrincipal principal,
         @RequestBody CreateTaskRequest request
@@ -66,7 +66,7 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('task:read')")
+    @PreAuthorize("hasAuthority('task.own.read')")
     public TaskResponse getMyTask(
         @AuthenticationPrincipal WhoPrincipal principal,
         @PathVariable UUID id
@@ -82,7 +82,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('task:update')")
+    @PreAuthorize("hasAuthority('task.own.write')")
     public TaskResponse updateMyTask(
         @AuthenticationPrincipal WhoPrincipal principal,
         @PathVariable UUID id,
@@ -104,7 +104,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('task:delete')")
+    @PreAuthorize("hasAuthority('task.own.write')")
     public void deleteMyTask(
         @AuthenticationPrincipal WhoPrincipal principal,
         @PathVariable UUID id
