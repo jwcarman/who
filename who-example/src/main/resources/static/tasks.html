@@ -48,6 +48,53 @@
     </div>
 
     <script>
+        // ============================================================================
+        // PKCE Utilities
+        // ============================================================================
+
+        /**
+         * Generate random string for code verifier
+         */
+        function generateRandomString(length) {
+            const array = new Uint8Array(length);
+            crypto.getRandomValues(array);
+            return base64URLEncode(array);
+        }
+
+        /**
+         * Base64URL encode (RFC 4648)
+         */
+        function base64URLEncode(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        /**
+         * Generate SHA-256 hash of code verifier
+         */
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return base64URLEncode(hash);
+        }
+
+        /**
+         * Generate PKCE code verifier and challenge
+         */
+        async function generatePKCE() {
+            const codeVerifier = generateRandomString(32);
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+            return { codeVerifier, codeChallenge };
+        }
+
         // Application will go here
         console.log('Task Manager SPA loaded');
     </script>
