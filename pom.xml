@@ -32,7 +32,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <required.maven.version>3.8</required.maven.version>
 
         <!-- Suppress Maven 4.0.0 future compatibility warnings -->

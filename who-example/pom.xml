@@ -37,7 +37,7 @@
     <description>Example application demonstrating Who framework usage</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <who.version>0.1.0-SNAPSHOT</who.version>
     </properties>
 
