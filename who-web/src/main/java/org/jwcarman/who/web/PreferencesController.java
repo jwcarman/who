@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * REST controller for managing user preferences.
  */
 @RestController
-@RequestMapping("/api/who/preferences")
+@RequestMapping("${who.web.mount-point:/api/who}/preferences")
 public class PreferencesController {
 
     private final PreferencesService preferencesService;

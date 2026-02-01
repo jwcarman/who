@@ -39,6 +39,7 @@ import org.springframework.security.oauth2.server.authorization.client.InMemoryR
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -58,23 +59,26 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
-        http.oauth2AuthorizationServer(Customizer.withDefaults());
+        http
+            .securityMatcher("/oauth2/**", "/.well-known/**")
+            .authorizeHttpRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .formLogin(Customizer.withDefaults())
+            .oauth2AuthorizationServer(Customizer.withDefaults());
         return http.build();
     }
 
     @Bean
     @Order(2)
-    public SecurityFilterChain resourceServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain resourceServerSecurityFilterChain(HttpSecurity http) {
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/", "/authorized").permitAll()
                 .anyRequest().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"));
-
-        // Allow frames for H2 console
-        http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
+            .formLogin(Customizer.withDefaults())
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
 
         return http.build();
     }
@@ -85,11 +89,16 @@ public class SecurityConfig {
             .clientId("demo-client")
             .clientSecret("{noop}secret")
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .authorizationGrantType(new AuthorizationGrantType("password"))
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("http://127.0.0.1:8080/authorized")
+            .redirectUri("http://127.0.0.1:8080/login/oauth2/code/demo-client")
             .scope("read")
             .scope("write")
+            .clientSettings(ClientSettings.builder()
+                .requireProofKey(false)
+                .build())
             .build();
 
         return new InMemoryRegisteredClientRepository(demoClient);

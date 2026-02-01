@@ -17,7 +17,7 @@ package org.jwcarman.who.security;
 
 import org.jwcarman.who.core.domain.ExternalIdentityKey;
 import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.jwcarman.who.core.service.EntitlementsService;
+import org.jwcarman.who.core.service.UserService;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -35,13 +35,13 @@ import java.util.stream.Collectors;
 public class WhoAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final IdentityResolver identityResolver;
-    private final EntitlementsService entitlementsService;
+    private final UserService userService;
 
     public WhoAuthenticationConverter(
             IdentityResolver identityResolver,
-            EntitlementsService entitlementsService) {
+            UserService userService) {
         this.identityResolver = identityResolver;
-        this.entitlementsService = entitlementsService;
+        this.userService = userService;
     }
 
     @Override
@@ -57,7 +57,7 @@ public class WhoAuthenticationConverter implements Converter<Jwt, AbstractAuthen
             return null;
         }
 
-        Set<String> permissions = entitlementsService.resolvePermissions(userId);
+        Set<String> permissions = userService.resolvePermissions(userId);
         WhoPrincipal principal = new WhoPrincipal(userId, permissions);
 
         Collection<GrantedAuthority> authorities = permissions.stream()

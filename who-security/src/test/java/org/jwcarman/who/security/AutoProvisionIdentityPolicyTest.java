@@ -16,13 +16,11 @@
 package org.jwcarman.who.security;
 
 import org.jwcarman.who.core.domain.ExternalIdentityKey;
-import org.jwcarman.who.jpa.entity.ExternalIdentityEntity;
-import org.jwcarman.who.jpa.entity.UserEntity;
-import org.jwcarman.who.jpa.repository.ExternalIdentityRepository;
-import org.jwcarman.who.jpa.repository.UserRepository;
+import org.jwcarman.who.core.domain.UserStatus;
+import org.jwcarman.who.core.service.IdentityService;
+import org.jwcarman.who.core.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,6 +29,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,10 +37,10 @@ import static org.mockito.Mockito.when;
 class AutoProvisionIdentityPolicyTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserService userService;
 
     @Mock
-    private ExternalIdentityRepository externalIdentityRepository;
+    private IdentityService identityService;
 
     @InjectMocks
     private AutoProvisionIdentityPolicy policy;
@@ -52,10 +51,7 @@ class AutoProvisionIdentityPolicyTest {
         ExternalIdentityKey identityKey = new ExternalIdentityKey("https://auth.example.com", "user123");
         UUID userId = UUID.randomUUID();
 
-        UserEntity savedUser = new UserEntity();
-        savedUser.setId(userId);
-
-        when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
+        when(userService.createUser(UserStatus.ACTIVE)).thenReturn(userId);
 
         // When
         UUID result = policy.handleUnknownIdentity(identityKey);
@@ -63,15 +59,12 @@ class AutoProvisionIdentityPolicyTest {
         // Then
         assertThat(result).isEqualTo(userId);
 
-        verify(userRepository).save(any(UserEntity.class));
-
-        ArgumentCaptor<ExternalIdentityEntity> identityCaptor = ArgumentCaptor.forClass(ExternalIdentityEntity.class);
-        verify(externalIdentityRepository).save(identityCaptor.capture());
-
-        ExternalIdentityEntity savedIdentity = identityCaptor.getValue();
-        assertThat(savedIdentity.getUserId()).isEqualTo(userId);
-        assertThat(savedIdentity.getIssuer()).isEqualTo("https://auth.example.com");
-        assertThat(savedIdentity.getSubject()).isEqualTo("user123");
+        verify(userService).createUser(UserStatus.ACTIVE);
+        verify(identityService).linkExternalIdentity(
+            eq(userId),
+            eq("https://auth.example.com"),
+            eq("user123")
+        );
     }
 
     @Test
@@ -80,10 +73,7 @@ class AutoProvisionIdentityPolicyTest {
         ExternalIdentityKey identityKey = new ExternalIdentityKey("https://sso.company.com", "employee456");
         UUID userId = UUID.randomUUID();
 
-        UserEntity savedUser = new UserEntity();
-        savedUser.setId(userId);
-
-        when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
+        when(userService.createUser(UserStatus.ACTIVE)).thenReturn(userId);
 
         // When
         UUID result = policy.handleUnknownIdentity(identityKey);
@@ -91,12 +81,11 @@ class AutoProvisionIdentityPolicyTest {
         // Then
         assertThat(result).isEqualTo(userId);
 
-        ArgumentCaptor<ExternalIdentityEntity> identityCaptor = ArgumentCaptor.forClass(ExternalIdentityEntity.class);
-        verify(externalIdentityRepository).save(identityCaptor.capture());
-
-        ExternalIdentityEntity savedIdentity = identityCaptor.getValue();
-        assertThat(savedIdentity.getUserId()).isEqualTo(userId);
-        assertThat(savedIdentity.getIssuer()).isEqualTo("https://sso.company.com");
-        assertThat(savedIdentity.getSubject()).isEqualTo("employee456");
+        verify(userService).createUser(UserStatus.ACTIVE);
+        verify(identityService).linkExternalIdentity(
+            eq(userId),
+            eq("https://sso.company.com"),
+            eq("employee456")
+        );
     }
 }

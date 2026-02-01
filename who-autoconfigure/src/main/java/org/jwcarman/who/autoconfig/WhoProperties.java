@@ -23,7 +23,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "who")
 public class WhoProperties {
 
+    private Web web = new Web();
     private Provisioning provisioning = new Provisioning();
+
+    public Web getWeb() {
+        return web;
+    }
+
+    public void setWeb(Web web) {
+        this.web = web;
+    }
 
     public Provisioning getProvisioning() {
         return provisioning;
@@ -31,6 +40,22 @@ public class WhoProperties {
 
     public void setProvisioning(Provisioning provisioning) {
         this.provisioning = provisioning;
+    }
+
+    public static class Web {
+        /**
+         * Base path (mount point) for Who web controllers.
+         * Default is "/api/who".
+         */
+        private String mountPoint = "/api/who";
+
+        public String getMountPoint() {
+            return mountPoint;
+        }
+
+        public void setMountPoint(String mountPoint) {
+            this.mountPoint = mountPoint;
+        }
     }
 
     public static class Provisioning {

@@ -94,7 +94,7 @@
 
     <modules>
         <module>who-core</module>
-        <module>who-jpa</module>
+        <module>who-jdbc</module>
         <module>who-security</module>
         <module>who-web</module>
         <module>who-autoconfigure</module>

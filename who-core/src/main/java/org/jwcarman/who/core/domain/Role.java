@@ -1,0 +1,57 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.core.domain;
+
+import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
+
+/**
+ * Immutable role domain model.
+ */
+public record Role(
+    UUID id,
+    String name
+) {
+    public Role {
+        requireNonNull(id, "id must not be null");
+        requireNonNull(name, "name must not be null");
+        if (name.isBlank()) {
+            throw new IllegalArgumentException("name must not be blank");
+        }
+    }
+
+    /**
+     * Create a new role.
+     *
+     * @param id the role ID
+     * @param name the role name
+     * @return a new role
+     */
+    public static Role create(UUID id, String name) {
+        return new Role(id, name);
+    }
+
+    /**
+     * Create a copy with a new name.
+     *
+     * @param newName the new name
+     * @return a new role instance with updated name
+     */
+    public Role withName(String newName) {
+        return new Role(id, newName);
+    }
+}

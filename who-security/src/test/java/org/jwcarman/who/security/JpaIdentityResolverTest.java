@@ -15,10 +15,10 @@
  */
 package org.jwcarman.who.security;
 
+import org.jwcarman.who.core.domain.ExternalIdentity;
 import org.jwcarman.who.core.domain.ExternalIdentityKey;
+import org.jwcarman.who.core.repository.ExternalIdentityRepository;
 import org.jwcarman.who.core.service.UserProvisioningPolicy;
-import org.jwcarman.who.jpa.entity.ExternalIdentityEntity;
-import org.jwcarman.who.jpa.repository.ExternalIdentityRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,7 +42,7 @@ class JpaIdentityResolverTest {
     private UserProvisioningPolicy provisioningPolicy;
 
     @InjectMocks
-    private JpaIdentityResolver resolver;
+    private DefaultIdentityResolver resolver;
 
     @Test
     void shouldResolveExistingIdentity() {
@@ -50,11 +50,10 @@ class JpaIdentityResolverTest {
         String subject = "user123";
         UUID userId = UUID.randomUUID();
 
-        ExternalIdentityEntity entity = new ExternalIdentityEntity();
-        entity.setUserId(userId);
+        ExternalIdentity identity = ExternalIdentity.create(UUID.randomUUID(), userId, issuer, subject);
 
         when(repository.findByIssuerAndSubject(issuer, subject))
-            .thenReturn(Optional.of(entity));
+            .thenReturn(Optional.of(identity));
 
         ExternalIdentityKey key = new ExternalIdentityKey(issuer, subject);
         UUID resolvedUserId = resolver.resolveUserId(key);

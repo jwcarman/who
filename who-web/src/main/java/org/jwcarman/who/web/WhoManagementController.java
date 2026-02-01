@@ -15,7 +15,8 @@
  */
 package org.jwcarman.who.web;
 
-import org.jwcarman.who.core.service.WhoManagementService;
+import org.jwcarman.who.core.service.RbacService;
+import org.jwcarman.who.core.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,20 +27,22 @@ import java.util.UUID;
  * REST controller for managing roles and identities.
  */
 @RestController
-@RequestMapping("/api/who/management")
+@RequestMapping("${who.web.mount-point:/api/who}/management")
 public class WhoManagementController {
 
-    private final WhoManagementService managementService;
+    private final RbacService rbacService;
+    private final UserService userService;
 
-    public WhoManagementController(WhoManagementService managementService) {
-        this.managementService = managementService;
+    public WhoManagementController(RbacService rbacService, UserService userService) {
+        this.rbacService = rbacService;
+        this.userService = userService;
     }
 
     @PostMapping("/roles")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('who.role.create')")
     public RoleResponse createRole(@RequestBody CreateRoleRequest request) {
-        UUID roleId = managementService.createRole(request.roleName());
+        UUID roleId = rbacService.createRole(request.roleName());
         return new RoleResponse(roleId, request.roleName());
     }
 
@@ -47,35 +50,35 @@ public class WhoManagementController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAuthority('who.role.delete')")
     public void deleteRole(@PathVariable UUID roleId) {
-        managementService.deleteRole(roleId);
+        rbacService.deleteRole(roleId);
     }
 
     @PostMapping("/users/{userId}/roles/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAuthority('who.user.role.assign')")
     public void assignRoleToUser(@PathVariable UUID userId, @PathVariable UUID roleId) {
-        managementService.assignRoleToUser(userId, roleId);
+        userService.assignRoleToUser(userId, roleId);
     }
 
     @DeleteMapping("/users/{userId}/roles/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAuthority('who.user.role.remove')")
     public void removeRoleFromUser(@PathVariable UUID userId, @PathVariable UUID roleId) {
-        managementService.removeRoleFromUser(userId, roleId);
+        userService.removeRoleFromUser(userId, roleId);
     }
 
     @PostMapping("/roles/{roleId}/permissions")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAuthority('who.role.permission.add')")
     public void addPermissionToRole(@PathVariable UUID roleId, @RequestBody AddPermissionRequest request) {
-        managementService.addPermissionToRole(roleId, request.permission());
+        rbacService.addPermissionToRole(roleId, request.permission());
     }
 
     @DeleteMapping("/roles/{roleId}/permissions/{permission}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAuthority('who.role.permission.remove')")
     public void removePermissionFromRole(@PathVariable UUID roleId, @PathVariable String permission) {
-        managementService.removePermissionFromRole(roleId, permission);
+        rbacService.removePermissionFromRole(roleId, permission);
     }
 
     record CreateRoleRequest(String roleName) {}

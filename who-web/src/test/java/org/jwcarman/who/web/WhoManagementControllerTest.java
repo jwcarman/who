@@ -15,7 +15,8 @@
  */
 package org.jwcarman.who.web;
 
-import org.jwcarman.who.core.service.WhoManagementService;
+import org.jwcarman.who.core.service.RbacService;
+import org.jwcarman.who.core.service.UserService;
 import org.jwcarman.who.web.WhoManagementController.AddPermissionRequest;
 import org.jwcarman.who.web.WhoManagementController.CreateRoleRequest;
 import org.jwcarman.who.web.WhoManagementController.RoleResponse;
@@ -35,7 +36,10 @@ import static org.mockito.Mockito.when;
 class WhoManagementControllerTest {
 
     @Mock
-    private WhoManagementService managementService;
+    private RbacService rbacService;
+
+    @Mock
+    private UserService userService;
 
     @InjectMocks
     private WhoManagementController controller;
@@ -45,7 +49,7 @@ class WhoManagementControllerTest {
         // Given
         UUID roleId = UUID.randomUUID();
         String roleName = "ADMIN";
-        when(managementService.createRole(roleName)).thenReturn(roleId);
+        when(rbacService.createRole(roleName)).thenReturn(roleId);
 
         // When
         RoleResponse response = controller.createRole(new CreateRoleRequest(roleName));
@@ -53,7 +57,7 @@ class WhoManagementControllerTest {
         // Then
         assertThat(response.roleId()).isEqualTo(roleId);
         assertThat(response.roleName()).isEqualTo(roleName);
-        verify(managementService).createRole(roleName);
+        verify(rbacService).createRole(roleName);
     }
 
     @Test
@@ -65,7 +69,7 @@ class WhoManagementControllerTest {
         controller.deleteRole(roleId);
 
         // Then
-        verify(managementService).deleteRole(roleId);
+        verify(rbacService).deleteRole(roleId);
     }
 
     @Test
@@ -78,7 +82,7 @@ class WhoManagementControllerTest {
         controller.assignRoleToUser(userId, roleId);
 
         // Then
-        verify(managementService).assignRoleToUser(userId, roleId);
+        verify(userService).assignRoleToUser(userId, roleId);
     }
 
     @Test
@@ -91,7 +95,7 @@ class WhoManagementControllerTest {
         controller.removeRoleFromUser(userId, roleId);
 
         // Then
-        verify(managementService).removeRoleFromUser(userId, roleId);
+        verify(userService).removeRoleFromUser(userId, roleId);
     }
 
     @Test
@@ -104,7 +108,7 @@ class WhoManagementControllerTest {
         controller.addPermissionToRole(roleId, new AddPermissionRequest(permission));
 
         // Then
-        verify(managementService).addPermissionToRole(roleId, permission);
+        verify(rbacService).addPermissionToRole(roleId, permission);
     }
 
     @Test
@@ -117,6 +121,6 @@ class WhoManagementControllerTest {
         controller.removePermissionFromRole(roleId, permission);
 
         // Then
-        verify(managementService).removePermissionFromRole(roleId, permission);
+        verify(rbacService).removePermissionFromRole(roleId, permission);
     }
 }

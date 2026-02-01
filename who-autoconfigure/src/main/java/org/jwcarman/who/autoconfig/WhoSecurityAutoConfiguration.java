@@ -15,7 +15,7 @@
  */
 package org.jwcarman.who.autoconfig;
 
-import org.jwcarman.who.core.service.EntitlementsService;
+import org.jwcarman.who.core.service.UserService;
 import org.jwcarman.who.security.IdentityResolver;
 import org.jwcarman.who.security.WhoAuthenticationConverter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -35,9 +35,9 @@ public class WhoSecurityAutoConfiguration {
     @ConditionalOnMissingBean
     public JwtAuthenticationConverter jwtAuthenticationConverter(
             IdentityResolver identityResolver,
-            EntitlementsService entitlementsService) {
+            UserService userService) {
         WhoAuthenticationConverter converter =
-            new WhoAuthenticationConverter(identityResolver, entitlementsService);
+            new WhoAuthenticationConverter(identityResolver, userService);
 
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
         jwtConverter.setJwtGrantedAuthoritiesConverter(jwt ->

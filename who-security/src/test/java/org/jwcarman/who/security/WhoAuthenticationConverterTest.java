@@ -17,7 +17,7 @@ package org.jwcarman.who.security;
 
 import org.jwcarman.who.core.domain.ExternalIdentityKey;
 import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.jwcarman.who.core.service.EntitlementsService;
+import org.jwcarman.who.core.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -43,7 +43,7 @@ class WhoAuthenticationConverterTest {
     private IdentityResolver identityResolver;
 
     @Mock
-    private EntitlementsService entitlementsService;
+    private UserService userService;
 
     @InjectMocks
     private WhoAuthenticationConverter converter;
@@ -64,7 +64,7 @@ class WhoAuthenticationConverterTest {
 
         when(identityResolver.resolveUserId(any(ExternalIdentityKey.class)))
             .thenReturn(userId);
-        when(entitlementsService.resolvePermissions(userId))
+        when(userService.resolvePermissions(userId))
             .thenReturn(Set.of("billing.invoice.read", "billing.invoice.write"));
 
         Authentication auth = converter.convert(jwt);
@@ -108,7 +108,7 @@ class WhoAuthenticationConverterTest {
 
         when(identityResolver.resolveUserId(any(ExternalIdentityKey.class)))
             .thenReturn(userId);
-        when(entitlementsService.resolvePermissions(userId))
+        when(userService.resolvePermissions(userId))
             .thenReturn(permissions);
 
         Jwt jwt1 = Jwt.withTokenValue("token1")
@@ -145,7 +145,7 @@ class WhoAuthenticationConverterTest {
 
         when(identityResolver.resolveUserId(any(ExternalIdentityKey.class)))
             .thenReturn(userId1, userId2);
-        when(entitlementsService.resolvePermissions(any(UUID.class)))
+        when(userService.resolvePermissions(any(UUID.class)))
             .thenReturn(Set.of("read"));
 
         Jwt jwt1 = Jwt.withTokenValue("token1")

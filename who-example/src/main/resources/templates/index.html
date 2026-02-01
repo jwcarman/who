@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Framework - Example Application</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .user-card {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .user-card h3 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+        }
+        .permissions {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .permission-tag {
+            display: inline-block;
+            background: #e7f3ff;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin: 2px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .btn {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        ul {
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Who Framework - Example Application</h1>
+
+        <p>Welcome to the Who Framework demonstration! This example showcases OAuth2 authentication integrated with the Who library's role-based access control (RBAC) system.</p>
+
+        <h2>📋 What This Demonstrates</h2>
+        <ul>
+            <li><strong>OAuth2 Authorization Server</strong> - Built-in token issuer with authorization code flow</li>
+            <li><strong>User Authentication</strong> - Form-based login with username/password</li>
+            <li><strong>Who Library Integration</strong> - External identity mapping to Who users with permissions</li>
+            <li><strong>Permission-Based Authorization</strong> - Fine-grained access control via JWT claims</li>
+        </ul>
+
+        <h2>👥 Available Test Users</h2>
+
+        <div class="user-card">
+            <h3>Alice (Regular User)</h3>
+            <div><strong>Username:</strong> <code>alice</code> | <strong>Password:</strong> <code>password</code></div>
+            <div class="permissions">
+                <strong>Permissions:</strong>
+                <span class="permission-tag">task.own.read</span>
+                <span class="permission-tag">task.own.write</span>
+            </div>
+        </div>
+
+        <div class="user-card">
+            <h3>Bob (Regular User)</h3>
+            <div><strong>Username:</strong> <code>bob</code> | <strong>Password:</strong> <code>password</code></div>
+            <div class="permissions">
+                <strong>Permissions:</strong>
+                <span class="permission-tag">task.own.read</span>
+                <span class="permission-tag">task.own.write</span>
+            </div>
+        </div>
+
+        <div class="user-card">
+            <h3>Admin (Administrator)</h3>
+            <div><strong>Username:</strong> <code>admin</code> | <strong>Password:</strong> <code>password</code></div>
+            <div class="permissions">
+                <strong>Permissions:</strong>
+                <span class="permission-tag">task.own.read</span>
+                <span class="permission-tag">task.own.write</span>
+                <span class="permission-tag">task.all.read</span>
+                <span class="permission-tag">task.all.write</span>
+                <span class="permission-tag">user.manage</span>
+            </div>
+        </div>
+
+        <h2>🚀 Try It Out</h2>
+        <p>Click the button below to start the OAuth2 authorization flow. You'll be asked to log in, and after authentication, you'll receive an authorization code that can be exchanged for a JWT access token.</p>
+
+        <a th:href="${authUrl}" class="btn">Start OAuth2 Flow →</a>
+
+        <div class="info-box">
+            <strong>ℹ️ What happens next:</strong>
+            <ol>
+                <li>You'll be redirected to the login page</li>
+                <li>Log in with one of the test users above</li>
+                <li>After successful login, you'll receive an authorization code</li>
+                <li>The page will show you a curl command to exchange the code for a JWT token</li>
+                <li>The JWT will contain the user's Who permissions as authorities</li>
+            </ol>
+        </div>
+
+        <h2>🔑 Alternative: Client Credentials Flow</h2>
+        <p>For machine-to-machine authentication, use the client credentials grant:</p>
+        <pre style="background: #f4f4f4; padding: 15px; border-radius: 4px; overflow-x: auto;">curl -X POST http://localhost:8080/oauth2/token \
+  -u demo-client:secret \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&scope=read write"</pre>
+    </div>
+</body>
+</html>

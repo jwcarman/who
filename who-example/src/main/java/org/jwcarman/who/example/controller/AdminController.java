@@ -16,10 +16,8 @@
 package org.jwcarman.who.example.controller;
 
 import org.jwcarman.who.example.controller.dto.TaskResponse;
-import org.jwcarman.who.example.controller.dto.UserResponse;
 import org.jwcarman.who.example.domain.Task;
 import org.jwcarman.who.example.repository.TaskRepository;
-import org.jwcarman.who.jpa.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -33,11 +31,9 @@ import java.util.UUID;
 public class AdminController {
 
     private final TaskRepository taskRepository;
-    private final UserRepository userRepository;
 
-    public AdminController(TaskRepository taskRepository, UserRepository userRepository) {
+    public AdminController(TaskRepository taskRepository) {
         this.taskRepository = taskRepository;
-        this.userRepository = userRepository;
     }
 
     @GetMapping("/tasks")
@@ -55,14 +51,5 @@ public class AdminController {
         Task task = taskRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
         return TaskResponse.from(task);
-    }
-
-    @GetMapping("/users")
-    @PreAuthorize("hasAuthority('user.manage')")
-    public List<UserResponse> listAllUsers() {
-        return userRepository.findAll()
-            .stream()
-            .map(UserResponse::from)
-            .toList();
     }
 }

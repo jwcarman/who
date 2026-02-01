@@ -11,23 +11,31 @@ INSERT INTO who_user (id, status, created_at, updated_at) VALUES
 -- Create external identities mapping OAuth2 subjects to users
 -- Issuer is http://localhost:8080 (our embedded auth server)
 -- Subjects match the usernames from UserDetailsService
-INSERT INTO who_external_identity (id, user_id, issuer, subject, first_seen_at, last_seen_at) VALUES
-('650e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'http://localhost:8080', 'alice', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('650e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'http://localhost:8080', 'bob', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('650e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', 'http://localhost:8080', 'admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO who_external_identity (id, user_id, issuer, subject) VALUES
+('650e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'http://localhost:8080', 'alice'),
+('650e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'http://localhost:8080', 'bob'),
+('650e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', 'http://localhost:8080', 'admin');
 
 -- Create roles
 INSERT INTO who_role (id, name) VALUES
 ('750e8400-e29b-41d4-a716-446655440001', 'USER'),
 ('750e8400-e29b-41d4-a716-446655440002', 'ADMIN');
 
+-- Create permissions first
+INSERT INTO who_permission (id) VALUES
+('task.own.read'),
+('task.own.write'),
+('task.all.read'),
+('task.all.write'),
+('user.manage');
+
 -- Assign permissions to USER role
-INSERT INTO who_role_permission (role_id, permission) VALUES
+INSERT INTO who_role_permission (role_id, permission_id) VALUES
 ('750e8400-e29b-41d4-a716-446655440001', 'task.own.read'),
 ('750e8400-e29b-41d4-a716-446655440001', 'task.own.write');
 
 -- Assign permissions to ADMIN role (includes all USER permissions plus admin ones)
-INSERT INTO who_role_permission (role_id, permission) VALUES
+INSERT INTO who_role_permission (role_id, permission_id) VALUES
 ('750e8400-e29b-41d4-a716-446655440002', 'task.own.read'),
 ('750e8400-e29b-41d4-a716-446655440002', 'task.own.write'),
 ('750e8400-e29b-41d4-a716-446655440002', 'task.all.read'),
