@@ -15,13 +15,13 @@
  */
 package org.jwcarman.who.core.service.impl;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import org.jwcarman.who.core.domain.UserPreferences;
 import org.jwcarman.who.core.exception.WhoException;
 import org.jwcarman.who.core.repository.UserPreferencesRepository;
 import org.jwcarman.who.core.service.PreferencesService;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
 import java.util.UUID;

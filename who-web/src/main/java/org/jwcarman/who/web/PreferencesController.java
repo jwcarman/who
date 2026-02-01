@@ -15,11 +15,16 @@
  */
 package org.jwcarman.who.web;
 
-import tools.jackson.databind.JsonNode;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.PreferencesService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
 
 /**
  * REST controller for managing user preferences.

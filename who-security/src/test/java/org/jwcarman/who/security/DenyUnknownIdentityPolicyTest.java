@@ -15,8 +15,8 @@
  */
 package org.jwcarman.who.security;
 
-import org.jwcarman.who.core.domain.ExternalIdentityKey;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.ExternalIdentityKey;
 
 import java.util.UUID;
 

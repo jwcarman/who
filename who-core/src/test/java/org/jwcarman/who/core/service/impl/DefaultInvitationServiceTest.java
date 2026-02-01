@@ -15,6 +15,9 @@
  */
 package org.jwcarman.who.core.service.impl;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.domain.ContactMethod;
 import org.jwcarman.who.core.domain.ContactType;
 import org.jwcarman.who.core.domain.Invitation;
@@ -34,9 +37,6 @@ import org.jwcarman.who.core.service.ContactMethodService;
 import org.jwcarman.who.core.service.IdentityService;
 import org.jwcarman.who.core.service.UserService;
 import org.jwcarman.who.core.spi.InvitationNotifier;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -48,7 +48,6 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -56,7 +55,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

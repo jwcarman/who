@@ -15,13 +15,13 @@
  */
 package org.jwcarman.who.web;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.service.RbacService;
 import org.jwcarman.who.core.service.UserService;
 import org.jwcarman.who.web.WhoManagementController.AddPermissionRequest;
 import org.jwcarman.who.web.WhoManagementController.CreateRoleRequest;
 import org.jwcarman.who.web.WhoManagementController.RoleResponse;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;

@@ -15,10 +15,10 @@
  */
 package org.jwcarman.who.jdbc.repository;
 
+import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.User;
 import org.jwcarman.who.core.domain.UserStatus;
 import org.jwcarman.who.jdbc.JdbcTestConfiguration;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;

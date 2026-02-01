@@ -15,15 +15,15 @@
  */
 package org.jwcarman.who.web;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.jwcarman.who.core.service.PreferencesService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.PreferencesService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Set;
 import java.util.UUID;

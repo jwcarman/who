@@ -15,19 +15,16 @@
  */
 package org.jwcarman.who.jdbc.repository;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Role;
 import org.jwcarman.who.core.domain.User;
 import org.jwcarman.who.core.domain.UserStatus;
 import org.jwcarman.who.jdbc.JdbcTestConfiguration;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;

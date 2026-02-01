@@ -15,13 +15,13 @@
  */
 package org.jwcarman.who.web;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.domain.Invitation;
 import org.jwcarman.who.core.domain.InvitationStatus;
 import org.jwcarman.who.core.service.InvitationService;
 import org.jwcarman.who.web.InvitationController.CreateInvitationRequest;
 import org.jwcarman.who.web.InvitationController.InvitationResponse;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;

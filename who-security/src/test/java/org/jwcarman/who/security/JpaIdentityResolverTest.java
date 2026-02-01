@@ -15,12 +15,12 @@
  */
 package org.jwcarman.who.security;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.domain.ExternalIdentity;
 import org.jwcarman.who.core.domain.ExternalIdentityKey;
 import org.jwcarman.who.core.repository.ExternalIdentityRepository;
 import org.jwcarman.who.core.service.UserProvisioningPolicy;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;

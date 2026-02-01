@@ -15,10 +15,22 @@
  */
 package org.jwcarman.who.autoconfig;
 
-import tools.jackson.databind.ObjectMapper;
-import org.jwcarman.who.core.repository.*;
-import org.jwcarman.who.core.service.*;
-import org.jwcarman.who.core.service.impl.*;
+import org.jwcarman.who.core.repository.ExternalIdentityRepository;
+import org.jwcarman.who.core.repository.PermissionRepository;
+import org.jwcarman.who.core.repository.RolePermissionRepository;
+import org.jwcarman.who.core.repository.RoleRepository;
+import org.jwcarman.who.core.repository.UserPreferencesRepository;
+import org.jwcarman.who.core.repository.UserRepository;
+import org.jwcarman.who.core.repository.UserRoleRepository;
+import org.jwcarman.who.core.service.IdentityService;
+import org.jwcarman.who.core.service.PreferencesService;
+import org.jwcarman.who.core.service.RbacService;
+import org.jwcarman.who.core.service.UserProvisioningPolicy;
+import org.jwcarman.who.core.service.UserService;
+import org.jwcarman.who.core.service.impl.DefaultIdentityService;
+import org.jwcarman.who.core.service.impl.DefaultPreferencesService;
+import org.jwcarman.who.core.service.impl.DefaultRbacService;
+import org.jwcarman.who.core.service.impl.DefaultUserService;
 import org.jwcarman.who.security.AutoProvisionIdentityPolicy;
 import org.jwcarman.who.security.DefaultIdentityResolver;
 import org.jwcarman.who.security.DenyUnknownIdentityPolicy;
@@ -29,7 +41,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Primary;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Auto-configuration for Who library.
