@@ -47,6 +47,11 @@ public class TaskController {
         this.taskRepository = taskRepository;
     }
 
+    private Task findTaskOrThrow(UUID id) {
+        return taskRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('task.own.read')")
     public List<TaskResponse> listMyTasks(@AuthenticationPrincipal WhoPrincipal principal) {
@@ -78,8 +83,7 @@ public class TaskController {
         @AuthenticationPrincipal WhoPrincipal principal,
         @PathVariable UUID id
     ) {
-        Task task = taskRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+        Task task = findTaskOrThrow(id);
 
         if (!task.getUserId().equals(principal.userId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own tasks");
@@ -95,8 +99,7 @@ public class TaskController {
         @PathVariable UUID id,
         @RequestBody UpdateTaskRequest request
     ) {
-        Task task = taskRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+        Task task = findTaskOrThrow(id);
 
         if (!task.getUserId().equals(principal.userId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own tasks");
@@ -116,8 +119,7 @@ public class TaskController {
         @AuthenticationPrincipal WhoPrincipal principal,
         @PathVariable UUID id
     ) {
-        Task task = taskRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+        Task task = findTaskOrThrow(id);
 
         if (!task.getUserId().equals(principal.userId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own tasks");

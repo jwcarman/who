@@ -39,6 +39,11 @@ public class AdminController {
         this.taskRepository = taskRepository;
     }
 
+    private Task findTaskOrThrow(UUID id) {
+        return taskRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+    }
+
     @GetMapping("/tasks")
     @PreAuthorize("hasAuthority('task.all.read')")
     public List<TaskResponse> listAllTasks() {
@@ -51,8 +56,7 @@ public class AdminController {
     @GetMapping("/tasks/{id}")
     @PreAuthorize("hasAuthority('task.all.read')")
     public TaskResponse getAnyTask(@PathVariable UUID id) {
-        Task task = taskRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+        Task task = findTaskOrThrow(id);
         return TaskResponse.from(task);
     }
 }
