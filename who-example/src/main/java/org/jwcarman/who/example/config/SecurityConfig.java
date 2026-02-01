@@ -76,7 +76,7 @@ public class SecurityConfig {
             org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/", "/authorized").permitAll()
+                .requestMatchers("/", "/authorized", "/tasks.html").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(Customizer.withDefaults())
