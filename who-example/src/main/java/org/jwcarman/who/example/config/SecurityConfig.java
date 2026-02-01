@@ -98,6 +98,8 @@ public class SecurityConfig {
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
             .redirectUri("http://127.0.0.1:8080/authorized")
             .redirectUri("http://127.0.0.1:8080/login/oauth2/code/demo-client")
+            .redirectUri("http://localhost:8080/tasks.html")
+            .redirectUri("http://127.0.0.1:8080/tasks.html")
             .scope("read")
             .scope("write")
             .clientSettings(ClientSettings.builder()
