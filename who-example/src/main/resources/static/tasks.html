@@ -768,8 +768,155 @@
             }
         }
 
-        // Application will go here
-        console.log('Task Manager SPA loaded');
+        // ============================================================================
+        // Event Handlers
+        // ============================================================================
+
+        /**
+         * Handle add task form submission
+         */
+        async function handleAddTask(event) {
+            event.preventDefault();
+
+            const title = document.getElementById('task-title').value;
+            const description = document.getElementById('task-description').value;
+            const status = document.getElementById('task-status').value;
+
+            try {
+                const newTask = await createTask({ title, description, status });
+                tasks.push(newTask);
+                rerenderTaskList();
+
+                // Clear form
+                document.getElementById('add-task-form').reset();
+            } catch (error) {
+                console.error('Failed to create task:', error);
+                alert('Failed to create task: ' + error.message);
+            }
+        }
+
+        /**
+         * Start editing a task
+         */
+        function startEditTask(taskId) {
+            editingTaskId = taskId;
+            rerenderTaskList();
+        }
+
+        /**
+         * Cancel task editing
+         */
+        function cancelEdit() {
+            editingTaskId = null;
+            rerenderTaskList();
+        }
+
+        /**
+         * Handle update task form submission
+         */
+        async function handleUpdateTask(event, taskId) {
+            event.preventDefault();
+
+            const title = document.getElementById(`edit-title-${taskId}`).value;
+            const description = document.getElementById(`edit-description-${taskId}`).value;
+            const status = document.getElementById(`edit-status-${taskId}`).value;
+
+            try {
+                const updatedTask = await updateTask(taskId, { title, description, status });
+
+                // Update in local state
+                const index = tasks.findIndex(t => t.id === taskId);
+                if (index !== -1) {
+                    tasks[index] = updatedTask;
+                }
+
+                editingTaskId = null;
+                rerenderTaskList();
+            } catch (error) {
+                console.error('Failed to update task:', error);
+                alert('Failed to update task: ' + error.message);
+            }
+        }
+
+        /**
+         * Handle delete task
+         */
+        async function handleDeleteTask(taskId) {
+            if (!confirm('Are you sure you want to delete this task?')) {
+                return;
+            }
+
+            try {
+                await deleteTask(taskId);
+
+                // Remove from local state
+                tasks = tasks.filter(t => t.id !== taskId);
+                rerenderTaskList();
+            } catch (error) {
+                console.error('Failed to delete task:', error);
+                alert('Failed to delete task: ' + error.message);
+            }
+        }
+
+        // ============================================================================
+        // Application Initialization
+        // ============================================================================
+
+        /**
+         * Load tasks from API
+         */
+        async function loadTasks() {
+            try {
+                tasks = await fetchTasks();
+                renderApp();
+            } catch (error) {
+                console.error('Failed to load tasks:', error);
+                document.getElementById('app').innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> Failed to load tasks. ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        /**
+         * Initialize application
+         */
+        async function init() {
+            try {
+                // Check if returning from OAuth callback
+                const callbackHandled = await handleCallback();
+
+                // Check if we have a valid token
+                const token = getAccessToken();
+
+                if (!token) {
+                    // No token - start login flow
+                    await startLogin();
+                    return;
+                }
+
+                // We have a token - load the app
+                await loadTasks();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('app').innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                        <br><br>
+                        <button class="btn-primary" onclick="location.reload()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Start the application when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
