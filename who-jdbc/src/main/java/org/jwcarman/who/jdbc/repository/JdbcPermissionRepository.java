@@ -26,6 +26,14 @@ import java.util.Optional;
 @Repository
 public class JdbcPermissionRepository implements PermissionRepository {
 
+    // Column name constants
+    private static final String COL_ID = "id";
+    private static final String COL_DESCRIPTION = "description";
+
+    // Parameter name constants
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_DESCRIPTION = "description";
+
     private final JdbcClient jdbcClient;
 
     public JdbcPermissionRepository(JdbcClient jdbcClient) {
@@ -39,10 +47,10 @@ public class JdbcPermissionRepository implements PermissionRepository {
                 FROM who_permission
                 WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query((rs, rowNum) -> new Permission(
-                rs.getString("id"),
-                rs.getString("description")
+                rs.getString(COL_ID),
+                rs.getString(COL_DESCRIPTION)
             ))
             .optional();
     }
@@ -55,8 +63,8 @@ public class JdbcPermissionRepository implements PermissionRepository {
                 ORDER BY id
                 """)
             .query((rs, rowNum) -> new Permission(
-                rs.getString("id"),
-                rs.getString("description")
+                rs.getString(COL_ID),
+                rs.getString(COL_DESCRIPTION)
             ))
             .list();
     }
@@ -68,8 +76,8 @@ public class JdbcPermissionRepository implements PermissionRepository {
                 SET description = :description
                 WHERE id = :id
                 """)
-            .param("id", permission.id())
-            .param("description", permission.description())
+            .param(PARAM_ID, permission.id())
+            .param(PARAM_DESCRIPTION, permission.description())
             .update();
 
         if (updated == 0) {
@@ -78,8 +86,8 @@ public class JdbcPermissionRepository implements PermissionRepository {
                     INSERT INTO who_permission (id, description)
                     VALUES (:id, :description)
                     """)
-                .param("id", permission.id())
-                .param("description", permission.description())
+                .param(PARAM_ID, permission.id())
+                .param(PARAM_DESCRIPTION, permission.description())
                 .update();
         }
 
@@ -91,7 +99,7 @@ public class JdbcPermissionRepository implements PermissionRepository {
         Integer count = jdbcClient.sql("""
                 SELECT COUNT(*) FROM who_permission WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query(Integer.class)
             .single();
         return count > 0;
@@ -102,7 +110,7 @@ public class JdbcPermissionRepository implements PermissionRepository {
         jdbcClient.sql("""
                 DELETE FROM who_permission WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 }

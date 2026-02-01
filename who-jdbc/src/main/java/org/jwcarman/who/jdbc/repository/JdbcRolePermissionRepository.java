@@ -25,6 +25,14 @@ import java.util.UUID;
 @Repository
 public class JdbcRolePermissionRepository implements RolePermissionRepository {
 
+    // Column names
+    private static final String COL_PERMISSION_ID = "permission_id";
+
+    // Parameter names
+    private static final String PARAM_ROLE_ID = "roleId";
+    private static final String PARAM_PERMISSION_ID = "permissionId";
+    private static final String PARAM_ROLE_IDS = "roleIds";
+
     private final JdbcClient jdbcClient;
 
     public JdbcRolePermissionRepository(JdbcClient jdbcClient) {
@@ -38,8 +46,8 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
                 VALUES (:roleId, :permissionId)
                 ON CONFLICT DO NOTHING
                 """)
-            .param("roleId", roleId)
-            .param("permissionId", permissionId)
+            .param(PARAM_ROLE_ID, roleId)
+            .param(PARAM_PERMISSION_ID, permissionId)
             .update();
     }
 
@@ -49,8 +57,8 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
                 DELETE FROM who_role_permission
                 WHERE role_id = :roleId AND permission_id = :permissionId
                 """)
-            .param("roleId", roleId)
-            .param("permissionId", permissionId)
+            .param(PARAM_ROLE_ID, roleId)
+            .param(PARAM_PERMISSION_ID, permissionId)
             .update();
     }
 
@@ -59,7 +67,7 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
         jdbcClient.sql("""
                 DELETE FROM who_role_permission WHERE role_id = :roleId
                 """)
-            .param("roleId", roleId)
+            .param(PARAM_ROLE_ID, roleId)
             .update();
     }
 
@@ -70,8 +78,8 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
                 FROM who_role_permission
                 WHERE role_id = :roleId
                 """)
-            .param("roleId", roleId)
-            .query((rs, rowNum) -> rs.getString("permission_id"))
+            .param(PARAM_ROLE_ID, roleId)
+            .query((rs, rowNum) -> rs.getString(COL_PERMISSION_ID))
             .list();
     }
 
@@ -86,8 +94,8 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
                 FROM who_role_permission
                 WHERE role_id IN (:roleIds)
                 """)
-            .param("roleIds", roleIds)
-            .query((rs, rowNum) -> rs.getString("permission_id"))
+            .param(PARAM_ROLE_IDS, roleIds)
+            .query((rs, rowNum) -> rs.getString(COL_PERMISSION_ID))
             .list();
     }
 }

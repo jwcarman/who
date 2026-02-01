@@ -31,6 +31,24 @@ import java.util.UUID;
 @Repository
 public class JdbcContactMethodRepository implements ContactMethodRepository {
 
+    // Column names
+    private static final String COL_ID = "id";
+    private static final String COL_USER_ID = "user_id";
+    private static final String COL_TYPE = "type";
+    private static final String COL_VALUE = "value";
+    private static final String COL_VERIFIED = "verified";
+    private static final String COL_VERIFIED_AT = "verified_at";
+    private static final String COL_CREATED_AT = "created_at";
+
+    // Parameter names
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_USER_ID = "userId";
+    private static final String PARAM_TYPE = "type";
+    private static final String PARAM_VALUE = "value";
+    private static final String PARAM_VERIFIED = "verified";
+    private static final String PARAM_VERIFIED_AT = "verifiedAt";
+    private static final String PARAM_CREATED_AT = "createdAt";
+
     private final JdbcClient jdbcClient;
 
     public JdbcContactMethodRepository(JdbcClient jdbcClient) {
@@ -49,13 +67,13 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
                     created_at = :createdAt
                 WHERE id = :id
                 """)
-            .param("id", contactMethod.id())
-            .param("userId", contactMethod.userId())
-            .param("type", contactMethod.type().name())
-            .param("value", contactMethod.value())
-            .param("verified", contactMethod.verified())
-            .param("verifiedAt", contactMethod.verifiedAt() != null ? Timestamp.from(contactMethod.verifiedAt()) : null)
-            .param("createdAt", Timestamp.from(contactMethod.createdAt()))
+            .param(PARAM_ID, contactMethod.id())
+            .param(PARAM_USER_ID, contactMethod.userId())
+            .param(PARAM_TYPE, contactMethod.type().name())
+            .param(PARAM_VALUE, contactMethod.value())
+            .param(PARAM_VERIFIED, contactMethod.verified())
+            .param(PARAM_VERIFIED_AT, contactMethod.verifiedAt() != null ? Timestamp.from(contactMethod.verifiedAt()) : null)
+            .param(PARAM_CREATED_AT, Timestamp.from(contactMethod.createdAt()))
             .update();
 
         if (updated == 0) {
@@ -64,13 +82,13 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
                     INSERT INTO who_contact_method (id, user_id, type, "value", verified, verified_at, created_at)
                     VALUES (:id, :userId, :type, :value, :verified, :verifiedAt, :createdAt)
                     """)
-                .param("id", contactMethod.id())
-                .param("userId", contactMethod.userId())
-                .param("type", contactMethod.type().name())
-                .param("value", contactMethod.value())
-                .param("verified", contactMethod.verified())
-                .param("verifiedAt", contactMethod.verifiedAt() != null ? Timestamp.from(contactMethod.verifiedAt()) : null)
-                .param("createdAt", Timestamp.from(contactMethod.createdAt()))
+                .param(PARAM_ID, contactMethod.id())
+                .param(PARAM_USER_ID, contactMethod.userId())
+                .param(PARAM_TYPE, contactMethod.type().name())
+                .param(PARAM_VALUE, contactMethod.value())
+                .param(PARAM_VERIFIED, contactMethod.verified())
+                .param(PARAM_VERIFIED_AT, contactMethod.verifiedAt() != null ? Timestamp.from(contactMethod.verifiedAt()) : null)
+                .param(PARAM_CREATED_AT, Timestamp.from(contactMethod.createdAt()))
                 .update();
         }
 
@@ -84,7 +102,7 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
                 FROM who_contact_method
                 WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query(this::mapRow)
             .optional();
     }
@@ -96,7 +114,7 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
                 FROM who_contact_method
                 WHERE user_id = :userId
                 """)
-            .param("userId", userId)
+            .param(PARAM_USER_ID, userId)
             .query(this::mapRow)
             .list();
     }
@@ -108,8 +126,8 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
                 FROM who_contact_method
                 WHERE user_id = :userId AND type = :type
                 """)
-            .param("userId", userId)
-            .param("type", type.name())
+            .param(PARAM_USER_ID, userId)
+            .param(PARAM_TYPE, type.name())
             .query(this::mapRow)
             .optional();
     }
@@ -121,8 +139,8 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
                 FROM who_contact_method
                 WHERE type = :type AND "value" = :value
                 """)
-            .param("type", type.name())
-            .param("value", value)
+            .param(PARAM_TYPE, type.name())
+            .param(PARAM_VALUE, value)
             .query(this::mapRow)
             .optional();
     }
@@ -132,20 +150,20 @@ public class JdbcContactMethodRepository implements ContactMethodRepository {
         jdbcClient.sql("""
                 DELETE FROM who_contact_method WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 
     private ContactMethod mapRow(ResultSet rs, int rowNum) throws SQLException {
-        Timestamp verifiedAtTimestamp = rs.getTimestamp("verified_at");
+        Timestamp verifiedAtTimestamp = rs.getTimestamp(COL_VERIFIED_AT);
         return new ContactMethod(
-            UUID.fromString(rs.getString("id")),
-            UUID.fromString(rs.getString("user_id")),
-            ContactType.valueOf(rs.getString("type")),
-            rs.getString("value"),
-            rs.getBoolean("verified"),
+            UUID.fromString(rs.getString(COL_ID)),
+            UUID.fromString(rs.getString(COL_USER_ID)),
+            ContactType.valueOf(rs.getString(COL_TYPE)),
+            rs.getString(COL_VALUE),
+            rs.getBoolean(COL_VERIFIED),
             verifiedAtTimestamp != null ? verifiedAtTimestamp.toInstant() : null,
-            rs.getTimestamp("created_at").toInstant()
+            rs.getTimestamp(COL_CREATED_AT).toInstant()
         );
     }
 }

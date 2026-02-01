@@ -25,6 +25,13 @@ import java.util.UUID;
 @Repository
 public class JdbcUserRoleRepository implements UserRoleRepository {
 
+    // Column names
+    private static final String COL_ROLE_ID = "role_id";
+
+    // Parameter names
+    private static final String PARAM_USER_ID = "userId";
+    private static final String PARAM_ROLE_ID = "roleId";
+
     private final JdbcClient jdbcClient;
 
     public JdbcUserRoleRepository(JdbcClient jdbcClient) {
@@ -38,8 +45,8 @@ public class JdbcUserRoleRepository implements UserRoleRepository {
                 FROM who_user_role
                 WHERE user_id = :userId
                 """)
-            .param("userId", userId)
-            .query((rs, rowNum) -> UUID.fromString(rs.getString("role_id")))
+            .param(PARAM_USER_ID, userId)
+            .query((rs, rowNum) -> UUID.fromString(rs.getString(COL_ROLE_ID)))
             .list();
     }
 
@@ -50,8 +57,8 @@ public class JdbcUserRoleRepository implements UserRoleRepository {
                 VALUES (:userId, :roleId)
                 ON CONFLICT DO NOTHING
                 """)
-            .param("userId", userId)
-            .param("roleId", roleId)
+            .param(PARAM_USER_ID, userId)
+            .param(PARAM_ROLE_ID, roleId)
             .update();
     }
 
@@ -61,8 +68,8 @@ public class JdbcUserRoleRepository implements UserRoleRepository {
                 DELETE FROM who_user_role
                 WHERE user_id = :userId AND role_id = :roleId
                 """)
-            .param("userId", userId)
-            .param("roleId", roleId)
+            .param(PARAM_USER_ID, userId)
+            .param(PARAM_ROLE_ID, roleId)
             .update();
     }
 
@@ -71,7 +78,7 @@ public class JdbcUserRoleRepository implements UserRoleRepository {
         jdbcClient.sql("""
                 DELETE FROM who_user_role WHERE role_id = :roleId
                 """)
-            .param("roleId", roleId)
+            .param(PARAM_ROLE_ID, roleId)
             .update();
     }
 
@@ -80,7 +87,7 @@ public class JdbcUserRoleRepository implements UserRoleRepository {
         jdbcClient.sql("""
                 DELETE FROM who_user_role WHERE user_id = :userId
                 """)
-            .param("userId", userId)
+            .param(PARAM_USER_ID, userId)
             .update();
     }
 }

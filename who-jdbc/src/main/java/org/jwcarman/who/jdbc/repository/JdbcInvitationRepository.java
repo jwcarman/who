@@ -32,6 +32,29 @@ import java.util.UUID;
 @Repository
 public class JdbcInvitationRepository implements InvitationRepository {
 
+    // Column names
+    private static final String COL_ID = "id";
+    private static final String COL_EMAIL = "email";
+    private static final String COL_ROLE_ID = "role_id";
+    private static final String COL_TOKEN = "token";
+    private static final String COL_STATUS = "status";
+    private static final String COL_INVITED_BY = "invited_by";
+    private static final String COL_CREATED_AT = "created_at";
+    private static final String COL_EXPIRES_AT = "expires_at";
+    private static final String COL_ACCEPTED_AT = "accepted_at";
+
+    // Parameter names
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_EMAIL = "email";
+    private static final String PARAM_ROLE_ID = "roleId";
+    private static final String PARAM_TOKEN = "token";
+    private static final String PARAM_STATUS = "status";
+    private static final String PARAM_INVITED_BY = "invitedBy";
+    private static final String PARAM_CREATED_AT = "createdAt";
+    private static final String PARAM_EXPIRES_AT = "expiresAt";
+    private static final String PARAM_ACCEPTED_AT = "acceptedAt";
+    private static final String PARAM_SINCE = "since";
+
     private final JdbcClient jdbcClient;
 
     public JdbcInvitationRepository(JdbcClient jdbcClient) {
@@ -52,15 +75,15 @@ public class JdbcInvitationRepository implements InvitationRepository {
                     accepted_at = :acceptedAt
                 WHERE id = :id
                 """)
-            .param("id", invitation.id())
-            .param("email", invitation.email())
-            .param("roleId", invitation.roleId())
-            .param("token", invitation.token())
-            .param("status", invitation.status().name())
-            .param("invitedBy", invitation.invitedBy())
-            .param("createdAt", Timestamp.from(invitation.createdAt()))
-            .param("expiresAt", Timestamp.from(invitation.expiresAt()))
-            .param("acceptedAt", invitation.acceptedAt() != null ? Timestamp.from(invitation.acceptedAt()) : null)
+            .param(PARAM_ID, invitation.id())
+            .param(PARAM_EMAIL, invitation.email())
+            .param(PARAM_ROLE_ID, invitation.roleId())
+            .param(PARAM_TOKEN, invitation.token())
+            .param(PARAM_STATUS, invitation.status().name())
+            .param(PARAM_INVITED_BY, invitation.invitedBy())
+            .param(PARAM_CREATED_AT, Timestamp.from(invitation.createdAt()))
+            .param(PARAM_EXPIRES_AT, Timestamp.from(invitation.expiresAt()))
+            .param(PARAM_ACCEPTED_AT, invitation.acceptedAt() != null ? Timestamp.from(invitation.acceptedAt()) : null)
             .update();
 
         if (updated == 0) {
@@ -69,15 +92,15 @@ public class JdbcInvitationRepository implements InvitationRepository {
                     INSERT INTO who_invitation (id, email, role_id, token, status, invited_by, created_at, expires_at, accepted_at)
                     VALUES (:id, :email, :roleId, :token, :status, :invitedBy, :createdAt, :expiresAt, :acceptedAt)
                     """)
-                .param("id", invitation.id())
-                .param("email", invitation.email())
-                .param("roleId", invitation.roleId())
-                .param("token", invitation.token())
-                .param("status", invitation.status().name())
-                .param("invitedBy", invitation.invitedBy())
-                .param("createdAt", Timestamp.from(invitation.createdAt()))
-                .param("expiresAt", Timestamp.from(invitation.expiresAt()))
-                .param("acceptedAt", invitation.acceptedAt() != null ? Timestamp.from(invitation.acceptedAt()) : null)
+                .param(PARAM_ID, invitation.id())
+                .param(PARAM_EMAIL, invitation.email())
+                .param(PARAM_ROLE_ID, invitation.roleId())
+                .param(PARAM_TOKEN, invitation.token())
+                .param(PARAM_STATUS, invitation.status().name())
+                .param(PARAM_INVITED_BY, invitation.invitedBy())
+                .param(PARAM_CREATED_AT, Timestamp.from(invitation.createdAt()))
+                .param(PARAM_EXPIRES_AT, Timestamp.from(invitation.expiresAt()))
+                .param(PARAM_ACCEPTED_AT, invitation.acceptedAt() != null ? Timestamp.from(invitation.acceptedAt()) : null)
                 .update();
         }
 
@@ -91,7 +114,7 @@ public class JdbcInvitationRepository implements InvitationRepository {
                 FROM who_invitation
                 WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query(this::mapRow)
             .optional();
     }
@@ -103,7 +126,7 @@ public class JdbcInvitationRepository implements InvitationRepository {
                 FROM who_invitation
                 WHERE token = :token
                 """)
-            .param("token", token)
+            .param(PARAM_TOKEN, token)
             .query(this::mapRow)
             .optional();
     }
@@ -115,7 +138,7 @@ public class JdbcInvitationRepository implements InvitationRepository {
                 FROM who_invitation
                 WHERE email = :email AND status = 'PENDING'
                 """)
-            .param("email", email.toLowerCase().trim())
+            .param(PARAM_EMAIL, email.toLowerCase().trim())
             .query(this::mapRow)
             .optional();
     }
@@ -140,10 +163,10 @@ public class JdbcInvitationRepository implements InvitationRepository {
         spec = jdbcClient.sql(sql.toString());
 
         if (status != null) {
-            spec = spec.param("status", status.name());
+            spec = spec.param(PARAM_STATUS, status.name());
         }
         if (since != null) {
-            spec = spec.param("since", Timestamp.from(since));
+            spec = spec.param(PARAM_SINCE, Timestamp.from(since));
         }
 
         return spec.query(this::mapRow).list();
@@ -154,21 +177,21 @@ public class JdbcInvitationRepository implements InvitationRepository {
         jdbcClient.sql("""
                 DELETE FROM who_invitation WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 
     private Invitation mapRow(ResultSet rs, int rowNum) throws SQLException {
-        Timestamp acceptedAtTimestamp = rs.getTimestamp("accepted_at");
+        Timestamp acceptedAtTimestamp = rs.getTimestamp(COL_ACCEPTED_AT);
         return new Invitation(
-            UUID.fromString(rs.getString("id")),
-            rs.getString("email"),
-            UUID.fromString(rs.getString("role_id")),
-            rs.getString("token"),
-            InvitationStatus.valueOf(rs.getString("status")),
-            UUID.fromString(rs.getString("invited_by")),
-            rs.getTimestamp("created_at").toInstant(),
-            rs.getTimestamp("expires_at").toInstant(),
+            UUID.fromString(rs.getString(COL_ID)),
+            rs.getString(COL_EMAIL),
+            UUID.fromString(rs.getString(COL_ROLE_ID)),
+            rs.getString(COL_TOKEN),
+            InvitationStatus.valueOf(rs.getString(COL_STATUS)),
+            UUID.fromString(rs.getString(COL_INVITED_BY)),
+            rs.getTimestamp(COL_CREATED_AT).toInstant(),
+            rs.getTimestamp(COL_EXPIRES_AT).toInstant(),
             acceptedAtTimestamp != null ? acceptedAtTimestamp.toInstant() : null
         );
     }

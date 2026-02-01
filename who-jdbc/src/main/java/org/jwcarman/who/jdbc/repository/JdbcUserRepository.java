@@ -28,6 +28,16 @@ import java.util.UUID;
 @Repository
 public class JdbcUserRepository implements UserRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_STATUS = "status";
+    private static final String COL_CREATED_AT = "created_at";
+    private static final String COL_UPDATED_AT = "updated_at";
+
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_STATUS = "status";
+    private static final String PARAM_CREATED_AT = "createdAt";
+    private static final String PARAM_UPDATED_AT = "updatedAt";
+
     private final JdbcClient jdbcClient;
 
     public JdbcUserRepository(JdbcClient jdbcClient) {
@@ -41,12 +51,12 @@ public class JdbcUserRepository implements UserRepository {
                 FROM who_user
                 WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query((rs, rowNum) -> new User(
-                UUID.fromString(rs.getString("id")),
-                UserStatus.valueOf(rs.getString("status")),
-                rs.getTimestamp("created_at").toInstant(),
-                rs.getTimestamp("updated_at").toInstant()
+                UUID.fromString(rs.getString(COL_ID)),
+                UserStatus.valueOf(rs.getString(COL_STATUS)),
+                rs.getTimestamp(COL_CREATED_AT).toInstant(),
+                rs.getTimestamp(COL_UPDATED_AT).toInstant()
             ))
             .optional();
     }
@@ -58,9 +68,9 @@ public class JdbcUserRepository implements UserRepository {
                 SET status = :status, updated_at = :updatedAt
                 WHERE id = :id
                 """)
-            .param("id", user.id())
-            .param("status", user.status().name())
-            .param("updatedAt", Timestamp.from(user.updatedAt()))
+            .param(PARAM_ID, user.id())
+            .param(PARAM_STATUS, user.status().name())
+            .param(PARAM_UPDATED_AT, Timestamp.from(user.updatedAt()))
             .update();
 
         if (updated == 0) {
@@ -69,10 +79,10 @@ public class JdbcUserRepository implements UserRepository {
                     INSERT INTO who_user (id, status, created_at, updated_at)
                     VALUES (:id, :status, :createdAt, :updatedAt)
                     """)
-                .param("id", user.id())
-                .param("status", user.status().name())
-                .param("createdAt", Timestamp.from(user.createdAt()))
-                .param("updatedAt", Timestamp.from(user.updatedAt()))
+                .param(PARAM_ID, user.id())
+                .param(PARAM_STATUS, user.status().name())
+                .param(PARAM_CREATED_AT, Timestamp.from(user.createdAt()))
+                .param(PARAM_UPDATED_AT, Timestamp.from(user.updatedAt()))
                 .update();
         }
 
@@ -84,7 +94,7 @@ public class JdbcUserRepository implements UserRepository {
         Integer count = jdbcClient.sql("""
                 SELECT COUNT(*) FROM who_user WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query(Integer.class)
             .single();
         return count > 0;
@@ -95,7 +105,7 @@ public class JdbcUserRepository implements UserRepository {
         jdbcClient.sql("""
                 DELETE FROM who_user WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 }

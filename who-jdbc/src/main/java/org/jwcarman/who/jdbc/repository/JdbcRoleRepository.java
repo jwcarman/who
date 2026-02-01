@@ -26,6 +26,12 @@ import java.util.UUID;
 @Repository
 public class JdbcRoleRepository implements RoleRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_NAME = "name";
+
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_NAME = "name";
+
     private final JdbcClient jdbcClient;
 
     public JdbcRoleRepository(JdbcClient jdbcClient) {
@@ -39,10 +45,10 @@ public class JdbcRoleRepository implements RoleRepository {
                 FROM who_role
                 WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query((rs, rowNum) -> new Role(
-                UUID.fromString(rs.getString("id")),
-                rs.getString("name")
+                UUID.fromString(rs.getString(COL_ID)),
+                rs.getString(COL_NAME)
             ))
             .optional();
     }
@@ -54,10 +60,10 @@ public class JdbcRoleRepository implements RoleRepository {
                 FROM who_role
                 WHERE name = :name
                 """)
-            .param("name", name)
+            .param(PARAM_NAME, name)
             .query((rs, rowNum) -> new Role(
-                UUID.fromString(rs.getString("id")),
-                rs.getString("name")
+                UUID.fromString(rs.getString(COL_ID)),
+                rs.getString(COL_NAME)
             ))
             .optional();
     }
@@ -69,8 +75,8 @@ public class JdbcRoleRepository implements RoleRepository {
                 SET name = :name
                 WHERE id = :id
                 """)
-            .param("id", role.id())
-            .param("name", role.name())
+            .param(PARAM_ID, role.id())
+            .param(PARAM_NAME, role.name())
             .update();
 
         if (updated == 0) {
@@ -79,8 +85,8 @@ public class JdbcRoleRepository implements RoleRepository {
                     INSERT INTO who_role (id, name)
                     VALUES (:id, :name)
                     """)
-                .param("id", role.id())
-                .param("name", role.name())
+                .param(PARAM_ID, role.id())
+                .param(PARAM_NAME, role.name())
                 .update();
         }
 
@@ -92,7 +98,7 @@ public class JdbcRoleRepository implements RoleRepository {
         Integer count = jdbcClient.sql("""
                 SELECT COUNT(*) FROM who_role WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query(Integer.class)
             .single();
         return count > 0;
@@ -103,7 +109,7 @@ public class JdbcRoleRepository implements RoleRepository {
         jdbcClient.sql("""
                 DELETE FROM who_role WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 }

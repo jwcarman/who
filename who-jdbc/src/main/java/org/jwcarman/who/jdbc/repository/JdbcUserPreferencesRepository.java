@@ -26,6 +26,16 @@ import java.util.UUID;
 @Repository
 public class JdbcUserPreferencesRepository implements UserPreferencesRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_USER_ID = "user_id";
+    private static final String COL_NAMESPACE = "namespace";
+    private static final String COL_DATA = "data";
+
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_USER_ID = "userId";
+    private static final String PARAM_NAMESPACE = "namespace";
+    private static final String PARAM_DATA = "data";
+
     private final JdbcClient jdbcClient;
 
     public JdbcUserPreferencesRepository(JdbcClient jdbcClient) {
@@ -39,13 +49,13 @@ public class JdbcUserPreferencesRepository implements UserPreferencesRepository 
                 FROM who_user_preference
                 WHERE user_id = :userId AND namespace = :namespace
                 """)
-            .param("userId", userId)
-            .param("namespace", namespace)
+            .param(PARAM_USER_ID, userId)
+            .param(PARAM_NAMESPACE, namespace)
             .query((rs, rowNum) -> new UserPreferences(
-                UUID.fromString(rs.getString("id")),
-                UUID.fromString(rs.getString("user_id")),
-                rs.getString("namespace"),
-                rs.getString("data")
+                UUID.fromString(rs.getString(COL_ID)),
+                UUID.fromString(rs.getString(COL_USER_ID)),
+                rs.getString(COL_NAMESPACE),
+                rs.getString(COL_DATA)
             ))
             .optional();
     }
@@ -57,8 +67,8 @@ public class JdbcUserPreferencesRepository implements UserPreferencesRepository 
                 SET data = :data
                 WHERE id = :id
                 """)
-            .param("id", preferences.id())
-            .param("data", preferences.data())
+            .param(PARAM_ID, preferences.id())
+            .param(PARAM_DATA, preferences.data())
             .update();
 
         if (updated == 0) {
@@ -67,10 +77,10 @@ public class JdbcUserPreferencesRepository implements UserPreferencesRepository 
                     INSERT INTO who_user_preference (id, user_id, namespace, data)
                     VALUES (:id, :userId, :namespace, :data)
                     """)
-                .param("id", preferences.id())
-                .param("userId", preferences.userId())
-                .param("namespace", preferences.namespace())
-                .param("data", preferences.data())
+                .param(PARAM_ID, preferences.id())
+                .param(PARAM_USER_ID, preferences.userId())
+                .param(PARAM_NAMESPACE, preferences.namespace())
+                .param(PARAM_DATA, preferences.data())
                 .update();
         }
 
@@ -82,7 +92,7 @@ public class JdbcUserPreferencesRepository implements UserPreferencesRepository 
         jdbcClient.sql("""
                 DELETE FROM who_user_preference WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 }

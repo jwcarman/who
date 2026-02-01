@@ -27,6 +27,18 @@ import java.util.UUID;
 @Repository
 public class JdbcExternalIdentityRepository implements ExternalIdentityRepository {
 
+    // Column name constants
+    private static final String COL_ID = "id";
+    private static final String COL_USER_ID = "user_id";
+    private static final String COL_ISSUER = "issuer";
+    private static final String COL_SUBJECT = "subject";
+
+    // Parameter name constants
+    private static final String PARAM_ID = "id";
+    private static final String PARAM_USER_ID = "userId";
+    private static final String PARAM_ISSUER = "issuer";
+    private static final String PARAM_SUBJECT = "subject";
+
     private final JdbcClient jdbcClient;
 
     public JdbcExternalIdentityRepository(JdbcClient jdbcClient) {
@@ -40,12 +52,12 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
                 FROM who_external_identity
                 WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .query((rs, rowNum) -> new ExternalIdentity(
-                UUID.fromString(rs.getString("id")),
-                UUID.fromString(rs.getString("user_id")),
-                rs.getString("issuer"),
-                rs.getString("subject")
+                UUID.fromString(rs.getString(COL_ID)),
+                UUID.fromString(rs.getString(COL_USER_ID)),
+                rs.getString(COL_ISSUER),
+                rs.getString(COL_SUBJECT)
             ))
             .optional();
     }
@@ -57,13 +69,13 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
                 FROM who_external_identity
                 WHERE issuer = :issuer AND subject = :subject
                 """)
-            .param("issuer", issuer)
-            .param("subject", subject)
+            .param(PARAM_ISSUER, issuer)
+            .param(PARAM_SUBJECT, subject)
             .query((rs, rowNum) -> new ExternalIdentity(
-                UUID.fromString(rs.getString("id")),
-                UUID.fromString(rs.getString("user_id")),
-                rs.getString("issuer"),
-                rs.getString("subject")
+                UUID.fromString(rs.getString(COL_ID)),
+                UUID.fromString(rs.getString(COL_USER_ID)),
+                rs.getString(COL_ISSUER),
+                rs.getString(COL_SUBJECT)
             ))
             .optional();
     }
@@ -75,12 +87,12 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
                 FROM who_external_identity
                 WHERE user_id = :userId
                 """)
-            .param("userId", userId)
+            .param(PARAM_USER_ID, userId)
             .query((rs, rowNum) -> new ExternalIdentity(
-                UUID.fromString(rs.getString("id")),
-                UUID.fromString(rs.getString("user_id")),
-                rs.getString("issuer"),
-                rs.getString("subject")
+                UUID.fromString(rs.getString(COL_ID)),
+                UUID.fromString(rs.getString(COL_USER_ID)),
+                rs.getString(COL_ISSUER),
+                rs.getString(COL_SUBJECT)
             ))
             .list();
     }
@@ -90,7 +102,7 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
         Long count = jdbcClient.sql("""
                 SELECT COUNT(*) FROM who_external_identity WHERE user_id = :userId
                 """)
-            .param("userId", userId)
+            .param(PARAM_USER_ID, userId)
             .query(Long.class)
             .single();
         return count != null ? count : 0L;
@@ -103,10 +115,10 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
                 SET user_id = :userId, issuer = :issuer, subject = :subject
                 WHERE id = :id
                 """)
-            .param("id", identity.id())
-            .param("userId", identity.userId())
-            .param("issuer", identity.issuer())
-            .param("subject", identity.subject())
+            .param(PARAM_ID, identity.id())
+            .param(PARAM_USER_ID, identity.userId())
+            .param(PARAM_ISSUER, identity.issuer())
+            .param(PARAM_SUBJECT, identity.subject())
             .update();
 
         if (updated == 0) {
@@ -115,10 +127,10 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
                     INSERT INTO who_external_identity (id, user_id, issuer, subject)
                     VALUES (:id, :userId, :issuer, :subject)
                     """)
-                .param("id", identity.id())
-                .param("userId", identity.userId())
-                .param("issuer", identity.issuer())
-                .param("subject", identity.subject())
+                .param(PARAM_ID, identity.id())
+                .param(PARAM_USER_ID, identity.userId())
+                .param(PARAM_ISSUER, identity.issuer())
+                .param(PARAM_SUBJECT, identity.subject())
                 .update();
         }
 
@@ -130,7 +142,7 @@ public class JdbcExternalIdentityRepository implements ExternalIdentityRepositor
         jdbcClient.sql("""
                 DELETE FROM who_external_identity WHERE id = :id
                 """)
-            .param("id", id)
+            .param(PARAM_ID, id)
             .update();
     }
 }
