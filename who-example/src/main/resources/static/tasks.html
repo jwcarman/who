@@ -23,7 +23,196 @@
             padding: 20px;
         }
 
-        /* Loading state */
+        /* Header */
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .username {
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Add Task Form */
+        .add-task-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Task List */
+        .task-list {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .task-item {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .task-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .task-status.TODO {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .task-status.IN_PROGRESS {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .task-status.DONE {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .task-description {
+            color: #666;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #999;
+        }
+
+        .empty-state p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        /* Loading and Error States */
         .loading {
             text-align: center;
             padding: 50px;
@@ -37,6 +226,17 @@
             padding: 15px;
             border-radius: 4px;
             margin: 20px 0;
+        }
+
+        /* Edit Form (inline) */
+        .task-edit-form {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
@@ -412,6 +612,159 @@
             });
             if (!response.ok) {
                 throw new Error(`Failed to delete task: ${response.status}`);
+            }
+        }
+
+        // ============================================================================
+        // UI State
+        // ============================================================================
+
+        let tasks = [];
+        let editingTaskId = null;
+
+        // ============================================================================
+        // UI Rendering
+        // ============================================================================
+
+        /**
+         * Render the entire application UI
+         */
+        function renderApp() {
+            const app = document.getElementById('app');
+            const username = getUsername();
+
+            app.innerHTML = `
+                <header>
+                    <h1>Task Manager</h1>
+                    <div class="user-info">
+                        <span class="username">${escapeHtml(username)}</span>
+                        <button class="btn-secondary" onclick="logout()">Logout</button>
+                    </div>
+                </header>
+
+                <div class="add-task-form">
+                    <h2 style="margin-bottom: 15px;">Add New Task</h2>
+                    <form id="add-task-form" onsubmit="handleAddTask(event)">
+                        <div class="form-group">
+                            <label for="task-title">Title</label>
+                            <input type="text" id="task-title" required maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="task-description">Description</label>
+                            <textarea id="task-description" maxlength="500"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-status">Status</label>
+                            <select id="task-status">
+                                <option value="TODO">To Do</option>
+                                <option value="IN_PROGRESS">In Progress</option>
+                                <option value="DONE">Done</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Add Task</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="task-list" id="task-list">
+                    ${renderTaskList()}
+                </div>
+            `;
+        }
+
+        /**
+         * Render task list
+         */
+        function renderTaskList() {
+            if (tasks.length === 0) {
+                return `
+                    <div class="empty-state">
+                        <p>No tasks yet</p>
+                        <p style="font-size: 14px;">Create your first task above!</p>
+                    </div>
+                `;
+            }
+
+            return tasks.map(task => `
+                <div class="task-item">
+                    <div class="task-header">
+                        <div>
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            <span class="task-status ${task.status}">${formatStatus(task.status)}</span>
+                        </div>
+                    </div>
+                    <div class="task-description">${escapeHtml(task.description || '')}</div>
+                    ${editingTaskId === task.id ? renderEditForm(task) : renderTaskActions(task)}
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Render task action buttons
+         */
+        function renderTaskActions(task) {
+            return `
+                <div class="task-actions">
+                    <button class="btn-primary btn-small" onclick="startEditTask('${task.id}')">Edit</button>
+                    <button class="btn-danger btn-small" onclick="handleDeleteTask('${task.id}')">Delete</button>
+                </div>
+            `;
+        }
+
+        /**
+         * Render inline edit form
+         */
+        function renderEditForm(task) {
+            return `
+                <form class="task-edit-form" onsubmit="handleUpdateTask(event, '${task.id}')">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="edit-title-${task.id}" value="${escapeHtml(task.title)}" required maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="edit-description-${task.id}" maxlength="500">${escapeHtml(task.description || '')}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="edit-status-${task.id}">
+                            <option value="TODO" ${task.status === 'TODO' ? 'selected' : ''}>To Do</option>
+                            <option value="IN_PROGRESS" ${task.status === 'IN_PROGRESS' ? 'selected' : ''}>In Progress</option>
+                            <option value="DONE" ${task.status === 'DONE' ? 'selected' : ''}>Done</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary btn-small">Save</button>
+                        <button type="button" class="btn-secondary btn-small" onclick="cancelEdit()">Cancel</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        /**
+         * Escape HTML to prevent XSS
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * Format status for display
+         */
+        function formatStatus(status) {
+            return status.replace('_', ' ');
+        }
+
+        /**
+         * Re-render task list only (optimization)
+         */
+        function rerenderTaskList() {
+            const taskList = document.getElementById('task-list');
+            if (taskList) {
+                taskList.innerHTML = renderTaskList();
             }
         }
 
