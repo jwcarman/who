@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.core.domain;
 
+import java.io.Serializable;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ import java.util.UUID;
 public record WhoPrincipal(
     UUID userId,
     Set<String> permissions
-) {
+) implements Serializable {
     public WhoPrincipal {
         permissions = Set.copyOf(permissions);
     }
