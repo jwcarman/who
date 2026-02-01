@@ -71,18 +71,32 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain resourceServerSecurityFilterChain(
+    public SecurityFilterChain apiSecurityFilterChain(
             HttpSecurity http,
             org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
+        http
+            .securityMatcher("/api/**")
+            .authorizeHttpRequests(authorize -> authorize
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
+                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(3)
+    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/", "/authorized", "/tasks.html").permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(Customizer.withDefaults())
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
-                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
-            .csrf(csrf -> csrf.disable());
+            .formLogin(Customizer.withDefaults());
 
         return http.build();
     }
