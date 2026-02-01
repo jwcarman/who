@@ -84,8 +84,8 @@ class JdbcRoleRepositoryTest {
         Optional<Role> found = roleRepository.findById(role.id());
 
         // Then
-        assertThat(found).hasValueSatisfying(role ->
-            assertThat(role.name()).isEqualTo("super-admin"));
+        assertThat(found).hasValueSatisfying(foundRole ->
+            assertThat(foundRole.name()).isEqualTo("super-admin"));
     }
 
     @Test

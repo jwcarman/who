@@ -106,9 +106,9 @@ class JdbcInvitationRepositoryTest {
         Optional<Invitation> found = invitationRepository.findById(invitation.id());
 
         // Then
-        assertThat(found).hasValueSatisfying(invitation -> {
-            assertThat(invitation.status()).isEqualTo(InvitationStatus.ACCEPTED);
-            assertThat(invitation.acceptedAt()).isNotNull();
+        assertThat(found).hasValueSatisfying(foundInvitation -> {
+            assertThat(foundInvitation.status()).isEqualTo(InvitationStatus.ACCEPTED);
+            assertThat(foundInvitation.acceptedAt()).isNotNull();
         });
     }
 
@@ -285,7 +285,7 @@ class JdbcInvitationRepositoryTest {
         Optional<Invitation> found = invitationRepository.findPendingByEmail("test@example.com");
 
         // Then
-        assertThat(found).hasValueSatisfying(invitation ->
-            assertThat(invitation.email()).isEqualTo("test@example.com"));
+        assertThat(found).hasValueSatisfying(foundInvitation ->
+            assertThat(foundInvitation.email()).isEqualTo("test@example.com"));
     }
 }

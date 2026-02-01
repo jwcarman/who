@@ -63,9 +63,9 @@ class JdbcUserRepositoryTest {
         Optional<User> found = userRepository.findById(user.id());
 
         // Then
-        assertThat(found).hasValueSatisfying(user -> {
-            assertThat(user.status()).isEqualTo(UserStatus.DISABLED);
-            assertThat(user.updatedAt()).isAfter(user.createdAt());
+        assertThat(found).hasValueSatisfying(foundUser -> {
+            assertThat(foundUser.status()).isEqualTo(UserStatus.DISABLED);
+            assertThat(foundUser.updatedAt()).isAfter(foundUser.createdAt());
         });
     }
 
