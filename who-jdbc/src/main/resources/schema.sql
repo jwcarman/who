@@ -55,3 +55,18 @@ CREATE TABLE IF NOT EXISTS who_user_preference (
     UNIQUE (user_id, namespace),
     FOREIGN KEY (user_id) REFERENCES who_user(id) ON DELETE CASCADE
 );
+
+-- Invitation table
+CREATE TABLE IF NOT EXISTS who_invitation (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    role_id UUID NOT NULL,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL,
+    invited_by UUID NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    accepted_at TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_by) REFERENCES who_user(id) ON DELETE CASCADE
+);
