@@ -28,6 +28,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -97,5 +98,77 @@ class WhoAuthenticationConverterTest {
         Authentication auth = converter.convert(jwt);
 
         assertThat(auth).isNull();
+    }
+
+    @Test
+    void shouldImplementEqualsAndHashCodeForAuthenticationToken() {
+        // Given
+        UUID userId = UUID.randomUUID();
+        Set<String> permissions = Set.of("read", "write");
+
+        when(identityResolver.resolveUserId(any(ExternalIdentityKey.class)))
+            .thenReturn(userId);
+        when(entitlementsService.resolvePermissions(userId))
+            .thenReturn(permissions);
+
+        Jwt jwt1 = Jwt.withTokenValue("token1")
+            .header("alg", "RS256")
+            .claim("iss", "https://auth.example.com")
+            .claim("sub", "user123")
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(3600))
+            .build();
+
+        Jwt jwt2 = Jwt.withTokenValue("token2")
+            .header("alg", "RS256")
+            .claim("iss", "https://auth.example.com")
+            .claim("sub", "user123")
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(3600))
+            .build();
+
+        // When
+        Authentication auth1 = converter.convert(jwt1);
+        Authentication auth2 = converter.convert(jwt2);
+
+        // Then - same principal should produce equal authentication tokens
+        assertThat(auth1)
+            .isEqualTo(auth2)
+            .hasSameHashCodeAs(auth2);
+    }
+
+    @Test
+    void shouldNotBeEqualWithDifferentPrincipal() {
+        // Given
+        UUID userId1 = UUID.randomUUID();
+        UUID userId2 = UUID.randomUUID();
+
+        when(identityResolver.resolveUserId(any(ExternalIdentityKey.class)))
+            .thenReturn(userId1, userId2);
+        when(entitlementsService.resolvePermissions(any(UUID.class)))
+            .thenReturn(Set.of("read"));
+
+        Jwt jwt1 = Jwt.withTokenValue("token1")
+            .header("alg", "RS256")
+            .claim("iss", "https://auth.example.com")
+            .claim("sub", "user1")
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(3600))
+            .build();
+
+        Jwt jwt2 = Jwt.withTokenValue("token2")
+            .header("alg", "RS256")
+            .claim("iss", "https://auth.example.com")
+            .claim("sub", "user2")
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(3600))
+            .build();
+
+        // When
+        Authentication auth1 = converter.convert(jwt1);
+        Authentication auth2 = converter.convert(jwt2);
+
+        // Then - different principals should produce unequal tokens
+        assertThat(auth1).isNotEqualTo(auth2);
     }
 }
