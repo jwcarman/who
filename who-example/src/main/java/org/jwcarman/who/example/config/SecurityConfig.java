@@ -23,8 +23,6 @@ import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,7 +34,6 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -60,7 +57,7 @@ public class SecurityConfig {
     private static final KeyPair KEY_PAIR = generateRsaKey();
 
     @Bean
-    @Order(1)
+    @Order(0)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) {
         http
             .securityMatcher("/oauth2/**", "/.well-known/**")
@@ -69,25 +66,6 @@ public class SecurityConfig {
             )
             .formLogin(Customizer.withDefaults())
             .oauth2AuthorizationServer(Customizer.withDefaults());
-        return http.build();
-    }
-
-    @Bean
-    @Order(2)
-    public SecurityFilterChain apiSecurityFilterChain(
-            HttpSecurity http,
-            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter) {
-        http
-            .securityMatcher("/api/**")
-            .authorizeHttpRequests(authorize -> authorize
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
-                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
-            .csrf(csrf -> csrf.disable());
-
         return http.build();
     }
 
