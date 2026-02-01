@@ -1,0 +1,151 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.jdbc.repository;
+
+import org.jwcarman.who.core.domain.ContactMethod;
+import org.jwcarman.who.core.domain.ContactType;
+import org.jwcarman.who.core.repository.ContactMethodRepository;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public class JdbcContactMethodRepository implements ContactMethodRepository {
+
+    private final JdbcClient jdbcClient;
+
+    public JdbcContactMethodRepository(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    public ContactMethod save(ContactMethod contactMethod) {
+        int updated = jdbcClient.sql("""
+                UPDATE who_contact_method
+                SET user_id = :userId,
+                    type = :type,
+                    "value" = :value,
+                    verified = :verified,
+                    verified_at = :verifiedAt,
+                    created_at = :createdAt
+                WHERE id = :id
+                """)
+            .param("id", contactMethod.id())
+            .param("userId", contactMethod.userId())
+            .param("type", contactMethod.type().name())
+            .param("value", contactMethod.value())
+            .param("verified", contactMethod.verified())
+            .param("verifiedAt", contactMethod.verifiedAt() != null ? Timestamp.from(contactMethod.verifiedAt()) : null)
+            .param("createdAt", Timestamp.from(contactMethod.createdAt()))
+            .update();
+
+        if (updated == 0) {
+            // Insert new contact method
+            jdbcClient.sql("""
+                    INSERT INTO who_contact_method (id, user_id, type, "value", verified, verified_at, created_at)
+                    VALUES (:id, :userId, :type, :value, :verified, :verifiedAt, :createdAt)
+                    """)
+                .param("id", contactMethod.id())
+                .param("userId", contactMethod.userId())
+                .param("type", contactMethod.type().name())
+                .param("value", contactMethod.value())
+                .param("verified", contactMethod.verified())
+                .param("verifiedAt", contactMethod.verifiedAt() != null ? Timestamp.from(contactMethod.verifiedAt()) : null)
+                .param("createdAt", Timestamp.from(contactMethod.createdAt()))
+                .update();
+        }
+
+        return contactMethod;
+    }
+
+    @Override
+    public Optional<ContactMethod> findById(UUID id) {
+        return jdbcClient.sql("""
+                SELECT id, user_id, type, "value", verified, verified_at, created_at
+                FROM who_contact_method
+                WHERE id = :id
+                """)
+            .param("id", id)
+            .query(this::mapRow)
+            .optional();
+    }
+
+    @Override
+    public List<ContactMethod> findByUserId(UUID userId) {
+        return jdbcClient.sql("""
+                SELECT id, user_id, type, "value", verified, verified_at, created_at
+                FROM who_contact_method
+                WHERE user_id = :userId
+                """)
+            .param("userId", userId)
+            .query(this::mapRow)
+            .list();
+    }
+
+    @Override
+    public Optional<ContactMethod> findByUserIdAndType(UUID userId, ContactType type) {
+        return jdbcClient.sql("""
+                SELECT id, user_id, type, "value", verified, verified_at, created_at
+                FROM who_contact_method
+                WHERE user_id = :userId AND type = :type
+                """)
+            .param("userId", userId)
+            .param("type", type.name())
+            .query(this::mapRow)
+            .optional();
+    }
+
+    @Override
+    public Optional<ContactMethod> findByTypeAndValue(ContactType type, String value) {
+        return jdbcClient.sql("""
+                SELECT id, user_id, type, "value", verified, verified_at, created_at
+                FROM who_contact_method
+                WHERE type = :type AND "value" = :value
+                """)
+            .param("type", type.name())
+            .param("value", value)
+            .query(this::mapRow)
+            .optional();
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        jdbcClient.sql("""
+                DELETE FROM who_contact_method WHERE id = :id
+                """)
+            .param("id", id)
+            .update();
+    }
+
+    private ContactMethod mapRow(ResultSet rs, int rowNum) throws SQLException {
+        Timestamp verifiedAtTimestamp = rs.getTimestamp("verified_at");
+        return new ContactMethod(
+            UUID.fromString(rs.getString("id")),
+            UUID.fromString(rs.getString("user_id")),
+            ContactType.valueOf(rs.getString("type")),
+            rs.getString("value"),
+            rs.getBoolean("verified"),
+            verifiedAtTimestamp != null ? verifiedAtTimestamp.toInstant() : null,
+            rs.getTimestamp("created_at").toInstant()
+        );
+    }
+}

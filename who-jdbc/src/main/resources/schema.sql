@@ -70,3 +70,17 @@ CREATE TABLE IF NOT EXISTS who_invitation (
     FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE,
     FOREIGN KEY (invited_by) REFERENCES who_user(id) ON DELETE CASCADE
 );
+
+-- Contact method table
+CREATE TABLE IF NOT EXISTS who_contact_method (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    "value" VARCHAR(255) NOT NULL,
+    verified BOOLEAN NOT NULL DEFAULT FALSE,
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES who_user(id) ON DELETE CASCADE,
+    UNIQUE (user_id, type),
+    UNIQUE (type, "value")
+);
