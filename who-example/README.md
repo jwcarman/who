@@ -5,6 +5,7 @@ A functional REST API demonstrating the [who library](../) authentication and RB
 ## Features
 
 - **Zero-config startup** - Just run and it works
+- **Interactive Task Manager SPA** - Full-featured web UI with OAuth2 login
 - **Embedded OAuth2 server** - Get real JWTs from `http://localhost:8080/oauth2/token`
 - **Task API** - User-specific CRUD operations
 - **Admin endpoints** - View all tasks and users
@@ -18,11 +19,25 @@ A functional REST API demonstrating the [who library](../) authentication and RB
 mvn spring-boot:run
 ```
 
-The application starts on `http://localhost:8080` with both:
+The application starts on `http://localhost:8080` with:
+- Home page with links to all features
+- Interactive Task Manager SPA (visit http://localhost:8080/tasks.html)
 - Authorization Server (issues JWTs)
 - Resource Server (Task API)
 
-### 2. Get a Token
+### 2. Try the Interactive Task Manager
+
+Visit http://localhost:8080/tasks.html
+
+- Login with alice/bob/admin (password: `password`)
+- Create, update, and delete tasks through the web UI
+- See OAuth2 Authorization Code Flow with PKCE in action
+- Experience automatic token refresh
+- Each user sees only their own tasks
+
+### 3. Or Use the API Directly
+
+#### Get a Token
 
 **For alice (USER role):**
 
@@ -47,11 +62,11 @@ ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/oauth2/token \
 ```
 
 **Available users:**
-- `alice` / `password` - USER role
-- `bob` / `password` - USER role
-- `admin` / `password` - ADMIN role
+- `alice` / `password` - USER role (task.own.read, task.own.write)
+- `bob` / `password` - USER role (task.own.read, task.own.write)
+- `admin` / `password` - ADMIN role (all permissions)
 
-### 3. Use the API
+#### Use the API
 
 **List my tasks:**
 
@@ -187,6 +202,15 @@ Spring Security: Available as authorities for @PreAuthorize checks
 │     who-example Application             │
 │                                         │
 │  ┌─────────────────────────────────┐   │
+│  │  Task Manager SPA               │   │
+│  │  (Pure JavaScript)              │   │
+│  │  - OAuth2 + PKCE flow           │   │
+│  │  - Automatic token refresh      │   │
+│  │  - Full CRUD UI                 │   │
+│  │  /tasks.html                    │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  ┌─────────────────────────────────┐   │
 │  │  Authorization Server           │   │
 │  │  (Spring Authorization Server)  │   │
 │  │  - Issues JWTs                  │   │
@@ -207,6 +231,29 @@ Spring Security: Available as authorities for @PreAuthorize checks
 │  └─────────────────────────────────┘   │
 └─────────────────────────────────────────┘
 ```
+
+## Task Manager SPA
+
+The interactive task manager demonstrates modern OAuth2 best practices for single-page applications:
+
+**Technology:**
+- Pure HTML/CSS/JavaScript (no frameworks or build tools)
+- Web Crypto API for PKCE implementation
+- Fetch API for REST calls
+- sessionStorage for token management
+
+**Security:**
+- OAuth2 Authorization Code Flow with PKCE
+- Automatic token refresh before expiry
+- Secure token storage (sessionStorage, cleared on tab close)
+- XSS protection (HTML escaping, no eval/innerHTML)
+
+**Features:**
+- Login with alice/bob/admin
+- Create, read, update, delete tasks
+- Real-time UI updates
+- Each user sees only their own tasks
+- Permission-based access via Who library
 
 ## License
 
