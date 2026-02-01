@@ -81,7 +81,8 @@ public class SecurityConfig {
             )
             .formLogin(Customizer.withDefaults())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
-                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
+                jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
+            .csrf(csrf -> csrf.disable());
 
         return http.build();
     }
