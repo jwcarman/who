@@ -13,6 +13,8 @@ spring:
   sql:
     init:
       mode: always
+      schema-locations: classpath:org/jwcarman/who/jdbc/schema.sql
+      data-locations: classpath:org/jwcarman/who/jdbc/data.sql
   h2:
     console:
       enabled: true
