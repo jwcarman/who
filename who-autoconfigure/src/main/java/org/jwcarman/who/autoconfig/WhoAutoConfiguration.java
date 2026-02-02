@@ -251,6 +251,12 @@ public class WhoAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ContactConfirmationNotifier contactConfirmationNotifier() {
+        return new NoOpContactConfirmationNotifier();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public ContactMethodService contactMethodService(ContactMethodRepository contactMethodRepository,
                                                        UserRepository userRepository,
                                                        ContactConfirmationNotifier contactConfirmationNotifier) {
