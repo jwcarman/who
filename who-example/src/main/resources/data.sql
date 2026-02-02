@@ -1,6 +1,38 @@
 -- Bootstrap data for who-example application
 -- This runs after Hibernate creates the schema
 
+-- ==============================================================================
+-- Who Library Built-in Permissions (Reference Implementation)
+-- ==============================================================================
+-- These are the permissions used by the Who library itself for managing
+-- invitations, roles, and user-role assignments. See WhoPermissions class
+-- for the complete list with descriptions.
+
+-- Invitation Management Permissions
+INSERT INTO who_permission (id, description) VALUES
+('who.invitation.create', 'Create and send invitations to new users'),
+('who.invitation.revoke', 'Revoke pending invitations'),
+('who.invitation.list', 'List and view invitations');
+
+-- Role Management Permissions
+INSERT INTO who_permission (id, description) VALUES
+('who.role.create', 'Create new roles'),
+('who.role.delete', 'Delete existing roles');
+
+-- User-Role Assignment Permissions
+INSERT INTO who_permission (id, description) VALUES
+('who.user.role.assign', 'Assign roles to users'),
+('who.user.role.remove', 'Remove roles from users');
+
+-- Role-Permission Assignment Permissions
+INSERT INTO who_permission (id, description) VALUES
+('who.role.permission.add', 'Add permissions to roles'),
+('who.role.permission.remove', 'Remove permissions from roles');
+
+-- ==============================================================================
+-- Example Application Data
+-- ==============================================================================
+
 -- Create users (alice, bob, admin)
 -- UUIDs are time-based for consistency
 INSERT INTO who_user (id, status, created_at, updated_at) VALUES
@@ -21,7 +53,7 @@ INSERT INTO who_role (id, name) VALUES
 ('750e8400-e29b-41d4-a716-446655440001', 'USER'),
 ('750e8400-e29b-41d4-a716-446655440002', 'ADMIN');
 
--- Create permissions first
+-- Create application-specific permissions
 INSERT INTO who_permission (id) VALUES
 ('task.own.read'),
 ('task.own.write'),

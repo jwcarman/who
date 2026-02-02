@@ -1,12 +1,14 @@
 -- Who Library Database Schema
 --
--- To use this schema in your application, configure Spring Boot's SQL initialization:
+-- This schema defines all tables required by the Who library.
+-- You can use this as a reference for your migration tool (Flyway, Liquibase, etc.)
+-- or with Spring Boot's SQL initialization:
 --
 -- spring.sql.init.mode=always
 -- spring.sql.init.schema-locations=classpath:org/jwcarman/who/jdbc/schema.sql
--- spring.sql.init.data-locations=classpath:org/jwcarman/who/jdbc/data.sql
 --
--- Or use your preferred migration tool (Flyway, Liquibase, etc.)
+-- Note: You'll need to separately create the library's built-in permissions.
+-- See WhoPermissions class for the list of permission IDs and descriptions.
 
 -- User table
 CREATE TABLE IF NOT EXISTS who_user (
