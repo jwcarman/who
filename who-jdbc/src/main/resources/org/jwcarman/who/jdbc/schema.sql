@@ -1,3 +1,13 @@
+-- Who Library Database Schema
+--
+-- To use this schema in your application, configure Spring Boot's SQL initialization:
+--
+-- spring.sql.init.mode=always
+-- spring.sql.init.schema-locations=classpath:org/jwcarman/who/jdbc/schema.sql
+-- spring.sql.init.data-locations=classpath:org/jwcarman/who/jdbc/data.sql
+--
+-- Or use your preferred migration tool (Flyway, Liquibase, etc.)
+
 -- User table
 CREATE TABLE IF NOT EXISTS who_user (
     id UUID PRIMARY KEY,

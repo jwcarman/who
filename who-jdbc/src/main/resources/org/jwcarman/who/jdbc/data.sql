@@ -1,6 +1,8 @@
--- Who Library Permissions
+-- Who Library Permissions (PostgreSQL/generic syntax)
 -- Insert all core Who library permissions into the who_permission table
 -- These permissions control access to Who library management features
+--
+-- Note: For H2 database, use data-h2.sql instead (uses MERGE syntax)
 
 -- Invitation Management Permissions
 INSERT INTO who_permission (id, description)
