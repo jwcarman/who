@@ -14,7 +14,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:org/jwcarman/who/jdbc/schema.sql
-      data-locations: classpath:org/jwcarman/who/jdbc/data.sql
+      data-locations: classpath:org/jwcarman/who/jdbc/data-h2.sql
   h2:
     console:
       enabled: true
