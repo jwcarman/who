@@ -1,4 +1,4 @@
-# Who - Spring Boot Identity & Entitlements Framework
+# Who - Spring Boot Identity & Entitlements Library
 
 [![CI](https://github.com/jwcarman/who/actions/workflows/maven.yml/badge.svg)](https://github.com/jwcarman/who/actions/workflows/maven.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -12,7 +12,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=coverage)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 
-A reusable Spring Boot library for OAuth2/JWT authentication, internal identity mapping, RBAC authorization, user invitations, and personalization.
+A reusable Spring Boot library that maps external JWT credentials to a stable internal identity UUID and enforces role-based access control.
 
 ## Quick Start — Run the Example App
 
@@ -53,29 +53,19 @@ curl http://localhost:8080/api/tasks \
 
 ---
 
-## Features
+## How it works
 
-- **JWT Authentication**: OAuth2 resource server with multi-issuer support and JWT validation
-- **Internal Identity Mapping**: Map external OAuth2 identities `(issuer, subject)` to stable internal UUIDs
-- **RBAC Authorization**: Role-Based Access Control with atomic permission strings as Spring Security authorities
-- **User Invitations**: Email-based user invitation system with JWT-authenticated token acceptance
-- **Contact Methods**: Email and phone contact management with verification workflows
-- **User Preferences**: Namespaced JSON preferences with defaults and deep merge
-- **Identity Linking**: Link multiple external identities to one internal user
-- **Auto-Provisioning**: Configurable policy for handling unknown identities (auto-create or deny)
+Every request passes through this pipeline:
 
-## Modules
+```
+HttpRequest → CredentialExtractor → Credential → Identity → Set<String> permissions → WhoPrincipal
+```
 
-- **who-core** - Core domain types, service interfaces, and business logic
-- **who-jdbc** - JDBC repository implementations using Spring JdbcClient
-- **who-security** - Spring Security OAuth2 integration and authentication converters
-- **who-web** - REST controllers for management, invitations, and preferences (optional)
-- **who-autoconfigure** - Spring Boot autoconfiguration
-- **who-spring-boot-starter** - Convenience starter aggregating all modules
+`WhoJwtAuthenticationConverter` extracts the `iss` and `sub` claims from a validated JWT, looks up the matching `JwtCredential` in the database, and resolves it to an `Identity` UUID. The `PermissionsResolver` (backed by `who-rbac`) loads the effective permission strings for that identity. The resulting `WhoPrincipal` is placed in the Spring Security context, and controllers use `@PreAuthorize` with permission strings to authorize access — with no knowledge of whether the caller used a JWT or any other credential type.
 
-## Quick Start
+---
 
-### 1. Add Dependency
+## Add the dependency
 
 ```xml
 <dependency>
@@ -85,7 +75,281 @@ curl http://localhost:8080/api/tasks \
 </dependency>
 ```
 
-### 2. Configure Application
+---
+
+## Database setup
+
+Who ships its own schema files on the classpath, one per module. You have several options for applying them.
+
+### Option A: Spring Boot `spring.sql.init`
+
+Reference the classpath schema files directly. This is suitable for development and testing.
+
+```yaml
+spring:
+  sql:
+    init:
+      mode: always
+      schema-locations:
+        - classpath:org/jwcarman/who/jdbc/schema.sql      # who-jdbc:       who_identity, who_credential_identity
+        - classpath:org/jwcarman/who/rbac/schema.sql      # who-rbac:       who_role, who_role_permission, who_identity_role
+        - classpath:org/jwcarman/who/jwt/schema.sql       # who-jwt:        who_jwt_credential
+        - classpath:org/jwcarman/who/enrollment/schema.sql # who-enrollment: who_enrollment_token
+```
+
+For production, use Flyway or Liquibase instead.
+
+### Option B: Flyway
+
+Copy the following file to `src/main/resources/db/migration/V1__who.sql` in your application:
+
+```sql
+CREATE TABLE IF NOT EXISTS who_identity (
+    id         UUID PRIMARY KEY,
+    status     VARCHAR(20)  NOT NULL,
+    created_at TIMESTAMP(9) NOT NULL,
+    updated_at TIMESTAMP(9) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS who_credential_identity (
+    credential_id UUID PRIMARY KEY,
+    identity_id   UUID NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS who_role (
+    id   UUID         PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS who_role_permission (
+    role_id    UUID         NOT NULL,
+    permission VARCHAR(255) NOT NULL,
+    PRIMARY KEY (role_id, permission),
+    FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS who_identity_role (
+    identity_id UUID NOT NULL,
+    role_id     UUID NOT NULL,
+    PRIMARY KEY (identity_id, role_id),
+    FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS who_jwt_credential (
+    id      UUID         PRIMARY KEY,
+    issuer  VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    UNIQUE (issuer, subject)
+);
+
+CREATE TABLE IF NOT EXISTS who_enrollment_token (
+    id          UUID         PRIMARY KEY,
+    identity_id UUID         NOT NULL,
+    value       VARCHAR(255) NOT NULL UNIQUE,
+    status      VARCHAR(20)  NOT NULL,
+    created_at  TIMESTAMP(9) NOT NULL,
+    expires_at  TIMESTAMP(9) NOT NULL,
+    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
+);
+```
+
+### Option C: Liquibase
+
+Copy the following file to `src/main/resources/db/changelog/001-who.yaml` in your application:
+
+```yaml
+databaseChangeLog:
+  - changeSet:
+      id: who-identity
+      author: who
+      changes:
+        - createTable:
+            tableName: who_identity
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: who-credential-identity
+      author: who
+      changes:
+        - createTable:
+            tableName: who_credential_identity
+            columns:
+              - column:
+                  name: credential_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: identity_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_credential_identity_identity
+                    references: who_identity(id)
+                    deleteCascade: true
+
+  - changeSet:
+      id: who-role
+      author: who
+      changes:
+        - createTable:
+            tableName: who_role
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+  - changeSet:
+      id: who-role-permission
+      author: who
+      changes:
+        - createTable:
+            tableName: who_role_permission
+            columns:
+              - column:
+                  name: role_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_role_permission_role
+                    references: who_role(id)
+                    deleteCascade: true
+              - column:
+                  name: permission
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: who_role_permission
+            columnNames: role_id, permission
+
+  - changeSet:
+      id: who-identity-role
+      author: who
+      changes:
+        - createTable:
+            tableName: who_identity_role
+            columns:
+              - column:
+                  name: identity_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_identity_role_role
+                    references: who_role(id)
+                    deleteCascade: true
+        - addPrimaryKey:
+            tableName: who_identity_role
+            columnNames: identity_id, role_id
+
+  - changeSet:
+      id: who-jwt-credential
+      author: who
+      changes:
+        - createTable:
+            tableName: who_jwt_credential
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: issuer
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: subject
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: who_jwt_credential
+            columnNames: issuer, subject
+
+  - changeSet:
+      id: who-enrollment-token
+      author: who
+      changes:
+        - createTable:
+            tableName: who_enrollment_token
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: identity_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_enrollment_token_identity
+                    references: who_identity(id)
+                    deleteCascade: true
+              - column:
+                  name: value
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+```
+
+---
+
+## Configure JWT
+
+Tell Who where your authorization server lives:
 
 ```yaml
 spring:
@@ -93,303 +357,114 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://your-auth-provider.com
-
-who:
-  provisioning:
-    auto-provision: false  # Set to true to auto-create users on first login
-  web:
-    mount-point: /api/who  # Base path for Who web controllers (default)
+          jwk-set-uri: https://your-auth-provider.com/.well-known/jwks.json
+          # or: issuer-uri: https://your-auth-provider.com
 ```
 
-### 3. Implement Required SPI
-
-Provide an implementation of `InvitationNotifier` to send invitation emails:
+Wire `WhoJwtAuthenticationConverter` into your resource server security filter chain:
 
 ```java
-@Component
-public class EmailInvitationNotifier implements InvitationNotifier {
-
-    @Override
-    public void sendInvitation(Invitation invitation) {
-        // Send email to invitation.email() with invitation.token()
-        emailService.send(invitation.email(),
-            "You're invited!",
-            "Accept your invitation: " + buildAcceptUrl(invitation.token()));
-    }
+@Bean
+@Order(2)
+public SecurityFilterChain apiSecurityFilterChain(
+        HttpSecurity http,
+        WhoJwtAuthenticationConverter whoJwtAuthenticationConverter) throws Exception {
+    http
+        .securityMatcher("/api/**")
+        .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .csrf(csrf -> csrf.disable())
+        .oauth2ResourceServer(rs -> rs
+            .jwt(jwt -> jwt.jwtAuthenticationConverter(whoJwtAuthenticationConverter))
+        );
+    return http.build();
 }
 ```
 
-### 4. Use in Controllers
+`WhoJwtAuthenticationConverter` is auto-configured by `who-autoconfigure` — inject it as a bean.
+
+---
+
+## Enroll credentials
+
+Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer, subject)` pair and must be linked to an active `Identity`. Who does not auto-provision — access is denied for unknown credentials.
+
+**Using `WhoEnrollmentService` (recommended):**
 
 ```java
-@RestController
-public class BillingController {
+// 1. Create an identity (use IdentityRepository or your own admin flow)
+UUID identityId = ...; // an existing ACTIVE who_identity.id
 
-    @GetMapping("/invoices")
-    @PreAuthorize("hasAuthority('billing.invoice.read')")
-    public List<Invoice> getInvoices(@AuthenticationPrincipal WhoPrincipal principal) {
-        UUID userId = principal.userId();
-        return invoiceService.findByUserId(userId);
-    }
+// 2. Issue an enrollment token and deliver token.value() to the user out of band
+EnrollmentToken token = enrollmentService.createToken(identityId);
+notifyUser(token.value()); // email, admin console, etc.
+
+// 3. User redeems the token with their JwtCredential
+JwtCredential credential = JwtCredential.create(issuer, subject);
+enrollmentService.enroll(token.value(), credential);
+```
+
+**Manual SQL insert (for bootstrapping / testing):**
+
+```sql
+-- Create identity
+INSERT INTO who_identity (id, status, created_at, updated_at)
+VALUES (gen_random_uuid(), 'ACTIVE', NOW(), NOW());
+
+-- Create JWT credential
+INSERT INTO who_jwt_credential (id, issuer, subject)
+VALUES (gen_random_uuid(), 'https://your-issuer.com', 'alice');
+
+-- Link credential to identity
+INSERT INTO who_credential_identity (credential_id, identity_id)
+VALUES (<credential_id>, <identity_id>);
+```
+
+---
+
+## RBAC
+
+Use `RbacService` to manage roles and assign them to identities:
+
+```java
+@Autowired RbacService rbacService;
+
+// Create a role
+UUID editorRoleId = rbacService.createRole("editor");
+
+// Grant permissions to the role
+rbacService.addPermissionToRole(editorRoleId, "task.read");
+rbacService.addPermissionToRole(editorRoleId, "task.write");
+
+// Assign the role to an identity
+rbacService.assignRoleToIdentity(identityId, editorRoleId);
+```
+
+Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:
+
+```java
+@GetMapping("/tasks")
+@PreAuthorize("hasAuthority('task.read')")
+public List<Task> getTasks(@AuthenticationPrincipal WhoPrincipal principal) {
+    return taskService.findAll(principal.identityId());
 }
 ```
 
-## Core Domain Models
+---
 
-| Model | Purpose |
-|-------|---------|
-| **User** | Immutable user entity with UUID, status (ACTIVE/SUSPENDED/DISABLED), timestamps |
-| **ExternalIdentity** | Maps (issuer, subject) JWT claims to internal userId |
-| **Role** | Named role grouping permissions (e.g., "admin", "billing-user") |
-| **Permission** | Atomic permission string (e.g., "billing.invoice.read") |
-| **Invitation** | Email-based user invitation with token, expiration, role assignment |
-| **ContactMethod** | Email/phone contact with verification status |
-| **UserPreferences** | Namespaced JSON preferences storage |
-| **WhoPrincipal** | Authentication principal with userId and resolved permissions |
+## Modules
 
-## Services
+| Module | Description |
+|--------|-------------|
+| `who-core` | Domain types (`Identity`, `WhoPrincipal`), service and SPI interfaces — no Spring dependency |
+| `who-jdbc` | JDBC implementations of core repositories using Spring `JdbcClient` |
+| `who-rbac` | `RbacService` and `PermissionsResolver` backed by roles and permissions |
+| `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` extraction |
+| `who-enrollment` | `WhoEnrollmentService` for issuing and redeeming credential enrollment tokens |
+| `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
+| `who-spring-boot-starter` | Convenience starter: pulls in all of the above |
 
-### UserService
-
-Manages user lifecycle and role assignments:
-
-```java
-UUID createUser(UserStatus status)
-void activateUser(UUID userId)
-void deactivateUser(UUID userId)
-void deleteUser(UUID userId)
-void assignRoleToUser(UUID userId, UUID roleId)
-void removeRoleFromUser(UUID userId, UUID roleId)
-Set<String> resolvePermissions(UUID userId)  // Returns effective permissions
-```
-
-### RbacService
-
-Manages roles and permissions:
-
-```java
-UUID createRole(String roleName)
-void deleteRole(UUID roleId)
-void addPermissionToRole(UUID roleId, String permission)
-void removePermissionFromRole(UUID roleId, String permission)
-```
-
-### InvitationService
-
-Manages user invitations:
-
-```java
-Invitation create(String email, UUID roleId)  // Auto-revokes existing pending invitations
-Invitation accept(String token)  // Creates user, links identity, assigns role
-void revoke(UUID invitationId)
-List<Invitation> list(InvitationStatus status, Instant since)
-Optional<Invitation> findByToken(String token)
-```
-
-**Invitation Flow:**
-1. Admin creates invitation with email and role → invitation token generated
-2. `InvitationNotifier` SPI sends email with token
-3. User clicks link → frontend calls `/api/who/invitations/accept` with JWT + token
-4. Service creates user, links JWT identity, assigns role, creates verified contact method
-
-### ContactMethodService
-
-Manages email/phone contacts:
-
-```java
-ContactMethod createUnverified(UUID userId, ContactType type, String value)
-ContactMethod createVerified(UUID userId, ContactType type, String value)
-ContactMethod markVerified(UUID contactMethodId)
-List<ContactMethod> findByUserId(UUID userId)
-Optional<ContactMethod> findByUserIdAndType(UUID userId, ContactType type)
-void delete(UUID contactMethodId)
-```
-
-### PreferencesService
-
-Manages namespaced JSON preferences:
-
-```java
-<T> T getPreferences(UUID userId, String namespace, Class<T> type)
-<T> void setPreferences(UUID userId, String namespace, T preferences)
-<T> T mergePreferences(Class<T> type, T... layers)  // Deep merge with later overriding
-```
-
-**Example:**
-```java
-// Get user's dashboard preferences
-DashboardPrefs prefs = preferencesService.getPreferences(
-    userId, "dashboard", DashboardPrefs.class);
-
-// Merge defaults with user overrides
-DashboardPrefs effective = preferencesService.mergePreferences(
-    DashboardPrefs.class, systemDefaults, userPrefs);
-```
-
-### IdentityService
-
-Manages external identity linkage:
-
-```java
-void linkExternalIdentity(UUID userId, String issuer, String subject)
-void unlinkExternalIdentity(UUID userId, UUID externalIdentityId)
-```
-
-## REST API
-
-### Role Management (requires `who.role.*` permissions)
-
-```
-POST   /api/who/management/roles                              (who.role.create)
-DELETE /api/who/management/roles/{roleId}                     (who.role.delete)
-POST   /api/who/management/roles/{roleId}/permissions         (who.role.permission.add)
-DELETE /api/who/management/roles/{roleId}/permissions/{perm}  (who.role.permission.remove)
-```
-
-**Example:**
-```bash
-# Create role
-curl -X POST /api/who/management/roles \
-  -H "Authorization: Bearer $JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"billing-admin"}'
-
-# Add permission to role
-curl -X POST /api/who/management/roles/$ROLE_ID/permissions \
-  -H "Authorization: Bearer $JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"permission":"billing.invoice.read"}'
-```
-
-### User-Role Management (requires `who.user.role.*` permissions)
-
-```
-POST   /api/who/management/users/{userId}/roles/{roleId}      (who.user.role.assign)
-DELETE /api/who/management/users/{userId}/roles/{roleId}      (who.user.role.remove)
-```
-
-### Invitations
-
-```
-POST   /api/who/invitations                      (who.invitation.create)
-POST   /api/who/invitations/accept?token=...     (JWT authenticated - no permission required)
-DELETE /api/who/invitations/{invitationId}       (who.invitation.revoke)
-GET    /api/who/invitations                      (who.invitation.list)
-GET    /api/who/invitations/{token}              (public validation endpoint)
-```
-
-**Example Invitation Flow:**
-```bash
-# Admin creates invitation
-curl -X POST /api/who/invitations \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","roleId":"$ROLE_ID"}'
-
-# User accepts invitation (must use JWT with matching email claim)
-curl -X POST /api/who/invitations/accept?token=$TOKEN \
-  -H "Authorization: Bearer $USER_JWT"
-```
-
-### Preferences (authenticated users)
-
-```
-GET    /api/who/preferences/{namespace}          (returns user's preferences)
-PUT    /api/who/preferences/{namespace}          (updates user's preferences)
-```
-
-## Configuration Properties
-
-| Property | Default | Description |
-|----------|---------|-------------|
-| `who.web.mount-point` | `/api/who` | Base path for Who web controllers |
-| `who.provisioning.auto-provision` | `false` | Auto-create users for unknown JWT identities |
-| `spring.security.oauth2.resourceserver.jwt.issuer-uri` | (required) | OAuth2 JWT issuer URL |
-
-## Extension Points (SPIs)
-
-### InvitationNotifier (Required)
-
-Send invitation emails to users:
-
-```java
-public interface InvitationNotifier {
-    void sendInvitation(Invitation invitation);
-}
-```
-
-### UserProvisioningPolicy (Optional)
-
-Control how unknown external identities are handled:
-
-```java
-public interface UserProvisioningPolicy {
-    UUID handleUnknownIdentity(ExternalIdentityKey identityKey);
-}
-```
-
-**Built-in implementations:**
-- `DenyUnknownIdentityPolicy` (default) - Denies access
-- `AutoProvisionIdentityPolicy` - Creates user with ACTIVE status
-
-### ContactVerificationNotifier (Optional)
-
-Send verification codes to contact methods:
-
-```java
-public interface ContactVerificationNotifier {
-    void sendVerificationCode(ContactMethod contact, String code);
-}
-```
-
-### ContactConfirmationNotifier (Optional)
-
-Notify users when contact methods are added:
-
-```java
-public interface ContactConfirmationNotifier {
-    void notifyContactAdded(ContactMethod contact, User user);
-}
-```
-
-## Authentication Flow
-
-1. Client sends JWT in `Authorization: Bearer <token>` header
-2. Spring Security validates JWT signature and claims (iss, sub, exp, aud)
-3. `WhoAuthenticationConverter` extracts issuer and subject from JWT
-4. `IdentityResolver` looks up `(issuer, subject)` in database:
-   - If found → returns userId
-   - If not found → applies `UserProvisioningPolicy` (deny or auto-create)
-5. `UserService.resolvePermissions()` loads user's effective permissions:
-   - Query user's assigned roles
-   - Load all permissions for those roles
-   - Deduplicate and return as Set
-6. Build `WhoPrincipal` with userId and permissions
-7. Map permissions to Spring Security `SimpleGrantedAuthority`
-8. Controllers use `@PreAuthorize("hasAuthority('permission')")` to check access
-
-## Database Schema
-
-The library requires the following tables (created automatically via `schema.sql`):
-
-- `who_user` - User entities
-- `who_role` - Role definitions
-- `who_permission` - Permission definitions
-- `who_user_role` - User-role assignments (many-to-many)
-- `who_role_permission` - Role-permission assignments (many-to-many)
-- `who_external_identity` - External identity mappings
-- `who_user_preference` - User preferences (namespaced JSON)
-- `who_invitation` - User invitations
-- `who_contact_method` - Contact methods (email/phone)
-
-## Example Application
-
-See `who-example` module for a complete working example with:
-- OAuth2 authorization server configuration
-- Sample `InvitationNotifier` implementation
-- REST controller examples
-- H2 in-memory database setup
+---
 
 ## Build
 
@@ -398,17 +473,7 @@ mvn clean install
 ```
 
 Run with tests and code coverage:
+
 ```bash
 mvn clean verify -Pci
 ```
-
-## Requirements
-
-- Java 25+
-- Spring Boot 4.0+
-- Spring Security 7.0+
-- JDBC DataSource
-
-## License
-
-Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)

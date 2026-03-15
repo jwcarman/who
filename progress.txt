@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T23:10:20-04:00
-ITERATION: 10
-SPEC_COMPLETED: 009-refactor-jwt-converter.md
-WHAT_WAS_DONE: Replaced imperative null-check chain in WhoJwtAuthenticationConverter.convert() with Optional chaining (flatMap/map/orElse); removed now-unused List and Optional imports.
-VERIFICATION: mvn test → BUILD SUCCESS (all 9 modules pass); mvn -P license verify → BUILD SUCCESS
+LAST_RUN: 2026-03-14T23:30:00-04:00
+ITERATION: 11
+SPEC_COMPLETED: 010-rewrite-readme.md
+WHAT_WAS_DONE: Replaced aspirational README with accurate documentation covering the real pipeline, database setup (spring.sql.init/Flyway/Liquibase), JWT wiring, credential enrollment, RBAC usage, and a correct modules table.
+VERIFICATION: Grepped README for all acceptance criteria — spring.sql.init, Flyway DDL, Liquibase changelog, WhoJwtAuthenticationConverter wiring, @PreAuthorize, no aspirational features, and correct modules table. All criteria satisfied.
 STATUS: DONE
 NEXT_SPEC: none
 NOTES: No specs remain in specs/ — all active queue specs are done. New specs should be promoted from specs/backlog/ by the human.

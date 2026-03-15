@@ -32,16 +32,11 @@
     <pre class="token" th:text="${accessToken}">-</pre>
 
     <h2>Try it with curl</h2>
-    <pre th:text="|curl http://localhost:8080/api/me \\
-  -H 'Authorization: Bearer ${accessToken}'|">curl ...</pre>
+    <pre th:text="|curl http://localhost:8080/api/me -H 'Authorization: Bearer ${accessToken}'|">curl ...</pre>
 
-    <pre th:text="|curl http://localhost:8080/api/tasks \\
-  -H 'Authorization: Bearer ${accessToken}'|">curl ...</pre>
+    <pre th:text="|curl http://localhost:8080/api/tasks -H 'Authorization: Bearer ${accessToken}'|">curl ...</pre>
 
-    <pre th:text="|curl -X POST http://localhost:8080/api/tasks \\
-  -H 'Authorization: Bearer ${accessToken}' \\
-  -H 'Content-Type: application/json' \\
-  -d '{\"title\": \"New task\", \"status\": \"OPEN\"}'|">curl ...</pre>
+    <pre th:text="|curl -X POST http://localhost:8080/api/tasks -H 'Authorization: Bearer ${accessToken}' -H 'Content-Type: application/json' -d '{&quot;title&quot;: &quot;New task&quot;, &quot;status&quot;: &quot;OPEN&quot;}'|">curl ...</pre>
 
     <p><a href="/logout">Logout</a></p>
 </div>
