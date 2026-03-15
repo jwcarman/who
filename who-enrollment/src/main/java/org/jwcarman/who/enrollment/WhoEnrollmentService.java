@@ -95,7 +95,7 @@ public class WhoEnrollmentService {
     credentialIdentityRepository.link(credential.id(), token.identityId());
     enrollmentTokenRepository.save(token.redeem());
 
-    return identityRepository.findById(token.identityId()).orElseThrow();
+    return identityRepository.findById(token.identityId()).orElseThrow(IllegalStateException::new);
   }
 
   /**
