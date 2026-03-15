@@ -20,7 +20,6 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import static java.util.Objects.requireNonNull;
@@ -59,12 +58,7 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
     public AbstractAuthenticationToken convert(Jwt jwt) {
         return jwtCredentialRepository.findByIssuerAndSubject(jwt.getIssuer().toString(), jwt.getSubject())
                 .flatMap(whoService::resolve)
-                .map(principal -> new WhoAuthenticationToken(
-                        principal,
-                        principal.permissions().stream()
-                                .map(SimpleGrantedAuthority::new)
-                                .toList()
-                ))
+                .map(WhoAuthenticationToken::new)
                 .orElse(null);
     }
 }

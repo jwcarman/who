@@ -21,7 +21,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -71,11 +70,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 String keyHash = ApiKeyService.sha256Hex(headerValue);
                 apiKeyCredentialRepository.findByKeyHash(keyHash)
                         .flatMap(whoService::resolve)
-                        .map(principal -> new WhoAuthenticationToken(
-                                principal,
-                                principal.permissions().stream()
-                                        .map(SimpleGrantedAuthority::new)
-                                        .toList()))
+                        .map(WhoAuthenticationToken::new)
                         .ifPresent(token -> SecurityContextHolder.getContext().setAuthentication(token));
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();

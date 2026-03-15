@@ -17,9 +17,7 @@ package org.jwcarman.who.spring.security;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-
-import java.util.Collection;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import static java.util.Objects.requireNonNull;
 
@@ -27,20 +25,23 @@ import static java.util.Objects.requireNonNull;
  * Spring Security authentication token backed by a resolved {@link WhoPrincipal}.
  *
  * <p>Marked authenticated on creation. Credentials are not retained after authentication.
+ * Authorities are derived from the principal's permissions automatically.
  */
 public class WhoAuthenticationToken extends AbstractAuthenticationToken {
 
     private final WhoPrincipal principal;
 
     /**
-     * Creates a new authenticated token.
+     * Creates a new authenticated token. Authorities are derived from
+     * {@link WhoPrincipal#permissions()} automatically.
      *
-     * @param principal   the resolved principal
-     * @param authorities the granted authorities derived from the principal's permissions
+     * @param principal the resolved principal
      */
-    public WhoAuthenticationToken(WhoPrincipal principal, Collection<? extends GrantedAuthority> authorities) {
-        super(authorities);
-        this.principal = requireNonNull(principal, "principal must not be null");
+    public WhoAuthenticationToken(WhoPrincipal principal) {
+        super(requireNonNull(principal, "principal must not be null").permissions().stream()
+                .map(SimpleGrantedAuthority::new)
+                .toList());
+        this.principal = principal;
         setAuthenticated(true);
     }
 

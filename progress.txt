@@ -1,7 +1,7 @@
-LAST_RUN: 2026-03-15T00:37:00-04:00
-ITERATION: 15
-SPEC_COMPLETED: 014-who-spring-security.md
-WHAT_WAS_DONE: Created who-spring-security module with WhoAuthenticationToken in org.jwcarman.who.spring.security, deleted duplicate WhoAuthenticationToken from who-jwt and who-apikey, updated imports in WhoJwtAuthenticationConverter, WhoJwtAuthenticationConverterTest, ApiKeyAuthenticationFilter, and ApiKeyAuthenticationFilterTest, added who-spring-security to root pom.xml (before who-jwt and who-apikey), who-jwt/pom.xml, who-apikey/pom.xml, who-autoconfigure/pom.xml (optional), and who-spring-boot-starter/pom.xml.
+LAST_RUN: 2026-03-15T00:39:45-04:00
+ITERATION: 16
+SPEC_COMPLETED: 015-authentication-token-principal-only.md
+WHAT_WAS_DONE: Simplified WhoAuthenticationToken to a single-arg constructor that derives SimpleGrantedAuthority from principal.permissions() internally; updated WhoJwtAuthenticationConverter and ApiKeyAuthenticationFilter to use new constructor; added WhoAuthenticationTokenTest in who-spring-security.
 VERIFICATION: mvn test → BUILD SUCCESS (all 11 modules); mvn -P license verify → BUILD SUCCESS
 STATUS: DONE
 NEXT_SPEC: none
