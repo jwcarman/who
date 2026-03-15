@@ -34,6 +34,10 @@
     <name>Who - Example Application</name>
     <description>Self-contained Spring Boot example application demonstrating the Who library end-to-end</description>
 
+    <properties>
+        <sonar.sources>src/main/java,src/main/resources</sonar.sources>
+    </properties>
+
     <dependencies>
         <!-- Who -->
         <dependency>
