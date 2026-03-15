@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T22:00:49-04:00
-ITERATION: 3
-SPEC_COMPLETED: 002-who-jdbc.md
-WHAT_WAS_DONE: Fixed who-jdbc test infrastructure to use Testcontainers with real PostgreSQL (TC 2.0.3) instead of H2; all 9 integration tests pass.
-VERIFICATION: mvn test -pl who-jdbc -am → BUILD SUCCESS (9 tests, 0 failures); mvn -P license verify -pl who-jdbc -am → BUILD SUCCESS
+LAST_RUN: 2026-03-14T22:09:00-04:00
+ITERATION: 4
+SPEC_COMPLETED: 003-who-rbac.md
+WHAT_WAS_DONE: Created who-rbac Maven module with Role domain record, RoleRepository/RolePermissionRepository/IdentityRoleRepository interfaces, JDBC implementations, RbacPermissionsResolver, and RbacService with full integration test coverage.
+VERIFICATION: mvn test → BUILD SUCCESS (43 tests, 0 failures: 6 who-core + 9 who-jdbc + 28 who-rbac); mvn -P license verify -pl who-rbac -am → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 003-who-rbac.md
-NOTES: TC 2.x lifecycle change: @Container on static fields in abstract classes causes stop()/start() between test classes, creating separate Docker containers and breaking Spring context reuse. Fixed using the singleton container pattern (static initializer, no @Container annotation). The @Testcontainers annotation is kept for Docker availability detection; @DynamicPropertySource registers the single shared container's URL. spring.sql.init.mode=always initializes the schema once when the Spring context is first created.
+NEXT_SPEC: 004-who-jwt.md
+NOTES: findPermissionsByRoleIds uses PostgreSQL ANY(:roleIds) array binding with UUID[] to pass a collection of UUIDs in a single query. RbacService has @Transactional on all 6 public methods. ON CONFLICT DO NOTHING used for idempotent addPermission/assignRole inserts; ON CONFLICT (id) DO UPDATE used for role upsert. Singleton Testcontainers pattern reused from who-jdbc.
