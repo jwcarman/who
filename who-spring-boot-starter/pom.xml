@@ -29,7 +29,6 @@
     </parent>
 
     <artifactId>who-spring-boot-starter</artifactId>
-    <packaging>pom</packaging>
 
     <name>Who - Spring Boot Starter</name>
     <description>Convenience starter that pulls in all Who modules: core, jdbc, rbac, jwt, and autoconfigure</description>
