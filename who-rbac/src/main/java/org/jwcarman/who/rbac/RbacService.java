@@ -138,7 +138,8 @@ public class RbacService {
    */
   @Transactional
   public void assignRoleByName(Identity identity, String roleName) {
-    assignRoleToIdentity(identity, findRequiredRole(roleName));
+    Role role = findRequiredRole(roleName);
+    identityRoleRepository.assignRole(identity.id(), role.id());
   }
 
   /**
