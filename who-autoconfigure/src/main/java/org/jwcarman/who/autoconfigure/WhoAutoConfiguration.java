@@ -19,6 +19,9 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.jwcarman.who.enrollment.EnrollmentTokenRepository;
+import org.jwcarman.who.enrollment.JdbcEnrollmentTokenRepository;
+import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
@@ -131,6 +134,34 @@ public class WhoAutoConfiguration {
                                        RolePermissionRepository rolePermissionRepository,
                                        IdentityRoleRepository identityRoleRepository) {
             return new RbacService(roleRepository, rolePermissionRepository, identityRoleRepository);
+        }
+    }
+
+    /**
+     * Registers enrollment beans when {@code who-enrollment} is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.jwcarman.who.enrollment.WhoEnrollmentService")
+    static class EnrollmentConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public EnrollmentTokenRepository enrollmentTokenRepository(JdbcClient jdbcClient) {
+            return new JdbcEnrollmentTokenRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public WhoEnrollmentService whoEnrollmentService(
+                EnrollmentTokenRepository enrollmentTokenRepository,
+                IdentityRepository identityRepository,
+                CredentialIdentityRepository credentialIdentityRepository,
+                WhoProperties properties) {
+            return new WhoEnrollmentService(
+                    enrollmentTokenRepository,
+                    identityRepository,
+                    credentialIdentityRepository,
+                    properties.getEnrollment().getExpirationHours());
         }
     }
 

@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T22:54:50-04:00
-ITERATION: 7
-SPEC_COMPLETED: 006-who-example.md
-WHAT_WAS_DONE: Created who-example module — a fully self-contained Spring Boot application with embedded Spring Authorization Server, H2 database, JWT-protected API (TaskController, MeController), Thymeleaf UI, and bootstrap data for alice/bob/admin users. Updated root pom.xml to include the module and README.md with Quick Start section.
-VERIFICATION: mvn test → BUILD SUCCESS (5 who-example tests pass, all 8 modules pass); mvn -P license verify → BUILD SUCCESS
+LAST_RUN: 2026-03-14T23:02:45-04:00
+ITERATION: 8
+SPEC_COMPLETED: 007-who-enrollment.md
+WHAT_WAS_DONE: Created who-enrollment module — EnrollmentToken record, EnrollmentTokenStatus enum, EnrollmentTokenRepository interface + JdbcEnrollmentTokenRepository implementation, WhoEnrollmentService with @Transactional enroll(), three custom exceptions (EnrollmentTokenNotFoundException, EnrollmentTokenExpiredException, EnrollmentTokenNotPendingException), schema.sql, autoconfiguration (EnrollmentConfiguration in WhoAutoConfiguration) + WhoProperties.Enrollment with expiration-hours default 24, added to who-spring-boot-starter and who-autoconfigure optional deps, and integration tests against real PostgreSQL via Testcontainers (17 tests).
+VERIFICATION: mvn test → BUILD SUCCESS (17 who-enrollment tests pass, all 9 modules pass); mvn -P license verify → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 007-who-enrollment.md
-NOTES: Spring Boot 4.0.2 / Spring Security 7.0.2 API changes: (1) OAuth2AuthorizationServerConfiguration.applyDefaultSecurity() removed — use OAuth2AuthorizationServerConfigurer directly with getEndpointsMatcher(); (2) @AutoConfigureMockMvc removed from spring-boot-test-autoconfigure — use MockMvcBuilders.webAppContextSetup() instead; (3) OAuth2 client provider must use explicit endpoints (authorization-uri, token-uri, jwk-set-uri) instead of issuer-uri to avoid OIDC discovery HTTP calls at context startup — issuer-uri causes "Unable to resolve Configuration" failures in tests; (4) Resource server jwt.jwk-set-uri instead of jwt.issuer-uri avoids discovery too. The who-example module is excluded from release profile implicitly because it's a plain jar with spring-boot-maven-plugin — it won't publish to Maven Central.
+NEXT_SPEC: 008-refactor-whoservice.md
+NOTES: WhoEnrollmentTestApp scans both org.jwcarman.who.enrollment and org.jwcarman.who.jdbc packages to pick up JdbcIdentityRepository and JdbcCredentialIdentityRepository; who-jdbc is a test-scope dependency for this purpose. WhoEnrollmentService has no @Service annotation — it is registered exclusively via WhoAutoConfiguration.EnrollmentConfiguration (ConditionalOnClass WhoEnrollmentService). The @Transactional annotation on enroll() works because the bean is Spring-managed via the factory method.

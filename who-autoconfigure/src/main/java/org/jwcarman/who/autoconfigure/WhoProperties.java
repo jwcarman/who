@@ -34,6 +34,7 @@ public class WhoProperties {
     private Jdbc jdbc = new Jdbc();
     private Rbac rbac = new Rbac();
     private Jwt jwt = new Jwt();
+    private Enrollment enrollment = new Enrollment();
 
     /**
      * Returns the JDBC module properties.
@@ -140,6 +141,50 @@ public class WhoProperties {
          */
         public void setSchemaLocations(List<String> schemaLocations) {
             this.schemaLocations = schemaLocations;
+        }
+    }
+
+    /**
+     * Returns the enrollment module properties.
+     *
+     * @return enrollment properties
+     */
+    public Enrollment getEnrollment() {
+        return enrollment;
+    }
+
+    /**
+     * Sets the enrollment module properties.
+     *
+     * @param enrollment enrollment properties
+     */
+    public void setEnrollment(Enrollment enrollment) {
+        this.enrollment = enrollment;
+    }
+
+    /**
+     * Properties for the {@code who-enrollment} module.
+     */
+    public static class Enrollment {
+
+        private int expirationHours = 24;
+
+        /**
+         * Hours after which a newly created enrollment token expires.
+         *
+         * @return expiration hours
+         */
+        public int getExpirationHours() {
+            return expirationHours;
+        }
+
+        /**
+         * Sets the hours after which a newly created enrollment token expires.
+         *
+         * @param expirationHours expiration hours
+         */
+        public void setExpirationHours(int expirationHours) {
+            this.expirationHours = expirationHours;
         }
     }
 
