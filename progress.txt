@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-15T00:03:30-04:00
-ITERATION: 12
-SPEC_COMPLETED: 011-who-apikey.md
-WHAT_WAS_DONE: Created the who-apikey Maven module with ApiKeyCredential record, ApiKeyCredentialRepository interface + JDBC implementation, ApiKeyService (key generation/hashing/linking), WhoAuthenticationToken, and ApiKeyAuthenticationFilter; wired autoconfiguration (ApiKeyConfiguration inner class), WhoProperties.ApiKey (header-name property), and added who-apikey to who-spring-boot-starter.
-VERIFICATION: mvn test — BUILD SUCCESS (14 new who-apikey tests + all existing tests pass); mvn -P license verify — BUILD SUCCESS
-STATUS: DONE
-NEXT_SPEC: none
-NOTES: who-apikey uses spring-boot-starter-web + spring-boot-starter-security as main deps (security needs jakarta.servlet from web starter). Installed who-core JAR in local Maven repo had List<PermissionsResolver> constructor (older build artifact) — full mvn test from root picks up source correctly. WhoAuthenticationToken in who-apikey package (org.jwcarman.who.apikey.WhoAuthenticationToken) is parallel to org.jwcarman.who.jwt.WhoAuthenticationToken — both return WhoPrincipal but live in their respective modules.
+LAST_RUN: 2026-03-15T00:07:31-04:00
+ITERATION: 13
+SPEC_COMPLETED: 012-apikey-name.md
+WHAT_WAS_DONE: Added mandatory name field to ApiKeyCredential record, updated ApiKeyService.create() to require a name parameter, updated JdbcApiKeyCredentialRepository (ROW_MAPPER, SELECT, INSERT/ON CONFLICT UPDATE) to include name, and added name VARCHAR(255) NOT NULL to who_api_key_credential schema.
+VERIFICATION: mvn test — BUILD SUCCESS (all modules); mvn -P license verify — BUILD SUCCESS
+STATUS: MORE_WORK
+NEXT_SPEC: 013-apikey-docs.md
+NOTES: All three ApiKeyCredential constructor call sites in tests (JdbcApiKeyCredentialRepositoryTest, ApiKeyServiceTest, ApiKeyAuthenticationFilterTest) were updated to include name. The pre-existing WhoApiKeyTestApp/WhoService PermissionsResolver issue only appears when running -pl who-apikey in isolation; full root mvn test resolves it correctly.

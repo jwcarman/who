@@ -32,6 +32,7 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
     private static final RowMapper<ApiKeyCredential> ROW_MAPPER = (rs, rowNum) ->
             new ApiKeyCredential(
                     rs.getObject("id", UUID.class),
+                    rs.getString("name"),
                     rs.getString("key_hash"));
 
     private final JdbcClient jdbcClient;
@@ -43,7 +44,7 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
     @Override
     public Optional<ApiKeyCredential> findByKeyHash(String keyHash) {
         return jdbcClient
-                .sql("SELECT id, key_hash FROM who_api_key_credential WHERE key_hash = :keyHash")
+                .sql("SELECT id, name, key_hash FROM who_api_key_credential WHERE key_hash = :keyHash")
                 .param("keyHash", keyHash)
                 .query(ROW_MAPPER)
                 .optional();
@@ -53,11 +54,12 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
     public ApiKeyCredential save(ApiKeyCredential credential) {
         jdbcClient
                 .sql("""
-                        INSERT INTO who_api_key_credential (id, key_hash)
-                        VALUES (:id, :keyHash)
-                        ON CONFLICT (id) DO UPDATE SET key_hash = :keyHash
+                        INSERT INTO who_api_key_credential (id, name, key_hash)
+                        VALUES (:id, :name, :keyHash)
+                        ON CONFLICT (id) DO UPDATE SET name = :name, key_hash = :keyHash
                         """)
                 .param("id", credential.id())
+                .param("name", credential.name())
                 .param("keyHash", credential.keyHash())
                 .update();
         return credential;

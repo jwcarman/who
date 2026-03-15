@@ -104,7 +104,7 @@ class ApiKeyAuthenticationFilterTest {
 
     @Test
     void validKeyResolvesToWhoAuthenticationTokenInSecurityContext() throws Exception {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(),
+        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
                 ApiKeyService.sha256Hex(RAW_KEY));
         WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read:data"));
 
@@ -127,7 +127,7 @@ class ApiKeyAuthenticationFilterTest {
 
     @Test
     void validKeyAuthoritiesMatchPermissions() throws Exception {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(),
+        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
                 ApiKeyService.sha256Hex(RAW_KEY));
         WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read:data", "write:data"));
 
@@ -149,7 +149,7 @@ class ApiKeyAuthenticationFilterTest {
 
     @Test
     void credentialFoundButWhoServiceReturnsEmptyPassesThroughUnauthenticated() throws Exception {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(),
+        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
                 ApiKeyService.sha256Hex(RAW_KEY));
 
         when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))

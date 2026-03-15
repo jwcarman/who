@@ -26,11 +26,14 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>The raw key is never stored — only the hash reaches the database. The {@link #id()} UUID
  * is stable for the lifetime of the credential and used as the FK to the identity mapping table.
+ * The {@link #name()} is a human-readable label (e.g. "Production server", "CI pipeline") to
+ * help users identify and manage their keys.
  */
-public record ApiKeyCredential(UUID id, String keyHash) implements Credential {
+public record ApiKeyCredential(UUID id, String name, String keyHash) implements Credential {
 
     public ApiKeyCredential {
         requireNonNull(id, "id must not be null");
+        requireNonNull(name, "name must not be null");
         requireNonNull(keyHash, "keyHash must not be null");
     }
 }

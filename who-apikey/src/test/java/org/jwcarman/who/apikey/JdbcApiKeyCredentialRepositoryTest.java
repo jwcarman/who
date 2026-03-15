@@ -29,13 +29,14 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
 
     @Test
     void savesAndFindsByKeyHash() {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "abc123hash");
+        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "My Key", "abc123hash");
         repository.save(credential);
 
         assertThat(repository.findByKeyHash("abc123hash"))
                 .isPresent()
                 .hasValueSatisfying(found -> {
                     assertThat(found.id()).isEqualTo(credential.id());
+                    assertThat(found.name()).isEqualTo("My Key");
                     assertThat(found.keyHash()).isEqualTo("abc123hash");
                 });
     }
@@ -47,7 +48,7 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
 
     @Test
     void deleteByIdRemovesCredential() {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "hash-to-delete");
+        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Delete Me", "hash-to-delete");
         repository.save(credential);
 
         repository.deleteById(credential.id());
@@ -58,13 +59,15 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
     @Test
     void saveUpdatesKeyHashOnConflictById() {
         UUID id = UUID.randomUUID();
-        ApiKeyCredential first = new ApiKeyCredential(id, "original-hash");
-        ApiKeyCredential second = new ApiKeyCredential(id, "updated-hash");
+        ApiKeyCredential first = new ApiKeyCredential(id, "Original Name", "original-hash");
+        ApiKeyCredential second = new ApiKeyCredential(id, "Updated Name", "updated-hash");
 
         repository.save(first);
         repository.save(second);
 
-        assertThat(repository.findByKeyHash("updated-hash")).isPresent();
+        assertThat(repository.findByKeyHash("updated-hash"))
+                .isPresent()
+                .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Updated Name"));
         assertThat(repository.findByKeyHash("original-hash")).isEmpty();
     }
 }

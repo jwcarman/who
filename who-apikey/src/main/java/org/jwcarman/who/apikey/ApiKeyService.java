@@ -62,17 +62,19 @@ public class ApiKeyService {
      * <p>This is the only opportunity to retrieve the raw key — it is not stored anywhere.
      *
      * @param identityId the identity UUID to link the new credential to
+     * @param name       a human-readable label for this key (e.g. "Production server")
      * @return the raw API key (e.g. {@code who_a3f8...}), never stored
      */
-    public String create(UUID identityId) {
+    public String create(UUID identityId, String name) {
         requireNonNull(identityId, "identityId must not be null");
+        requireNonNull(name, "name must not be null");
 
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         String rawKey = "who_" + HEX.formatHex(bytes);
         String keyHash = sha256Hex(rawKey);
 
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), keyHash);
+        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), name, keyHash);
         apiKeyCredentialRepository.save(credential);
         credentialIdentityRepository.link(credential.id(), identityId);
 

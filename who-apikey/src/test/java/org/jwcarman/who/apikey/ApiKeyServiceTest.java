@@ -43,7 +43,7 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
     @Test
     void createReturnsKeyWithWhoPrefix() {
         UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId);
+        String rawKey = apiKeyService.create(identityId, "Test Key");
 
         assertThat(rawKey).startsWith("who_");
         assertThat(rawKey).hasSize(4 + 64); // "who_" + 64 hex chars
@@ -52,7 +52,7 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
     @Test
     void createStoresHashNotRawKey() {
         UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId);
+        String rawKey = apiKeyService.create(identityId, "Test Key");
 
         // The raw key must NOT be stored as-is
         assertThat(apiKeyCredentialRepository.findByKeyHash(rawKey)).isEmpty();
@@ -63,9 +63,20 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
     }
 
     @Test
+    void createStoresName() {
+        UUID identityId = createActiveIdentity();
+        String rawKey = apiKeyService.create(identityId, "Production Server");
+
+        String hash = ApiKeyService.sha256Hex(rawKey);
+        ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
+
+        assertThat(credential.name()).isEqualTo("Production Server");
+    }
+
+    @Test
     void createLinksCredentialToIdentity() {
         UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId);
+        String rawKey = apiKeyService.create(identityId, "Test Key");
 
         String hash = ApiKeyService.sha256Hex(rawKey);
         ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
@@ -78,8 +89,8 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
     @Test
     void twoCreatesForSameIdentityProduceDifferentKeys() {
         UUID identityId = createActiveIdentity();
-        String key1 = apiKeyService.create(identityId);
-        String key2 = apiKeyService.create(identityId);
+        String key1 = apiKeyService.create(identityId, "Key One");
+        String key2 = apiKeyService.create(identityId, "Key Two");
 
         assertThat(key1).isNotEqualTo(key2);
 
