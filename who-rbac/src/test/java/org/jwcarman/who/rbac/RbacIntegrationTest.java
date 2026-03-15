@@ -80,13 +80,15 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
     @Test
     void deleteRoleThrowsWhenNotFound() {
-        assertThatThrownBy(() -> rbacService.deleteRole(UUID.randomUUID()))
+        UUID unknownRoleId = UUID.randomUUID();
+        assertThatThrownBy(() -> rbacService.deleteRole(unknownRoleId))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void addPermissionToRoleThrowsWhenRoleNotFound() {
-        assertThatThrownBy(() -> rbacService.addPermissionToRole(UUID.randomUUID(), "READ"))
+        UUID unknownRoleId = UUID.randomUUID();
+        assertThatThrownBy(() -> rbacService.addPermissionToRole(unknownRoleId, "READ"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -99,7 +101,9 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
     @Test
     void assignRoleToIdentityThrowsWhenRoleNotFound() {
-        assertThatThrownBy(() -> rbacService.assignRoleToIdentity(UUID.randomUUID(), UUID.randomUUID()))
+        UUID unknownIdentityId = UUID.randomUUID();
+        UUID unknownRoleId = UUID.randomUUID();
+        assertThatThrownBy(() -> rbacService.assignRoleToIdentity(unknownIdentityId, unknownRoleId))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -109,6 +113,29 @@ class RbacIntegrationTest extends AbstractRbacTest {
         UUID unknownIdentityId = UUID.randomUUID();
         assertThatThrownBy(() -> rbacService.removeRoleFromIdentity(unknownIdentityId, roleId))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void removePermissionFromRoleSucceeds() {
+        UUID roleId = rbacService.createRole("REMOVE_PERM_SUCCESS_ROLE");
+        rbacService.addPermissionToRole(roleId, "DELETE");
+
+        rbacService.removePermissionFromRole(roleId, "DELETE");
+
+        // no exception — nothing more to verify at service level
+    }
+
+    @Test
+    void removeRoleFromIdentitySucceeds() {
+        UUID roleId = rbacService.createRole("REMOVE_ASSIGN_SUCCESS_ROLE");
+        UUID identityId = UUID.randomUUID();
+        rbacService.assignRoleToIdentity(identityId, roleId);
+
+        rbacService.removeRoleFromIdentity(identityId, roleId);
+
+        // After removal, identity has no roles
+        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
+        assertThat(resolver.resolve(identity)).isEmpty();
     }
 
     @Test

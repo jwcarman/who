@@ -93,4 +93,9 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
         assertThat(permissionRepository.findPermissionsByRoleId(role.id())).isEmpty();
     }
+
+    @Test
+    void findPermissionsByRoleIdsReturnsEmptySetForEmptyInput() {
+        assertThat(permissionRepository.findPermissionsByRoleIds(List.of())).isEmpty();
+    }
 }

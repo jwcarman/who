@@ -15,23 +15,22 @@
  */
 package org.jwcarman.who.core.domain;
 
-import java.io.Serializable;
-import java.util.Set;
+import org.junit.jupiter.api.Test;
+
 import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Resolved principal placed into the security context. Carries the stable identity UUID and
- * the union of all permission strings granted to that identity.
- */
-public record WhoPrincipal(
-        UUID identityId,
-        Set<String> permissions
-) implements Serializable {
-    public WhoPrincipal {
-        requireNonNull(identityId, "identityId must not be null");
-        requireNonNull(permissions, "permissions must not be null");
-        permissions = Set.copyOf(permissions);
+class IdentityTest {
+
+    @Test
+    void withStatusReturnsNewIdentityWithUpdatedStatus() {
+        Identity identity = Identity.create(UUID.randomUUID(), IdentityStatus.ACTIVE);
+
+        Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
+
+        assertThat(suspended.id()).isEqualTo(identity.id());
+        assertThat(suspended.status()).isEqualTo(IdentityStatus.SUSPENDED);
+        assertThat(suspended.createdAt()).isEqualTo(identity.createdAt());
     }
 }

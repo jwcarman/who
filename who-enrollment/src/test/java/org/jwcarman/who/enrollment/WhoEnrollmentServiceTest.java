@@ -117,8 +117,10 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         // Insert a token that is already expired
         EnrollmentToken expired = EnrollmentToken.create(identityId(identity), -1);
         tokenRepository.save(expired);
+        String tokenValue = expired.value();
+        Credential cred = credential();
 
-        assertThatThrownBy(() -> service.enroll(expired.value(), credential()))
+        assertThatThrownBy(() -> service.enroll(tokenValue, cred))
                 .isInstanceOf(EnrollmentTokenExpiredException.class);
     }
 
@@ -129,7 +131,9 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         service.enroll(token.value(), credential());
 
         // Try to redeem again with a different credential
-        assertThatThrownBy(() -> service.enroll(token.value(), credential()))
+        String tokenValue = token.value();
+        Credential secondCred = credential();
+        assertThatThrownBy(() -> service.enroll(tokenValue, secondCred))
                 .isInstanceOf(EnrollmentTokenNotPendingException.class);
     }
 
@@ -138,8 +142,10 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         Identity identity = savedIdentity();
         EnrollmentToken token = service.createToken(identity.id());
         service.revokeToken(token.id());
+        String tokenValue = token.value();
+        Credential cred = credential();
 
-        assertThatThrownBy(() -> service.enroll(token.value(), credential()))
+        assertThatThrownBy(() -> service.enroll(tokenValue, cred))
                 .isInstanceOf(EnrollmentTokenNotPendingException.class);
     }
 

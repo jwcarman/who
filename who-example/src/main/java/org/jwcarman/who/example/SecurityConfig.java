@@ -59,6 +59,8 @@ import java.util.UUID;
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
 
+    private static final String DEMO_PASSWORD = "password";
+
     /**
      * Authorization server filter chain — handles /oauth2/** and /.well-known/** endpoints.
      */
@@ -137,10 +139,11 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
+        String encodedPassword = passwordEncoder.encode(DEMO_PASSWORD);
         return new InMemoryUserDetailsManager(
-                User.withUsername("alice").password(passwordEncoder.encode("password")).roles("USER").build(),
-                User.withUsername("bob").password(passwordEncoder.encode("password")).roles("USER").build(),
-                User.withUsername("admin").password(passwordEncoder.encode("password")).roles("USER").build()
+                User.withUsername("alice").password(encodedPassword).roles("USER").build(),
+                User.withUsername("bob").password(encodedPassword).roles("USER").build(),
+                User.withUsername("admin").password(encodedPassword).roles("USER").build()
         );
     }
 
