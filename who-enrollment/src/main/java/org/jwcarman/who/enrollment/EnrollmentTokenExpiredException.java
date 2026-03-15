@@ -20,6 +20,11 @@ import java.util.UUID;
 /** Thrown when an enrollment token has passed its expiration time. */
 public class EnrollmentTokenExpiredException extends RuntimeException {
 
+  /**
+   * Creates a new exception for the given token id.
+   *
+   * @param tokenId the id of the expired token
+   */
   public EnrollmentTokenExpiredException(UUID tokenId) {
     super("Enrollment token has expired: " + tokenId);
   }

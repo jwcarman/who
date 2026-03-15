@@ -23,6 +23,12 @@ import java.util.UUID;
  */
 public class EnrollmentTokenNotPendingException extends RuntimeException {
 
+  /**
+   * Creates a new exception for the given token id and status.
+   *
+   * @param tokenId the id of the token that is not pending
+   * @param status the actual status of the token
+   */
   public EnrollmentTokenNotPendingException(UUID tokenId, EnrollmentTokenStatus status) {
     super("Enrollment token " + tokenId + " is not pending (status: " + status + ")");
   }

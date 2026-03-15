@@ -29,6 +29,13 @@ import org.jwcarman.who.core.domain.Identity;
  *
  * <p>The token value (a random UUID string) is what gets shared with the end user. Expiry is
  * determined at runtime — {@code EXPIRED} is not stored as a status.
+ *
+ * @param id stable UUID identifying this token record
+ * @param identityId the identity this token is associated with
+ * @param value the shareable token value delivered to the end user
+ * @param status current lifecycle status ({@code PENDING}, {@code REDEEMED}, or {@code REVOKED})
+ * @param createdAt when the token was created
+ * @param expiresAt when the token expires
  */
 public record EnrollmentToken(
     UUID id,

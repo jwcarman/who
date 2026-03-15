@@ -27,6 +27,10 @@ import org.jwcarman.who.core.spi.Credential;
  *
  * <p>The {@link #id()} UUID is stable for the lifetime of the credential record and is used as the
  * foreign key to the identity mapping table.
+ *
+ * @param id stable UUID identifying this credential record
+ * @param issuer the JWT {@code iss} claim value
+ * @param subject the JWT {@code sub} claim value
  */
 public record JwtCredential(UUID id, String issuer, String subject) implements Credential {
 

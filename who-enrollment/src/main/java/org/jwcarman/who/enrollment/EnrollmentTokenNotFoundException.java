@@ -18,6 +18,11 @@ package org.jwcarman.who.enrollment;
 /** Thrown when an enrollment token cannot be found by the given value. */
 public class EnrollmentTokenNotFoundException extends RuntimeException {
 
+  /**
+   * Creates a new exception for the given token value.
+   *
+   * @param tokenValue the token value that was not found
+   */
   public EnrollmentTokenNotFoundException(String tokenValue) {
     super("Enrollment token not found: " + tokenValue);
   }
