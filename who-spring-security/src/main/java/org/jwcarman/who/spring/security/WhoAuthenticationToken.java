@@ -15,9 +15,12 @@
  */
 package org.jwcarman.who.spring.security;
 
+import org.jspecify.annotations.NonNull;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -38,11 +41,15 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
      * @param principal the resolved principal
      */
     public WhoAuthenticationToken(WhoPrincipal principal) {
-        super(requireNonNull(principal, "principal must not be null").permissions().stream()
-                .map(SimpleGrantedAuthority::new)
-                .toList());
+        super(extractAuthorities(principal));
         this.principal = principal;
         setAuthenticated(true);
+    }
+
+    private static @NonNull List<SimpleGrantedAuthority> extractAuthorities(WhoPrincipal principal) {
+        return requireNonNull(principal, "principal must not be null").permissions().stream()
+                .map(SimpleGrantedAuthority::new)
+                .toList();
     }
 
     @Override
