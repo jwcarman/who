@@ -35,6 +35,7 @@ public class WhoProperties {
     private Rbac rbac = new Rbac();
     private Jwt jwt = new Jwt();
     private Enrollment enrollment = new Enrollment();
+    private ApiKey apiKey = new ApiKey();
 
     /**
      * Returns the JDBC module properties.
@@ -185,6 +186,50 @@ public class WhoProperties {
          */
         public void setExpirationHours(int expirationHours) {
             this.expirationHours = expirationHours;
+        }
+    }
+
+    /**
+     * Returns the API key module properties.
+     *
+     * @return api key properties
+     */
+    public ApiKey getApiKey() {
+        return apiKey;
+    }
+
+    /**
+     * Sets the API key module properties.
+     *
+     * @param apiKey api key properties
+     */
+    public void setApiKey(ApiKey apiKey) {
+        this.apiKey = apiKey;
+    }
+
+    /**
+     * Properties for the {@code who-apikey} module.
+     */
+    public static class ApiKey {
+
+        private String headerName = "X-API-Key";
+
+        /**
+         * The HTTP header name that carries the API key.
+         *
+         * @return header name
+         */
+        public String getHeaderName() {
+            return headerName;
+        }
+
+        /**
+         * Sets the HTTP header name that carries the API key.
+         *
+         * @param headerName header name
+         */
+        public void setHeaderName(String headerName) {
+            this.headerName = headerName;
         }
     }
 

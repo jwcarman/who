@@ -15,6 +15,10 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
+import org.jwcarman.who.apikey.ApiKeyService;
+import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
@@ -195,6 +199,39 @@ public class WhoAutoConfiguration {
                 JwtCredentialRepository jwtCredentialRepository,
                 WhoService whoService) {
             return new WhoJwtAuthenticationConverter(jwtCredentialRepository, whoService);
+        }
+    }
+
+    /**
+     * Registers API key beans when {@code who-apikey} is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.jwcarman.who.apikey.ApiKeyAuthenticationFilter")
+    static class ApiKeyConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public ApiKeyCredentialRepository apiKeyCredentialRepository(JdbcClient jdbcClient) {
+            return new JdbcApiKeyCredentialRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public ApiKeyService apiKeyService(ApiKeyCredentialRepository apiKeyCredentialRepository,
+                                           CredentialIdentityRepository credentialIdentityRepository) {
+            return new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(
+                ApiKeyCredentialRepository apiKeyCredentialRepository,
+                WhoService whoService,
+                WhoProperties properties) {
+            return new ApiKeyAuthenticationFilter(
+                    apiKeyCredentialRepository,
+                    whoService,
+                    properties.getApiKey().getHeaderName());
         }
     }
 }

@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T23:30:00-04:00
-ITERATION: 11
-SPEC_COMPLETED: 010-rewrite-readme.md
-WHAT_WAS_DONE: Replaced aspirational README with accurate documentation covering the real pipeline, database setup (spring.sql.init/Flyway/Liquibase), JWT wiring, credential enrollment, RBAC usage, and a correct modules table.
-VERIFICATION: Grepped README for all acceptance criteria — spring.sql.init, Flyway DDL, Liquibase changelog, WhoJwtAuthenticationConverter wiring, @PreAuthorize, no aspirational features, and correct modules table. All criteria satisfied.
+LAST_RUN: 2026-03-15T00:03:30-04:00
+ITERATION: 12
+SPEC_COMPLETED: 011-who-apikey.md
+WHAT_WAS_DONE: Created the who-apikey Maven module with ApiKeyCredential record, ApiKeyCredentialRepository interface + JDBC implementation, ApiKeyService (key generation/hashing/linking), WhoAuthenticationToken, and ApiKeyAuthenticationFilter; wired autoconfiguration (ApiKeyConfiguration inner class), WhoProperties.ApiKey (header-name property), and added who-apikey to who-spring-boot-starter.
+VERIFICATION: mvn test — BUILD SUCCESS (14 new who-apikey tests + all existing tests pass); mvn -P license verify — BUILD SUCCESS
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: No specs remain in specs/ — all active queue specs are done. New specs should be promoted from specs/backlog/ by the human.
+NOTES: who-apikey uses spring-boot-starter-web + spring-boot-starter-security as main deps (security needs jakarta.servlet from web starter). Installed who-core JAR in local Maven repo had List<PermissionsResolver> constructor (older build artifact) — full mvn test from root picks up source correctly. WhoAuthenticationToken in who-apikey package (org.jwcarman.who.apikey.WhoAuthenticationToken) is parallel to org.jwcarman.who.jwt.WhoAuthenticationToken — both return WhoPrincipal but live in their respective modules.

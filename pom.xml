@@ -98,6 +98,7 @@
         <module>who-rbac</module>
         <module>who-jwt</module>
         <module>who-enrollment</module>
+        <module>who-apikey</module>
         <module>who-autoconfigure</module>
         <module>who-spring-boot-starter</module>
         <module>who-example</module>
