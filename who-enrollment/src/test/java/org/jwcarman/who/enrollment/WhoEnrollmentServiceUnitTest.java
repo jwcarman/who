@@ -43,9 +43,10 @@ class WhoEnrollmentServiceUnitTest {
   void enrollThrowsWhenIdentityDisappearsAfterTokenRedemption() {
     Identity identity = Identity.create();
     EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(1));
-    Credential credential = () -> UUID.randomUUID();
+    Credential credential = UUID::randomUUID;
+    String tokenValue = token.value();
 
-    when(enrollmentTokenRepository.findByValue(token.value())).thenReturn(Optional.of(token));
+    when(enrollmentTokenRepository.findByValue(tokenValue)).thenReturn(Optional.of(token));
     when(enrollmentTokenRepository.save(any())).thenReturn(token);
     when(identityRepository.findById(identity.id())).thenReturn(Optional.empty());
 
@@ -57,6 +58,6 @@ class WhoEnrollmentServiceUnitTest {
             Duration.ofHours(24));
 
     assertThatExceptionOfType(IllegalStateException.class)
-        .isThrownBy(() -> service.enroll(token.value(), credential));
+        .isThrownBy(() -> service.enroll(tokenValue, credential));
   }
 }
