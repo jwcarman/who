@@ -455,7 +455,8 @@ who:
 ### Generating a key
 
 ```java
-String rawKey = apiKeyService.create(identityId, "Production server");
+Identity identity = whoService.createIdentity();
+String rawKey = apiKeyService.create(identity.id(), "Production server");
 // Show rawKey to the user once — it cannot be retrieved again
 ```
 
@@ -480,6 +481,22 @@ Revocation takes effect immediately — the next request using that key will be 
 
 ---
 
+## Managing Identities
+
+`WhoService` is the single entry point for creating identities. Do not write directly to `IdentityRepository` — go through the service.
+
+```java
+@Autowired WhoService whoService;
+
+// Create a new ACTIVE identity with a generated UUID v7
+Identity identity = whoService.createIdentity();
+UUID identityId = identity.id();
+```
+
+All other operations — enrolling credentials, assigning roles, issuing API keys — take an `identityId` obtained this way.
+
+---
+
 ## Enroll credentials
 
 Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer, subject)` pair and must be linked to an active `Identity`. Who does not auto-provision — access is denied for unknown credentials.
@@ -487,11 +504,11 @@ Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer
 **Using `WhoEnrollmentService` (recommended):**
 
 ```java
-// 1. Create an identity (use IdentityRepository or your own admin flow)
-UUID identityId = ...; // an existing ACTIVE who_identity.id
+// 1. Create an identity via WhoService
+Identity identity = whoService.createIdentity();
 
 // 2. Issue an enrollment token and deliver token.value() to the user out of band
-EnrollmentToken token = enrollmentService.createToken(identityId);
+EnrollmentToken token = enrollmentService.createToken(identity.id());
 notifyUser(token.value()); // email, admin console, etc.
 
 // 3. User redeems the token with their JwtCredential
@@ -522,17 +539,19 @@ VALUES (<credential_id>, <identity_id>);
 Use `RbacService` to manage roles and assign them to identities:
 
 ```java
+@Autowired WhoService whoService;
 @Autowired RbacService rbacService;
 
-// Create a role
-UUID editorRoleId = rbacService.createRole("editor");
+// Create an identity
+Identity identity = whoService.createIdentity();
 
-// Grant permissions to the role
+// Create a role and grant permissions
+UUID editorRoleId = rbacService.createRole("editor");
 rbacService.addPermissionToRole(editorRoleId, "task.read");
 rbacService.addPermissionToRole(editorRoleId, "task.write");
 
-// Assign the role to an identity
-rbacService.assignRoleToIdentity(identityId, editorRoleId);
+// Assign the role to the identity
+rbacService.assignRoleToIdentity(identity.id(), editorRoleId);
 ```
 
 Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:
