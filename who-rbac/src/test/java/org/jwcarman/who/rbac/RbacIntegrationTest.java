@@ -122,7 +122,10 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
         rbacService.removePermissionFromRole(roleId, "DELETE");
 
-        // no exception — nothing more to verify at service level
+        UUID identityId = UUID.randomUUID();
+        rbacService.assignRoleToIdentity(identityId, roleId);
+        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
+        assertThat(resolver.resolve(identity)).doesNotContain("DELETE");
     }
 
     @Test
