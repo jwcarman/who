@@ -15,26 +15,6 @@
  */
 package org.jwcarman.who.apikey;
 
-import jakarta.servlet.ServletException;
-import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.spring.security.WhoAuthenticationToken;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockFilterChain;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.Optional;
-import java.util.Set;
-import org.jwcarman.who.core.domain.Identity;
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,147 +22,166 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import jakarta.servlet.ServletException;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 @ExtendWith(MockitoExtension.class)
 class ApiKeyAuthenticationFilterTest {
 
-    private static final String HEADER = "X-API-Key";
-    private static final String RAW_KEY = "who_" + "a".repeat(64);
+  private static final String HEADER = "X-API-Key";
+  private static final String RAW_KEY = "who_" + "a".repeat(64);
 
-    @Mock
-    private ApiKeyCredentialRepository apiKeyCredentialRepository;
+  @Mock private ApiKeyCredentialRepository apiKeyCredentialRepository;
 
-    @Mock
-    private WhoService whoService;
+  @Mock private WhoService whoService;
 
-    private ApiKeyAuthenticationFilter filter;
+  private ApiKeyAuthenticationFilter filter;
 
-    @BeforeEach
-    void setUp() {
-        filter = new ApiKeyAuthenticationFilter(apiKeyCredentialRepository, whoService, HEADER);
-        SecurityContextHolder.clearContext();
-    }
+  @BeforeEach
+  void setUp() {
+    filter = new ApiKeyAuthenticationFilter(apiKeyCredentialRepository, whoService, HEADER);
+    SecurityContextHolder.clearContext();
+  }
 
-    @AfterEach
-    void tearDown() {
-        SecurityContextHolder.clearContext();
-    }
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
 
-    @Test
-    void noHeaderPassesThroughUnauthenticated() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+  @Test
+  void noHeaderPassesThroughUnauthenticated() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, chain);
+    filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(apiKeyCredentialRepository, never()).findByKeyHash(any());
-    }
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    verify(apiKeyCredentialRepository, never()).findByKeyHash(any());
+  }
 
-    @Test
-    void blankHeaderPassesThroughUnauthenticated() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(HEADER, "   ");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+  @Test
+  void blankHeaderPassesThroughUnauthenticated() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, "   ");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, chain);
+    filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-        verify(apiKeyCredentialRepository, never()).findByKeyHash(any());
-    }
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    verify(apiKeyCredentialRepository, never()).findByKeyHash(any());
+  }
 
-    @Test
-    void unrecognizedKeyPassesThroughUnauthenticated() throws Exception {
-        when(apiKeyCredentialRepository.findByKeyHash(any())).thenReturn(Optional.empty());
+  @Test
+  void unrecognizedKeyPassesThroughUnauthenticated() throws Exception {
+    when(apiKeyCredentialRepository.findByKeyHash(any())).thenReturn(Optional.empty());
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(HEADER, RAW_KEY);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, RAW_KEY);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, chain);
+    filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
 
-    @Test
-    void validKeyResolvesToWhoAuthenticationTokenInSecurityContext() throws Exception {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
-                ApiKeyService.sha256Hex(RAW_KEY));
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data"));
+  @Test
+  void validKeyResolvesToWhoAuthenticationTokenInSecurityContext() throws Exception {
+    ApiKeyCredential credential =
+        new ApiKeyCredential(UUID.randomUUID(), "Test Key", ApiKeyService.sha256Hex(RAW_KEY));
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data"));
 
-        when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
-                .thenReturn(Optional.of(credential));
-        when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+    when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
+        .thenReturn(Optional.of(credential));
+    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(HEADER, RAW_KEY);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, RAW_KEY);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, chain);
+    filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication())
-                .isInstanceOf(WhoAuthenticationToken.class)
-                .extracting("principal")
-                .isSameAs(principal);
-    }
+    assertThat(SecurityContextHolder.getContext().getAuthentication())
+        .isInstanceOf(WhoAuthenticationToken.class)
+        .extracting("principal")
+        .isSameAs(principal);
+  }
 
-    @Test
-    void validKeyAuthoritiesMatchPermissions() throws Exception {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
-                ApiKeyService.sha256Hex(RAW_KEY));
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
+  @Test
+  void validKeyAuthoritiesMatchPermissions() throws Exception {
+    ApiKeyCredential credential =
+        new ApiKeyCredential(UUID.randomUUID(), "Test Key", ApiKeyService.sha256Hex(RAW_KEY));
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
 
-        when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
-                .thenReturn(Optional.of(credential));
-        when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+    when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
+        .thenReturn(Optional.of(credential));
+    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(HEADER, RAW_KEY);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, RAW_KEY);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, chain);
+    filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
-                .extracting("authority")
-                .containsExactlyInAnyOrder("read:data", "write:data");
-    }
+    assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+        .extracting("authority")
+        .containsExactlyInAnyOrder("read:data", "write:data");
+  }
 
-    @Test
-    void exceptionDuringKeyProcessingClearsContextAndThrowsServletException() {
-        when(apiKeyCredentialRepository.findByKeyHash(any()))
-                .thenThrow(new RuntimeException("db error"));
+  @Test
+  void exceptionDuringKeyProcessingClearsContextAndThrowsServletException() {
+    when(apiKeyCredentialRepository.findByKeyHash(any()))
+        .thenThrow(new RuntimeException("db error"));
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(HEADER, RAW_KEY);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, RAW_KEY);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        assertThatThrownBy(() -> filter.doFilter(request, response, chain))
-                .isInstanceOf(ServletException.class)
-                .hasMessageContaining("Error processing API key authentication");
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
+    assertThatThrownBy(() -> filter.doFilter(request, response, chain))
+        .isInstanceOf(ServletException.class)
+        .hasMessageContaining("Error processing API key authentication");
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
 
-    @Test
-    void credentialFoundButWhoServiceReturnsEmptyPassesThroughUnauthenticated() throws Exception {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
-                ApiKeyService.sha256Hex(RAW_KEY));
+  @Test
+  void credentialFoundButWhoServiceReturnsEmptyPassesThroughUnauthenticated() throws Exception {
+    ApiKeyCredential credential =
+        new ApiKeyCredential(UUID.randomUUID(), "Test Key", ApiKeyService.sha256Hex(RAW_KEY));
 
-        when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
-                .thenReturn(Optional.of(credential));
-        when(whoService.resolve(credential)).thenReturn(Optional.empty());
+    when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
+        .thenReturn(Optional.of(credential));
+    when(whoService.resolve(credential)).thenReturn(Optional.empty());
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(HEADER, RAW_KEY);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        MockFilterChain chain = new MockFilterChain();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, RAW_KEY);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain = new MockFilterChain();
 
-        filter.doFilter(request, response, chain);
+    filter.doFilter(request, response, chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
 }

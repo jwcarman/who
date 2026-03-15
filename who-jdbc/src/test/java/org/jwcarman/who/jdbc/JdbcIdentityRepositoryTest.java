@@ -15,66 +15,65 @@
  */
 package org.jwcarman.who.jdbc;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
-    @Autowired
-    private JdbcIdentityRepository repository;
+  @Autowired private JdbcIdentityRepository repository;
 
-    @Test
-    void savesNewIdentityAndRetrievesItById() {
-        Identity identity = Identity.create();
-        repository.save(identity);
+  @Test
+  void savesNewIdentityAndRetrievesItById() {
+    Identity identity = Identity.create();
+    repository.save(identity);
 
-        Optional<Identity> found = repository.findById(identity.id());
+    Optional<Identity> found = repository.findById(identity.id());
 
-        assertThat(found).isPresent();
-        assertThat(found.get().id()).isEqualTo(identity.id());
-        assertThat(found.get().status()).isEqualTo(IdentityStatus.ACTIVE);
-    }
+    assertThat(found).isPresent();
+    assertThat(found.get().id()).isEqualTo(identity.id());
+    assertThat(found.get().status()).isEqualTo(IdentityStatus.ACTIVE);
+  }
 
-    @Test
-    void upsertUpdatesStatusOnConflict() {
-        Identity identity = Identity.create();
-        repository.save(identity);
+  @Test
+  void upsertUpdatesStatusOnConflict() {
+    Identity identity = Identity.create();
+    repository.save(identity);
 
-        Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
-        repository.save(suspended);
+    Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
+    repository.save(suspended);
 
-        Optional<Identity> found = repository.findById(identity.id());
-        assertThat(found).isPresent();
-        assertThat(found.get().status()).isEqualTo(IdentityStatus.SUSPENDED);
-    }
+    Optional<Identity> found = repository.findById(identity.id());
+    assertThat(found).isPresent();
+    assertThat(found.get().status()).isEqualTo(IdentityStatus.SUSPENDED);
+  }
 
-    @Test
-    void existsByIdReturnsTrueWhenIdentityExists() {
-        Identity identity = Identity.create();
-        repository.save(identity);
+  @Test
+  void existsByIdReturnsTrueWhenIdentityExists() {
+    Identity identity = Identity.create();
+    repository.save(identity);
 
-        assertThat(repository.existsById(identity.id())).isTrue();
-    }
+    assertThat(repository.existsById(identity.id())).isTrue();
+  }
 
-    @Test
-    void existsByIdReturnsFalseWhenIdentityAbsent() {
-        assertThat(repository.existsById(UUID.randomUUID())).isFalse();
-    }
+  @Test
+  void existsByIdReturnsFalseWhenIdentityAbsent() {
+    assertThat(repository.existsById(UUID.randomUUID())).isFalse();
+  }
 
-    @Test
-    void deleteByIdRemovesIdentity() {
-        Identity identity = Identity.create();
-        repository.save(identity);
+  @Test
+  void deleteByIdRemovesIdentity() {
+    Identity identity = Identity.create();
+    repository.save(identity);
 
-        repository.deleteById(identity.id());
+    repository.deleteById(identity.id());
 
-        assertThat(repository.findById(identity.id())).isEmpty();
-    }
+    assertThat(repository.findById(identity.id())).isEmpty();
+  }
 }

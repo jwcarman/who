@@ -18,5 +18,4 @@ package org.jwcarman.who.rbac;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-class WhoRbacTestApp {
-}
+class WhoRbacTestApp {}

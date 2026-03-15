@@ -18,32 +18,30 @@ package org.jwcarman.who.apikey;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Repository for persisting and retrieving {@link ApiKeyCredential} records.
- */
+/** Repository for persisting and retrieving {@link ApiKeyCredential} records. */
 public interface ApiKeyCredentialRepository {
 
-    /**
-     * Finds a credential by its SHA-256 key hash.
-     *
-     * @param keyHash the SHA-256 hex-encoded hash of the raw API key
-     * @return the matching credential, or empty if not found
-     */
-    Optional<ApiKeyCredential> findByKeyHash(String keyHash);
+  /**
+   * Finds a credential by its SHA-256 key hash.
+   *
+   * @param keyHash the SHA-256 hex-encoded hash of the raw API key
+   * @return the matching credential, or empty if not found
+   */
+  Optional<ApiKeyCredential> findByKeyHash(String keyHash);
 
-    /**
-     * Persists a credential. If a record with the same {@code id} already exists it is updated
-     * with the new key hash.
-     *
-     * @param credential the credential to save
-     * @return the saved credential
-     */
-    ApiKeyCredential save(ApiKeyCredential credential);
+  /**
+   * Persists a credential. If a record with the same {@code id} already exists it is updated with
+   * the new key hash.
+   *
+   * @param credential the credential to save
+   * @return the saved credential
+   */
+  ApiKeyCredential save(ApiKeyCredential credential);
 
-    /**
-     * Deletes the credential with the given id.
-     *
-     * @param id the credential UUID
-     */
-    void deleteById(UUID id);
+  /**
+   * Deletes the credential with the given id.
+   *
+   * @param id the credential UUID
+   */
+  void deleteById(UUID id);
 }

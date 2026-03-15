@@ -15,39 +15,36 @@
  */
 package org.jwcarman.who.apikey;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
-import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 @ExtendWith(MockitoExtension.class)
 class ApiKeyServiceUnitTest {
 
-    @Mock
-    private ApiKeyCredentialRepository apiKeyCredentialRepository;
+  @Mock private ApiKeyCredentialRepository apiKeyCredentialRepository;
 
-    @Mock
-    private CredentialIdentityRepository credentialIdentityRepository;
+  @Mock private CredentialIdentityRepository credentialIdentityRepository;
 
-    @Test
-    void createThrowsWhenIdentityIdIsNull() {
-        ApiKeyService service = new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
+  @Test
+  void createThrowsWhenIdentityIdIsNull() {
+    ApiKeyService service =
+        new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
 
-        assertThatNullPointerException()
-                .isThrownBy(() -> service.create(null, "My Key"));
-    }
+    assertThatNullPointerException().isThrownBy(() -> service.create(null, "My Key"));
+  }
 
-    @Test
-    void createThrowsWhenNameIsNull() {
-        ApiKeyService service = new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
-        Identity identity = Identity.create();
+  @Test
+  void createThrowsWhenNameIsNull() {
+    ApiKeyService service =
+        new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
+    Identity identity = Identity.create();
 
-        assertThatNullPointerException()
-                .isThrownBy(() -> service.create(identity, null));
-    }
+    assertThatNullPointerException().isThrownBy(() -> service.create(identity, null));
+  }
 }

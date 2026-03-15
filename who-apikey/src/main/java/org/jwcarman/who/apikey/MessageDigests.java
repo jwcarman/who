@@ -18,41 +18,42 @@ package org.jwcarman.who.apikey;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-/**
- * Utility methods for computing message digests.
- */
+/** Utility methods for computing message digests. */
 public final class MessageDigests {
 
-    /** Algorithm name for SHA-256, as expected by {@link java.security.MessageDigest#getInstance(String)}. */
-    public static final String SHA_256 = "SHA-256";
+  /**
+   * Algorithm name for SHA-256, as expected by {@link
+   * java.security.MessageDigest#getInstance(String)}.
+   */
+  public static final String SHA_256 = "SHA-256";
 
-    private MessageDigests() {
-        // utility class
-    }
+  private MessageDigests() {
+    // utility class
+  }
 
-    /**
-     * Computes the SHA-256 digest of the given bytes.
-     *
-     * @param bytes the input bytes
-     * @return the SHA-256 digest
-     */
-    public static byte[] sha256(byte[] bytes) {
-        return messageDigest(SHA_256, bytes);
-    }
+  /**
+   * Computes the SHA-256 digest of the given bytes.
+   *
+   * @param bytes the input bytes
+   * @return the SHA-256 digest
+   */
+  public static byte[] sha256(byte[] bytes) {
+    return messageDigest(SHA_256, bytes);
+  }
 
-    /**
-     * Computes the digest of the given bytes using the specified algorithm.
-     *
-     * @param algorithm the digest algorithm name (e.g. {@code "SHA-256"})
-     * @param bytes     the input bytes
-     * @return the digest bytes
-     * @throws IllegalArgumentException if the algorithm is not available
-     */
-    public static byte[] messageDigest(String algorithm, byte[] bytes) {
-        try {
-            return MessageDigest.getInstance(algorithm).digest(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalArgumentException("Digest algorithm not available: " + algorithm, e);
-        }
+  /**
+   * Computes the digest of the given bytes using the specified algorithm.
+   *
+   * @param algorithm the digest algorithm name (e.g. {@code "SHA-256"})
+   * @param bytes the input bytes
+   * @return the digest bytes
+   * @throws IllegalArgumentException if the algorithm is not available
+   */
+  public static byte[] messageDigest(String algorithm, byte[] bytes) {
+    try {
+      return MessageDigest.getInstance(algorithm).digest(bytes);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalArgumentException("Digest algorithm not available: " + algorithm, e);
     }
+  }
 }

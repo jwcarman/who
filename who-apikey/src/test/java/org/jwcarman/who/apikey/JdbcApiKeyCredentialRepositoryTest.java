@@ -15,59 +15,60 @@
  */
 package org.jwcarman.who.apikey;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
 
-    @Autowired
-    private JdbcApiKeyCredentialRepository repository;
+  @Autowired private JdbcApiKeyCredentialRepository repository;
 
-    @Test
-    void savesAndFindsByKeyHash() {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "My Key", "abc123hash");
-        repository.save(credential);
+  @Test
+  void savesAndFindsByKeyHash() {
+    ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "My Key", "abc123hash");
+    repository.save(credential);
 
-        assertThat(repository.findByKeyHash("abc123hash"))
-                .isPresent()
-                .hasValueSatisfying(found -> {
-                    assertThat(found.id()).isEqualTo(credential.id());
-                    assertThat(found.name()).isEqualTo("My Key");
-                    assertThat(found.keyHash()).isEqualTo("abc123hash");
-                });
-    }
+    assertThat(repository.findByKeyHash("abc123hash"))
+        .isPresent()
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.id()).isEqualTo(credential.id());
+              assertThat(found.name()).isEqualTo("My Key");
+              assertThat(found.keyHash()).isEqualTo("abc123hash");
+            });
+  }
 
-    @Test
-    void returnsEmptyWhenHashNotFound() {
-        assertThat(repository.findByKeyHash("nonexistent")).isEmpty();
-    }
+  @Test
+  void returnsEmptyWhenHashNotFound() {
+    assertThat(repository.findByKeyHash("nonexistent")).isEmpty();
+  }
 
-    @Test
-    void deleteByIdRemovesCredential() {
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Delete Me", "hash-to-delete");
-        repository.save(credential);
+  @Test
+  void deleteByIdRemovesCredential() {
+    ApiKeyCredential credential =
+        new ApiKeyCredential(UUID.randomUUID(), "Delete Me", "hash-to-delete");
+    repository.save(credential);
 
-        repository.deleteById(credential.id());
+    repository.deleteById(credential.id());
 
-        assertThat(repository.findByKeyHash("hash-to-delete")).isEmpty();
-    }
+    assertThat(repository.findByKeyHash("hash-to-delete")).isEmpty();
+  }
 
-    @Test
-    void saveUpdatesKeyHashOnConflictById() {
-        UUID id = UUID.randomUUID();
-        ApiKeyCredential first = new ApiKeyCredential(id, "Original Name", "original-hash");
-        ApiKeyCredential second = new ApiKeyCredential(id, "Updated Name", "updated-hash");
+  @Test
+  void saveUpdatesKeyHashOnConflictById() {
+    UUID id = UUID.randomUUID();
+    ApiKeyCredential first = new ApiKeyCredential(id, "Original Name", "original-hash");
+    ApiKeyCredential second = new ApiKeyCredential(id, "Updated Name", "updated-hash");
 
-        repository.save(first);
-        repository.save(second);
+    repository.save(first);
+    repository.save(second);
 
-        assertThat(repository.findByKeyHash("updated-hash"))
-                .isPresent()
-                .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Updated Name"));
-        assertThat(repository.findByKeyHash("original-hash")).isEmpty();
-    }
+    assertThat(repository.findByKeyHash("updated-hash"))
+        .isPresent()
+        .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Updated Name"));
+    assertThat(repository.findByKeyHash("original-hash")).isEmpty();
+  }
 }

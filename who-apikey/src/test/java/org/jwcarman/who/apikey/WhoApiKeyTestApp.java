@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.apikey;
 
+import java.util.Set;
+
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
@@ -27,40 +29,39 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import java.util.Set;
-
-// Security auto-configuration excluded — integration tests only need the repository and service beans.
-@SpringBootApplication(exclude = {
-        SecurityAutoConfiguration.class,
-        UserDetailsServiceAutoConfiguration.class
-})
+// Security auto-configuration excluded — integration tests only need the repository and service
+// beans.
+@SpringBootApplication(
+    exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
 class WhoApiKeyTestApp {
 
-    @Bean
-    IdentityRepository identityRepository(JdbcClient jdbcClient) {
-        return new JdbcIdentityRepository(jdbcClient);
-    }
+  @Bean
+  IdentityRepository identityRepository(JdbcClient jdbcClient) {
+    return new JdbcIdentityRepository(jdbcClient);
+  }
 
-    @Bean
-    CredentialIdentityRepository credentialIdentityRepository(JdbcClient jdbcClient) {
-        return new JdbcCredentialIdentityRepository(jdbcClient);
-    }
+  @Bean
+  CredentialIdentityRepository credentialIdentityRepository(JdbcClient jdbcClient) {
+    return new JdbcCredentialIdentityRepository(jdbcClient);
+  }
 
-    @Bean
-    PermissionsResolver permissionsResolver() {
-        return identity -> Set.of();
-    }
+  @Bean
+  PermissionsResolver permissionsResolver() {
+    return identity -> Set.of();
+  }
 
-    @Bean
-    WhoService whoService(IdentityRepository identityRepository,
-                          CredentialIdentityRepository credentialIdentityRepository,
-                          PermissionsResolver permissionsResolver) {
-        return new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
-    }
+  @Bean
+  WhoService whoService(
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver) {
+    return new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
+  }
 
-    @Bean
-    ApiKeyService apiKeyService(ApiKeyCredentialRepository apiKeyCredentialRepository,
-                                CredentialIdentityRepository credentialIdentityRepository) {
-        return new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
-    }
+  @Bean
+  ApiKeyService apiKeyService(
+      ApiKeyCredentialRepository apiKeyCredentialRepository,
+      CredentialIdentityRepository credentialIdentityRepository) {
+    return new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
+  }
 }

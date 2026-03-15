@@ -15,92 +15,92 @@
  */
 package org.jwcarman.who.enrollment;
 
-import org.jwcarman.who.core.Identifiers;
-import org.jwcarman.who.core.domain.Identity;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.domain.Identity;
+
 /**
- * An immutable enrollment token that links a {@link org.jwcarman.who.core.spi.Credential}
- * to a pre-existing {@link org.jwcarman.who.core.domain.Identity}.
+ * An immutable enrollment token that links a {@link org.jwcarman.who.core.spi.Credential} to a
+ * pre-existing {@link org.jwcarman.who.core.domain.Identity}.
  *
- * <p>The token value (a random UUID string) is what gets shared with the end user.
- * Expiry is determined at runtime — {@code EXPIRED} is not stored as a status.
+ * <p>The token value (a random UUID string) is what gets shared with the end user. Expiry is
+ * determined at runtime — {@code EXPIRED} is not stored as a status.
  */
 public record EnrollmentToken(
-        UUID id,
-        UUID identityId,
-        String value,
-        EnrollmentTokenStatus status,
-        Instant createdAt,
-        Instant expiresAt
-) {
+    UUID id,
+    UUID identityId,
+    String value,
+    EnrollmentTokenStatus status,
+    Instant createdAt,
+    Instant expiresAt) {
 
-    /** Compact constructor for null-safety validation. */
-    public EnrollmentToken {
-        Objects.requireNonNull(id, "id must not be null");
-        Objects.requireNonNull(identityId, "identityId must not be null");
-        Objects.requireNonNull(value, "value must not be null");
-        Objects.requireNonNull(status, "status must not be null");
-        Objects.requireNonNull(createdAt, "createdAt must not be null");
-        Objects.requireNonNull(expiresAt, "expiresAt must not be null");
-    }
+  /** Compact constructor for null-safety validation. */
+  public EnrollmentToken {
+    Objects.requireNonNull(id, "id must not be null");
+    Objects.requireNonNull(identityId, "identityId must not be null");
+    Objects.requireNonNull(value, "value must not be null");
+    Objects.requireNonNull(status, "status must not be null");
+    Objects.requireNonNull(createdAt, "createdAt must not be null");
+    Objects.requireNonNull(expiresAt, "expiresAt must not be null");
+  }
 
-    /**
-     * Creates a new PENDING enrollment token for the given identity.
-     *
-     * @param identity   the identity this token is for
-     * @param expiration how long until the token expires
-     * @return a new {@code PENDING} token
-     */
-    public static EnrollmentToken create(Identity identity, Duration expiration) {
-        Instant now = Instant.now();
-        return new EnrollmentToken(
-                Identifiers.uuid(),
-                identity.id(),
-                Identifiers.uuid().toString(),
-                EnrollmentTokenStatus.PENDING,
-                now,
-                now.plus(expiration)
-        );
-    }
+  /**
+   * Creates a new PENDING enrollment token for the given identity.
+   *
+   * @param identity the identity this token is for
+   * @param expiration how long until the token expires
+   * @return a new {@code PENDING} token
+   */
+  public static EnrollmentToken create(Identity identity, Duration expiration) {
+    Instant now = Instant.now();
+    return new EnrollmentToken(
+        Identifiers.uuid(),
+        identity.id(),
+        Identifiers.uuid().toString(),
+        EnrollmentTokenStatus.PENDING,
+        now,
+        now.plus(expiration));
+  }
 
-    /**
-     * Returns {@code true} if the token has passed its expiration time.
-     *
-     * @return {@code true} if expired
-     */
-    public boolean isExpired() {
-        return Instant.now().isAfter(expiresAt);
-    }
+  /**
+   * Returns {@code true} if the token has passed its expiration time.
+   *
+   * @return {@code true} if expired
+   */
+  public boolean isExpired() {
+    return Instant.now().isAfter(expiresAt);
+  }
 
-    /**
-     * Returns {@code true} if the token is {@code PENDING} and not yet expired.
-     *
-     * @return {@code true} if the token can be redeemed
-     */
-    public boolean isPending() {
-        return status == EnrollmentTokenStatus.PENDING && !isExpired();
-    }
+  /**
+   * Returns {@code true} if the token is {@code PENDING} and not yet expired.
+   *
+   * @return {@code true} if the token can be redeemed
+   */
+  public boolean isPending() {
+    return status == EnrollmentTokenStatus.PENDING && !isExpired();
+  }
 
-    /**
-     * Returns a new token with {@code REDEEMED} status.
-     *
-     * @return redeemed copy of this token
-     */
-    public EnrollmentToken redeem() {
-        return new EnrollmentToken(id, identityId, value, EnrollmentTokenStatus.REDEEMED, createdAt, expiresAt);
-    }
+  /**
+   * Returns a new token with {@code REDEEMED} status.
+   *
+   * @return redeemed copy of this token
+   */
+  public EnrollmentToken redeem() {
+    return new EnrollmentToken(
+        id, identityId, value, EnrollmentTokenStatus.REDEEMED, createdAt, expiresAt);
+  }
 
-    /**
-     * Returns a new token with {@code REVOKED} status.
-     *
-     * @return revoked copy of this token
-     */
-    public EnrollmentToken revoke() {
-        return new EnrollmentToken(id, identityId, value, EnrollmentTokenStatus.REVOKED, createdAt, expiresAt);
-    }
+  /**
+   * Returns a new token with {@code REVOKED} status.
+   *
+   * @return revoked copy of this token
+   */
+  public EnrollmentToken revoke() {
+    return new EnrollmentToken(
+        id, identityId, value, EnrollmentTokenStatus.REVOKED, createdAt, expiresAt);
+  }
 }

@@ -15,62 +15,62 @@
  */
 package org.jwcarman.who.jwt;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
-    @Autowired
-    private JdbcJwtCredentialRepository repository;
+  @Autowired private JdbcJwtCredentialRepository repository;
 
-    @Test
-    void savesAndFindsCredentialByIssuerAndSubject() {
-        JwtCredential credential = JwtCredential.create("https://issuer.example.com", "user-123");
-        repository.save(credential);
+  @Test
+  void savesAndFindsCredentialByIssuerAndSubject() {
+    JwtCredential credential = JwtCredential.create("https://issuer.example.com", "user-123");
+    repository.save(credential);
 
-        assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "user-123"))
-                .isPresent()
-                .hasValueSatisfying(found -> {
-                    assertThat(found.id()).isEqualTo(credential.id());
-                    assertThat(found.issuer()).isEqualTo("https://issuer.example.com");
-                    assertThat(found.subject()).isEqualTo("user-123");
-                });
-    }
+    assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "user-123"))
+        .isPresent()
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.id()).isEqualTo(credential.id());
+              assertThat(found.issuer()).isEqualTo("https://issuer.example.com");
+              assertThat(found.subject()).isEqualTo("user-123");
+            });
+  }
 
-    @Test
-    void returnsEmptyWhenCredentialNotFound() {
-        assertThat(repository.findByIssuerAndSubject("https://unknown.example.com", "nobody"))
-                .isEmpty();
-    }
+  @Test
+  void returnsEmptyWhenCredentialNotFound() {
+    assertThat(repository.findByIssuerAndSubject("https://unknown.example.com", "nobody"))
+        .isEmpty();
+  }
 
-    @Test
-    void deleteByIdRemovesCredential() {
-        JwtCredential credential = JwtCredential.create("https://issuer.example.com", "to-delete");
-        repository.save(credential);
+  @Test
+  void deleteByIdRemovesCredential() {
+    JwtCredential credential = JwtCredential.create("https://issuer.example.com", "to-delete");
+    repository.save(credential);
 
-        repository.deleteById(credential.id());
+    repository.deleteById(credential.id());
 
-        assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "to-delete"))
-                .isEmpty();
-    }
+    assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "to-delete"))
+        .isEmpty();
+  }
 
-    @Test
-    void saveIsIdempotentOnConflict() {
-        // ON CONFLICT (id) DO NOTHING — saving the same id twice leaves the first record intact
-        UUID id = UUID.randomUUID();
-        JwtCredential first = new JwtCredential(id, "https://issuer.example.com", "subject-a");
-        JwtCredential second = new JwtCredential(id, "https://other.example.com", "subject-b");
+  @Test
+  void saveIsIdempotentOnConflict() {
+    // ON CONFLICT (id) DO NOTHING — saving the same id twice leaves the first record intact
+    UUID id = UUID.randomUUID();
+    JwtCredential first = new JwtCredential(id, "https://issuer.example.com", "subject-a");
+    JwtCredential second = new JwtCredential(id, "https://other.example.com", "subject-b");
 
-        repository.save(first);
-        repository.save(second); // should be silently ignored
+    repository.save(first);
+    repository.save(second); // should be silently ignored
 
-        assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "subject-a"))
-                .isPresent();
-        assertThat(repository.findByIssuerAndSubject("https://other.example.com", "subject-b"))
-                .isEmpty();
-    }
+    assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "subject-a"))
+        .isPresent();
+    assertThat(repository.findByIssuerAndSubject("https://other.example.com", "subject-b"))
+        .isEmpty();
+  }
 }

@@ -17,5 +17,4 @@ package org.jwcarman.who.example;
 
 import java.util.UUID;
 
-public record Task(UUID id, String title, TaskStatus status) {
-}
+public record Task(UUID id, String title, TaskStatus status) {}

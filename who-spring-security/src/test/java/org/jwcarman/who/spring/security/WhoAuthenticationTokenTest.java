@@ -15,97 +15,99 @@
  */
 package org.jwcarman.who.spring.security;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
-import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.junit.jupiter.api.Test;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 class WhoAuthenticationTokenTest {
 
-    @Test
-    void principalWithPermissionsProducesMatchingAuthorities() {
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("a", "b"));
-        WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+  @Test
+  void principalWithPermissionsProducesMatchingAuthorities() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("a", "b"));
+    WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
-        assertThat(token.getAuthorities())
-                .containsExactlyInAnyOrder(
-                        new SimpleGrantedAuthority("a"),
-                        new SimpleGrantedAuthority("b"));
-    }
+    assertThat(token.getAuthorities())
+        .containsExactlyInAnyOrder(
+            new SimpleGrantedAuthority("a"), new SimpleGrantedAuthority("b"));
+  }
 
-    @Test
-    void principalWithNoPermissionsProducesEmptyAuthorities() {
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
-        WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+  @Test
+  void principalWithNoPermissionsProducesEmptyAuthorities() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+    WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
-        assertThat(token.getAuthorities()).isEmpty();
-    }
+    assertThat(token.getAuthorities()).isEmpty();
+  }
 
-    @Test
-    void getPrincipalReturnsSamePrincipal() {
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
-        WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+  @Test
+  void getPrincipalReturnsSamePrincipal() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
+    WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
-        assertThat(token.getPrincipal()).isSameAs(principal);
-    }
+    assertThat(token.getPrincipal()).isSameAs(principal);
+  }
 
-    @Test
-    void getCredentialsReturnsNull() {
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
-        WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+  @Test
+  void getCredentialsReturnsNull() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+    WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
-        assertThat(token.getCredentials()).isNull();
-    }
+    assertThat(token.getCredentials()).isNull();
+  }
 
-    @Test
-    void tokenIsAuthenticated() {
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
-        WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+  @Test
+  void tokenIsAuthenticated() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+    WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
-        assertThat(token.isAuthenticated()).isTrue();
-    }
+    assertThat(token.isAuthenticated()).isTrue();
+  }
 
-    @Test
-    void nullPrincipalThrows() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> new WhoAuthenticationToken(null))
-                .withMessage("principal must not be null");
-    }
+  @Test
+  void nullPrincipalThrows() {
+    assertThatNullPointerException()
+        .isThrownBy(() -> new WhoAuthenticationToken(null))
+        .withMessage("principal must not be null");
+  }
 
-    @Test
-    void equalsReturnsTrueForSameInstance() {
-        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
+  @Test
+  void equalsReturnsTrueForSameInstance() {
+    WhoAuthenticationToken token =
+        new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
-        assertThat(token).isEqualTo(token);
-    }
+    assertThat(token).isEqualTo(token);
+  }
 
-    @Test
-    void equalsReturnsTrueForTokensWithSamePrincipal() {
-        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
-        WhoAuthenticationToken token1 = new WhoAuthenticationToken(principal);
-        WhoAuthenticationToken token2 = new WhoAuthenticationToken(principal);
+  @Test
+  void equalsReturnsTrueForTokensWithSamePrincipal() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
+    WhoAuthenticationToken token1 = new WhoAuthenticationToken(principal);
+    WhoAuthenticationToken token2 = new WhoAuthenticationToken(principal);
 
-        assertThat(token1).isEqualTo(token2).hasSameHashCodeAs(token2);
-    }
+    assertThat(token1).isEqualTo(token2).hasSameHashCodeAs(token2);
+  }
 
-    @Test
-    void equalsReturnsFalseForDifferentPrincipal() {
-        WhoAuthenticationToken token1 = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
-        WhoAuthenticationToken token2 = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
+  @Test
+  void equalsReturnsFalseForDifferentPrincipal() {
+    WhoAuthenticationToken token1 =
+        new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
+    WhoAuthenticationToken token2 =
+        new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
-        assertThat(token1).isNotEqualTo(token2);
-    }
+    assertThat(token1).isNotEqualTo(token2);
+  }
 
-    @Test
-    void equalsReturnsFalseForNonTokenObject() {
-        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
+  @Test
+  void equalsReturnsFalseForNonTokenObject() {
+    WhoAuthenticationToken token =
+        new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
-        assertThat(token).isNotEqualTo("not a token");
-    }
+    assertThat(token).isNotEqualTo("not a token");
+  }
 }

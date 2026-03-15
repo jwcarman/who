@@ -19,47 +19,45 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Repository for managing the association between roles and permission strings.
- */
+/** Repository for managing the association between roles and permission strings. */
 public interface RolePermissionRepository {
 
-    /**
-     * Returns all permission strings assigned to the given role.
-     *
-     * @param roleId the role UUID
-     * @return set of permission strings (never null; empty if none)
-     */
-    Set<String> findPermissionsByRoleId(UUID roleId);
+  /**
+   * Returns all permission strings assigned to the given role.
+   *
+   * @param roleId the role UUID
+   * @return set of permission strings (never null; empty if none)
+   */
+  Set<String> findPermissionsByRoleId(UUID roleId);
 
-    /**
-     * Returns the union of all permission strings assigned to the given roles.
-     *
-     * @param roleIds the collection of role UUIDs
-     * @return set of permission strings (never null; empty if none)
-     */
-    Set<String> findPermissionsByRoleIds(Collection<UUID> roleIds);
+  /**
+   * Returns the union of all permission strings assigned to the given roles.
+   *
+   * @param roleIds the collection of role UUIDs
+   * @return set of permission strings (never null; empty if none)
+   */
+  Set<String> findPermissionsByRoleIds(Collection<UUID> roleIds);
 
-    /**
-     * Assigns a permission string to the given role.
-     *
-     * @param roleId     the role UUID
-     * @param permission the permission string
-     */
-    void addPermission(UUID roleId, String permission);
+  /**
+   * Assigns a permission string to the given role.
+   *
+   * @param roleId the role UUID
+   * @param permission the permission string
+   */
+  void addPermission(UUID roleId, String permission);
 
-    /**
-     * Removes a permission string from the given role.
-     *
-     * @param roleId     the role UUID
-     * @param permission the permission string
-     */
-    void removePermission(UUID roleId, String permission);
+  /**
+   * Removes a permission string from the given role.
+   *
+   * @param roleId the role UUID
+   * @param permission the permission string
+   */
+  void removePermission(UUID roleId, String permission);
 
-    /**
-     * Removes all permissions assigned to the given role.
-     *
-     * @param roleId the role UUID
-     */
-    void removeAllPermissionsForRole(UUID roleId);
+  /**
+   * Removes all permissions assigned to the given role.
+   *
+   * @param roleId the role UUID
+   */
+  void removeAllPermissionsForRole(UUID roleId);
 }

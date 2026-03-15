@@ -15,78 +15,75 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-import java.util.UUID;
-
-/**
- * JDBC implementation of {@link RoleRepository} backed by the {@code who_role} table.
- */
+/** JDBC implementation of {@link RoleRepository} backed by the {@code who_role} table. */
 @Repository
 public class JdbcRoleRepository implements RoleRepository {
 
-    private static final String COL_ID = "id";
-    private static final String COL_NAME = "name";
+  private static final String COL_ID = "id";
+  private static final String COL_NAME = "name";
 
-    private static final RowMapper<Role> ROLE_ROW_MAPPER = (rs, rowNum) ->
-            new Role(rs.getObject(COL_ID, UUID.class), rs.getString(COL_NAME));
+  private static final RowMapper<Role> ROLE_ROW_MAPPER =
+      (rs, rowNum) -> new Role(rs.getObject(COL_ID, UUID.class), rs.getString(COL_NAME));
 
-    private final JdbcClient jdbcClient;
+  private final JdbcClient jdbcClient;
 
-    public JdbcRoleRepository(JdbcClient jdbcClient) {
-        this.jdbcClient = jdbcClient;
-    }
+  public JdbcRoleRepository(JdbcClient jdbcClient) {
+    this.jdbcClient = jdbcClient;
+  }
 
-    @Override
-    public Optional<Role> findById(UUID id) {
-        return jdbcClient
-                .sql("SELECT id, name FROM who_role WHERE id = :id")
-                .param(COL_ID, id)
-                .query(ROLE_ROW_MAPPER)
-                .optional();
-    }
+  @Override
+  public Optional<Role> findById(UUID id) {
+    return jdbcClient
+        .sql("SELECT id, name FROM who_role WHERE id = :id")
+        .param(COL_ID, id)
+        .query(ROLE_ROW_MAPPER)
+        .optional();
+  }
 
-    @Override
-    public Optional<Role> findByName(String name) {
-        return jdbcClient
-                .sql("SELECT id, name FROM who_role WHERE name = :name")
-                .param(COL_NAME, name)
-                .query(ROLE_ROW_MAPPER)
-                .optional();
-    }
+  @Override
+  public Optional<Role> findByName(String name) {
+    return jdbcClient
+        .sql("SELECT id, name FROM who_role WHERE name = :name")
+        .param(COL_NAME, name)
+        .query(ROLE_ROW_MAPPER)
+        .optional();
+  }
 
-    @Override
-    public Role save(Role role) {
-        jdbcClient
-                .sql("""
+  @Override
+  public Role save(Role role) {
+    jdbcClient
+        .sql(
+            """
                         INSERT INTO who_role (id, name)
                         VALUES (:id, :name)
                         ON CONFLICT (id) DO UPDATE SET name = :name
                         """)
-                .param(COL_ID, role.id())
-                .param(COL_NAME, role.name())
-                .update();
-        return role;
-    }
+        .param(COL_ID, role.id())
+        .param(COL_NAME, role.name())
+        .update();
+    return role;
+  }
 
-    @Override
-    public boolean existsById(UUID id) {
-        Integer count = jdbcClient
-                .sql("SELECT COUNT(*) FROM who_role WHERE id = :id")
-                .param(COL_ID, id)
-                .query(Integer.class)
-                .single();
-        return count > 0;
-    }
-
-    @Override
-    public void deleteById(UUID id) {
+  @Override
+  public boolean existsById(UUID id) {
+    Integer count =
         jdbcClient
-                .sql("DELETE FROM who_role WHERE id = :id")
-                .param(COL_ID, id)
-                .update();
-    }
+            .sql("SELECT COUNT(*) FROM who_role WHERE id = :id")
+            .param(COL_ID, id)
+            .query(Integer.class)
+            .single();
+    return count > 0;
+  }
+
+  @Override
+  public void deleteById(UUID id) {
+    jdbcClient.sql("DELETE FROM who_role WHERE id = :id").param(COL_ID, id).update();
+  }
 }

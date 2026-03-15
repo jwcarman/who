@@ -15,39 +15,39 @@
  */
 package org.jwcarman.who.autoconfigure;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.sql.init.DatabaseInitializationMode;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 class WhoPropertiesTest {
 
-    @Test
-    void defaultsArePopulated() {
-        WhoProperties props = new WhoProperties();
+  @Test
+  void defaultsArePopulated() {
+    WhoProperties props = new WhoProperties();
 
-        assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.EMBEDDED);
-        assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
-        assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
-    }
+    assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.EMBEDDED);
+    assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
+    assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
+  }
 
-    @Test
-    void settersRoundTrip() {
-        WhoProperties props = new WhoProperties();
+  @Test
+  void settersRoundTrip() {
+    WhoProperties props = new WhoProperties();
 
-        props.setInitializeSchema(DatabaseInitializationMode.ALWAYS);
-        assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.ALWAYS);
+    props.setInitializeSchema(DatabaseInitializationMode.ALWAYS);
+    assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.ALWAYS);
 
-        WhoProperties.Enrollment enrollment = new WhoProperties.Enrollment();
-        enrollment.setTokenExpiration(Duration.ofHours(48));
-        props.setEnrollment(enrollment);
-        assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(48));
+    WhoProperties.Enrollment enrollment = new WhoProperties.Enrollment();
+    enrollment.setTokenExpiration(Duration.ofHours(48));
+    props.setEnrollment(enrollment);
+    assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(48));
 
-        WhoProperties.ApiKey apiKey = new WhoProperties.ApiKey();
-        apiKey.setHeaderName("Authorization");
-        props.setApiKey(apiKey);
-        assertThat(props.getApiKey().getHeaderName()).isEqualTo("Authorization");
-    }
+    WhoProperties.ApiKey apiKey = new WhoProperties.ApiKey();
+    apiKey.setHeaderName("Authorization");
+    props.setApiKey(apiKey);
+    assertThat(props.getApiKey().getHeaderName()).isEqualTo("Authorization");
+  }
 }

@@ -18,5 +18,4 @@ package org.jwcarman.who.jdbc;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-class WhoJdbcTestApp {
-}
+class WhoJdbcTestApp {}

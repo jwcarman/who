@@ -15,65 +15,63 @@
  */
 package org.jwcarman.who.jdbc;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
 
-    @Autowired
-    private JdbcIdentityRepository identityRepository;
+  @Autowired private JdbcIdentityRepository identityRepository;
 
-    @Autowired
-    private JdbcCredentialIdentityRepository credentialIdentityRepository;
+  @Autowired private JdbcCredentialIdentityRepository credentialIdentityRepository;
 
-    @Test
-    void linkMapsCredentialToIdentity() {
-        Identity identity = savedIdentity();
-        UUID credentialId = UUID.randomUUID();
+  @Test
+  void linkMapsCredentialToIdentity() {
+    Identity identity = savedIdentity();
+    UUID credentialId = UUID.randomUUID();
 
-        credentialIdentityRepository.link(credentialId, identity.id());
+    credentialIdentityRepository.link(credentialId, identity.id());
 
-        Optional<UUID> found = credentialIdentityRepository.findIdentityIdByCredentialId(credentialId);
-        assertThat(found).isPresent().contains(identity.id());
-    }
+    Optional<UUID> found = credentialIdentityRepository.findIdentityIdByCredentialId(credentialId);
+    assertThat(found).isPresent().contains(identity.id());
+  }
 
-    @Test
-    void findIdentityIdByCredentialIdReturnsEmptyWhenNotLinked() {
-        Optional<UUID> found = credentialIdentityRepository.findIdentityIdByCredentialId(UUID.randomUUID());
-        assertThat(found).isEmpty();
-    }
+  @Test
+  void findIdentityIdByCredentialIdReturnsEmptyWhenNotLinked() {
+    Optional<UUID> found =
+        credentialIdentityRepository.findIdentityIdByCredentialId(UUID.randomUUID());
+    assertThat(found).isEmpty();
+  }
 
-    @Test
-    void unlinkRemovesCredentialMapping() {
-        Identity identity = savedIdentity();
-        UUID credentialId = UUID.randomUUID();
-        credentialIdentityRepository.link(credentialId, identity.id());
+  @Test
+  void unlinkRemovesCredentialMapping() {
+    Identity identity = savedIdentity();
+    UUID credentialId = UUID.randomUUID();
+    credentialIdentityRepository.link(credentialId, identity.id());
 
-        credentialIdentityRepository.unlink(credentialId);
+    credentialIdentityRepository.unlink(credentialId);
 
-        assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId)).isEmpty();
-    }
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId)).isEmpty();
+  }
 
-    @Test
-    void deletingIdentityCascadesToCredentialMappings() {
-        Identity identity = savedIdentity();
-        UUID credentialId = UUID.randomUUID();
-        credentialIdentityRepository.link(credentialId, identity.id());
+  @Test
+  void deletingIdentityCascadesToCredentialMappings() {
+    Identity identity = savedIdentity();
+    UUID credentialId = UUID.randomUUID();
+    credentialIdentityRepository.link(credentialId, identity.id());
 
-        identityRepository.deleteById(identity.id());
+    identityRepository.deleteById(identity.id());
 
-        assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId)).isEmpty();
-    }
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId)).isEmpty();
+  }
 
-    private Identity savedIdentity() {
-        Identity identity = Identity.create();
-        return identityRepository.save(identity);
-    }
+  private Identity savedIdentity() {
+    Identity identity = Identity.create();
+    return identityRepository.save(identity);
+  }
 }

@@ -15,46 +15,46 @@
  */
 package org.jwcarman.who.apikey;
 
-import org.junit.jupiter.api.Test;
-
-import java.nio.charset.StandardCharsets;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.jwcarman.who.apikey.MessageDigests.SHA_256;
 
+import java.nio.charset.StandardCharsets;
+
+import org.junit.jupiter.api.Test;
+
 class MessageDigestsTest {
 
-    // Known SHA-256 of "hello" (hex)
-    private static final String HELLO_SHA256_HEX =
-            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+  // Known SHA-256 of "hello" (hex)
+  private static final String HELLO_SHA256_HEX =
+      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
 
-    @Test
-    void sha256ProducesCorrectDigest() {
-        byte[] result = MessageDigests.sha256("hello".getBytes(StandardCharsets.UTF_8));
+  @Test
+  void sha256ProducesCorrectDigest() {
+    byte[] result = MessageDigests.sha256("hello".getBytes(StandardCharsets.UTF_8));
 
-        assertThat(result).asHexString().isEqualToIgnoringCase(HELLO_SHA256_HEX);
-    }
+    assertThat(result).asHexString().isEqualToIgnoringCase(HELLO_SHA256_HEX);
+  }
 
-    @Test
-    void sha256ProducesTwentyFourByteDigest() {
-        byte[] result = MessageDigests.sha256("test".getBytes(StandardCharsets.UTF_8));
+  @Test
+  void sha256ProducesTwentyFourByteDigest() {
+    byte[] result = MessageDigests.sha256("test".getBytes(StandardCharsets.UTF_8));
 
-        assertThat(result).hasSize(32);
-    }
+    assertThat(result).hasSize(32);
+  }
 
-    @Test
-    void messageDigestWithSha256AlgorithmConstantMatchesSha256() {
-        byte[] input = "consistency".getBytes(StandardCharsets.UTF_8);
+  @Test
+  void messageDigestWithSha256AlgorithmConstantMatchesSha256() {
+    byte[] input = "consistency".getBytes(StandardCharsets.UTF_8);
 
-        assertThat(MessageDigests.messageDigest(SHA_256, input))
-                .isEqualTo(MessageDigests.sha256(input));
-    }
+    assertThat(MessageDigests.messageDigest(SHA_256, input))
+        .isEqualTo(MessageDigests.sha256(input));
+  }
 
-    @Test
-    void messageDigestThrowsForInvalidAlgorithm() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> MessageDigests.messageDigest("NOT-A-REAL-ALGO", new byte[]{1, 2, 3}))
-                .withMessageContaining("NOT-A-REAL-ALGO");
-    }
+  @Test
+  void messageDigestThrowsForInvalidAlgorithm() {
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> MessageDigests.messageDigest("NOT-A-REAL-ALGO", new byte[] {1, 2, 3}))
+        .withMessageContaining("NOT-A-REAL-ALGO");
+  }
 }

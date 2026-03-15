@@ -15,17 +15,15 @@
  */
 package org.jwcarman.who.rbac;
 
-/**
- * Thrown when a role lookup by name finds no matching role.
- */
+/** Thrown when a role lookup by name finds no matching role. */
 public class RoleNotFoundException extends RuntimeException {
 
-    /**
-     * Creates a new exception for the given role name.
-     *
-     * @param name the role name that was not found
-     */
-    public RoleNotFoundException(String name) {
-        super("Role not found: " + name);
-    }
+  /**
+   * Creates a new exception for the given role name.
+   *
+   * @param name the role name that was not found
+   */
+  public RoleNotFoundException(String name) {
+    super("Role not found: " + name);
+  }
 }

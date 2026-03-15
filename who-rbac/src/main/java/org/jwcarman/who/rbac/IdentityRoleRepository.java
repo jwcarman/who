@@ -20,41 +20,41 @@ import java.util.UUID;
 
 /**
  * Repository for managing the assignment of roles to identities.
- * <p>
- * There is no foreign key from {@code who_identity_role.identity_id} to the identity table —
- * the RBAC module does not own identity storage. The application is responsible for managing
+ *
+ * <p>There is no foreign key from {@code who_identity_role.identity_id} to the identity table — the
+ * RBAC module does not own identity storage. The application is responsible for managing
  * referential integrity at the service level.
  */
 public interface IdentityRoleRepository {
 
-    /**
-     * Returns the list of role UUIDs assigned to the given identity.
-     *
-     * @param identityId the identity UUID
-     * @return list of role UUIDs (never null; empty if none)
-     */
-    List<UUID> findRoleIdsByIdentityId(UUID identityId);
+  /**
+   * Returns the list of role UUIDs assigned to the given identity.
+   *
+   * @param identityId the identity UUID
+   * @return list of role UUIDs (never null; empty if none)
+   */
+  List<UUID> findRoleIdsByIdentityId(UUID identityId);
 
-    /**
-     * Assigns a role to an identity.
-     *
-     * @param identityId the identity UUID
-     * @param roleId     the role UUID
-     */
-    void assignRole(UUID identityId, UUID roleId);
+  /**
+   * Assigns a role to an identity.
+   *
+   * @param identityId the identity UUID
+   * @param roleId the role UUID
+   */
+  void assignRole(UUID identityId, UUID roleId);
 
-    /**
-     * Removes a role assignment from an identity.
-     *
-     * @param identityId the identity UUID
-     * @param roleId     the role UUID
-     */
-    void removeRole(UUID identityId, UUID roleId);
+  /**
+   * Removes a role assignment from an identity.
+   *
+   * @param identityId the identity UUID
+   * @param roleId the role UUID
+   */
+  void removeRole(UUID identityId, UUID roleId);
 
-    /**
-     * Removes all role assignments for the given identity.
-     *
-     * @param identityId the identity UUID
-     */
-    void removeAllRolesForIdentity(UUID identityId);
+  /**
+   * Removes all role assignments for the given identity.
+   *
+   * @param identityId the identity UUID
+   */
+  void removeAllRolesForIdentity(UUID identityId);
 }

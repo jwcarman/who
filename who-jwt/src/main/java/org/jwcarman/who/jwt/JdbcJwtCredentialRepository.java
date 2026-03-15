@@ -15,64 +15,63 @@
  */
 package org.jwcarman.who.jwt;
 
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-import java.util.UUID;
-
 /**
- * JDBC implementation of {@link JwtCredentialRepository} backed by the {@code who_jwt_credential} table.
+ * JDBC implementation of {@link JwtCredentialRepository} backed by the {@code who_jwt_credential}
+ * table.
  */
 @Repository
 public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
 
-    private static final String COL_ISSUER = "issuer";
-    private static final String COL_SUBJECT = "subject";
+  private static final String COL_ISSUER = "issuer";
+  private static final String COL_SUBJECT = "subject";
 
-    private static final RowMapper<JwtCredential> ROW_MAPPER = (rs, rowNum) ->
-            new JwtCredential(
-                    rs.getObject("id", UUID.class),
-                    rs.getString(COL_ISSUER),
-                    rs.getString(COL_SUBJECT));
+  private static final RowMapper<JwtCredential> ROW_MAPPER =
+      (rs, rowNum) ->
+          new JwtCredential(
+              rs.getObject("id", UUID.class), rs.getString(COL_ISSUER), rs.getString(COL_SUBJECT));
 
-    private final JdbcClient jdbcClient;
+  private final JdbcClient jdbcClient;
 
-    public JdbcJwtCredentialRepository(JdbcClient jdbcClient) {
-        this.jdbcClient = jdbcClient;
-    }
+  public JdbcJwtCredentialRepository(JdbcClient jdbcClient) {
+    this.jdbcClient = jdbcClient;
+  }
 
-    @Override
-    public Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject) {
-        return jdbcClient
-                .sql("SELECT id, issuer, subject FROM who_jwt_credential WHERE issuer = :issuer AND subject = :subject")
-                .param(COL_ISSUER, issuer)
-                .param(COL_SUBJECT, subject)
-                .query(ROW_MAPPER)
-                .optional();
-    }
+  @Override
+  public Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject) {
+    return jdbcClient
+        .sql(
+            "SELECT id, issuer, subject FROM who_jwt_credential WHERE issuer = :issuer AND subject = :subject")
+        .param(COL_ISSUER, issuer)
+        .param(COL_SUBJECT, subject)
+        .query(ROW_MAPPER)
+        .optional();
+  }
 
-    @Override
-    public JwtCredential save(JwtCredential credential) {
-        jdbcClient
-                .sql("""
+  @Override
+  public JwtCredential save(JwtCredential credential) {
+    jdbcClient
+        .sql(
+            """
                         INSERT INTO who_jwt_credential (id, issuer, subject)
                         VALUES (:id, :issuer, :subject)
                         ON CONFLICT (id) DO NOTHING
                         """)
-                .param("id", credential.id())
-                .param(COL_ISSUER, credential.issuer())
-                .param(COL_SUBJECT, credential.subject())
-                .update();
-        return credential;
-    }
+        .param("id", credential.id())
+        .param(COL_ISSUER, credential.issuer())
+        .param(COL_SUBJECT, credential.subject())
+        .update();
+    return credential;
+  }
 
-    @Override
-    public void deleteById(UUID id) {
-        jdbcClient
-                .sql("DELETE FROM who_jwt_credential WHERE id = :id")
-                .param("id", id)
-                .update();
-    }
+  @Override
+  public void deleteById(UUID id) {
+    jdbcClient.sql("DELETE FROM who_jwt_credential WHERE id = :id").param("id", id).update();
+  }
 }

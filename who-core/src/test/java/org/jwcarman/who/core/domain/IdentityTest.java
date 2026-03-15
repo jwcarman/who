@@ -15,20 +15,20 @@
  */
 package org.jwcarman.who.core.domain;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 class IdentityTest {
 
-    @Test
-    void withStatusReturnsNewIdentityWithUpdatedStatus() {
-        Identity identity = Identity.create();
+  @Test
+  void withStatusReturnsNewIdentityWithUpdatedStatus() {
+    Identity identity = Identity.create();
 
-        Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
+    Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
 
-        assertThat(suspended.id()).isEqualTo(identity.id());
-        assertThat(suspended.status()).isEqualTo(IdentityStatus.SUSPENDED);
-        assertThat(suspended.createdAt()).isEqualTo(identity.createdAt());
-    }
+    assertThat(suspended.id()).isEqualTo(identity.id());
+    assertThat(suspended.status()).isEqualTo(IdentityStatus.SUSPENDED);
+    assertThat(suspended.createdAt()).isEqualTo(identity.createdAt());
+  }
 }

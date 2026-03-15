@@ -15,107 +15,114 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.time.Duration;
+import java.util.Optional;
+
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.util.Optional;
-
-
 /**
  * Service for managing enrollment tokens that link credentials to identities.
  *
- * <p>The application is responsible for delivering the token value to the user (e.g. via email)
- * and for creating the {@link Credential} before calling {@link #enroll(String, Credential)}.
- * This service only handles the token lifecycle and the credential-to-identity link.
+ * <p>The application is responsible for delivering the token value to the user (e.g. via email) and
+ * for creating the {@link Credential} before calling {@link #enroll(String, Credential)}. This
+ * service only handles the token lifecycle and the credential-to-identity link.
  */
 public class WhoEnrollmentService {
 
-    private final EnrollmentTokenRepository enrollmentTokenRepository;
-    private final IdentityRepository identityRepository;
-    private final CredentialIdentityRepository credentialIdentityRepository;
-    private final Duration tokenExpiration;
+  private final EnrollmentTokenRepository enrollmentTokenRepository;
+  private final IdentityRepository identityRepository;
+  private final CredentialIdentityRepository credentialIdentityRepository;
+  private final Duration tokenExpiration;
 
-    public WhoEnrollmentService(EnrollmentTokenRepository enrollmentTokenRepository,
-                                IdentityRepository identityRepository,
-                                CredentialIdentityRepository credentialIdentityRepository,
-                                Duration tokenExpiration) {
-        this.enrollmentTokenRepository = enrollmentTokenRepository;
-        this.identityRepository = identityRepository;
-        this.credentialIdentityRepository = credentialIdentityRepository;
-        this.tokenExpiration = tokenExpiration;
+  public WhoEnrollmentService(
+      EnrollmentTokenRepository enrollmentTokenRepository,
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      Duration tokenExpiration) {
+    this.enrollmentTokenRepository = enrollmentTokenRepository;
+    this.identityRepository = identityRepository;
+    this.credentialIdentityRepository = credentialIdentityRepository;
+    this.tokenExpiration = tokenExpiration;
+  }
+
+  /**
+   * Creates and persists a new enrollment token for the given identity.
+   *
+   * <p>The caller is responsible for delivering {@code token.value()} to the user.
+   *
+   * @param identity the identity to enroll a credential for
+   * @return the newly created {@code PENDING} token
+   * @throws IllegalArgumentException if no identity with the given id exists
+   */
+  public EnrollmentToken createToken(Identity identity) {
+    if (!identityRepository.existsById(identity.id())) {
+      throw new IllegalArgumentException("Identity not found: " + identity.id());
+    }
+    return enrollmentTokenRepository.save(EnrollmentToken.create(identity, tokenExpiration));
+  }
+
+  /**
+   * Redeems an enrollment token, linking the credential to the identity.
+   *
+   * <p>The token must be {@code PENDING} and not expired. On success the token is marked {@code
+   * REDEEMED} and the credential is linked to the identity.
+   *
+   * @param tokenValue the shareable token value given to the user
+   * @param credential the credential to link
+   * @return the identity the credential was linked to
+   * @throws EnrollmentTokenNotFoundException if no token with the given value exists
+   * @throws EnrollmentTokenExpiredException if the token has passed its expiration time
+   * @throws EnrollmentTokenNotPendingException if the token is already redeemed or revoked
+   */
+  @Transactional
+  public Identity enroll(String tokenValue, Credential credential) {
+    EnrollmentToken token =
+        enrollmentTokenRepository
+            .findByValue(tokenValue)
+            .orElseThrow(() -> new EnrollmentTokenNotFoundException(tokenValue));
+
+    if (token.isExpired()) {
+      throw new EnrollmentTokenExpiredException(token.id());
+    }
+    if (token.status() != EnrollmentTokenStatus.PENDING) {
+      throw new EnrollmentTokenNotPendingException(token.id(), token.status());
     }
 
-    /**
-     * Creates and persists a new enrollment token for the given identity.
-     *
-     * <p>The caller is responsible for delivering {@code token.value()} to the user.
-     *
-     * @param identity the identity to enroll a credential for
-     * @return the newly created {@code PENDING} token
-     * @throws IllegalArgumentException if no identity with the given id exists
-     */
-    public EnrollmentToken createToken(Identity identity) {
-        if (!identityRepository.existsById(identity.id())) {
-            throw new IllegalArgumentException("Identity not found: " + identity.id());
-        }
-        return enrollmentTokenRepository.save(EnrollmentToken.create(identity, tokenExpiration));
-    }
+    credentialIdentityRepository.link(credential.id(), token.identityId());
+    enrollmentTokenRepository.save(token.redeem());
 
-    /**
-     * Redeems an enrollment token, linking the credential to the identity.
-     *
-     * <p>The token must be {@code PENDING} and not expired. On success the token is marked
-     * {@code REDEEMED} and the credential is linked to the identity.
-     *
-     * @param tokenValue the shareable token value given to the user
-     * @param credential the credential to link
-     * @return the identity the credential was linked to
-     * @throws EnrollmentTokenNotFoundException  if no token with the given value exists
-     * @throws EnrollmentTokenExpiredException   if the token has passed its expiration time
-     * @throws EnrollmentTokenNotPendingException if the token is already redeemed or revoked
-     */
-    @Transactional
-    public Identity enroll(String tokenValue, Credential credential) {
-        EnrollmentToken token = enrollmentTokenRepository.findByValue(tokenValue)
-                .orElseThrow(() -> new EnrollmentTokenNotFoundException(tokenValue));
+    return identityRepository
+        .findById(token.identityId())
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Identity disappeared during enrollment: " + token.identityId()));
+  }
 
-        if (token.isExpired()) {
-            throw new EnrollmentTokenExpiredException(token.id());
-        }
-        if (token.status() != EnrollmentTokenStatus.PENDING) {
-            throw new EnrollmentTokenNotPendingException(token.id(), token.status());
-        }
+  /**
+   * Revokes an enrollment token, preventing it from being redeemed.
+   *
+   * @param token the token to revoke
+   * @throws EnrollmentTokenNotFoundException if the token does not exist
+   */
+  public void revokeToken(EnrollmentToken token) {
+    enrollmentTokenRepository
+        .findById(token.id())
+        .orElseThrow(() -> new EnrollmentTokenNotFoundException(token.id().toString()));
+    enrollmentTokenRepository.save(token.revoke());
+  }
 
-        credentialIdentityRepository.link(credential.id(), token.identityId());
-        enrollmentTokenRepository.save(token.redeem());
-
-        return identityRepository.findById(token.identityId())
-                .orElseThrow(() -> new IllegalStateException("Identity disappeared during enrollment: " + token.identityId()));
-    }
-
-    /**
-     * Revokes an enrollment token, preventing it from being redeemed.
-     *
-     * @param token the token to revoke
-     * @throws EnrollmentTokenNotFoundException if the token does not exist
-     */
-    public void revokeToken(EnrollmentToken token) {
-        enrollmentTokenRepository.findById(token.id())
-                .orElseThrow(() -> new EnrollmentTokenNotFoundException(token.id().toString()));
-        enrollmentTokenRepository.save(token.revoke());
-    }
-
-    /**
-     * Looks up a token by its shareable value without side effects.
-     *
-     * @param tokenValue the token value
-     * @return the token, or empty if not found
-     */
-    public Optional<EnrollmentToken> findToken(String tokenValue) {
-        return enrollmentTokenRepository.findByValue(tokenValue);
-    }
+  /**
+   * Looks up a token by its shareable value without side effects.
+   *
+   * @param tokenValue the token value
+   * @return the token, or empty if not found
+   */
+  public Optional<EnrollmentToken> findToken(String tokenValue) {
+    return enrollmentTokenRepository.findByValue(tokenValue);
+  }
 }

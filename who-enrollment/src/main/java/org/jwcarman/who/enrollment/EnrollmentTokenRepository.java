@@ -18,39 +18,37 @@ package org.jwcarman.who.enrollment;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Repository for persisting and retrieving {@link EnrollmentToken} instances.
- */
+/** Repository for persisting and retrieving {@link EnrollmentToken} instances. */
 public interface EnrollmentTokenRepository {
 
-    /**
-     * Saves (inserts or updates) the given token.
-     *
-     * @param token the token to save
-     * @return the saved token (same instance)
-     */
-    EnrollmentToken save(EnrollmentToken token);
+  /**
+   * Saves (inserts or updates) the given token.
+   *
+   * @param token the token to save
+   * @return the saved token (same instance)
+   */
+  EnrollmentToken save(EnrollmentToken token);
 
-    /**
-     * Finds a token by its primary key.
-     *
-     * @param id the token's UUID
-     * @return the token, or empty if not found
-     */
-    Optional<EnrollmentToken> findById(UUID id);
+  /**
+   * Finds a token by its primary key.
+   *
+   * @param id the token's UUID
+   * @return the token, or empty if not found
+   */
+  Optional<EnrollmentToken> findById(UUID id);
 
-    /**
-     * Finds a token by its shareable value.
-     *
-     * @param value the token value shared with the user
-     * @return the token, or empty if not found
-     */
-    Optional<EnrollmentToken> findByValue(String value);
+  /**
+   * Finds a token by its shareable value.
+   *
+   * @param value the token value shared with the user
+   * @return the token, or empty if not found
+   */
+  Optional<EnrollmentToken> findByValue(String value);
 
-    /**
-     * Deletes the token with the given id. No-op if not found.
-     *
-     * @param id the token's UUID
-     */
-    void deleteById(UUID id);
+  /**
+   * Deletes the token with the given id. No-op if not found.
+   *
+   * @param id the token's UUID
+   */
+  void deleteById(UUID id);
 }

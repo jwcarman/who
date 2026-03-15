@@ -18,33 +18,31 @@ package org.jwcarman.who.jwt;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Repository for persisting and retrieving {@link JwtCredential} records.
- */
+/** Repository for persisting and retrieving {@link JwtCredential} records. */
 public interface JwtCredentialRepository {
 
-    /**
-     * Finds a credential by its issuer and subject claims.
-     *
-     * @param issuer  the JWT {@code iss} claim value
-     * @param subject the JWT {@code sub} claim value
-     * @return the credential, or empty if not found
-     */
-    Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject);
+  /**
+   * Finds a credential by its issuer and subject claims.
+   *
+   * @param issuer the JWT {@code iss} claim value
+   * @param subject the JWT {@code sub} claim value
+   * @return the credential, or empty if not found
+   */
+  Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject);
 
-    /**
-     * Persists a credential. If a record with the same id already exists it is left unchanged
-     * (JWT credentials are immutable — issuer and subject never change after creation).
-     *
-     * @param credential the credential to save
-     * @return the saved credential
-     */
-    JwtCredential save(JwtCredential credential);
+  /**
+   * Persists a credential. If a record with the same id already exists it is left unchanged (JWT
+   * credentials are immutable — issuer and subject never change after creation).
+   *
+   * @param credential the credential to save
+   * @return the saved credential
+   */
+  JwtCredential save(JwtCredential credential);
 
-    /**
-     * Deletes the credential with the given id.
-     *
-     * @param id the credential UUID
-     */
-    void deleteById(UUID id);
+  /**
+   * Deletes the credential with the given id.
+   *
+   * @param id the credential UUID
+   */
+  void deleteById(UUID id);
 }

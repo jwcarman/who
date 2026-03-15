@@ -17,12 +17,10 @@ package org.jwcarman.who.enrollment;
 
 import java.util.UUID;
 
-/**
- * Thrown when an enrollment token has passed its expiration time.
- */
+/** Thrown when an enrollment token has passed its expiration time. */
 public class EnrollmentTokenExpiredException extends RuntimeException {
 
-    public EnrollmentTokenExpiredException(UUID tokenId) {
-        super("Enrollment token has expired: " + tokenId);
-    }
+  public EnrollmentTokenExpiredException(UUID tokenId) {
+    super("Enrollment token has expired: " + tokenId);
+  }
 }

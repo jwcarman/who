@@ -15,44 +15,42 @@
  */
 package org.jwcarman.who.core.repository;
 
-import org.jwcarman.who.core.domain.Identity;
-
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Repository interface for {@link Identity} persistence.
- */
+import org.jwcarman.who.core.domain.Identity;
+
+/** Repository interface for {@link Identity} persistence. */
 public interface IdentityRepository {
 
-    /**
-     * Finds an identity by its UUID.
-     *
-     * @param id the identity UUID
-     * @return the identity, or empty if not found
-     */
-    Optional<Identity> findById(UUID id);
+  /**
+   * Finds an identity by its UUID.
+   *
+   * @param id the identity UUID
+   * @return the identity, or empty if not found
+   */
+  Optional<Identity> findById(UUID id);
 
-    /**
-     * Persists the given identity, inserting or updating as necessary.
-     *
-     * @param identity the identity to save
-     * @return the saved identity
-     */
-    Identity save(Identity identity);
+  /**
+   * Persists the given identity, inserting or updating as necessary.
+   *
+   * @param identity the identity to save
+   * @return the saved identity
+   */
+  Identity save(Identity identity);
 
-    /**
-     * Returns whether an identity with the given UUID exists.
-     *
-     * @param id the identity UUID
-     * @return true if an identity exists with that UUID
-     */
-    boolean existsById(UUID id);
+  /**
+   * Returns whether an identity with the given UUID exists.
+   *
+   * @param id the identity UUID
+   * @return true if an identity exists with that UUID
+   */
+  boolean existsById(UUID id);
 
-    /**
-     * Deletes the identity with the given UUID.
-     *
-     * @param id the identity UUID
-     */
-    void deleteById(UUID id);
+  /**
+   * Deletes the identity with the given UUID.
+   *
+   * @param id the identity UUID
+   */
+  void deleteById(UUID id);
 }

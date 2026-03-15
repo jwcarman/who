@@ -15,35 +15,35 @@
  */
 package org.jwcarman.who.jwt;
 
-import org.jwcarman.who.core.Identifiers;
-import org.jwcarman.who.core.spi.Credential;
+import static java.util.Objects.requireNonNull;
 
 import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
+import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.spi.Credential;
 
 /**
  * Credential representing a JWT identified by its issuer and subject claims.
  *
- * <p>The {@link #id()} UUID is stable for the lifetime of the credential record and
- * is used as the foreign key to the identity mapping table.
+ * <p>The {@link #id()} UUID is stable for the lifetime of the credential record and is used as the
+ * foreign key to the identity mapping table.
  */
 public record JwtCredential(UUID id, String issuer, String subject) implements Credential {
 
-    public JwtCredential {
-        requireNonNull(id, "id must not be null");
-        requireNonNull(issuer, "issuer must not be null");
-        requireNonNull(subject, "subject must not be null");
-    }
+  public JwtCredential {
+    requireNonNull(id, "id must not be null");
+    requireNonNull(issuer, "issuer must not be null");
+    requireNonNull(subject, "subject must not be null");
+  }
 
-    /**
-     * Creates a new {@code JwtCredential} with a randomly generated UUID.
-     *
-     * @param issuer  the JWT {@code iss} claim value
-     * @param subject the JWT {@code sub} claim value
-     * @return a new credential
-     */
-    public static JwtCredential create(String issuer, String subject) {
-        return new JwtCredential(Identifiers.uuid(), issuer, subject);
-    }
+  /**
+   * Creates a new {@code JwtCredential} with a randomly generated UUID.
+   *
+   * @param issuer the JWT {@code iss} claim value
+   * @param subject the JWT {@code sub} claim value
+   * @return a new credential
+   */
+  public static JwtCredential create(String issuer, String subject) {
+    return new JwtCredential(Identifiers.uuid(), issuer, subject);
+  }
 }

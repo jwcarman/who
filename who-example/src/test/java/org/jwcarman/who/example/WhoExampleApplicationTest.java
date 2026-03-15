@@ -15,6 +15,12 @@
  */
 package org.jwcarman.who.example;
 
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,56 +29,47 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 class WhoExampleApplicationTest {
 
-    @Autowired
-    private WebApplicationContext context;
+  @Autowired private WebApplicationContext context;
 
-    private MockMvc mockMvc;
+  private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders
-                .webAppContextSetup(context)
-                .apply(springSecurity())
-                .build();
-    }
+  @BeforeEach
+  void setUp() {
+    mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+  }
 
-    @Test
-    void contextLoads() {
-        // Verifies the Spring context starts successfully with H2 and all Who beans wired
-    }
+  @Test
+  void contextLoads() {
+    // Verifies the Spring context starts successfully with H2 and all Who beans wired
+  }
 
-    @Test
-    void getTasksWithoutTokenReturns401() throws Exception {
-        mockMvc.perform(get("/api/tasks"))
-                .andExpect(status().isUnauthorized());
-    }
+  @Test
+  void getTasksWithoutTokenReturns401() throws Exception {
+    mockMvc.perform(get("/api/tasks")).andExpect(status().isUnauthorized());
+  }
 
-    @Test
-    void getMeWithoutTokenReturns401() throws Exception {
-        mockMvc.perform(get("/api/me"))
-                .andExpect(status().isUnauthorized());
-    }
+  @Test
+  void getMeWithoutTokenReturns401() throws Exception {
+    mockMvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
+  }
 
-    @Test
-    void postTaskWithoutTokenReturns401() throws Exception {
-        mockMvc.perform(post("/api/tasks")
-                        .contentType("application/json")
-                        .content("{\"title\":\"test\",\"status\":\"OPEN\"}"))
-                .andExpect(status().isUnauthorized());
-    }
+  @Test
+  void postTaskWithoutTokenReturns401() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/tasks")
+                .contentType("application/json")
+                .content("{\"title\":\"test\",\"status\":\"OPEN\"}"))
+        .andExpect(status().isUnauthorized());
+  }
 
-    @Test
-    void deleteTaskWithoutTokenReturns401() throws Exception {
-        mockMvc.perform(delete("/api/tasks/00000000-0000-0000-0003-000000000001"))
-                .andExpect(status().isUnauthorized());
-    }
+  @Test
+  void deleteTaskWithoutTokenReturns401() throws Exception {
+    mockMvc
+        .perform(delete("/api/tasks/00000000-0000-0000-0003-000000000001"))
+        .andExpect(status().isUnauthorized());
+  }
 }

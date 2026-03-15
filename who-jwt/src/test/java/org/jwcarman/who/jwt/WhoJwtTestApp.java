@@ -22,9 +22,6 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
 // Security auto-configuration is excluded so the integration tests can boot without
 // a configured JWT decoder or security filter chain. The converter itself is tested
 // in WhoJwtAuthenticationConverterTest using mocks.
-@SpringBootApplication(exclude = {
-        SecurityAutoConfiguration.class,
-        UserDetailsServiceAutoConfiguration.class
-})
-class WhoJwtTestApp {
-}
+@SpringBootApplication(
+    exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
+class WhoJwtTestApp {}

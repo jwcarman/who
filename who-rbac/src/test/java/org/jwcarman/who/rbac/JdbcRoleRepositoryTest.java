@@ -15,80 +15,83 @@
  */
 package org.jwcarman.who.rbac;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcRoleRepositoryTest extends AbstractRbacTest {
 
-    @Autowired
-    private JdbcRoleRepository repository;
+  @Autowired private JdbcRoleRepository repository;
 
-    @Test
-    void savesNewRoleAndRetrievesItById() {
-        Role role = Role.create("ADMIN");
-        repository.save(role);
+  @Test
+  void savesNewRoleAndRetrievesItById() {
+    Role role = Role.create("ADMIN");
+    repository.save(role);
 
-        assertThat(repository.findById(role.id())).isPresent()
-                .hasValueSatisfying(found -> {
-                    assertThat(found.id()).isEqualTo(role.id());
-                    assertThat(found.name()).isEqualTo("ADMIN");
-                });
-    }
+    assertThat(repository.findById(role.id()))
+        .isPresent()
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.id()).isEqualTo(role.id());
+              assertThat(found.name()).isEqualTo("ADMIN");
+            });
+  }
 
-    @Test
-    void savesNewRoleAndRetrievesItByName() {
-        Role role = Role.create("USER");
-        repository.save(role);
+  @Test
+  void savesNewRoleAndRetrievesItByName() {
+    Role role = Role.create("USER");
+    repository.save(role);
 
-        assertThat(repository.findByName("USER")).isPresent()
-                .hasValueSatisfying(found -> assertThat(found.id()).isEqualTo(role.id()));
-    }
+    assertThat(repository.findByName("USER"))
+        .isPresent()
+        .hasValueSatisfying(found -> assertThat(found.id()).isEqualTo(role.id()));
+  }
 
-    @Test
-    void upsertUpdatesNameOnConflict() {
-        Role original = Role.create("OLD_NAME");
-        repository.save(original);
-        Role updated = new Role(original.id(), "NEW_NAME");
-        repository.save(updated);
+  @Test
+  void upsertUpdatesNameOnConflict() {
+    Role original = Role.create("OLD_NAME");
+    repository.save(original);
+    Role updated = new Role(original.id(), "NEW_NAME");
+    repository.save(updated);
 
-        assertThat(repository.findById(original.id())).isPresent()
-                .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("NEW_NAME"));
-    }
+    assertThat(repository.findById(original.id()))
+        .isPresent()
+        .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("NEW_NAME"));
+  }
 
-    @Test
-    void existsByIdReturnsTrueWhenRoleExists() {
-        Role role = Role.create("EXISTS");
-        repository.save(role);
+  @Test
+  void existsByIdReturnsTrueWhenRoleExists() {
+    Role role = Role.create("EXISTS");
+    repository.save(role);
 
-        assertThat(repository.existsById(role.id())).isTrue();
-    }
+    assertThat(repository.existsById(role.id())).isTrue();
+  }
 
-    @Test
-    void existsByIdReturnsFalseWhenRoleAbsent() {
-        assertThat(repository.existsById(UUID.randomUUID())).isFalse();
-    }
+  @Test
+  void existsByIdReturnsFalseWhenRoleAbsent() {
+    assertThat(repository.existsById(UUID.randomUUID())).isFalse();
+  }
 
-    @Test
-    void deleteByIdRemovesRole() {
-        Role role = Role.create("TO_DELETE");
-        repository.save(role);
+  @Test
+  void deleteByIdRemovesRole() {
+    Role role = Role.create("TO_DELETE");
+    repository.save(role);
 
-        repository.deleteById(role.id());
+    repository.deleteById(role.id());
 
-        assertThat(repository.findById(role.id())).isEmpty();
-    }
+    assertThat(repository.findById(role.id())).isEmpty();
+  }
 
-    @Test
-    void findByIdReturnsEmptyWhenNotFound() {
-        assertThat(repository.findById(UUID.randomUUID())).isEmpty();
-    }
+  @Test
+  void findByIdReturnsEmptyWhenNotFound() {
+    assertThat(repository.findById(UUID.randomUUID())).isEmpty();
+  }
 
-    @Test
-    void findByNameReturnsEmptyWhenNotFound() {
-        assertThat(repository.findByName("NONEXISTENT")).isEmpty();
-    }
+  @Test
+  void findByNameReturnsEmptyWhenNotFound() {
+    assertThat(repository.findByName("NONEXISTENT")).isEmpty();
+  }
 }

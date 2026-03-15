@@ -29,42 +29,45 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class HomeController {
 
-    private final WhoService whoService;
-    private final JwtCredentialRepository jwtCredentialRepository;
+  private final WhoService whoService;
+  private final JwtCredentialRepository jwtCredentialRepository;
 
-    public HomeController(WhoService whoService, JwtCredentialRepository jwtCredentialRepository) {
-        this.whoService = whoService;
-        this.jwtCredentialRepository = jwtCredentialRepository;
+  public HomeController(WhoService whoService, JwtCredentialRepository jwtCredentialRepository) {
+    this.whoService = whoService;
+    this.jwtCredentialRepository = jwtCredentialRepository;
+  }
+
+  @GetMapping("/")
+  public String home(
+      @AuthenticationPrincipal OAuth2User oauth2User,
+      @RegisteredOAuth2AuthorizedClient("demo-client") OAuth2AuthorizedClient authorizedClient,
+      Model model) {
+
+    if (oauth2User == null) {
+      return "index";
     }
 
-    @GetMapping("/")
-    public String home(
-            @AuthenticationPrincipal OAuth2User oauth2User,
-            @RegisteredOAuth2AuthorizedClient("demo-client") OAuth2AuthorizedClient authorizedClient,
-            Model model) {
+    String username = oauth2User.getName();
+    model.addAttribute("username", username);
 
-        if (oauth2User == null) {
-            return "index";
-        }
-
-        String username = oauth2User.getName();
-        model.addAttribute("username", username);
-
-        // Look up the WhoPrincipal for this user via JWT credential
-        String issuer = "http://localhost:8080";
-        jwtCredentialRepository.findByIssuerAndSubject(issuer, username).ifPresent(cred -> {
-            WhoPrincipal principal = whoService.resolve(cred).orElse(null);
-            if (principal != null) {
+    // Look up the WhoPrincipal for this user via JWT credential
+    String issuer = "http://localhost:8080";
+    jwtCredentialRepository
+        .findByIssuerAndSubject(issuer, username)
+        .ifPresent(
+            cred -> {
+              WhoPrincipal principal = whoService.resolve(cred).orElse(null);
+              if (principal != null) {
                 model.addAttribute("identityId", principal.identity().id());
                 model.addAttribute("permissions", principal.permissions());
-            }
-        });
+              }
+            });
 
-        // Retrieve the access token for curl examples
-        if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
-            model.addAttribute("accessToken", authorizedClient.getAccessToken().getTokenValue());
-        }
-
-        return "index";
+    // Retrieve the access token for curl examples
+    if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
+      model.addAttribute("accessToken", authorizedClient.getAccessToken().getTokenValue());
     }
+
+    return "index";
+  }
 }

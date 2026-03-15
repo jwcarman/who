@@ -15,128 +15,125 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
-import java.time.Duration;
-
-/**
- * Configuration properties for the Who identity framework.
- */
+/** Configuration properties for the Who identity framework. */
 @ConfigurationProperties(prefix = "who")
 public class WhoProperties {
 
-    /** When to run Who's bundled DDL schema scripts: {@code always}, {@code embedded}, or {@code never}. */
-    private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
+  /**
+   * When to run Who's bundled DDL schema scripts: {@code always}, {@code embedded}, or {@code
+   * never}.
+   */
+  private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
-    private Enrollment enrollment = new Enrollment();
-    private ApiKey apiKey = new ApiKey();
+  private Enrollment enrollment = new Enrollment();
+  private ApiKey apiKey = new ApiKey();
+
+  /**
+   * Returns when to run Who's bundled DDL schema scripts.
+   *
+   * @return schema initialization mode
+   */
+  public DatabaseInitializationMode getInitializeSchema() {
+    return initializeSchema;
+  }
+
+  /**
+   * Sets when to run Who's bundled DDL schema scripts.
+   *
+   * @param initializeSchema schema initialization mode
+   */
+  public void setInitializeSchema(DatabaseInitializationMode initializeSchema) {
+    this.initializeSchema = initializeSchema;
+  }
+
+  /**
+   * Returns the enrollment module properties.
+   *
+   * @return enrollment properties
+   */
+  public Enrollment getEnrollment() {
+    return enrollment;
+  }
+
+  /**
+   * Sets the enrollment module properties.
+   *
+   * @param enrollment enrollment properties
+   */
+  public void setEnrollment(Enrollment enrollment) {
+    this.enrollment = enrollment;
+  }
+
+  /**
+   * Returns the API key module properties.
+   *
+   * @return api key properties
+   */
+  public ApiKey getApiKey() {
+    return apiKey;
+  }
+
+  /**
+   * Sets the API key module properties.
+   *
+   * @param apiKey api key properties
+   */
+  public void setApiKey(ApiKey apiKey) {
+    this.apiKey = apiKey;
+  }
+
+  /** Properties for the {@code who-enrollment} module. */
+  public static class Enrollment {
+
+    /** Duration after which a newly created enrollment token expires. */
+    private Duration tokenExpiration = Duration.ofHours(24);
 
     /**
-     * Returns when to run Who's bundled DDL schema scripts.
+     * Returns the duration after which a newly created enrollment token expires.
      *
-     * @return schema initialization mode
+     * @return token expiration duration
      */
-    public DatabaseInitializationMode getInitializeSchema() {
-        return initializeSchema;
+    public Duration getTokenExpiration() {
+      return tokenExpiration;
     }
 
     /**
-     * Sets when to run Who's bundled DDL schema scripts.
+     * Sets the duration after which a newly created enrollment token expires.
      *
-     * @param initializeSchema schema initialization mode
+     * @param tokenExpiration token expiration duration
      */
-    public void setInitializeSchema(DatabaseInitializationMode initializeSchema) {
-        this.initializeSchema = initializeSchema;
+    public void setTokenExpiration(Duration tokenExpiration) {
+      this.tokenExpiration = tokenExpiration;
     }
+  }
+
+  /** Properties for the {@code who-apikey} module. */
+  public static class ApiKey {
+
+    /** HTTP header name that carries the API key. */
+    private String headerName = "X-API-Key";
 
     /**
-     * Returns the enrollment module properties.
+     * Returns the HTTP header name that carries the API key.
      *
-     * @return enrollment properties
+     * @return header name
      */
-    public Enrollment getEnrollment() {
-        return enrollment;
+    public String getHeaderName() {
+      return headerName;
     }
 
     /**
-     * Sets the enrollment module properties.
+     * Sets the HTTP header name that carries the API key.
      *
-     * @param enrollment enrollment properties
+     * @param headerName header name
      */
-    public void setEnrollment(Enrollment enrollment) {
-        this.enrollment = enrollment;
+    public void setHeaderName(String headerName) {
+      this.headerName = headerName;
     }
-
-    /**
-     * Returns the API key module properties.
-     *
-     * @return api key properties
-     */
-    public ApiKey getApiKey() {
-        return apiKey;
-    }
-
-    /**
-     * Sets the API key module properties.
-     *
-     * @param apiKey api key properties
-     */
-    public void setApiKey(ApiKey apiKey) {
-        this.apiKey = apiKey;
-    }
-
-    /**
-     * Properties for the {@code who-enrollment} module.
-     */
-    public static class Enrollment {
-
-        /** Duration after which a newly created enrollment token expires. */
-        private Duration tokenExpiration = Duration.ofHours(24);
-
-        /**
-         * Returns the duration after which a newly created enrollment token expires.
-         *
-         * @return token expiration duration
-         */
-        public Duration getTokenExpiration() {
-            return tokenExpiration;
-        }
-
-        /**
-         * Sets the duration after which a newly created enrollment token expires.
-         *
-         * @param tokenExpiration token expiration duration
-         */
-        public void setTokenExpiration(Duration tokenExpiration) {
-            this.tokenExpiration = tokenExpiration;
-        }
-    }
-
-    /**
-     * Properties for the {@code who-apikey} module.
-     */
-    public static class ApiKey {
-
-        /** HTTP header name that carries the API key. */
-        private String headerName = "X-API-Key";
-
-        /**
-         * Returns the HTTP header name that carries the API key.
-         *
-         * @return header name
-         */
-        public String getHeaderName() {
-            return headerName;
-        }
-
-        /**
-         * Sets the HTTP header name that carries the API key.
-         *
-         * @param headerName header name
-         */
-        public void setHeaderName(String headerName) {
-            this.headerName = headerName;
-        }
-    }
+  }
 }

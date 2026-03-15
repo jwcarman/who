@@ -15,90 +15,83 @@
  */
 package org.jwcarman.who.apikey;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiKeyServiceTest extends AbstractApiKeyTest {
 
-    @Autowired
-    private ApiKeyService apiKeyService;
+  @Autowired private ApiKeyService apiKeyService;
 
-    @Autowired
-    private ApiKeyCredentialRepository apiKeyCredentialRepository;
+  @Autowired private ApiKeyCredentialRepository apiKeyCredentialRepository;
 
-    @Autowired
-    private CredentialIdentityRepository credentialIdentityRepository;
+  @Autowired private CredentialIdentityRepository credentialIdentityRepository;
 
-    @Autowired
-    private IdentityRepository identityRepository;
+  @Autowired private IdentityRepository identityRepository;
 
-    @Test
-    void createReturnsKeyWithWhoPrefix() {
-        Identity identity = createActiveIdentity();
-        String rawKey = apiKeyService.create(identity, "Test Key");
+  @Test
+  void createReturnsKeyWithWhoPrefix() {
+    Identity identity = createActiveIdentity();
+    String rawKey = apiKeyService.create(identity, "Test Key");
 
-        assertThat(rawKey).startsWith("who_").hasSize(4 + 64); // "who_" + 64 hex chars
-    }
+    assertThat(rawKey).startsWith("who_").hasSize(4 + 64); // "who_" + 64 hex chars
+  }
 
-    @Test
-    void createStoresHashNotRawKey() {
-        Identity identity = createActiveIdentity();
-        String rawKey = apiKeyService.create(identity, "Test Key");
+  @Test
+  void createStoresHashNotRawKey() {
+    Identity identity = createActiveIdentity();
+    String rawKey = apiKeyService.create(identity, "Test Key");
 
-        // The raw key must NOT be stored as-is
-        assertThat(apiKeyCredentialRepository.findByKeyHash(rawKey)).isEmpty();
+    // The raw key must NOT be stored as-is
+    assertThat(apiKeyCredentialRepository.findByKeyHash(rawKey)).isEmpty();
 
-        // The SHA-256 hash MUST be stored
-        String expectedHash = ApiKeyService.sha256Hex(rawKey);
-        assertThat(apiKeyCredentialRepository.findByKeyHash(expectedHash)).isPresent();
-    }
+    // The SHA-256 hash MUST be stored
+    String expectedHash = ApiKeyService.sha256Hex(rawKey);
+    assertThat(apiKeyCredentialRepository.findByKeyHash(expectedHash)).isPresent();
+  }
 
-    @Test
-    void createStoresName() {
-        Identity identity = createActiveIdentity();
-        String rawKey = apiKeyService.create(identity, "Production Server");
+  @Test
+  void createStoresName() {
+    Identity identity = createActiveIdentity();
+    String rawKey = apiKeyService.create(identity, "Production Server");
 
-        String hash = ApiKeyService.sha256Hex(rawKey);
-        ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
+    String hash = ApiKeyService.sha256Hex(rawKey);
+    ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
 
-        assertThat(credential.name()).isEqualTo("Production Server");
-    }
+    assertThat(credential.name()).isEqualTo("Production Server");
+  }
 
-    @Test
-    void createLinksCredentialToIdentity() {
-        Identity identity = createActiveIdentity();
-        String rawKey = apiKeyService.create(identity, "Test Key");
+  @Test
+  void createLinksCredentialToIdentity() {
+    Identity identity = createActiveIdentity();
+    String rawKey = apiKeyService.create(identity, "Test Key");
 
-        String hash = ApiKeyService.sha256Hex(rawKey);
-        ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
+    String hash = ApiKeyService.sha256Hex(rawKey);
+    ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
 
-        assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credential.id()))
-                .isPresent()
-                .hasValue(identity.id());
-    }
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credential.id()))
+        .isPresent()
+        .hasValue(identity.id());
+  }
 
-    @Test
-    void twoCreatesForSameIdentityProduceDifferentKeys() {
-        Identity identity = createActiveIdentity();
-        String key1 = apiKeyService.create(identity, "Key One");
-        String key2 = apiKeyService.create(identity, "Key Two");
+  @Test
+  void twoCreatesForSameIdentityProduceDifferentKeys() {
+    Identity identity = createActiveIdentity();
+    String key1 = apiKeyService.create(identity, "Key One");
+    String key2 = apiKeyService.create(identity, "Key Two");
 
-        assertThat(key1).isNotEqualTo(key2);
+    assertThat(key1).isNotEqualTo(key2);
 
-        // Both hashes must be stored
-        assertThat(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(key1))).isPresent();
-        assertThat(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(key2))).isPresent();
-    }
+    // Both hashes must be stored
+    assertThat(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(key1))).isPresent();
+    assertThat(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(key2))).isPresent();
+  }
 
-    private Identity createActiveIdentity() {
-        return identityRepository.save(Identity.create());
-    }
+  private Identity createActiveIdentity() {
+    return identityRepository.save(Identity.create());
+  }
 }

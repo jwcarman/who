@@ -15,22 +15,19 @@
  */
 package org.jwcarman.who.core.domain;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.Serializable;
 import java.util.Set;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Resolved principal placed into the security context. Carries the resolved {@link Identity} and
  * the union of all permission strings granted to that identity.
  */
-public record WhoPrincipal(
-        Identity identity,
-        Set<String> permissions
-) implements Serializable {
-    public WhoPrincipal {
-        requireNonNull(identity, "identity must not be null");
-        requireNonNull(permissions, "permissions must not be null");
-        permissions = Set.copyOf(permissions);
-    }
+public record WhoPrincipal(Identity identity, Set<String> permissions) implements Serializable {
+  public WhoPrincipal {
+    requireNonNull(identity, "identity must not be null");
+    requireNonNull(permissions, "permissions must not be null");
+    permissions = Set.copyOf(permissions);
+  }
 }

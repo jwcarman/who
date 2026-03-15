@@ -15,6 +15,9 @@
  */
 package org.jwcarman.who.example;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,43 +30,41 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
 
-    private final TaskRepository taskRepository;
+  private final TaskRepository taskRepository;
 
-    public TaskController(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
-    }
+  public TaskController(TaskRepository taskRepository) {
+    this.taskRepository = taskRepository;
+  }
 
-    @GetMapping
-    @PreAuthorize("hasAuthority('task.read')")
-    public List<Task> listTasks() {
-        return taskRepository.findAll();
-    }
+  @GetMapping
+  @PreAuthorize("hasAuthority('task.read')")
+  public List<Task> listTasks() {
+    return taskRepository.findAll();
+  }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('task.read')")
-    public Task getTask(@PathVariable UUID id) {
-        return taskRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    }
+  @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('task.read')")
+  public Task getTask(@PathVariable UUID id) {
+    return taskRepository
+        .findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+  }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('task.write')")
-    public Task createTask(@RequestBody Task task) {
-        return taskRepository.save(task);
-    }
+  @PostMapping
+  @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasAuthority('task.write')")
+  public Task createTask(@RequestBody Task task) {
+    return taskRepository.save(task);
+  }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAuthority('task.delete')")
-    public void deleteTask(@PathVariable UUID id) {
-        taskRepository.deleteById(id);
-    }
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('task.delete')")
+  public void deleteTask(@PathVariable UUID id) {
+    taskRepository.deleteById(id);
+  }
 }

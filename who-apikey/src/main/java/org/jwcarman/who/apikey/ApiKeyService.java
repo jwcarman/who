@@ -15,16 +15,15 @@
  */
 package org.jwcarman.who.apikey;
 
-import org.jwcarman.who.core.Identifiers;
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import static java.util.Objects.requireNonNull;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.HexFormat;
-import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
+import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 
 /**
  * Service for creating and managing API key credentials.
@@ -35,53 +34,55 @@ import static java.util.Objects.requireNonNull;
  */
 public class ApiKeyService {
 
-    private static final HexFormat HEX = HexFormat.of();
+  private static final HexFormat HEX = HexFormat.of();
 
-    private final ApiKeyCredentialRepository apiKeyCredentialRepository;
-    private final CredentialIdentityRepository credentialIdentityRepository;
-    private final SecureRandom secureRandom;
+  private final ApiKeyCredentialRepository apiKeyCredentialRepository;
+  private final CredentialIdentityRepository credentialIdentityRepository;
+  private final SecureRandom secureRandom;
 
-    /**
-     * Creates a new {@code ApiKeyService}.
-     *
-     * @param apiKeyCredentialRepository  repository for API key credentials
-     * @param credentialIdentityRepository repository for linking credentials to identities
-     */
-    public ApiKeyService(ApiKeyCredentialRepository apiKeyCredentialRepository,
-                         CredentialIdentityRepository credentialIdentityRepository) {
-        this.apiKeyCredentialRepository = requireNonNull(apiKeyCredentialRepository,
-                "apiKeyCredentialRepository must not be null");
-        this.credentialIdentityRepository = requireNonNull(credentialIdentityRepository,
-                "credentialIdentityRepository must not be null");
-        this.secureRandom = new SecureRandom();
-    }
+  /**
+   * Creates a new {@code ApiKeyService}.
+   *
+   * @param apiKeyCredentialRepository repository for API key credentials
+   * @param credentialIdentityRepository repository for linking credentials to identities
+   */
+  public ApiKeyService(
+      ApiKeyCredentialRepository apiKeyCredentialRepository,
+      CredentialIdentityRepository credentialIdentityRepository) {
+    this.apiKeyCredentialRepository =
+        requireNonNull(apiKeyCredentialRepository, "apiKeyCredentialRepository must not be null");
+    this.credentialIdentityRepository =
+        requireNonNull(
+            credentialIdentityRepository, "credentialIdentityRepository must not be null");
+    this.secureRandom = new SecureRandom();
+  }
 
-    /**
-     * Generates a new API key for the given identity, stores its hash, and returns the raw key.
-     *
-     * <p>This is the only opportunity to retrieve the raw key — it is not stored anywhere.
-     *
-     * @param identity the identity to link the new credential to
-     * @param name     a human-readable label for this key (e.g. "Production server")
-     * @return the raw API key (e.g. {@code who_a3f8...}), never stored
-     */
-    public String create(Identity identity, String name) {
-        requireNonNull(identity, "identity must not be null");
-        requireNonNull(name, "name must not be null");
+  /**
+   * Generates a new API key for the given identity, stores its hash, and returns the raw key.
+   *
+   * <p>This is the only opportunity to retrieve the raw key — it is not stored anywhere.
+   *
+   * @param identity the identity to link the new credential to
+   * @param name a human-readable label for this key (e.g. "Production server")
+   * @return the raw API key (e.g. {@code who_a3f8...}), never stored
+   */
+  public String create(Identity identity, String name) {
+    requireNonNull(identity, "identity must not be null");
+    requireNonNull(name, "name must not be null");
 
-        byte[] bytes = new byte[32];
-        secureRandom.nextBytes(bytes);
-        String rawKey = "who_" + HEX.formatHex(bytes);
-        String keyHash = sha256Hex(rawKey);
+    byte[] bytes = new byte[32];
+    secureRandom.nextBytes(bytes);
+    String rawKey = "who_" + HEX.formatHex(bytes);
+    String keyHash = sha256Hex(rawKey);
 
-        ApiKeyCredential credential = new ApiKeyCredential(Identifiers.uuid(), name, keyHash);
-        apiKeyCredentialRepository.save(credential);
-        credentialIdentityRepository.link(credential.id(), identity.id());
+    ApiKeyCredential credential = new ApiKeyCredential(Identifiers.uuid(), name, keyHash);
+    apiKeyCredentialRepository.save(credential);
+    credentialIdentityRepository.link(credential.id(), identity.id());
 
-        return rawKey;
-    }
+    return rawKey;
+  }
 
-    static String sha256Hex(String input) {
-        return HEX.formatHex(MessageDigests.sha256(input.getBytes(StandardCharsets.UTF_8)));
-    }
+  static String sha256Hex(String input) {
+    return HEX.formatHex(MessageDigests.sha256(input.getBytes(StandardCharsets.UTF_8)));
+  }
 }

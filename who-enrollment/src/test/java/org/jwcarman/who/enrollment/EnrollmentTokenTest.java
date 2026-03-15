@@ -15,42 +15,44 @@
  */
 package org.jwcarman.who.enrollment;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
 
 class EnrollmentTokenTest {
 
-    @Test
-    void isPendingReturnsTrueForPendingNonExpiredToken() {
-        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24));
+  @Test
+  void isPendingReturnsTrueForPendingNonExpiredToken() {
+    EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24));
 
-        assertThat(token.isPending()).isTrue();
-        assertThat(token.isExpired()).isFalse();
-    }
+    assertThat(token.isPending()).isTrue();
+    assertThat(token.isExpired()).isFalse();
+  }
 
-    @Test
-    void isPendingReturnsFalseForExpiredToken() {
-        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(-1));
+  @Test
+  void isPendingReturnsFalseForExpiredToken() {
+    EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(-1));
 
-        assertThat(token.isExpired()).isTrue();
-        assertThat(token.isPending()).isFalse();
-    }
+    assertThat(token.isExpired()).isTrue();
+    assertThat(token.isPending()).isFalse();
+  }
 
-    @Test
-    void isPendingReturnsFalseForRedeemedToken() {
-        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).redeem();
+  @Test
+  void isPendingReturnsFalseForRedeemedToken() {
+    EnrollmentToken token =
+        EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).redeem();
 
-        assertThat(token.isPending()).isFalse();
-    }
+    assertThat(token.isPending()).isFalse();
+  }
 
-    @Test
-    void isPendingReturnsFalseForRevokedToken() {
-        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).revoke();
+  @Test
+  void isPendingReturnsFalseForRevokedToken() {
+    EnrollmentToken token =
+        EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).revoke();
 
-        assertThat(token.isPending()).isFalse();
-    }
+    assertThat(token.isPending()).isFalse();
+  }
 }

@@ -15,9 +15,9 @@
  */
 package org.jwcarman.who.core.spi;
 
-import org.jwcarman.who.core.domain.Identity;
-
 import java.util.Set;
+
+import org.jwcarman.who.core.domain.Identity;
 
 /**
  * Strategy for resolving permission strings for a given {@link Identity}. Multiple implementations
@@ -26,11 +26,11 @@ import java.util.Set;
  */
 public interface PermissionsResolver {
 
-    /**
-     * Resolves the set of permission strings for the given identity.
-     *
-     * @param identity the authenticated identity
-     * @return the set of permission strings (never null; empty is valid)
-     */
-    Set<String> resolve(Identity identity);
+  /**
+   * Resolves the set of permission strings for the given identity.
+   *
+   * @param identity the authenticated identity
+   * @return the set of permission strings (never null; empty is valid)
+   */
+  Set<String> resolve(Identity identity);
 }

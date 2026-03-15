@@ -15,59 +15,61 @@
  */
 package org.jwcarman.who.rbac;
 
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
 /**
- * JDBC implementation of {@link IdentityRoleRepository} backed by the {@code who_identity_role} table.
+ * JDBC implementation of {@link IdentityRoleRepository} backed by the {@code who_identity_role}
+ * table.
  */
 @Repository
 public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
 
-    private static final String PARAM_IDENTITY_ID = "identityId";
-    private static final String PARAM_ROLE_ID = "roleId";
+  private static final String PARAM_IDENTITY_ID = "identityId";
+  private static final String PARAM_ROLE_ID = "roleId";
 
-    private final JdbcClient jdbcClient;
+  private final JdbcClient jdbcClient;
 
-    public JdbcIdentityRoleRepository(JdbcClient jdbcClient) {
-        this.jdbcClient = jdbcClient;
-    }
+  public JdbcIdentityRoleRepository(JdbcClient jdbcClient) {
+    this.jdbcClient = jdbcClient;
+  }
 
-    @Override
-    public List<UUID> findRoleIdsByIdentityId(UUID identityId) {
-        return jdbcClient
-                .sql("SELECT role_id FROM who_identity_role WHERE identity_id = :identityId")
-                .param(PARAM_IDENTITY_ID, identityId)
-                .query(UUID.class)
-                .list();
-    }
+  @Override
+  public List<UUID> findRoleIdsByIdentityId(UUID identityId) {
+    return jdbcClient
+        .sql("SELECT role_id FROM who_identity_role WHERE identity_id = :identityId")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .query(UUID.class)
+        .list();
+  }
 
-    @Override
-    public void assignRole(UUID identityId, UUID roleId) {
-        jdbcClient
-                .sql("INSERT INTO who_identity_role (identity_id, role_id) VALUES (:identityId, :roleId) ON CONFLICT DO NOTHING")
-                .param(PARAM_IDENTITY_ID, identityId)
-                .param(PARAM_ROLE_ID, roleId)
-                .update();
-    }
+  @Override
+  public void assignRole(UUID identityId, UUID roleId) {
+    jdbcClient
+        .sql(
+            "INSERT INTO who_identity_role (identity_id, role_id) VALUES (:identityId, :roleId) ON CONFLICT DO NOTHING")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .param(PARAM_ROLE_ID, roleId)
+        .update();
+  }
 
-    @Override
-    public void removeRole(UUID identityId, UUID roleId) {
-        jdbcClient
-                .sql("DELETE FROM who_identity_role WHERE identity_id = :identityId AND role_id = :roleId")
-                .param(PARAM_IDENTITY_ID, identityId)
-                .param(PARAM_ROLE_ID, roleId)
-                .update();
-    }
+  @Override
+  public void removeRole(UUID identityId, UUID roleId) {
+    jdbcClient
+        .sql("DELETE FROM who_identity_role WHERE identity_id = :identityId AND role_id = :roleId")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .param(PARAM_ROLE_ID, roleId)
+        .update();
+  }
 
-    @Override
-    public void removeAllRolesForIdentity(UUID identityId) {
-        jdbcClient
-                .sql("DELETE FROM who_identity_role WHERE identity_id = :identityId")
-                .param(PARAM_IDENTITY_ID, identityId)
-                .update();
-    }
+  @Override
+  public void removeAllRolesForIdentity(UUID identityId) {
+    jdbcClient
+        .sql("DELETE FROM who_identity_role WHERE identity_id = :identityId")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .update();
+  }
 }

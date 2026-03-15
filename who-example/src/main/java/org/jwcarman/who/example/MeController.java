@@ -25,8 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/me")
 public class MeController {
 
-    @GetMapping
-    public WhoPrincipal me(@AuthenticationPrincipal WhoPrincipal principal) {
-        return principal;
-    }
+  @GetMapping
+  public WhoPrincipal me(@AuthenticationPrincipal WhoPrincipal principal) {
+    return principal;
+  }
 }

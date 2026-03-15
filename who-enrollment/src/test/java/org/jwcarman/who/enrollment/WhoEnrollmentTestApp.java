@@ -15,22 +15,27 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.time.Duration;
+
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-
-import java.time.Duration;
 
 // Scan both the enrollment package (JdbcEnrollmentTokenRepository) and the jdbc package
 // (JdbcIdentityRepository, JdbcCredentialIdentityRepository).
 @SpringBootApplication(scanBasePackages = {"org.jwcarman.who.enrollment", "org.jwcarman.who.jdbc"})
 class WhoEnrollmentTestApp {
 
-    @Bean
-    WhoEnrollmentService whoEnrollmentService(EnrollmentTokenRepository enrollmentTokenRepository,
-                                              IdentityRepository identityRepository,
-                                              CredentialIdentityRepository credentialIdentityRepository) {
-        return new WhoEnrollmentService(enrollmentTokenRepository, identityRepository, credentialIdentityRepository, Duration.ofHours(24));
-    }
+  @Bean
+  WhoEnrollmentService whoEnrollmentService(
+      EnrollmentTokenRepository enrollmentTokenRepository,
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository) {
+    return new WhoEnrollmentService(
+        enrollmentTokenRepository,
+        identityRepository,
+        credentialIdentityRepository,
+        Duration.ofHours(24));
+  }
 }

@@ -19,30 +19,30 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * Base class for API key JDBC integration tests. Provides a shared PostgreSQL container
- * using the Testcontainers singleton pattern so that one container is started
- * per JVM and reused across all test classes.
+ * Base class for API key JDBC integration tests. Provides a shared PostgreSQL container using the
+ * Testcontainers singleton pattern so that one container is started per JVM and reused across all
+ * test classes.
  */
 @SpringBootTest
 @Testcontainers
 @Transactional
 abstract class AbstractApiKeyTest {
 
-    // Singleton container — started once per JVM and shared across all test classes.
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
+  // Singleton container — started once per JVM and shared across all test classes.
+  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
-    static {
-        POSTGRES.start();
-    }
+  static {
+    POSTGRES.start();
+  }
 
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-    }
+  @DynamicPropertySource
+  static void configureProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+    registry.add("spring.datasource.username", POSTGRES::getUsername);
+    registry.add("spring.datasource.password", POSTGRES::getPassword);
+  }
 }

@@ -15,11 +15,9 @@
  */
 package org.jwcarman.who.core.domain;
 
-/**
- * Lifecycle status of an {@link Identity}.
- */
+/** Lifecycle status of an {@link Identity}. */
 public enum IdentityStatus {
-    ACTIVE,
-    SUSPENDED,
-    DISABLED
+  ACTIVE,
+  SUSPENDED,
+  DISABLED
 }

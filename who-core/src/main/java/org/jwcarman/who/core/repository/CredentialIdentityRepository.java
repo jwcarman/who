@@ -18,31 +18,29 @@ package org.jwcarman.who.core.repository;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Repository interface for managing the mapping between credential UUIDs and identity UUIDs.
- */
+/** Repository interface for managing the mapping between credential UUIDs and identity UUIDs. */
 public interface CredentialIdentityRepository {
 
-    /**
-     * Finds the identity UUID linked to the given credential UUID.
-     *
-     * @param credentialId the credential UUID
-     * @return the linked identity UUID, or empty if not linked
-     */
-    Optional<UUID> findIdentityIdByCredentialId(UUID credentialId);
+  /**
+   * Finds the identity UUID linked to the given credential UUID.
+   *
+   * @param credentialId the credential UUID
+   * @return the linked identity UUID, or empty if not linked
+   */
+  Optional<UUID> findIdentityIdByCredentialId(UUID credentialId);
 
-    /**
-     * Links the given credential to the given identity.
-     *
-     * @param credentialId the credential UUID
-     * @param identityId   the identity UUID
-     */
-    void link(UUID credentialId, UUID identityId);
+  /**
+   * Links the given credential to the given identity.
+   *
+   * @param credentialId the credential UUID
+   * @param identityId the identity UUID
+   */
+  void link(UUID credentialId, UUID identityId);
 
-    /**
-     * Removes the link from the given credential to its identity.
-     *
-     * @param credentialId the credential UUID
-     */
-    void unlink(UUID credentialId);
+  /**
+   * Removes the link from the given credential to its identity.
+   *
+   * @param credentialId the credential UUID
+   */
+  void unlink(UUID credentialId);
 }

@@ -15,6 +15,10 @@
  */
 package org.jwcarman.who.jdbc;
 
+import java.sql.Timestamp;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -22,74 +26,68 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Timestamp;
-import java.util.Optional;
-import java.util.UUID;
-
-/**
- * JDBC implementation of {@link IdentityRepository} backed by the {@code who_identity} table.
- */
+/** JDBC implementation of {@link IdentityRepository} backed by the {@code who_identity} table. */
 @Repository
 public class JdbcIdentityRepository implements IdentityRepository {
 
-    private static final String COL_ID = "id";
-    private static final String COL_STATUS = "status";
-    private static final String COL_CREATED_AT = "created_at";
-    private static final String COL_UPDATED_AT = "updated_at";
+  private static final String COL_ID = "id";
+  private static final String COL_STATUS = "status";
+  private static final String COL_CREATED_AT = "created_at";
+  private static final String COL_UPDATED_AT = "updated_at";
 
-    private static final RowMapper<Identity> IDENTITY_ROW_MAPPER = (rs, rowNum) -> new Identity(
-            rs.getObject(COL_ID, UUID.class),
-            IdentityStatus.valueOf(rs.getString(COL_STATUS)),
-            rs.getTimestamp(COL_CREATED_AT).toInstant(),
-            rs.getTimestamp(COL_UPDATED_AT).toInstant()
-    );
+  private static final RowMapper<Identity> IDENTITY_ROW_MAPPER =
+      (rs, rowNum) ->
+          new Identity(
+              rs.getObject(COL_ID, UUID.class),
+              IdentityStatus.valueOf(rs.getString(COL_STATUS)),
+              rs.getTimestamp(COL_CREATED_AT).toInstant(),
+              rs.getTimestamp(COL_UPDATED_AT).toInstant());
 
-    private final JdbcClient jdbcClient;
+  private final JdbcClient jdbcClient;
 
-    public JdbcIdentityRepository(JdbcClient jdbcClient) {
-        this.jdbcClient = jdbcClient;
-    }
+  public JdbcIdentityRepository(JdbcClient jdbcClient) {
+    this.jdbcClient = jdbcClient;
+  }
 
-    @Override
-    public Optional<Identity> findById(UUID id) {
-        return jdbcClient
-                .sql("SELECT id, status, created_at, updated_at FROM who_identity WHERE id = :id")
-                .param(COL_ID, id)
-                .query(IDENTITY_ROW_MAPPER)
-                .optional();
-    }
+  @Override
+  public Optional<Identity> findById(UUID id) {
+    return jdbcClient
+        .sql("SELECT id, status, created_at, updated_at FROM who_identity WHERE id = :id")
+        .param(COL_ID, id)
+        .query(IDENTITY_ROW_MAPPER)
+        .optional();
+  }
 
-    @Override
-    public Identity save(Identity identity) {
-        jdbcClient
-                .sql("""
+  @Override
+  public Identity save(Identity identity) {
+    jdbcClient
+        .sql(
+            """
                         INSERT INTO who_identity (id, status, created_at, updated_at)
                         VALUES (:id, :status, :createdAt, :updatedAt)
                         ON CONFLICT (id) DO UPDATE SET status = :status, updated_at = :updatedAt
                         """)
-                .param(COL_ID, identity.id())
-                .param(COL_STATUS, identity.status().name())
-                .param("createdAt", Timestamp.from(identity.createdAt()))
-                .param("updatedAt", Timestamp.from(identity.updatedAt()))
-                .update();
-        return identity;
-    }
+        .param(COL_ID, identity.id())
+        .param(COL_STATUS, identity.status().name())
+        .param("createdAt", Timestamp.from(identity.createdAt()))
+        .param("updatedAt", Timestamp.from(identity.updatedAt()))
+        .update();
+    return identity;
+  }
 
-    @Override
-    public boolean existsById(UUID id) {
-        Integer count = jdbcClient
-                .sql("SELECT COUNT(*) FROM who_identity WHERE id = :id")
-                .param(COL_ID, id)
-                .query(Integer.class)
-                .single();
-        return count > 0;
-    }
-
-    @Override
-    public void deleteById(UUID id) {
+  @Override
+  public boolean existsById(UUID id) {
+    Integer count =
         jdbcClient
-                .sql("DELETE FROM who_identity WHERE id = :id")
-                .param(COL_ID, id)
-                .update();
-    }
+            .sql("SELECT COUNT(*) FROM who_identity WHERE id = :id")
+            .param(COL_ID, id)
+            .query(Integer.class)
+            .single();
+    return count > 0;
+  }
+
+  @Override
+  public void deleteById(UUID id) {
+    jdbcClient.sql("DELETE FROM who_identity WHERE id = :id").param(COL_ID, id).update();
+  }
 }

@@ -15,15 +15,15 @@
  */
 package org.jwcarman.who.spring.security;
 
-import org.jspecify.annotations.NonNull;
-import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Objects;
 
-import static java.util.Objects.requireNonNull;
+import org.jspecify.annotations.NonNull;
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 /**
  * Spring Security authentication token backed by a resolved {@link WhoPrincipal}.
@@ -33,47 +33,47 @@ import static java.util.Objects.requireNonNull;
  */
 public class WhoAuthenticationToken extends AbstractAuthenticationToken {
 
-    private final WhoPrincipal principal;
+  private final WhoPrincipal principal;
 
-    /**
-     * Creates a new authenticated token. Authorities are derived from
-     * {@link WhoPrincipal#permissions()} automatically.
-     *
-     * @param principal the resolved principal
-     */
-    public WhoAuthenticationToken(WhoPrincipal principal) {
-        super(extractAuthorities(principal));
-        this.principal = principal;
-        setAuthenticated(true);
-    }
+  /**
+   * Creates a new authenticated token. Authorities are derived from {@link
+   * WhoPrincipal#permissions()} automatically.
+   *
+   * @param principal the resolved principal
+   */
+  public WhoAuthenticationToken(WhoPrincipal principal) {
+    super(extractAuthorities(principal));
+    this.principal = principal;
+    setAuthenticated(true);
+  }
 
-    private static @NonNull List<SimpleGrantedAuthority> extractAuthorities(WhoPrincipal principal) {
-        return requireNonNull(principal, "principal must not be null").permissions().stream()
-                .map(SimpleGrantedAuthority::new)
-                .toList();
-    }
+  private static @NonNull List<SimpleGrantedAuthority> extractAuthorities(WhoPrincipal principal) {
+    return requireNonNull(principal, "principal must not be null").permissions().stream()
+        .map(SimpleGrantedAuthority::new)
+        .toList();
+  }
 
-    @Override
-    public WhoPrincipal getPrincipal() {
-        return principal;
-    }
+  @Override
+  public WhoPrincipal getPrincipal() {
+    return principal;
+  }
 
-    /** Returns {@code null} — credentials are not retained after authentication. */
-    @Override
-    public Object getCredentials() {
-        return null;
-    }
+  /** Returns {@code null} — credentials are not retained after authentication. */
+  @Override
+  public Object getCredentials() {
+    return null;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof WhoAuthenticationToken that)) return false;
-        if (!super.equals(o)) return false;
-        return Objects.equals(principal, that.principal);
-    }
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof WhoAuthenticationToken that)) return false;
+    if (!super.equals(o)) return false;
+    return Objects.equals(principal, that.principal);
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), principal);
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), principal);
+  }
 }

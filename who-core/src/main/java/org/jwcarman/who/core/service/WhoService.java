@@ -15,6 +15,10 @@
  */
 package org.jwcarman.who.core.service;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.Optional;
+
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
@@ -23,70 +27,69 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 
-import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
-
 /**
  * Core service that resolves a {@link Credential} to a {@link WhoPrincipal}.
  *
  * <p>Resolution pipeline:
+ *
  * <ol>
- *   <li>Look up the credential UUID in {@link CredentialIdentityRepository}.</li>
- *   <li>Return empty if not linked.</li>
- *   <li>Load the identity from {@link IdentityRepository}.</li>
- *   <li>Return empty if not found or status is not {@link IdentityStatus#ACTIVE}.</li>
- *   <li>Resolve permissions via the registered {@link PermissionsResolver}.</li>
- *   <li>Return a populated {@link WhoPrincipal}.</li>
+ *   <li>Look up the credential UUID in {@link CredentialIdentityRepository}.
+ *   <li>Return empty if not linked.
+ *   <li>Load the identity from {@link IdentityRepository}.
+ *   <li>Return empty if not found or status is not {@link IdentityStatus#ACTIVE}.
+ *   <li>Resolve permissions via the registered {@link PermissionsResolver}.
+ *   <li>Return a populated {@link WhoPrincipal}.
  * </ol>
  *
- * <p>This is a plain Java class with no Spring annotations. Wiring is done by the
- * autoconfigure module.
+ * <p>This is a plain Java class with no Spring annotations. Wiring is done by the autoconfigure
+ * module.
  */
 public class WhoService {
 
-    private final IdentityRepository identityRepository;
-    private final CredentialIdentityRepository credentialIdentityRepository;
-    private final PermissionsResolver permissionsResolver;
+  private final IdentityRepository identityRepository;
+  private final CredentialIdentityRepository credentialIdentityRepository;
+  private final PermissionsResolver permissionsResolver;
 
-    /**
-     * Constructs a {@code WhoService} with its required collaborators.
-     *
-     * @param identityRepository           stores and retrieves identities
-     * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
-     * @param permissionsResolver          resolves permissions for an active identity
-     */
-    public WhoService(IdentityRepository identityRepository,
-                      CredentialIdentityRepository credentialIdentityRepository,
-                      PermissionsResolver permissionsResolver) {
-        this.identityRepository = requireNonNull(identityRepository, "identityRepository must not be null");
-        this.credentialIdentityRepository = requireNonNull(credentialIdentityRepository,
-                "credentialIdentityRepository must not be null");
-        this.permissionsResolver = requireNonNull(permissionsResolver, "permissionsResolver must not be null");
-    }
+  /**
+   * Constructs a {@code WhoService} with its required collaborators.
+   *
+   * @param identityRepository stores and retrieves identities
+   * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
+   * @param permissionsResolver resolves permissions for an active identity
+   */
+  public WhoService(
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver) {
+    this.identityRepository =
+        requireNonNull(identityRepository, "identityRepository must not be null");
+    this.credentialIdentityRepository =
+        requireNonNull(
+            credentialIdentityRepository, "credentialIdentityRepository must not be null");
+    this.permissionsResolver =
+        requireNonNull(permissionsResolver, "permissionsResolver must not be null");
+  }
 
-    /**
-     * Creates a new {@link Identity} with a generated UUID and {@link IdentityStatus#ACTIVE} status.
-     *
-     * @return the persisted identity
-     */
-    public Identity createIdentity() {
-        return identityRepository.save(Identity.create());
-    }
+  /**
+   * Creates a new {@link Identity} with a generated UUID and {@link IdentityStatus#ACTIVE} status.
+   *
+   * @return the persisted identity
+   */
+  public Identity createIdentity() {
+    return identityRepository.save(Identity.create());
+  }
 
-    /**
-     * Resolves the given credential to a {@link WhoPrincipal}.
-     *
-     * @param credential the incoming credential
-     * @return the resolved principal, or empty if the credential is not linked to an active identity
-     */
-    public Optional<WhoPrincipal> resolve(Credential credential) {
-        return credentialIdentityRepository.findIdentityIdByCredentialId(credential.id())
-                .flatMap(identityRepository::findById)
-                .filter(identity -> identity.status() == IdentityStatus.ACTIVE)
-                .map(identity -> new WhoPrincipal(
-                        identity,
-                        permissionsResolver.resolve(identity)
-                ));
-    }
+  /**
+   * Resolves the given credential to a {@link WhoPrincipal}.
+   *
+   * @param credential the incoming credential
+   * @return the resolved principal, or empty if the credential is not linked to an active identity
+   */
+  public Optional<WhoPrincipal> resolve(Credential credential) {
+    return credentialIdentityRepository
+        .findIdentityIdByCredentialId(credential.id())
+        .flatMap(identityRepository::findById)
+        .filter(identity -> identity.status() == IdentityStatus.ACTIVE)
+        .map(identity -> new WhoPrincipal(identity, permissionsResolver.resolve(identity)));
+  }
 }

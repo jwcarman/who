@@ -18,47 +18,46 @@ package org.jwcarman.who.rbac;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Repository for managing {@link Role} persistence.
- */
+/** Repository for managing {@link Role} persistence. */
 public interface RoleRepository {
 
-    /**
-     * Finds a role by its unique identifier.
-     *
-     * @param id the role UUID
-     * @return an Optional containing the role, or empty if not found
-     */
-    Optional<Role> findById(UUID id);
+  /**
+   * Finds a role by its unique identifier.
+   *
+   * @param id the role UUID
+   * @return an Optional containing the role, or empty if not found
+   */
+  Optional<Role> findById(UUID id);
 
-    /**
-     * Finds a role by its name.
-     *
-     * @param name the role name
-     * @return an Optional containing the role, or empty if not found
-     */
-    Optional<Role> findByName(String name);
+  /**
+   * Finds a role by its name.
+   *
+   * @param name the role name
+   * @return an Optional containing the role, or empty if not found
+   */
+  Optional<Role> findByName(String name);
 
-    /**
-     * Saves (upserts) a role. Inserts if the role does not exist; updates the name if it does.
-     *
-     * @param role the role to save
-     * @return the saved role
-     */
-    Role save(Role role);
+  /**
+   * Saves (upserts) a role. Inserts if the role does not exist; updates the name if it does.
+   *
+   * @param role the role to save
+   * @return the saved role
+   */
+  Role save(Role role);
 
-    /**
-     * Returns true if a role with the given id exists.
-     *
-     * @param id the role UUID
-     * @return true if found, false otherwise
-     */
-    boolean existsById(UUID id);
+  /**
+   * Returns true if a role with the given id exists.
+   *
+   * @param id the role UUID
+   * @return true if found, false otherwise
+   */
+  boolean existsById(UUID id);
 
-    /**
-     * Deletes the role with the given id. Cascade deletes associated permissions and identity assignments.
-     *
-     * @param id the role UUID
-     */
-    void deleteById(UUID id);
+  /**
+   * Deletes the role with the given id. Cascade deletes associated permissions and identity
+   * assignments.
+   *
+   * @param id the role UUID
+   */
+  void deleteById(UUID id);
 }

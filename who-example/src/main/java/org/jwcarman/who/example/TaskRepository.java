@@ -15,64 +15,69 @@
  */
 package org.jwcarman.who.example;
 
-import org.jwcarman.who.core.Identifiers;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.Identifiers;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
 @Repository
 public class TaskRepository {
 
-    private static final String COL_TITLE = "title";
-    private static final String COL_STATUS = "status";
+  private static final String COL_TITLE = "title";
+  private static final String COL_STATUS = "status";
 
-    private final JdbcClient jdbcClient;
+  private final JdbcClient jdbcClient;
 
-    public TaskRepository(JdbcClient jdbcClient) {
-        this.jdbcClient = jdbcClient;
-    }
+  public TaskRepository(JdbcClient jdbcClient) {
+    this.jdbcClient = jdbcClient;
+  }
 
-    public List<Task> findAll() {
-        return jdbcClient.sql("SELECT id, title, status FROM task")
-                .query((rs, rowNum) -> new Task(
-                        rs.getObject("id", UUID.class),
-                        rs.getString(COL_TITLE),
-                        TaskStatus.valueOf(rs.getString(COL_STATUS))
-                ))
-                .list();
-    }
+  public List<Task> findAll() {
+    return jdbcClient
+        .sql("SELECT id, title, status FROM task")
+        .query(
+            (rs, rowNum) ->
+                new Task(
+                    rs.getObject("id", UUID.class),
+                    rs.getString(COL_TITLE),
+                    TaskStatus.valueOf(rs.getString(COL_STATUS))))
+        .list();
+  }
 
-    public Optional<Task> findById(UUID id) {
-        return jdbcClient.sql("SELECT id, title, status FROM task WHERE id = :id")
-                .param("id", id)
-                .query((rs, rowNum) -> new Task(
-                        rs.getObject("id", UUID.class),
-                        rs.getString(COL_TITLE),
-                        TaskStatus.valueOf(rs.getString(COL_STATUS))
-                ))
-                .optional();
-    }
+  public Optional<Task> findById(UUID id) {
+    return jdbcClient
+        .sql("SELECT id, title, status FROM task WHERE id = :id")
+        .param("id", id)
+        .query(
+            (rs, rowNum) ->
+                new Task(
+                    rs.getObject("id", UUID.class),
+                    rs.getString(COL_TITLE),
+                    TaskStatus.valueOf(rs.getString(COL_STATUS))))
+        .optional();
+  }
 
-    public Task save(Task task) {
-        UUID id = task.id() != null ? task.id() : Identifiers.uuid();
-        Task toSave = new Task(id, task.title(), task.status() != null ? task.status() : TaskStatus.OPEN);
-        jdbcClient.sql("""
+  public Task save(Task task) {
+    UUID id = task.id() != null ? task.id() : Identifiers.uuid();
+    Task toSave =
+        new Task(id, task.title(), task.status() != null ? task.status() : TaskStatus.OPEN);
+    jdbcClient
+        .sql(
+            """
                 MERGE INTO task (id, title, status) KEY(id)
                 VALUES (:id, :title, :status)
                 """)
-                .param("id", toSave.id())
-                .param(COL_TITLE, toSave.title())
-                .param(COL_STATUS, toSave.status().name())
-                .update();
-        return toSave;
-    }
+        .param("id", toSave.id())
+        .param(COL_TITLE, toSave.title())
+        .param(COL_STATUS, toSave.status().name())
+        .update();
+    return toSave;
+  }
 
-    public void deleteById(UUID id) {
-        jdbcClient.sql("DELETE FROM task WHERE id = :id")
-                .param("id", id)
-                .update();
-    }
+  public void deleteById(UUID id) {
+    jdbcClient.sql("DELETE FROM task WHERE id = :id").param("id", id).update();
+  }
 }

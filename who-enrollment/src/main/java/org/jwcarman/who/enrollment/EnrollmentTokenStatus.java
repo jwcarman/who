@@ -18,14 +18,14 @@ package org.jwcarman.who.enrollment;
 /**
  * Lifecycle status of an {@link EnrollmentToken}.
  *
- * <p>Expiry is not modeled as a status — it is determined at runtime by comparing
- * {@link EnrollmentToken#expiresAt()} to {@link java.time.Instant#now()}.
+ * <p>Expiry is not modeled as a status — it is determined at runtime by comparing {@link
+ * EnrollmentToken#expiresAt()} to {@link java.time.Instant#now()}.
  */
 public enum EnrollmentTokenStatus {
-    /** Token has been issued and not yet redeemed or revoked. */
-    PENDING,
-    /** Token was successfully used to link a credential to an identity. */
-    REDEEMED,
-    /** Token was explicitly invalidated before redemption. */
-    REVOKED
+  /** Token has been issued and not yet redeemed or revoked. */
+  PENDING,
+  /** Token was successfully used to link a credential to an identity. */
+  REDEEMED,
+  /** Token was explicitly invalidated before redemption. */
+  REVOKED
 }

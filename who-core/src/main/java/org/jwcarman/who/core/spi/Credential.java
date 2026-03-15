@@ -23,10 +23,10 @@ import java.util.UUID;
  */
 public interface Credential {
 
-    /**
-     * Returns the unique identifier for this credential.
-     *
-     * @return the credential UUID
-     */
-    UUID id();
+  /**
+   * Returns the unique identifier for this credential.
+   *
+   * @return the credential UUID
+   */
+  UUID id();
 }

@@ -15,90 +15,92 @@
  */
 package org.jwcarman.who.enrollment;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.repository.IdentityRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.IdentityRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
 
-    @Autowired
-    private EnrollmentTokenRepository repository;
+  @Autowired private EnrollmentTokenRepository repository;
 
-    @Autowired
-    private IdentityRepository identityRepository;
+  @Autowired private IdentityRepository identityRepository;
 
-    private Identity identity;
+  private Identity identity;
 
-    @BeforeEach
-    void setUp() {
-        identity = identityRepository.save(Identity.create());
-    }
+  @BeforeEach
+  void setUp() {
+    identity = identityRepository.save(Identity.create());
+  }
 
-    @Test
-    void savesAndRetrievesById() {
-        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
-        repository.save(token);
+  @Test
+  void savesAndRetrievesById() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(token);
 
-        assertThat(repository.findById(token.id())).isPresent()
-                .get()
-                .satisfies(found -> {
-                    assertThat(found.id()).isEqualTo(token.id());
-                    assertThat(found.identityId()).isEqualTo(identity.id());
-                    assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.PENDING);
-                });
-    }
+    assertThat(repository.findById(token.id()))
+        .isPresent()
+        .get()
+        .satisfies(
+            found -> {
+              assertThat(found.id()).isEqualTo(token.id());
+              assertThat(found.identityId()).isEqualTo(identity.id());
+              assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.PENDING);
+            });
+  }
 
-    @Test
-    void findsByValue() {
-        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
-        repository.save(token);
+  @Test
+  void findsByValue() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(token);
 
-        assertThat(repository.findByValue(token.value())).isPresent()
-                .get()
-                .satisfies(found -> assertThat(found.id()).isEqualTo(token.id()));
-    }
+    assertThat(repository.findByValue(token.value()))
+        .isPresent()
+        .get()
+        .satisfies(found -> assertThat(found.id()).isEqualTo(token.id()));
+  }
 
-    @Test
-    void findByValueReturnsEmptyForUnknownValue() {
-        assertThat(repository.findByValue("nonexistent-value")).isEmpty();
-    }
+  @Test
+  void findByValueReturnsEmptyForUnknownValue() {
+    assertThat(repository.findByValue("nonexistent-value")).isEmpty();
+  }
 
-    @Test
-    void upsertUpdatesStatusOnConflict() {
-        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
-        repository.save(token);
+  @Test
+  void upsertUpdatesStatusOnConflict() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(token);
 
-        EnrollmentToken redeemed = token.redeem();
-        repository.save(redeemed);
+    EnrollmentToken redeemed = token.redeem();
+    repository.save(redeemed);
 
-        assertThat(repository.findById(token.id())).isPresent()
-                .get()
-                .satisfies(found -> assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.REDEEMED));
-    }
+    assertThat(repository.findById(token.id()))
+        .isPresent()
+        .get()
+        .satisfies(found -> assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.REDEEMED));
+  }
 
-    @Test
-    void deleteByIdRemovesToken() {
-        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
-        repository.save(token);
+  @Test
+  void deleteByIdRemovesToken() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(token);
 
-        repository.deleteById(token.id());
+    repository.deleteById(token.id());
 
-        assertThat(repository.findById(token.id())).isEmpty();
-    }
+    assertThat(repository.findById(token.id())).isEmpty();
+  }
 
-    @Test
-    void deletingIdentityCascadesToTokens() {
-        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
-        repository.save(token);
+  @Test
+  void deletingIdentityCascadesToTokens() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(token);
 
-        identityRepository.deleteById(identity.id());
+    identityRepository.deleteById(identity.id());
 
-        assertThat(repository.findById(token.id())).isEmpty();
-    }
+    assertThat(repository.findById(token.id())).isEmpty();
+  }
 }

@@ -15,16 +15,15 @@
  */
 package org.jwcarman.who.core;
 
-import com.fasterxml.uuid.Generators;
-
 import java.util.UUID;
+
+import com.fasterxml.uuid.Generators;
 
 public final class Identifiers {
 
-    private Identifiers() {
-    }
+  private Identifiers() {}
 
-    public static UUID uuid() {
-        return Generators.timeBasedEpochGenerator().generate();
-    }
+  public static UUID uuid() {
+    return Generators.timeBasedEpochGenerator().generate();
+  }
 }

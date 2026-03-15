@@ -15,36 +15,37 @@
  */
 package org.jwcarman.who.rbac;
 
-import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.spi.PermissionsResolver;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.springframework.stereotype.Component;
+
 /**
- * A {@link PermissionsResolver} that resolves permissions by looking up the roles assigned
- * to an identity and returning the union of all permissions granted to those roles.
+ * A {@link PermissionsResolver} that resolves permissions by looking up the roles assigned to an
+ * identity and returning the union of all permissions granted to those roles.
  */
 @Component
 public class RbacPermissionsResolver implements PermissionsResolver {
 
-    private final IdentityRoleRepository identityRoleRepository;
-    private final RolePermissionRepository rolePermissionRepository;
+  private final IdentityRoleRepository identityRoleRepository;
+  private final RolePermissionRepository rolePermissionRepository;
 
-    public RbacPermissionsResolver(IdentityRoleRepository identityRoleRepository,
-                            RolePermissionRepository rolePermissionRepository) {
-        this.identityRoleRepository = identityRoleRepository;
-        this.rolePermissionRepository = rolePermissionRepository;
-    }
+  public RbacPermissionsResolver(
+      IdentityRoleRepository identityRoleRepository,
+      RolePermissionRepository rolePermissionRepository) {
+    this.identityRoleRepository = identityRoleRepository;
+    this.rolePermissionRepository = rolePermissionRepository;
+  }
 
-    @Override
-    public Set<String> resolve(Identity identity) {
-        List<UUID> roleIds = identityRoleRepository.findRoleIdsByIdentityId(identity.id());
-        if (roleIds.isEmpty()) {
-            return Set.of();
-        }
-        return rolePermissionRepository.findPermissionsByRoleIds(roleIds);
+  @Override
+  public Set<String> resolve(Identity identity) {
+    List<UUID> roleIds = identityRoleRepository.findRoleIdsByIdentityId(identity.id());
+    if (roleIds.isEmpty()) {
+      return Set.of();
     }
+    return rolePermissionRepository.findPermissionsByRoleIds(roleIds);
+  }
 }

@@ -23,7 +23,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 @EnableMethodSecurity
 public class WhoExampleApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(WhoExampleApplication.class, args);
-    }
+  public static void main(String[] args) {
+    SpringApplication.run(WhoExampleApplication.class, args);
+  }
 }
