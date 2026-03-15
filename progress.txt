@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T23:02:45-04:00
-ITERATION: 8
-SPEC_COMPLETED: 007-who-enrollment.md
-WHAT_WAS_DONE: Created who-enrollment module — EnrollmentToken record, EnrollmentTokenStatus enum, EnrollmentTokenRepository interface + JdbcEnrollmentTokenRepository implementation, WhoEnrollmentService with @Transactional enroll(), three custom exceptions (EnrollmentTokenNotFoundException, EnrollmentTokenExpiredException, EnrollmentTokenNotPendingException), schema.sql, autoconfiguration (EnrollmentConfiguration in WhoAutoConfiguration) + WhoProperties.Enrollment with expiration-hours default 24, added to who-spring-boot-starter and who-autoconfigure optional deps, and integration tests against real PostgreSQL via Testcontainers (17 tests).
-VERIFICATION: mvn test → BUILD SUCCESS (17 who-enrollment tests pass, all 9 modules pass); mvn -P license verify → BUILD SUCCESS
-STATUS: MORE_WORK
-NEXT_SPEC: 008-refactor-whoservice.md
-NOTES: WhoEnrollmentTestApp scans both org.jwcarman.who.enrollment and org.jwcarman.who.jdbc packages to pick up JdbcIdentityRepository and JdbcCredentialIdentityRepository; who-jdbc is a test-scope dependency for this purpose. WhoEnrollmentService has no @Service annotation — it is registered exclusively via WhoAutoConfiguration.EnrollmentConfiguration (ConditionalOnClass WhoEnrollmentService). The @Transactional annotation on enroll() works because the bean is Spring-managed via the factory method.
+LAST_RUN: 2026-03-14T23:07:30-04:00
+ITERATION: 9
+SPEC_COMPLETED: 008-refactor-whoservice.md
+WHAT_WAS_DONE: Refactored WhoService to take a single PermissionsResolver instead of List<PermissionsResolver>, replaced imperative null-check chain in resolve() with Optional chaining, updated WhoAutoConfiguration to inject a single PermissionsResolver bean, added a @ConditionalOnMissingBean no-op PermissionsResolver fallback for contexts where who-rbac is absent, updated WhoServiceTest to reflect single-resolver contract (removed unionesPermissionsFromAllResolvers and returnsPrincipalWithEmptyPermissionsWhenNoResolvers, added returnsPrincipalWithPermissionsFromResolver).
+VERIFICATION: mvn test → BUILD SUCCESS (all 9 modules pass); mvn -P license verify → BUILD SUCCESS
+STATUS: DONE
+NEXT_SPEC: none
+NOTES: A default no-op PermissionsResolver (@ConditionalOnMissingBean) was added to WhoAutoConfiguration so that the context loads cleanly when who-rbac is absent. When RbacPermissionsResolver is on the classpath it takes precedence. No specs remain in specs/ — all active queue specs are done. New specs should be promoted from specs/backlog/ by the human.

@@ -28,7 +28,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -44,6 +43,9 @@ class WhoServiceTest {
 
     @Mock
     private CredentialIdentityRepository credentialIdentityRepository;
+
+    @Mock
+    private PermissionsResolver permissionsResolver;
 
     @Mock
     private Credential credential;
@@ -63,7 +65,7 @@ class WhoServiceTest {
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
                 .thenReturn(Optional.empty());
 
-        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, List.of());
+        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
         assertThat(service.resolve(credential)).isEmpty();
     }
@@ -74,7 +76,7 @@ class WhoServiceTest {
                 .thenReturn(Optional.of(identityId));
         when(identityRepository.findById(identityId)).thenReturn(Optional.empty());
 
-        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, List.of());
+        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
         assertThat(service.resolve(credential)).isEmpty();
     }
@@ -86,7 +88,7 @@ class WhoServiceTest {
                 .thenReturn(Optional.of(identityId));
         when(identityRepository.findById(identityId)).thenReturn(Optional.of(suspended));
 
-        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, List.of());
+        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
         assertThat(service.resolve(credential)).isEmpty();
     }
@@ -98,41 +100,24 @@ class WhoServiceTest {
                 .thenReturn(Optional.of(identityId));
         when(identityRepository.findById(identityId)).thenReturn(Optional.of(disabled));
 
-        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, List.of());
+        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
         assertThat(service.resolve(credential)).isEmpty();
     }
 
     @Test
-    void returnsPrincipalWithEmptyPermissionsWhenNoResolvers() {
+    void returnsPrincipalWithPermissionsFromResolver() {
         Identity active = Identity.create(identityId, IdentityStatus.ACTIVE);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
                 .thenReturn(Optional.of(identityId));
         when(identityRepository.findById(identityId)).thenReturn(Optional.of(active));
+        when(permissionsResolver.resolve(active)).thenReturn(Set.of("read", "write"));
 
-        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, List.of());
+        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
         Optional<WhoPrincipal> result = service.resolve(credential);
         assertThat(result).isPresent();
         assertThat(result.get().identityId()).isEqualTo(identityId);
-        assertThat(result.get().permissions()).isEmpty();
-    }
-
-    @Test
-    void unionesPermissionsFromAllResolvers() {
-        Identity active = Identity.create(identityId, IdentityStatus.ACTIVE);
-        when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
-                .thenReturn(Optional.of(identityId));
-        when(identityRepository.findById(identityId)).thenReturn(Optional.of(active));
-
-        PermissionsResolver resolver1 = identity -> Set.of("read", "write");
-        PermissionsResolver resolver2 = identity -> Set.of("write", "delete");
-
-        WhoService service = new WhoService(identityRepository, credentialIdentityRepository,
-                List.of(resolver1, resolver2));
-
-        Optional<WhoPrincipal> result = service.resolve(credential);
-        assertThat(result).isPresent();
-        assertThat(result.get().permissions()).containsExactlyInAnyOrder("read", "write", "delete");
+        assertThat(result.get().permissions()).containsExactlyInAnyOrder("read", "write");
     }
 }

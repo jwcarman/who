@@ -15,7 +15,6 @@
  */
 package org.jwcarman.who.core.service;
 
-import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
@@ -23,11 +22,7 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 
-import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -38,9 +33,9 @@ import static java.util.Objects.requireNonNull;
  * <ol>
  *   <li>Look up the credential UUID in {@link CredentialIdentityRepository}.</li>
  *   <li>Return empty if not linked.</li>
- *   <li>Load the {@link Identity} from {@link IdentityRepository}.</li>
+ *   <li>Load the identity from {@link IdentityRepository}.</li>
  *   <li>Return empty if not found or status is not {@link IdentityStatus#ACTIVE}.</li>
- *   <li>Union permissions from all registered {@link PermissionsResolver} instances.</li>
+ *   <li>Resolve permissions via the registered {@link PermissionsResolver}.</li>
  *   <li>Return a populated {@link WhoPrincipal}.</li>
  * </ol>
  *
@@ -51,22 +46,22 @@ public class WhoService {
 
     private final IdentityRepository identityRepository;
     private final CredentialIdentityRepository credentialIdentityRepository;
-    private final List<PermissionsResolver> permissionsResolvers;
+    private final PermissionsResolver permissionsResolver;
 
     /**
      * Constructs a {@code WhoService} with its required collaborators.
      *
      * @param identityRepository           stores and retrieves identities
      * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
-     * @param permissionsResolvers         all registered resolvers; permissions are unioned
+     * @param permissionsResolver          resolves permissions for an active identity
      */
     public WhoService(IdentityRepository identityRepository,
                       CredentialIdentityRepository credentialIdentityRepository,
-                      List<PermissionsResolver> permissionsResolvers) {
+                      PermissionsResolver permissionsResolver) {
         this.identityRepository = requireNonNull(identityRepository, "identityRepository must not be null");
         this.credentialIdentityRepository = requireNonNull(credentialIdentityRepository,
                 "credentialIdentityRepository must not be null");
-        this.permissionsResolvers = requireNonNull(permissionsResolvers, "permissionsResolvers must not be null");
+        this.permissionsResolver = requireNonNull(permissionsResolver, "permissionsResolver must not be null");
     }
 
     /**
@@ -76,29 +71,12 @@ public class WhoService {
      * @return the resolved principal, or empty if the credential is not linked to an active identity
      */
     public Optional<WhoPrincipal> resolve(Credential credential) {
-        UUID credentialId = credential.id();
-
-        Optional<UUID> identityIdOpt = credentialIdentityRepository.findIdentityIdByCredentialId(credentialId);
-        if (identityIdOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        UUID identityId = identityIdOpt.get();
-        Optional<Identity> identityOpt = identityRepository.findById(identityId);
-        if (identityOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Identity identity = identityOpt.get();
-        if (identity.status() != IdentityStatus.ACTIVE) {
-            return Optional.empty();
-        }
-
-        Set<String> permissions = new HashSet<>();
-        for (PermissionsResolver resolver : permissionsResolvers) {
-            permissions.addAll(resolver.resolve(identity));
-        }
-
-        return Optional.of(new WhoPrincipal(identityId, permissions));
+        return credentialIdentityRepository.findIdentityIdByCredentialId(credential.id())
+                .flatMap(identityRepository::findById)
+                .filter(identity -> identity.status() == IdentityStatus.ACTIVE)
+                .map(identity -> new WhoPrincipal(
+                        identity.id(),
+                        permissionsResolver.resolve(identity)
+                ));
     }
 }

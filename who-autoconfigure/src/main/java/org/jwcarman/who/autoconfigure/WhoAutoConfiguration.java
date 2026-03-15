@@ -43,8 +43,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import java.util.List;
-
 /**
  * Spring Boot autoconfiguration that wires all Who modules together.
  *
@@ -61,19 +59,32 @@ import java.util.List;
 public class WhoAutoConfiguration {
 
     /**
+     * Fallback {@link PermissionsResolver} that grants no permissions.
+     *
+     * <p>This bean is only registered when no other {@code PermissionsResolver} is present
+     * (e.g., when {@code who-rbac} is not on the classpath). Applications that need
+     * permissions should include {@code who-rbac} or register their own bean.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PermissionsResolver permissionsResolver() {
+        return identity -> java.util.Set.of();
+    }
+
+    /**
      * Creates the core {@link WhoService} that resolves credentials to principals.
      *
      * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
      * @param identityRepository           stores and retrieves identities
-     * @param permissionsResolvers         all registered resolvers; may be empty
+     * @param permissionsResolver          resolves permissions for an active identity
      * @return a configured {@link WhoService}
      */
     @Bean
     @ConditionalOnMissingBean
     public WhoService whoService(CredentialIdentityRepository credentialIdentityRepository,
                                  IdentityRepository identityRepository,
-                                 List<PermissionsResolver> permissionsResolvers) {
-        return new WhoService(identityRepository, credentialIdentityRepository, permissionsResolvers);
+                                 PermissionsResolver permissionsResolver) {
+        return new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
     }
 
     /**
