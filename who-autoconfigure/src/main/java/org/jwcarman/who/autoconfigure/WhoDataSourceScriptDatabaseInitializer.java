@@ -74,7 +74,10 @@ public class WhoDataSourceScriptDatabaseInitializer extends DataSourceScriptData
   }
 
   private static List<String> detectSchemaLocations() {
-    ClassLoader classLoader = WhoDataSourceScriptDatabaseInitializer.class.getClassLoader();
+    return detectSchemaLocations(WhoDataSourceScriptDatabaseInitializer.class.getClassLoader());
+  }
+
+  static List<String> detectSchemaLocations(ClassLoader classLoader) {
     List<String> locations = new ArrayList<>();
     for (ModuleSchema module : MODULE_SCHEMAS) {
       if (ClassUtils.isPresent(module.sentinelClass(), classLoader)) {
