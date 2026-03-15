@@ -95,7 +95,12 @@ public class WhoEnrollmentService {
     credentialIdentityRepository.link(credential.id(), token.identityId());
     enrollmentTokenRepository.save(token.redeem());
 
-    return identityRepository.findById(token.identityId()).orElseThrow(IllegalStateException::new);
+    return identityRepository
+        .findById(token.identityId())
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Identity disappeared during enrollment: " + token.identityId()));
   }
 
   /**
