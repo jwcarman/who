@@ -130,6 +130,18 @@ public class RbacService {
   }
 
   /**
+   * Assigns a role to an identity by role name.
+   *
+   * @param identity the identity to assign the role to
+   * @param roleName the name of the role to assign
+   * @throws RoleNotFoundException if no role with that name exists
+   */
+  @Transactional
+  public void assignRoleByName(Identity identity, String roleName) {
+    assignRoleToIdentity(identity, findRequiredRole(roleName));
+  }
+
+  /**
    * Removes a role assignment from an identity.
    *
    * @param identity the identity to remove the role from

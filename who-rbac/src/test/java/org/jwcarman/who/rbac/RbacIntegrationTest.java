@@ -150,6 +150,24 @@ class RbacIntegrationTest extends AbstractRbacTest {
   }
 
   @Test
+  void assignRoleByNameAssignsRole() {
+    Role role = rbacService.createRole("BY_NAME_ROLE");
+    rbacService.addPermissionToRole(role, "READ");
+    Identity identity = Identity.create();
+
+    rbacService.assignRoleByName(identity, "BY_NAME_ROLE");
+
+    assertThat(resolver.resolve(identity)).containsExactly("READ");
+  }
+
+  @Test
+  void assignRoleByNameThrowsWhenRoleNotFound() {
+    Identity identity = Identity.create();
+    assertThatThrownBy(() -> rbacService.assignRoleByName(identity, "NO_SUCH_ROLE"))
+        .isInstanceOf(RoleNotFoundException.class);
+  }
+
+  @Test
   void deleteRoleCascadesPermissionsAndIdentityAssignments() {
     Role role = rbacService.createRole("CASCADE_ROLE");
     rbacService.addPermissionToRole(role, "READ");
