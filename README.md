@@ -71,7 +71,7 @@ HttpRequest → CredentialExtractor → Credential → Identity → Set<String> 
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.5.0</version>
 </dependency>
 ```
 
@@ -79,28 +79,20 @@ HttpRequest → CredentialExtractor → Credential → Identity → Set<String> 
 
 ## Database setup
 
-Who ships its own schema files on the classpath, one per module. You have several options for applying them.
+Who ships its own schema files on the classpath, one per module. The autoconfiguration runs them automatically — only modules present on the classpath contribute scripts, and all scripts use `CREATE TABLE IF NOT EXISTS` so they are safe to run on every startup.
 
-### Option A: Spring Boot `spring.sql.init`
+### Auto-initialization (default)
 
-Reference the classpath schema files directly. This is suitable for development and testing.
+By default, schemas run automatically when the datasource is an embedded database (H2, HSQLDB, Derby). Control this with:
 
 ```yaml
-spring:
-  sql:
-    init:
-      mode: always
-      schema-locations:
-        - classpath:org/jwcarman/who/jdbc/schema.sql       # who-jdbc:       who_identity, who_credential_identity
-        - classpath:org/jwcarman/who/rbac/schema.sql       # who-rbac:       who_role, who_role_permission, who_identity_role
-        - classpath:org/jwcarman/who/jwt/schema.sql        # who-jwt:        who_jwt_credential
-        - classpath:org/jwcarman/who/apikey/schema.sql     # who-apikey:     who_api_key_credential
-        - classpath:org/jwcarman/who/enrollment/schema.sql # who-enrollment: who_enrollment_token
+who:
+  initialize-schema: embedded  # always | embedded | never (default: embedded)
 ```
 
-For production, use Flyway or Liquibase instead.
+For production, set `who.initialize-schema: never` and manage the schema with Flyway or Liquibase instead.
 
-### Option B: Flyway
+### Option A: Flyway
 
 Copy the following file to `src/main/resources/db/migration/V1__who.sql` in your application:
 
@@ -153,7 +145,7 @@ CREATE TABLE IF NOT EXISTS who_api_key_credential (
 CREATE TABLE IF NOT EXISTS who_enrollment_token (
     id          UUID         PRIMARY KEY,
     identity_id UUID         NOT NULL,
-    value       VARCHAR(255) NOT NULL UNIQUE,
+    token_value VARCHAR(255) NOT NULL UNIQUE,
     status      VARCHAR(20)  NOT NULL,
     created_at  TIMESTAMP(9) NOT NULL,
     expires_at  TIMESTAMP(9) NOT NULL,
@@ -161,7 +153,7 @@ CREATE TABLE IF NOT EXISTS who_enrollment_token (
 );
 ```
 
-### Option C: Liquibase
+### Option B: Liquibase
 
 Copy the following file to `src/main/resources/db/changelog/001-who.yaml` in your application:
 
@@ -354,7 +346,7 @@ databaseChangeLog:
                     references: who_identity(id)
                     deleteCascade: true
               - column:
-                  name: value
+                  name: token_value
                   type: varchar(255)
                   constraints:
                     nullable: false
@@ -419,18 +411,6 @@ public SecurityFilterChain apiSecurityFilterChain(
 ## API Key Authentication
 
 Who supports API key authentication via `who-apikey`. API keys are hashed before storage — the raw key is shown once at creation and cannot be retrieved again.
-
-### Schema setup
-
-Add `classpath:org/jwcarman/who/apikey/schema.sql` to the `spring.sql.init.schema-locations` list (see [Option A](#option-a-spring-boot-springsqlinit) above). The DDL it applies:
-
-```sql
-CREATE TABLE IF NOT EXISTS who_api_key_credential (
-    id       UUID         PRIMARY KEY,
-    name     VARCHAR(255) NOT NULL,
-    key_hash VARCHAR(64)  NOT NULL UNIQUE
-);
-```
 
 ### Wiring the filter
 
@@ -557,6 +537,12 @@ rbacService.addPermissionToRole(editorRole, "task.write");
 rbacService.assignRoleToIdentity(identity, editorRole);
 ```
 
+To look up an existing role by name (throws `RoleNotFoundException` if absent):
+
+```java
+Role editorRole = rbacService.findRequiredRole("editor");
+```
+
 Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:
 
 ```java
@@ -566,6 +552,16 @@ public List<Task> getTasks(@AuthenticationPrincipal WhoPrincipal principal) {
     return taskService.findAll(principal.identity().id());
 }
 ```
+
+---
+
+## Configuration reference
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `who.initialize-schema` | `embedded` | When to run Who's bundled DDL scripts: `always`, `embedded` (H2/HSQLDB/Derby only), or `never` |
+| `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
+| `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |
 
 ---
 
