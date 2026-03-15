@@ -96,6 +96,7 @@
         <module>who-core</module>
         <module>who-jdbc</module>
         <module>who-rbac</module>
+        <module>who-spring-security</module>
         <module>who-jwt</module>
         <module>who-enrollment</module>
         <module>who-apikey</module>

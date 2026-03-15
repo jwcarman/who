@@ -17,6 +17,7 @@ package org.jwcarman.who.jwt;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

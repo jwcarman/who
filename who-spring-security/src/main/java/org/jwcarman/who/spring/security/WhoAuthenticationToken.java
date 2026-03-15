@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.apikey;
+package org.jwcarman.who.spring.security;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -24,10 +24,9 @@ import java.util.Collection;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Spring Security authentication token backed by a resolved {@link WhoPrincipal}, produced
- * after successful API key authentication.
+ * Spring Security authentication token backed by a resolved {@link WhoPrincipal}.
  *
- * <p>Marked authenticated on creation. The raw API key is not retained.
+ * <p>Marked authenticated on creation. Credentials are not retained after authentication.
  */
 public class WhoAuthenticationToken extends AbstractAuthenticationToken {
 
@@ -39,8 +38,7 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
      * @param principal   the resolved principal
      * @param authorities the granted authorities derived from the principal's permissions
      */
-    public WhoAuthenticationToken(WhoPrincipal principal,
-                                   Collection<? extends GrantedAuthority> authorities) {
+    public WhoAuthenticationToken(WhoPrincipal principal, Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
         this.principal = requireNonNull(principal, "principal must not be null");
         setAuthenticated(true);
@@ -51,7 +49,7 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
         return principal;
     }
 
-    /** Returns {@code null} — the raw API key is not retained after authentication. */
+    /** Returns {@code null} — credentials are not retained after authentication. */
     @Override
     public Object getCredentials() {
         return null;

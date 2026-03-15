@@ -46,6 +46,11 @@
         </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-spring-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
             <artifactId>who-jdbc</artifactId>
             <version>${project.version}</version>
         </dependency>

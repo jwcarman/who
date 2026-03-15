@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-15T00:10:00-04:00
-ITERATION: 14
-SPEC_COMPLETED: 013-apikey-docs.md
-WHAT_WAS_DONE: Added API Key Authentication section to README.md covering all six required points (schema setup, filter wiring, header config, key generation, key usage, revocation), updated Option A schema-locations to include the apikey schema file, added who_api_key_credential DDL to Option B (Flyway) and Option C (Liquibase), and added who-apikey to the Modules table.
-VERIFICATION: Documentation-only change; no test suite needed. Manually verified all acceptance criteria present via grep: apikey/schema.sql in schema-locations, who_api_key_credential DDL in Flyway and Liquibase sections, API Key Authentication section with all six points.
+LAST_RUN: 2026-03-15T00:37:00-04:00
+ITERATION: 15
+SPEC_COMPLETED: 014-who-spring-security.md
+WHAT_WAS_DONE: Created who-spring-security module with WhoAuthenticationToken in org.jwcarman.who.spring.security, deleted duplicate WhoAuthenticationToken from who-jwt and who-apikey, updated imports in WhoJwtAuthenticationConverter, WhoJwtAuthenticationConverterTest, ApiKeyAuthenticationFilter, and ApiKeyAuthenticationFilterTest, added who-spring-security to root pom.xml (before who-jwt and who-apikey), who-jwt/pom.xml, who-apikey/pom.xml, who-autoconfigure/pom.xml (optional), and who-spring-boot-starter/pom.xml.
+VERIFICATION: mvn test → BUILD SUCCESS (all 11 modules); mvn -P license verify → BUILD SUCCESS
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: specs/ contains only 000-spec-template.md.example (not a real spec) and the done/ directory. No further specs to process.
+NOTES: specs/ now contains only 000-spec-template.md.example and the done/ directory. No further specs to process.
