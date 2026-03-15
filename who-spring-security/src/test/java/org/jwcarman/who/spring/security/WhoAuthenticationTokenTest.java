@@ -90,8 +90,7 @@ class WhoAuthenticationTokenTest {
         WhoAuthenticationToken token1 = new WhoAuthenticationToken(principal);
         WhoAuthenticationToken token2 = new WhoAuthenticationToken(principal);
 
-        assertThat(token1).isEqualTo(token2);
-        assertThat(token1).hasSameHashCodeAs(token2);
+        assertThat(token1).isEqualTo(token2).hasSameHashCodeAs(token2);
     }
 
     @Test
