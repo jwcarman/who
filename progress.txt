@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T22:09:00-04:00
-ITERATION: 4
-SPEC_COMPLETED: 003-who-rbac.md
-WHAT_WAS_DONE: Created who-rbac Maven module with Role domain record, RoleRepository/RolePermissionRepository/IdentityRoleRepository interfaces, JDBC implementations, RbacPermissionsResolver, and RbacService with full integration test coverage.
-VERIFICATION: mvn test → BUILD SUCCESS (43 tests, 0 failures: 6 who-core + 9 who-jdbc + 28 who-rbac); mvn -P license verify -pl who-rbac -am → BUILD SUCCESS
+LAST_RUN: 2026-03-14T22:19:20-04:00
+ITERATION: 5
+SPEC_COMPLETED: 004-who-jwt.md
+WHAT_WAS_DONE: Created who-jwt Maven module with JwtCredential record, JwtCredentialRepository interface, JdbcJwtCredentialRepository (JDBC impl), WhoAuthenticationToken (extends AbstractAuthenticationToken), and WhoJwtAuthenticationConverter (Converter<Jwt, AbstractAuthenticationToken>) with unit tests using mocks and JDBC integration tests against real PostgreSQL via Testcontainers.
+VERIFICATION: mvn test → BUILD SUCCESS (9 who-jwt tests: 5 WhoJwtAuthenticationConverterTest + 4 JdbcJwtCredentialRepositoryTest, 0 failures); mvn -P license verify -pl who-jwt -am → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 004-who-jwt.md
-NOTES: findPermissionsByRoleIds uses PostgreSQL ANY(:roleIds) array binding with UUID[] to pass a collection of UUIDs in a single query. RbacService has @Transactional on all 6 public methods. ON CONFLICT DO NOTHING used for idempotent addPermission/assignRole inserts; ON CONFLICT (id) DO UPDATE used for role upsert. Singleton Testcontainers pattern reused from who-jdbc.
+NEXT_SPEC: 005-who-autoconfigure.md
+NOTES: Spring Boot 4.0.2 moved security auto-configuration classes to a new package: org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration (was org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration in Boot 3.x). The test app excludes these to avoid requiring a JWT decoder config at context startup. WhoJwtAuthenticationConverter uses jwt.getIssuer().toString() which works via JwtClaimAccessor. The Jwt class is constructed directly using its public constructor in unit tests (not mocked).
