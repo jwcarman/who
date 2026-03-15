@@ -94,6 +94,7 @@
 
     <modules>
         <module>who-core</module>
+        <module>who-jdbc</module>
     </modules>
 
     <dependencyManagement>

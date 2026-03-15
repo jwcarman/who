@@ -10,11 +10,17 @@ that pulls in the most common combination of modules.
 
 New Maven module `who-autoconfigure` with dependencies:
 - `who-core`
-- `who-jdbc` (optional — `compileOnly` or `optional`)
+- `who-jdbc` (optional — `<optional>true</optional>`)
 - `who-rbac` (optional)
 - `who-jwt` (optional)
 - `spring-boot-autoconfigure`
+- `spring-boot-configuration-processor` (optional — annotation processor for IDE metadata)
 - `spring-boot-starter-test` (test scope)
+
+The `spring-boot-configuration-processor` must be declared as an annotation processor
+so it generates `META-INF/spring-configuration-metadata.json` at compile time from the
+`@ConfigurationProperties` class. This gives consumers IDE autocompletion and documentation
+for all `who.*` properties.
 
 Mark `who-jdbc`, `who-rbac`, and `who-jwt` as `<optional>true</optional>` in the POM
 so consuming applications control which modules are on the classpath.
@@ -104,6 +110,8 @@ This is the "batteries included" starter. Applications that want only a subset d
 - [ ] `RbacPermissionsResolver` and `RbacService` beans are only created when `who-rbac` is on the classpath
 - [ ] `WhoJwtAuthenticationConverter` bean is only created when `who-jwt` is on the classpath
 - [ ] All beans use `@ConditionalOnMissingBean` — application can override any of them
+- [ ] `spring-boot-configuration-processor` is declared as an optional dependency and generates `META-INF/spring-configuration-metadata.json` at compile time
+- [ ] IDE autocompletion works for `who.*` properties (verified by presence of the metadata JSON file in the built jar)
 - [ ] Integration test verifies that `WhoService` bean is present when all modules are on classpath
 - [ ] Integration test verifies that no bean creation errors occur with only `who-core` + `who-jdbc` on classpath
 - [ ] `mvn test` passes

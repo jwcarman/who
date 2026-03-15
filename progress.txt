@@ -1,8 +1,42 @@
-LAST_RUN: 2026-03-14T21:22:01-04:00
-ITERATION: 1
-SPEC_COMPLETED: 001-who-core-foundation.md
-WHAT_WAS_DONE: Deleted all modules except who-core, stripped who-core to a clean pure-Java foundation with IdentityStatus/Identity/WhoPrincipal domain types, Credential/PermissionsResolver SPIs, IdentityRepository/CredentialIdentityRepository interfaces, and WhoService with full TDD coverage.
-VERIFICATION: mvn test → Tests run: 6, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS; mvn -P license verify → BUILD SUCCESS (added *.txt, *.sh, *.md, specs/**, docs/** to license excludes to cover ralph-loop files)
-STATUS: MORE_WORK
-NEXT_SPEC: none — check specs/backlog/ for items to promote
-NOTES: Root pom.xml now has only who-core as a module. who-core pom.xml has only spring-boot-starter-test (test scope) for JUnit/Mockito — no Spring compile-time dependency. Added broader license excludes in root pom.xml to cover *.txt, *.sh, *.md, specs/, docs/ directories which are Ralph Loop artifacts and documentation that should not carry Apache headers.
+LAST_RUN: 2026-03-14T21:45:00-04:00
+ITERATION: 2
+SPEC_COMPLETED: none
+WHAT_WAS_DONE: Created who-jdbc module (pom.xml, schema.sql, JdbcIdentityRepository, JdbcCredentialIdentityRepository, integration tests) but tests cannot pass — H2 2.4.240 does not support INSERT ... ON CONFLICT (conflict-target) DO UPDATE SET even in MODE=PostgreSQL
+VERIFICATION: mvn test -pl who-jdbc → BUILD FAILURE; 9 tests attempted, 6 errors — all BadSqlGrammarException on INSERT ON CONFLICT upsert. Direct JDBC test confirms: H2 2.4.240 with MODE=PostgreSQL throws [42000-240] syntax error on `INSERT INTO t (id, val) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET val = ?` when the target table exists.
+STATUS: NEEDS_HUMAN
+NEXT_SPEC: 002-who-jdbc.md (blocked)
+NOTES: All production code is complete and correct for real PostgreSQL. The module compiles. The test scaffolding (WhoJdbcTestApp, test classes) is correct. The root pom.xml has been updated to include who-jdbc as a module.
+
+REASON: H2 2.4.240 (bundled with Spring Boot 4.0.2) does NOT support `INSERT ... ON CONFLICT (conflict-target) DO UPDATE SET` in MODE=PostgreSQL. This is a confirmed H2 limitation — NOT a configuration issue.
+
+What H2 2.4.240 DOES support in PostgreSQL mode:
+  - `INSERT ... ON CONFLICT DO NOTHING` (no conflict target, no update)
+  - `MERGE INTO t (cols) KEY(pk_col) VALUES (...)` (H2-proprietary upsert, not PostgreSQL-compatible)
+
+What H2 does NOT support (even in MODE=PostgreSQL):
+  - `INSERT ... ON CONFLICT (col) DO NOTHING` (with conflict target — also fails)
+  - `INSERT ... ON CONFLICT (col) DO UPDATE SET col = ?` (the spec-required syntax)
+  - `INSERT ... ON CONFLICT DO UPDATE SET col = EXCLUDED.col` (also fails)
+
+Attempts made (all failed with [42000-240] syntax error):
+  1. application.properties with spring.datasource.url including ;MODE=PostgreSQL via HikariCP
+  2. EmbeddedDatabaseBuilder.setName("whotest;MODE=PostgreSQL") — URL confirmed in Spring log
+  3. Runtime SET MODE PostgreSQL command on existing connection
+  4. ON CONFLICT with EXCLUDED.col syntax
+  5. H2 versions 2.1.212, 2.1.214, 2.2.224, 2.3.232, 2.4.240 — all fail identically
+  6. H2 with DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+
+OPTIONS for human to choose:
+
+Option A — Use embedded PostgreSQL for tests (recommended):
+  Replace H2 test dependency with io.zonky.test:embedded-postgres or org.testcontainers:postgresql.
+  Gives a real PostgreSQL that fully supports ON CONFLICT DO UPDATE.
+  Keeps production SQL correct. Heavier test setup but more faithful to production.
+
+Option B — Use SQL standard MERGE for upsert:
+  Change JdbcIdentityRepository.save() to SQL:2003 MERGE (works in H2 + PostgreSQL 15+).
+  Violates the spec's acceptance criteria requiring INSERT ... ON CONFLICT DO UPDATE.
+  Would need a spec change to allow this.
+
+Option C — Modify spec 002 to allow alternative test database or upsert syntax:
+  Update the spec, then re-run this iteration.
