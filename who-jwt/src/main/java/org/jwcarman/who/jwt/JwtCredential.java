@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.jwt;
 
+import org.jwcarman.who.core.Identifiers;
 import org.jwcarman.who.core.spi.Credential;
 
 import java.util.UUID;
@@ -43,6 +44,6 @@ public record JwtCredential(UUID id, String issuer, String subject) implements C
      * @return a new credential
      */
     public static JwtCredential create(String issuer, String subject) {
-        return new JwtCredential(UUID.randomUUID(), issuer, subject);
+        return new JwtCredential(Identifiers.uuid(), issuer, subject);
     }
 }

@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.rbac;
 
+import org.jwcarman.who.core.Identifiers;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +53,7 @@ public class RbacService {
         if (roleRepository.findByName(name).isPresent()) {
             throw new IllegalArgumentException("Role already exists with name: " + name);
         }
-        Role role = Role.create(UUID.randomUUID(), name);
+        Role role = Role.create(Identifiers.uuid(), name);
         roleRepository.save(role);
         return role.id();
     }

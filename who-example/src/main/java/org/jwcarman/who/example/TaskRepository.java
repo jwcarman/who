@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.example;
 
+import org.jwcarman.who.core.Identifiers;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -56,7 +57,7 @@ public class TaskRepository {
     }
 
     public Task save(Task task) {
-        UUID id = task.id() != null ? task.id() : UUID.randomUUID();
+        UUID id = task.id() != null ? task.id() : Identifiers.uuid();
         Task toSave = new Task(id, task.title(), task.status() != null ? task.status() : TaskStatus.OPEN);
         jdbcClient.sql("""
                 MERGE INTO task (id, title, status) KEY(id)

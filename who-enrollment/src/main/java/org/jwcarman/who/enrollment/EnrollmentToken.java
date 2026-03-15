@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.enrollment;
 
+import org.jwcarman.who.core.Identifiers;
+
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -55,9 +57,9 @@ public record EnrollmentToken(
     public static EnrollmentToken create(UUID identityId, int expirationHours) {
         Instant now = Instant.now();
         return new EnrollmentToken(
-                UUID.randomUUID(),
+                Identifiers.uuid(),
                 identityId,
-                UUID.randomUUID().toString(),
+                Identifiers.uuid().toString(),
                 EnrollmentTokenStatus.PENDING,
                 now,
                 now.plusSeconds((long) expirationHours * 3600)

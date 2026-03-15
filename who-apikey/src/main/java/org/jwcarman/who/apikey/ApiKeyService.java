@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.apikey;
 
+import org.jwcarman.who.core.Identifiers;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 
 import java.nio.charset.StandardCharsets;
@@ -72,7 +73,7 @@ public class ApiKeyService {
         String rawKey = "who_" + HEX.formatHex(bytes);
         String keyHash = sha256Hex(rawKey);
 
-        ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), name, keyHash);
+        ApiKeyCredential credential = new ApiKeyCredential(Identifiers.uuid(), name, keyHash);
         apiKeyCredentialRepository.save(credential);
         credentialIdentityRepository.link(credential.id(), identityId);
 
