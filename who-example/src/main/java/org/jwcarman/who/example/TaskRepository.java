@@ -25,6 +25,9 @@ import java.util.UUID;
 @Repository
 public class TaskRepository {
 
+    private static final String COL_TITLE = "title";
+    private static final String COL_STATUS = "status";
+
     private final JdbcClient jdbcClient;
 
     public TaskRepository(JdbcClient jdbcClient) {
@@ -35,8 +38,8 @@ public class TaskRepository {
         return jdbcClient.sql("SELECT id, title, status FROM task")
                 .query((rs, rowNum) -> new Task(
                         rs.getObject("id", UUID.class),
-                        rs.getString("title"),
-                        TaskStatus.valueOf(rs.getString("status"))
+                        rs.getString(COL_TITLE),
+                        TaskStatus.valueOf(rs.getString(COL_STATUS))
                 ))
                 .list();
     }
@@ -46,8 +49,8 @@ public class TaskRepository {
                 .param("id", id)
                 .query((rs, rowNum) -> new Task(
                         rs.getObject("id", UUID.class),
-                        rs.getString("title"),
-                        TaskStatus.valueOf(rs.getString("status"))
+                        rs.getString(COL_TITLE),
+                        TaskStatus.valueOf(rs.getString(COL_STATUS))
                 ))
                 .optional();
     }
@@ -60,8 +63,8 @@ public class TaskRepository {
                 VALUES (:id, :title, :status)
                 """)
                 .param("id", toSave.id())
-                .param("title", toSave.title())
-                .param("status", toSave.status().name())
+                .param(COL_TITLE, toSave.title())
+                .param(COL_STATUS, toSave.status().name())
                 .update();
         return toSave;
     }

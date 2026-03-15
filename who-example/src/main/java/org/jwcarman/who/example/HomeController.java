@@ -17,7 +17,6 @@ package org.jwcarman.who.example;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.jwt.JwtCredential;
 import org.jwcarman.who.jwt.JwtCredentialRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;

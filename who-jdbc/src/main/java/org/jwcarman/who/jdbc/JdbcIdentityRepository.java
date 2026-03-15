@@ -32,11 +32,16 @@ import java.util.UUID;
 @Repository
 public class JdbcIdentityRepository implements IdentityRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_STATUS = "status";
+    private static final String COL_CREATED_AT = "created_at";
+    private static final String COL_UPDATED_AT = "updated_at";
+
     private static final RowMapper<Identity> IDENTITY_ROW_MAPPER = (rs, rowNum) -> new Identity(
-            rs.getObject("id", UUID.class),
-            IdentityStatus.valueOf(rs.getString("status")),
-            rs.getTimestamp("created_at").toInstant(),
-            rs.getTimestamp("updated_at").toInstant()
+            rs.getObject(COL_ID, UUID.class),
+            IdentityStatus.valueOf(rs.getString(COL_STATUS)),
+            rs.getTimestamp(COL_CREATED_AT).toInstant(),
+            rs.getTimestamp(COL_UPDATED_AT).toInstant()
     );
 
     private final JdbcClient jdbcClient;
@@ -49,7 +54,7 @@ public class JdbcIdentityRepository implements IdentityRepository {
     public Optional<Identity> findById(UUID id) {
         return jdbcClient
                 .sql("SELECT id, status, created_at, updated_at FROM who_identity WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .query(IDENTITY_ROW_MAPPER)
                 .optional();
     }
@@ -62,8 +67,8 @@ public class JdbcIdentityRepository implements IdentityRepository {
                         VALUES (:id, :status, :createdAt, :updatedAt)
                         ON CONFLICT (id) DO UPDATE SET status = :status, updated_at = :updatedAt
                         """)
-                .param("id", identity.id())
-                .param("status", identity.status().name())
+                .param(COL_ID, identity.id())
+                .param(COL_STATUS, identity.status().name())
                 .param("createdAt", Timestamp.from(identity.createdAt()))
                 .param("updatedAt", Timestamp.from(identity.updatedAt()))
                 .update();
@@ -74,7 +79,7 @@ public class JdbcIdentityRepository implements IdentityRepository {
     public boolean existsById(UUID id) {
         Integer count = jdbcClient
                 .sql("SELECT COUNT(*) FROM who_identity WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .query(Integer.class)
                 .single();
         return count > 0;
@@ -84,7 +89,7 @@ public class JdbcIdentityRepository implements IdentityRepository {
     public void deleteById(UUID id) {
         jdbcClient
                 .sql("DELETE FROM who_identity WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .update();
     }
 }

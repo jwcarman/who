@@ -25,7 +25,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.time.Instant;
-import java.sql.Timestamp;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,7 +59,8 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
 
     @Test
     void createTokenThrowsForUnknownIdentity() {
-        assertThatThrownBy(() -> service.createToken(UUID.randomUUID()))
+        UUID unknownId = UUID.randomUUID();
+        assertThatThrownBy(() -> service.createToken(unknownId))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

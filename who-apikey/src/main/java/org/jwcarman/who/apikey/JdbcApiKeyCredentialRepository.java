@@ -29,11 +29,16 @@ import java.util.UUID;
 @Repository
 public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_NAME = "name";
+    private static final String COL_KEY_HASH = "key_hash";
+    private static final String PARAM_KEY_HASH = "keyHash";
+
     private static final RowMapper<ApiKeyCredential> ROW_MAPPER = (rs, rowNum) ->
             new ApiKeyCredential(
-                    rs.getObject("id", UUID.class),
-                    rs.getString("name"),
-                    rs.getString("key_hash"));
+                    rs.getObject(COL_ID, UUID.class),
+                    rs.getString(COL_NAME),
+                    rs.getString(COL_KEY_HASH));
 
     private final JdbcClient jdbcClient;
 
@@ -45,7 +50,7 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
     public Optional<ApiKeyCredential> findByKeyHash(String keyHash) {
         return jdbcClient
                 .sql("SELECT id, name, key_hash FROM who_api_key_credential WHERE key_hash = :keyHash")
-                .param("keyHash", keyHash)
+                .param(PARAM_KEY_HASH, keyHash)
                 .query(ROW_MAPPER)
                 .optional();
     }
@@ -58,9 +63,9 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
                         VALUES (:id, :name, :keyHash)
                         ON CONFLICT (id) DO UPDATE SET name = :name, key_hash = :keyHash
                         """)
-                .param("id", credential.id())
-                .param("name", credential.name())
-                .param("keyHash", credential.keyHash())
+                .param(COL_ID, credential.id())
+                .param(COL_NAME, credential.name())
+                .param(PARAM_KEY_HASH, credential.keyHash())
                 .update();
         return credential;
     }
@@ -69,7 +74,7 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
     public void deleteById(UUID id) {
         jdbcClient
                 .sql("DELETE FROM who_api_key_credential WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .update();
     }
 }

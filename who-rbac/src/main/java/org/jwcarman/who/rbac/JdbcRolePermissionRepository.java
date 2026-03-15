@@ -29,6 +29,9 @@ import java.util.UUID;
 @Repository
 public class JdbcRolePermissionRepository implements RolePermissionRepository {
 
+    private static final String PARAM_ROLE_ID = "roleId";
+    private static final String PARAM_PERMISSION = "permission";
+
     private final JdbcClient jdbcClient;
 
     public JdbcRolePermissionRepository(JdbcClient jdbcClient) {
@@ -39,7 +42,7 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
     public Set<String> findPermissionsByRoleId(UUID roleId) {
         return new HashSet<>(jdbcClient
                 .sql("SELECT permission FROM who_role_permission WHERE role_id = :roleId")
-                .param("roleId", roleId)
+                .param(PARAM_ROLE_ID, roleId)
                 .query(String.class)
                 .list());
     }
@@ -60,8 +63,8 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
     public void addPermission(UUID roleId, String permission) {
         jdbcClient
                 .sql("INSERT INTO who_role_permission (role_id, permission) VALUES (:roleId, :permission) ON CONFLICT DO NOTHING")
-                .param("roleId", roleId)
-                .param("permission", permission)
+                .param(PARAM_ROLE_ID, roleId)
+                .param(PARAM_PERMISSION, permission)
                 .update();
     }
 
@@ -69,8 +72,8 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
     public void removePermission(UUID roleId, String permission) {
         jdbcClient
                 .sql("DELETE FROM who_role_permission WHERE role_id = :roleId AND permission = :permission")
-                .param("roleId", roleId)
-                .param("permission", permission)
+                .param(PARAM_ROLE_ID, roleId)
+                .param(PARAM_PERMISSION, permission)
                 .update();
     }
 
@@ -78,7 +81,7 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
     public void removeAllPermissionsForRole(UUID roleId) {
         jdbcClient
                 .sql("DELETE FROM who_role_permission WHERE role_id = :roleId")
-                .param("roleId", roleId)
+                .param(PARAM_ROLE_ID, roleId)
                 .update();
     }
 }

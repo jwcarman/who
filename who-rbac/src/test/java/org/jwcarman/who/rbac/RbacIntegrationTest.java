@@ -106,7 +106,8 @@ class RbacIntegrationTest extends AbstractRbacTest {
     @Test
     void removeRoleFromIdentityThrowsWhenNotAssigned() {
         UUID roleId = rbacService.createRole("REMOVE_ASSIGN_ROLE");
-        assertThatThrownBy(() -> rbacService.removeRoleFromIdentity(UUID.randomUUID(), roleId))
+        UUID unknownIdentityId = UUID.randomUUID();
+        assertThatThrownBy(() -> rbacService.removeRoleFromIdentity(unknownIdentityId, roleId))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

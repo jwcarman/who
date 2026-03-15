@@ -27,6 +27,9 @@ import java.util.UUID;
 @Repository
 public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
 
+    private static final String PARAM_IDENTITY_ID = "identityId";
+    private static final String PARAM_ROLE_ID = "roleId";
+
     private final JdbcClient jdbcClient;
 
     public JdbcIdentityRoleRepository(JdbcClient jdbcClient) {
@@ -37,7 +40,7 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
     public List<UUID> findRoleIdsByIdentityId(UUID identityId) {
         return jdbcClient
                 .sql("SELECT role_id FROM who_identity_role WHERE identity_id = :identityId")
-                .param("identityId", identityId)
+                .param(PARAM_IDENTITY_ID, identityId)
                 .query(UUID.class)
                 .list();
     }
@@ -46,8 +49,8 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
     public void assignRole(UUID identityId, UUID roleId) {
         jdbcClient
                 .sql("INSERT INTO who_identity_role (identity_id, role_id) VALUES (:identityId, :roleId) ON CONFLICT DO NOTHING")
-                .param("identityId", identityId)
-                .param("roleId", roleId)
+                .param(PARAM_IDENTITY_ID, identityId)
+                .param(PARAM_ROLE_ID, roleId)
                 .update();
     }
 
@@ -55,8 +58,8 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
     public void removeRole(UUID identityId, UUID roleId) {
         jdbcClient
                 .sql("DELETE FROM who_identity_role WHERE identity_id = :identityId AND role_id = :roleId")
-                .param("identityId", identityId)
-                .param("roleId", roleId)
+                .param(PARAM_IDENTITY_ID, identityId)
+                .param(PARAM_ROLE_ID, roleId)
                 .update();
     }
 
@@ -64,7 +67,7 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
     public void removeAllRolesForIdentity(UUID identityId) {
         jdbcClient
                 .sql("DELETE FROM who_identity_role WHERE identity_id = :identityId")
-                .param("identityId", identityId)
+                .param(PARAM_IDENTITY_ID, identityId)
                 .update();
     }
 }

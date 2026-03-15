@@ -29,6 +29,8 @@ import java.util.UUID;
 @Repository
 public class JdbcCredentialIdentityRepository implements CredentialIdentityRepository {
 
+    private static final String PARAM_CREDENTIAL_ID = "credentialId";
+
     private final JdbcClient jdbcClient;
 
     public JdbcCredentialIdentityRepository(JdbcClient jdbcClient) {
@@ -39,7 +41,7 @@ public class JdbcCredentialIdentityRepository implements CredentialIdentityRepos
     public Optional<UUID> findIdentityIdByCredentialId(UUID credentialId) {
         return jdbcClient
                 .sql("SELECT identity_id FROM who_credential_identity WHERE credential_id = :credentialId")
-                .param("credentialId", credentialId)
+                .param(PARAM_CREDENTIAL_ID, credentialId)
                 .query((rs, rowNum) -> rs.getObject("identity_id", UUID.class))
                 .optional();
     }
@@ -48,7 +50,7 @@ public class JdbcCredentialIdentityRepository implements CredentialIdentityRepos
     public void link(UUID credentialId, UUID identityId) {
         jdbcClient
                 .sql("INSERT INTO who_credential_identity (credential_id, identity_id) VALUES (:credentialId, :identityId)")
-                .param("credentialId", credentialId)
+                .param(PARAM_CREDENTIAL_ID, credentialId)
                 .param("identityId", identityId)
                 .update();
     }
@@ -57,7 +59,7 @@ public class JdbcCredentialIdentityRepository implements CredentialIdentityRepos
     public void unlink(UUID credentialId) {
         jdbcClient
                 .sql("DELETE FROM who_credential_identity WHERE credential_id = :credentialId")
-                .param("credentialId", credentialId)
+                .param(PARAM_CREDENTIAL_ID, credentialId)
                 .update();
     }
 }

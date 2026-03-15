@@ -28,8 +28,11 @@ import java.util.UUID;
 @Repository
 public class JdbcRoleRepository implements RoleRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_NAME = "name";
+
     private static final RowMapper<Role> ROLE_ROW_MAPPER = (rs, rowNum) ->
-            Role.create(rs.getObject("id", UUID.class), rs.getString("name"));
+            Role.create(rs.getObject(COL_ID, UUID.class), rs.getString(COL_NAME));
 
     private final JdbcClient jdbcClient;
 
@@ -41,7 +44,7 @@ public class JdbcRoleRepository implements RoleRepository {
     public Optional<Role> findById(UUID id) {
         return jdbcClient
                 .sql("SELECT id, name FROM who_role WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .query(ROLE_ROW_MAPPER)
                 .optional();
     }
@@ -50,7 +53,7 @@ public class JdbcRoleRepository implements RoleRepository {
     public Optional<Role> findByName(String name) {
         return jdbcClient
                 .sql("SELECT id, name FROM who_role WHERE name = :name")
-                .param("name", name)
+                .param(COL_NAME, name)
                 .query(ROLE_ROW_MAPPER)
                 .optional();
     }
@@ -63,8 +66,8 @@ public class JdbcRoleRepository implements RoleRepository {
                         VALUES (:id, :name)
                         ON CONFLICT (id) DO UPDATE SET name = :name
                         """)
-                .param("id", role.id())
-                .param("name", role.name())
+                .param(COL_ID, role.id())
+                .param(COL_NAME, role.name())
                 .update();
         return role;
     }
@@ -73,7 +76,7 @@ public class JdbcRoleRepository implements RoleRepository {
     public boolean existsById(UUID id) {
         Integer count = jdbcClient
                 .sql("SELECT COUNT(*) FROM who_role WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .query(Integer.class)
                 .single();
         return count > 0;
@@ -83,7 +86,7 @@ public class JdbcRoleRepository implements RoleRepository {
     public void deleteById(UUID id) {
         jdbcClient
                 .sql("DELETE FROM who_role WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .update();
     }
 }

@@ -45,8 +45,7 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
         UUID identityId = createActiveIdentity();
         String rawKey = apiKeyService.create(identityId, "Test Key");
 
-        assertThat(rawKey).startsWith("who_");
-        assertThat(rawKey).hasSize(4 + 64); // "who_" + 64 hex chars
+        assertThat(rawKey).startsWith("who_").hasSize(4 + 64); // "who_" + 64 hex chars
     }
 
     @Test

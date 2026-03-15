@@ -21,6 +21,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -61,5 +62,18 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
     @Override
     public Object getCredentials() {
         return null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof WhoAuthenticationToken that)) return false;
+        if (!super.equals(o)) return false;
+        return Objects.equals(principal, that.principal);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), principal);
     }
 }

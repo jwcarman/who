@@ -30,13 +30,21 @@ import java.util.UUID;
 @Repository
 public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository {
 
+    private static final String COL_ID = "id";
+    private static final String COL_IDENTITY_ID = "identity_id";
+    private static final String COL_VALUE = "value";
+    private static final String COL_STATUS = "status";
+    private static final String COL_CREATED_AT = "created_at";
+    private static final String COL_EXPIRES_AT = "expires_at";
+    private static final String PARAM_IDENTITY_ID = "identityId";
+
     private static final RowMapper<EnrollmentToken> ROW_MAPPER = (rs, rowNum) -> new EnrollmentToken(
-            rs.getObject("id", UUID.class),
-            rs.getObject("identity_id", UUID.class),
-            rs.getString("value"),
-            EnrollmentTokenStatus.valueOf(rs.getString("status")),
-            rs.getTimestamp("created_at").toInstant(),
-            rs.getTimestamp("expires_at").toInstant()
+            rs.getObject(COL_ID, UUID.class),
+            rs.getObject(COL_IDENTITY_ID, UUID.class),
+            rs.getString(COL_VALUE),
+            EnrollmentTokenStatus.valueOf(rs.getString(COL_STATUS)),
+            rs.getTimestamp(COL_CREATED_AT).toInstant(),
+            rs.getTimestamp(COL_EXPIRES_AT).toInstant()
     );
 
     private final JdbcClient jdbcClient;
@@ -53,10 +61,10 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
                         VALUES (:id, :identityId, :value, :status, :createdAt, :expiresAt)
                         ON CONFLICT (id) DO UPDATE SET status = :status
                         """)
-                .param("id", token.id())
-                .param("identityId", token.identityId())
-                .param("value", token.value())
-                .param("status", token.status().name())
+                .param(COL_ID, token.id())
+                .param(PARAM_IDENTITY_ID, token.identityId())
+                .param(COL_VALUE, token.value())
+                .param(COL_STATUS, token.status().name())
                 .param("createdAt", Timestamp.from(token.createdAt()))
                 .param("expiresAt", Timestamp.from(token.expiresAt()))
                 .update();
@@ -67,7 +75,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     public Optional<EnrollmentToken> findById(UUID id) {
         return jdbcClient
                 .sql("SELECT id, identity_id, value, status, created_at, expires_at FROM who_enrollment_token WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .query(ROW_MAPPER)
                 .optional();
     }
@@ -76,7 +84,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     public Optional<EnrollmentToken> findByValue(String value) {
         return jdbcClient
                 .sql("SELECT id, identity_id, value, status, created_at, expires_at FROM who_enrollment_token WHERE value = :value")
-                .param("value", value)
+                .param(COL_VALUE, value)
                 .query(ROW_MAPPER)
                 .optional();
     }
@@ -85,7 +93,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     public void deleteById(UUID id) {
         jdbcClient
                 .sql("DELETE FROM who_enrollment_token WHERE id = :id")
-                .param("id", id)
+                .param(COL_ID, id)
                 .update();
     }
 }

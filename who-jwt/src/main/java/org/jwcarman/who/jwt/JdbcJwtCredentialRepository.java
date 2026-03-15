@@ -28,11 +28,14 @@ import java.util.UUID;
 @Repository
 public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
 
+    private static final String COL_ISSUER = "issuer";
+    private static final String COL_SUBJECT = "subject";
+
     private static final RowMapper<JwtCredential> ROW_MAPPER = (rs, rowNum) ->
             new JwtCredential(
                     rs.getObject("id", UUID.class),
-                    rs.getString("issuer"),
-                    rs.getString("subject"));
+                    rs.getString(COL_ISSUER),
+                    rs.getString(COL_SUBJECT));
 
     private final JdbcClient jdbcClient;
 
@@ -44,8 +47,8 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
     public Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject) {
         return jdbcClient
                 .sql("SELECT id, issuer, subject FROM who_jwt_credential WHERE issuer = :issuer AND subject = :subject")
-                .param("issuer", issuer)
-                .param("subject", subject)
+                .param(COL_ISSUER, issuer)
+                .param(COL_SUBJECT, subject)
                 .query(ROW_MAPPER)
                 .optional();
     }
@@ -59,8 +62,8 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
                         ON CONFLICT (id) DO NOTHING
                         """)
                 .param("id", credential.id())
-                .param("issuer", credential.issuer())
-                .param("subject", credential.subject())
+                .param(COL_ISSUER, credential.issuer())
+                .param(COL_SUBJECT, credential.subject())
                 .update();
         return credential;
     }
