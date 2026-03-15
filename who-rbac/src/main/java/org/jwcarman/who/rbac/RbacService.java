@@ -42,6 +42,18 @@ public class RbacService {
   }
 
   /**
+   * Returns the role whose name matches the enum constant.
+   *
+   * @param <R> the enum type serving as the role name registry
+   * @param role the enum constant whose {@link Enum#name()} is looked up
+   * @return the role
+   * @throws RoleNotFoundException if no role with that name exists
+   */
+  public <R extends Enum<R>> Role findRequiredRole(R role) {
+    return findRequiredRole(role.name());
+  }
+
+  /**
    * Returns the role with the given name.
    *
    * @param name the role name to look up
@@ -50,6 +62,19 @@ public class RbacService {
    */
   public Role findRequiredRole(String name) {
     return roleRepository.findByName(name).orElseThrow(() -> new RoleNotFoundException(name));
+  }
+
+  /**
+   * Creates a new role whose name is derived from the enum constant.
+   *
+   * @param <R> the enum type serving as the role name registry
+   * @param role the enum constant whose {@link Enum#name()} becomes the role name
+   * @return the newly created role
+   * @throws IllegalArgumentException if a role with that name already exists
+   */
+  @Transactional
+  public <R extends Enum<R>> Role createRole(R role) {
+    return createRole(role.name());
   }
 
   /**
@@ -127,6 +152,19 @@ public class RbacService {
       throw new IllegalArgumentException("Role not found: " + role.id());
     }
     identityRoleRepository.assignRole(identity.id(), role.id());
+  }
+
+  /**
+   * Assigns a role to an identity using an enum constant as the role name.
+   *
+   * @param <R> the enum type serving as the role name registry
+   * @param identity the identity to assign the role to
+   * @param role the enum constant whose {@link Enum#name()} is used as the role name
+   * @throws RoleNotFoundException if no role with that name exists
+   */
+  @Transactional
+  public <R extends Enum<R>> void assignRoleByName(Identity identity, R role) {
+    assignRoleByName(identity, role.name());
   }
 
   /**

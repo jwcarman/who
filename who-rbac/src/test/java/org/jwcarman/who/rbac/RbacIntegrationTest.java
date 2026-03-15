@@ -167,6 +167,25 @@ class RbacIntegrationTest extends AbstractRbacTest {
         .isInstanceOf(RoleNotFoundException.class);
   }
 
+  enum AppRole {
+    EDITOR,
+    VIEWER
+  }
+
+  @Test
+  void enumOverloadsCreateFindAndAssignRole() {
+    Role created = rbacService.createRole(AppRole.EDITOR);
+    assertThat(created.name()).isEqualTo("EDITOR");
+
+    Role found = rbacService.findRequiredRole(AppRole.EDITOR);
+    assertThat(found.name()).isEqualTo("EDITOR");
+
+    Identity identity = Identity.create();
+    rbacService.addPermissionToRole(created, "READ");
+    rbacService.assignRoleByName(identity, AppRole.EDITOR);
+    assertThat(resolver.resolve(identity)).containsExactly("READ");
+  }
+
   @Test
   void deleteRoleCascadesPermissionsAndIdentityAssignments() {
     Role role = rbacService.createRole("CASCADE_ROLE");
