@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T22:30:47-04:00
-ITERATION: 6
-SPEC_COMPLETED: 005-who-autoconfigure.md
-WHAT_WAS_DONE: Created who-autoconfigure module (WhoProperties, WhoAutoConfiguration with nested conditional configs for JDBC/RBAC/JWT, AutoConfiguration.imports, 2 ApplicationContextRunner integration tests) and who-spring-boot-starter POM-only module; made JDBC repo classes/constructors public in who-jdbc, who-rbac, who-jwt so autoconfiguration can instantiate them.
-VERIFICATION: mvn test → BUILD SUCCESS (2 who-autoconfigure tests pass, all prior tests pass); mvn -P license verify → BUILD SUCCESS; spring-configuration-metadata.json generated in jar
+LAST_RUN: 2026-03-14T22:54:50-04:00
+ITERATION: 7
+SPEC_COMPLETED: 006-who-example.md
+WHAT_WAS_DONE: Created who-example module — a fully self-contained Spring Boot application with embedded Spring Authorization Server, H2 database, JWT-protected API (TaskController, MeController), Thymeleaf UI, and bootstrap data for alice/bob/admin users. Updated root pom.xml to include the module and README.md with Quick Start section.
+VERIFICATION: mvn test → BUILD SUCCESS (5 who-example tests pass, all 8 modules pass); mvn -P license verify → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 006-who-example.md
-NOTES: spring-boot-configuration-processor requires explicit <annotationProcessorPaths> in maven-compiler-plugin config (not just <optional>true</optional> dependency) to generate spring-configuration-metadata.json. JDBC repo implementations were made public (class + constructor) so WhoAutoConfiguration nested static classes can instantiate them from a different package. @ConditionalOnClass uses name= string form on nested static @Configuration classes to avoid ClassNotFoundError when optional modules are absent at runtime.
+NEXT_SPEC: 007-who-enrollment.md
+NOTES: Spring Boot 4.0.2 / Spring Security 7.0.2 API changes: (1) OAuth2AuthorizationServerConfiguration.applyDefaultSecurity() removed — use OAuth2AuthorizationServerConfigurer directly with getEndpointsMatcher(); (2) @AutoConfigureMockMvc removed from spring-boot-test-autoconfigure — use MockMvcBuilders.webAppContextSetup() instead; (3) OAuth2 client provider must use explicit endpoints (authorization-uri, token-uri, jwk-set-uri) instead of issuer-uri to avoid OIDC discovery HTTP calls at context startup — issuer-uri causes "Unable to resolve Configuration" failures in tests; (4) Resource server jwt.jwk-set-uri instead of jwt.issuer-uri avoids discovery too. The who-example module is excluded from release profile implicitly because it's a plain jar with spring-boot-maven-plugin — it won't publish to Maven Central.

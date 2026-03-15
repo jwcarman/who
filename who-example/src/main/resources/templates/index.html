@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Who Example</title>
+    <style>
+        body { font-family: monospace; max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        pre { background: #f4f4f4; padding: 12px; overflow-x: auto; border-radius: 4px; }
+        .token { word-break: break-all; }
+        h2 { margin-top: 2em; }
+    </style>
+</head>
+<body>
+
+<h1>Who Example</h1>
+
+<div sec:authorize="!isAuthenticated()">
+    <p>Not logged in.</p>
+    <a href="/oauth2/authorization/demo-client">Login</a>
+</div>
+
+<div sec:authorize="isAuthenticated()">
+    <h2>Identity</h2>
+    <table>
+        <tr><th>Username</th><td th:text="${username}">-</td></tr>
+        <tr><th>Identity ID</th><td th:text="${identityId}">-</td></tr>
+        <tr><th>Permissions</th><td th:text="${permissions}">-</td></tr>
+    </table>
+
+    <h2>Access Token</h2>
+    <pre class="token" th:text="${accessToken}">-</pre>
+
+    <h2>Try it with curl</h2>
+    <pre th:text="|curl http://localhost:8080/api/me \\
+  -H 'Authorization: Bearer ${accessToken}'|">curl ...</pre>
+
+    <pre th:text="|curl http://localhost:8080/api/tasks \\
+  -H 'Authorization: Bearer ${accessToken}'|">curl ...</pre>
+
+    <pre th:text="|curl -X POST http://localhost:8080/api/tasks \\
+  -H 'Authorization: Bearer ${accessToken}' \\
+  -H 'Content-Type: application/json' \\
+  -d '{\"title\": \"New task\", \"status\": \"OPEN\"}'|">curl ...</pre>
+
+    <p><a href="/logout">Logout</a></p>
+</div>
+
+</body>
+</html>

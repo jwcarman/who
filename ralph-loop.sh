@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-trap 'echo; log "Interrupted. Exiting."; exit 130' INT TERM
+trap 'echo; log "Interrupted. Exiting."; kill 0 2>/dev/null; exit 130' INT TERM
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAX_ITERATIONS="${MAX_ITERATIONS:-100}"
@@ -107,9 +107,16 @@ commit_iteration() {
   fi
 }
 
+next_spec() {
+  compgen -G "$SCRIPT_DIR/specs/*.md" > /dev/null 2>&1 && \
+    ls "$SCRIPT_DIR/specs/"*.md 2>/dev/null | sort | head -1 | xargs basename
+}
+
 run_iteration() {
   local iteration=$1
-  log "--- Iteration $iteration ---"
+  local spec
+  spec=$(next_spec)
+  log "--- Iteration $iteration — ${spec:-unknown} ---"
 
   if $DRY_RUN; then
     log "DRY RUN — would run: claude --dangerously-skip-permissions --print \"/ralph-plugin:run\""

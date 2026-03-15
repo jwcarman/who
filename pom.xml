@@ -99,6 +99,7 @@
         <module>who-jwt</module>
         <module>who-autoconfigure</module>
         <module>who-spring-boot-starter</module>
+        <module>who-example</module>
     </modules>
 
     <dependencyManagement>
