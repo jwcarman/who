@@ -11,7 +11,9 @@ the tables it manages.
 New Maven module `who-jdbc` with dependencies:
 - `who-core` (the project module)
 - `spring-boot-starter-jdbc` (for `JdbcClient`)
-- `spring-boot-starter-test` + H2 (test scope)
+- `spring-boot-starter-test` (test scope)
+- `org.testcontainers:postgresql` (test scope)
+- `org.postgresql:postgresql` (test scope — JDBC driver for Testcontainers)
 
 ### Schema
 
@@ -54,8 +56,10 @@ Implements `CredentialIdentityRepository` using `JdbcClient`. Use `@Repository`.
 
 ### Tests
 
-Integration tests using H2 in PostgreSQL compatibility mode. Test configuration should
-initialize the schema from `schema.sql`. Cover:
+Integration tests using Testcontainers with a real PostgreSQL instance. Use
+`@Testcontainers` and `@Container` with `PostgreSQLContainer`. The test datasource
+should be configured from the container's JDBC URL, username, and password. Initialize
+the schema from `schema.sql` before each test class. Cover:
 - Save new identity, retrieve it
 - Update identity status via save (upsert)
 - `existsById` returns true/false correctly
@@ -73,7 +77,7 @@ initialize the schema from `schema.sql`. Cover:
 - [ ] `JdbcIdentityRepository` implements `IdentityRepository` using `INSERT ... ON CONFLICT DO UPDATE` — no UPDATE-then-INSERT pattern
 - [ ] `JdbcCredentialIdentityRepository` implements `CredentialIdentityRepository`
 - [ ] Deleting an identity cascades to remove its entries from `who_credential_identity`
-- [ ] Integration tests pass against H2 in PostgreSQL compatibility mode
+- [ ] Integration tests pass against a real PostgreSQL instance via Testcontainers
 - [ ] `mvn test` passes
 - [ ] `mvn -P license verify` passes
 - [ ] Public classes have JavaDoc
@@ -83,6 +87,6 @@ initialize the schema from `schema.sql`. Cover:
 
 - Constructor injection only — `JdbcClient` injected via constructor, no `@Autowired`
 - No UPDATE-then-INSERT upsert — use `ON CONFLICT DO UPDATE` exclusively
-- H2 test datasource should use `MODE=PostgreSQL` in the JDBC URL
+- Tests use Testcontainers — Docker must be available in the build environment
 - `link()` throwing on duplicate credential_id is intentional — a credential maps to exactly one identity; if re-linking is needed it must be explicitly unlinked first
 - Column names use snake_case; parameter names use camelCase (JdbcClient named params)

@@ -16,26 +16,7 @@
 package org.jwcarman.who.jdbc;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
-
-import javax.sql.DataSource;
 
 @SpringBootApplication
 class WhoJdbcTestApp {
-
-    /**
-     * Creates an H2 in-memory DataSource in PostgreSQL compatibility mode.
-     * The database name includes MODE=PostgreSQL so Spring's EmbeddedDatabaseBuilder
-     * produces the URL: jdbc:h2:mem:whotest;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
-     */
-    @Bean
-    DataSource dataSource() {
-        return new EmbeddedDatabaseBuilder()
-                .setType(EmbeddedDatabaseType.H2)
-                .setName("whotest;MODE=PostgreSQL")
-                .addScript("classpath:org/jwcarman/who/jdbc/schema.sql")
-                .build();
-    }
 }

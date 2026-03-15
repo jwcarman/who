@@ -12,7 +12,9 @@ permissions.
 New Maven module `who-rbac` with dependencies:
 - `who-core`
 - `spring-boot-starter-jdbc`
-- `spring-boot-starter-test` + H2 (test scope)
+- `spring-boot-starter-test` (test scope)
+- `org.testcontainers:postgresql` (test scope)
+- `org.postgresql:postgresql` (test scope)
 
 ### Schema
 
@@ -120,7 +122,7 @@ All multi-step operations in `RbacService` must be annotated `@Transactional`.
 - [ ] `RbacPermissionsResolver.resolve()` returns empty set when identity has no roles
 - [ ] `RbacService` throws `IllegalArgumentException` for invalid inputs (not found, duplicate)
 - [ ] `RbacService` multi-step operations are `@Transactional`
-- [ ] Integration tests pass against H2 in PostgreSQL mode covering the full role→permission→identity chain
+- [ ] Integration tests pass against a real PostgreSQL instance via Testcontainers covering the full role→permission→identity chain
 - [ ] `mvn test` passes
 - [ ] `mvn -P license verify` passes
 - [ ] Public classes and interfaces have JavaDoc

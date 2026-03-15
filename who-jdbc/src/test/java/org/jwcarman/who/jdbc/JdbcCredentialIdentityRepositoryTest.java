@@ -19,17 +19,13 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@Transactional
-class JdbcCredentialIdentityRepositoryTest {
+class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
 
     @Autowired
     private JdbcIdentityRepository identityRepository;

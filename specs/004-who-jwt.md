@@ -16,7 +16,9 @@ New Maven module `who-jwt` with dependencies:
 - `who-core`
 - `spring-boot-starter-oauth2-resource-server`
 - `spring-boot-starter-jdbc`
-- `spring-boot-starter-test` + H2 (test scope)
+- `spring-boot-starter-test` (test scope)
+- `org.testcontainers:postgresql` (test scope)
+- `org.postgresql:postgresql` (test scope)
 
 ### Schema
 
@@ -96,7 +98,7 @@ instances for the authorities collection.
 - [ ] `WhoAuthenticationToken.getCredentials()` returns `null`
 - [ ] Authorities on `WhoAuthenticationToken` match the permissions in `WhoPrincipal`
 - [ ] `WhoJwtAuthenticationConverter` is tested with mocked `JwtCredentialRepository` and `WhoService`
-- [ ] JDBC integration tests cover find, save, and conflict behavior
+- [ ] JDBC integration tests cover find, save, and conflict behavior against a real PostgreSQL instance via Testcontainers
 - [ ] `mvn test` passes
 - [ ] `mvn -P license verify` passes
 - [ ] Public classes and interfaces have JavaDoc

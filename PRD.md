@@ -31,6 +31,7 @@ whether the caller used a JWT or an API key — the principal shape is always th
 - License headers: mycila license-maven-plugin (enforced via `-P license`)
 - Persistence: Spring `JdbcClient` — no JPA/Hibernate
 - No checkstyle or spotless configured
+- Integration tests use Testcontainers with real PostgreSQL — Docker must be running
 
 ---
 
