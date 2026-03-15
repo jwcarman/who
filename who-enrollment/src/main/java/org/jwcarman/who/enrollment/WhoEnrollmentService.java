@@ -21,8 +21,8 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.Optional;
-import java.util.UUID;
 
 
 /**
@@ -37,16 +37,16 @@ public class WhoEnrollmentService {
     private final EnrollmentTokenRepository enrollmentTokenRepository;
     private final IdentityRepository identityRepository;
     private final CredentialIdentityRepository credentialIdentityRepository;
-    private final int expirationHours;
+    private final Duration tokenExpiration;
 
     public WhoEnrollmentService(EnrollmentTokenRepository enrollmentTokenRepository,
                                 IdentityRepository identityRepository,
                                 CredentialIdentityRepository credentialIdentityRepository,
-                                int expirationHours) {
+                                Duration tokenExpiration) {
         this.enrollmentTokenRepository = enrollmentTokenRepository;
         this.identityRepository = identityRepository;
         this.credentialIdentityRepository = credentialIdentityRepository;
-        this.expirationHours = expirationHours;
+        this.tokenExpiration = tokenExpiration;
     }
 
     /**
@@ -62,7 +62,7 @@ public class WhoEnrollmentService {
         if (!identityRepository.existsById(identity.id())) {
             throw new IllegalArgumentException("Identity not found: " + identity.id());
         }
-        return enrollmentTokenRepository.save(EnrollmentToken.create(identity.id(), expirationHours));
+        return enrollmentTokenRepository.save(EnrollmentToken.create(identity, tokenExpiration));
     }
 
     /**
@@ -100,12 +100,12 @@ public class WhoEnrollmentService {
     /**
      * Revokes an enrollment token, preventing it from being redeemed.
      *
-     * @param tokenId the id of the token to revoke
-     * @throws EnrollmentTokenNotFoundException if no token with the given id exists
+     * @param token the token to revoke
+     * @throws EnrollmentTokenNotFoundException if the token does not exist
      */
-    public void revokeToken(UUID tokenId) {
-        EnrollmentToken token = enrollmentTokenRepository.findById(tokenId)
-                .orElseThrow(() -> new EnrollmentTokenNotFoundException(tokenId.toString()));
+    public void revokeToken(EnrollmentToken token) {
+        enrollmentTokenRepository.findById(token.id())
+                .orElseThrow(() -> new EnrollmentTokenNotFoundException(token.id().toString()));
         enrollmentTokenRepository.save(token.revoke());
     }
 

@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.rbac;
 
+import org.jwcarman.who.core.Identifiers;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,13 +35,12 @@ public record Role(UUID id, String name) {
     }
 
     /**
-     * Static factory method for creating a new Role.
+     * Static factory method for creating a new Role with a generated UUID.
      *
-     * @param id   the unique identifier for the role
      * @param name the human-readable name of the role
      * @return a new Role instance
      */
-    public static Role create(UUID id, String name) {
-        return new Role(id, name);
+    public static Role create(String name) {
+        return new Role(Identifiers.uuid(), name);
     }
 }

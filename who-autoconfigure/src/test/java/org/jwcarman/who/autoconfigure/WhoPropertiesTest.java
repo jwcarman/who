@@ -17,6 +17,7 @@ package org.jwcarman.who.autoconfigure;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,7 +34,7 @@ class WhoPropertiesTest {
                 .containsExactly("classpath:org/jwcarman/who/rbac/schema.sql");
         assertThat(props.getJwt().getSchemaLocations())
                 .containsExactly("classpath:org/jwcarman/who/jwt/schema.sql");
-        assertThat(props.getEnrollment().getExpirationHours()).isEqualTo(24);
+        assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
         assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
     }
 
@@ -57,9 +58,9 @@ class WhoPropertiesTest {
         assertThat(props.getJwt().getSchemaLocations()).containsExactly("classpath:custom-jwt.sql");
 
         WhoProperties.Enrollment enrollment = new WhoProperties.Enrollment();
-        enrollment.setExpirationHours(48);
+        enrollment.setTokenExpiration(Duration.ofHours(48));
         props.setEnrollment(enrollment);
-        assertThat(props.getEnrollment().getExpirationHours()).isEqualTo(48);
+        assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(48));
 
         WhoProperties.ApiKey apiKey = new WhoProperties.ApiKey();
         apiKey.setHeaderName("Authorization");

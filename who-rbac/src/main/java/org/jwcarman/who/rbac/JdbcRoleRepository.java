@@ -32,7 +32,7 @@ public class JdbcRoleRepository implements RoleRepository {
     private static final String COL_NAME = "name";
 
     private static final RowMapper<Role> ROLE_ROW_MAPPER = (rs, rowNum) ->
-            Role.create(rs.getObject(COL_ID, UUID.class), rs.getString(COL_NAME));
+            new Role(rs.getObject(COL_ID, UUID.class), rs.getString(COL_NAME));
 
     private final JdbcClient jdbcClient;
 

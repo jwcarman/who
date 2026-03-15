@@ -514,6 +514,9 @@ notifyUser(token.value()); // email, admin console, etc.
 // 3. User redeems the token with their JwtCredential
 JwtCredential credential = JwtCredential.create(issuer, subject);
 enrollmentService.enroll(token.value(), credential);
+
+// To cancel a token before it is redeemed:
+enrollmentService.revokeToken(token);
 ```
 
 **Manual SQL insert (for bootstrapping / testing):**
@@ -546,12 +549,12 @@ Use `RbacService` to manage roles and assign them to identities:
 Identity identity = whoService.createIdentity();
 
 // Create a role and grant permissions
-UUID editorRoleId = rbacService.createRole("editor");
-rbacService.addPermissionToRole(editorRoleId, "task.read");
-rbacService.addPermissionToRole(editorRoleId, "task.write");
+Role editorRole = rbacService.createRole("editor");
+rbacService.addPermissionToRole(editorRole, "task.read");
+rbacService.addPermissionToRole(editorRole, "task.write");
 
 // Assign the role to the identity
-rbacService.assignRoleToIdentity(identity, editorRoleId);
+rbacService.assignRoleToIdentity(identity, editorRole);
 ```
 
 Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:
@@ -560,7 +563,7 @@ Permissions resolve transitively through all roles assigned to an identity. Use 
 @GetMapping("/tasks")
 @PreAuthorize("hasAuthority('task.read')")
 public List<Task> getTasks(@AuthenticationPrincipal WhoPrincipal principal) {
-    return taskService.findAll(principal.identityId());
+    return taskService.findAll(principal.identity().id());
 }
 ```
 

@@ -176,7 +176,7 @@ public class WhoAutoConfiguration {
                     enrollmentTokenRepository,
                     identityRepository,
                     credentialIdentityRepository,
-                    properties.getEnrollment().getExpirationHours());
+                    properties.getEnrollment().getTokenExpiration());
         }
     }
 

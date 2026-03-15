@@ -17,6 +17,7 @@ package org.jwcarman.who.autoconfigure;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -168,24 +169,24 @@ public class WhoProperties {
      */
     public static class Enrollment {
 
-        private int expirationHours = 24;
+        private Duration tokenExpiration = Duration.ofHours(24);
 
         /**
-         * Hours after which a newly created enrollment token expires.
+         * Duration after which a newly created enrollment token expires.
          *
-         * @return expiration hours
+         * @return token expiration duration
          */
-        public int getExpirationHours() {
-            return expirationHours;
+        public Duration getTokenExpiration() {
+            return tokenExpiration;
         }
 
         /**
-         * Sets the hours after which a newly created enrollment token expires.
+         * Sets the duration after which a newly created enrollment token expires.
          *
-         * @param expirationHours expiration hours
+         * @param tokenExpiration token expiration duration
          */
-        public void setExpirationHours(int expirationHours) {
-            this.expirationHours = expirationHours;
+        public void setTokenExpiration(Duration tokenExpiration) {
+            this.tokenExpiration = tokenExpiration;
         }
     }
 

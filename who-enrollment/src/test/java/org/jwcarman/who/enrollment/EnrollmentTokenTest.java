@@ -15,9 +15,10 @@
  */
 package org.jwcarman.who.enrollment;
 
+import org.jwcarman.who.core.domain.Identity;
 import org.junit.jupiter.api.Test;
 
-import java.util.UUID;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,7 +26,7 @@ class EnrollmentTokenTest {
 
     @Test
     void isPendingReturnsTrueForPendingNonExpiredToken() {
-        EnrollmentToken token = EnrollmentToken.create(UUID.randomUUID(), 24);
+        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24));
 
         assertThat(token.isPending()).isTrue();
         assertThat(token.isExpired()).isFalse();
@@ -33,7 +34,7 @@ class EnrollmentTokenTest {
 
     @Test
     void isPendingReturnsFalseForExpiredToken() {
-        EnrollmentToken token = EnrollmentToken.create(UUID.randomUUID(), -1);
+        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(-1));
 
         assertThat(token.isExpired()).isTrue();
         assertThat(token.isPending()).isFalse();
@@ -41,14 +42,14 @@ class EnrollmentTokenTest {
 
     @Test
     void isPendingReturnsFalseForRedeemedToken() {
-        EnrollmentToken token = EnrollmentToken.create(UUID.randomUUID(), 24).redeem();
+        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).redeem();
 
         assertThat(token.isPending()).isFalse();
     }
 
     @Test
     void isPendingReturnsFalseForRevokedToken() {
-        EnrollmentToken token = EnrollmentToken.create(UUID.randomUUID(), 24).revoke();
+        EnrollmentToken token = EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).revoke();
 
         assertThat(token.isPending()).isFalse();
     }

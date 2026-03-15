@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,7 +32,7 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
     @Test
     void addsAndRetrievesPermissionsByRoleId() {
-        Role role = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_1"));
+        Role role = roleRepository.save(Role.create("PERM_ROLE_1"));
 
         permissionRepository.addPermission(role.id(), "READ");
         permissionRepository.addPermission(role.id(), "WRITE");
@@ -44,7 +43,7 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
     @Test
     void removesPermission() {
-        Role role = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_2"));
+        Role role = roleRepository.save(Role.create("PERM_ROLE_2"));
         permissionRepository.addPermission(role.id(), "DELETE");
         permissionRepository.addPermission(role.id(), "EXECUTE");
 
@@ -56,7 +55,7 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
     @Test
     void removeAllPermissionsForRole() {
-        Role role = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_3"));
+        Role role = roleRepository.save(Role.create("PERM_ROLE_3"));
         permissionRepository.addPermission(role.id(), "A");
         permissionRepository.addPermission(role.id(), "B");
 
@@ -67,8 +66,8 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
     @Test
     void findPermissionsByRoleIdsReturnsUnion() {
-        Role role1 = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_4"));
-        Role role2 = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_5"));
+        Role role1 = roleRepository.save(Role.create("PERM_ROLE_4"));
+        Role role2 = roleRepository.save(Role.create("PERM_ROLE_5"));
         permissionRepository.addPermission(role1.id(), "READ");
         permissionRepository.addPermission(role2.id(), "WRITE");
 
@@ -78,8 +77,8 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
     @Test
     void findPermissionsByRoleIdsDeduplicatesOverlappingPermissions() {
-        Role role1 = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_6"));
-        Role role2 = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_7"));
+        Role role1 = roleRepository.save(Role.create("PERM_ROLE_6"));
+        Role role2 = roleRepository.save(Role.create("PERM_ROLE_7"));
         permissionRepository.addPermission(role1.id(), "SHARED");
         permissionRepository.addPermission(role2.id(), "SHARED");
 
@@ -89,7 +88,7 @@ class JdbcRolePermissionRepositoryTest extends AbstractRbacTest {
 
     @Test
     void findPermissionsByRoleIdReturnsEmptyWhenNoneAssigned() {
-        Role role = roleRepository.save(Role.create(UUID.randomUUID(), "PERM_ROLE_8"));
+        Role role = roleRepository.save(Role.create("PERM_ROLE_8"));
 
         assertThat(permissionRepository.findPermissionsByRoleId(role.id())).isEmpty();
     }

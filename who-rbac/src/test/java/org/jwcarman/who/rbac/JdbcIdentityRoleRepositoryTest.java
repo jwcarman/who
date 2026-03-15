@@ -32,7 +32,7 @@ class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void assignsRoleToIdentityAndRetrievesIt() {
-        Role role = roleRepository.save(Role.create(UUID.randomUUID(), "IR_ROLE_1"));
+        Role role = roleRepository.save(Role.create("IR_ROLE_1"));
         UUID identityId = UUID.randomUUID();
 
         identityRoleRepository.assignRole(identityId, role.id());
@@ -43,7 +43,7 @@ class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void removesRoleFromIdentity() {
-        Role role = roleRepository.save(Role.create(UUID.randomUUID(), "IR_ROLE_2"));
+        Role role = roleRepository.save(Role.create("IR_ROLE_2"));
         UUID identityId = UUID.randomUUID();
         identityRoleRepository.assignRole(identityId, role.id());
 
@@ -54,8 +54,8 @@ class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void removeAllRolesForIdentity() {
-        Role role1 = roleRepository.save(Role.create(UUID.randomUUID(), "IR_ROLE_3"));
-        Role role2 = roleRepository.save(Role.create(UUID.randomUUID(), "IR_ROLE_4"));
+        Role role1 = roleRepository.save(Role.create("IR_ROLE_3"));
+        Role role2 = roleRepository.save(Role.create("IR_ROLE_4"));
         UUID identityId = UUID.randomUUID();
         identityRoleRepository.assignRole(identityId, role1.id());
         identityRoleRepository.assignRole(identityId, role2.id());

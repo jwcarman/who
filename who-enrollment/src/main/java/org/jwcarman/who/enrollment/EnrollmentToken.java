@@ -16,7 +16,9 @@
 package org.jwcarman.who.enrollment;
 
 import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.domain.Identity;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -50,19 +52,19 @@ public record EnrollmentToken(
     /**
      * Creates a new PENDING enrollment token for the given identity.
      *
-     * @param identityId      the identity this token is for
-     * @param expirationHours hours until the token expires
+     * @param identity   the identity this token is for
+     * @param expiration how long until the token expires
      * @return a new {@code PENDING} token
      */
-    public static EnrollmentToken create(UUID identityId, int expirationHours) {
+    public static EnrollmentToken create(Identity identity, Duration expiration) {
         Instant now = Instant.now();
         return new EnrollmentToken(
                 Identifiers.uuid(),
-                identityId,
+                identity.id(),
                 Identifiers.uuid().toString(),
                 EnrollmentTokenStatus.PENDING,
                 now,
-                now.plusSeconds((long) expirationHours * 3600)
+                now.plus(expiration)
         );
     }
 

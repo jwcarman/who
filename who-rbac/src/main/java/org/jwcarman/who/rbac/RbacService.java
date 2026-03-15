@@ -15,13 +15,11 @@
  */
 package org.jwcarman.who.rbac;
 
-import org.jwcarman.who.core.Identifiers;
 import org.jwcarman.who.core.domain.Identity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Management service for administering roles, permissions, and identity-role assignments.
@@ -46,93 +44,92 @@ public class RbacService {
      * Creates a new role with the given name.
      *
      * @param name the role name (must be unique)
-     * @return the UUID of the newly created role
+     * @return the newly created role
      * @throws IllegalArgumentException if a role with that name already exists
      */
     @Transactional
-    public UUID createRole(String name) {
+    public Role createRole(String name) {
         if (roleRepository.findByName(name).isPresent()) {
             throw new IllegalArgumentException("Role already exists with name: " + name);
         }
-        Role role = Role.create(Identifiers.uuid(), name);
-        roleRepository.save(role);
-        return role.id();
+        Role role = Role.create(name);
+        return roleRepository.save(role);
     }
 
     /**
-     * Deletes the role with the given id and cascades to all associated permissions and assignments.
+     * Deletes the given role and cascades to all associated permissions and assignments.
      *
-     * @param roleId the role UUID
-     * @throws IllegalArgumentException if no role with that id exists
+     * @param role the role to delete
+     * @throws IllegalArgumentException if the role does not exist
      */
     @Transactional
-    public void deleteRole(UUID roleId) {
-        if (!roleRepository.existsById(roleId)) {
-            throw new IllegalArgumentException("Role not found: " + roleId);
+    public void deleteRole(Role role) {
+        if (!roleRepository.existsById(role.id())) {
+            throw new IllegalArgumentException("Role not found: " + role.id());
         }
-        roleRepository.deleteById(roleId);
+        roleRepository.deleteById(role.id());
     }
 
     /**
      * Grants a permission string to the given role.
      *
-     * @param roleId     the role UUID
+     * @param role       the role to grant the permission to
      * @param permission the permission string to grant
      * @throws IllegalArgumentException if the role does not exist
      */
     @Transactional
-    public void addPermissionToRole(UUID roleId, String permission) {
-        if (!roleRepository.existsById(roleId)) {
-            throw new IllegalArgumentException("Role not found: " + roleId);
+    public void addPermissionToRole(Role role, String permission) {
+        if (!roleRepository.existsById(role.id())) {
+            throw new IllegalArgumentException("Role not found: " + role.id());
         }
-        rolePermissionRepository.addPermission(roleId, permission);
+        rolePermissionRepository.addPermission(role.id(), permission);
     }
 
     /**
      * Revokes a permission string from the given role.
      *
-     * @param roleId     the role UUID
+     * @param role       the role to revoke the permission from
      * @param permission the permission string to revoke
      * @throws IllegalArgumentException if the permission is not currently assigned to the role
      */
     @Transactional
-    public void removePermissionFromRole(UUID roleId, String permission) {
-        Set<String> current = rolePermissionRepository.findPermissionsByRoleId(roleId);
+    public void removePermissionFromRole(Role role, String permission) {
+        Set<String> current = rolePermissionRepository.findPermissionsByRoleId(role.id());
         if (!current.contains(permission)) {
             throw new IllegalArgumentException(
-                    "Permission '" + permission + "' is not assigned to role: " + roleId);
+                    "Permission '" + permission + "' is not assigned to role: " + role.id());
         }
-        rolePermissionRepository.removePermission(roleId, permission);
+        rolePermissionRepository.removePermission(role.id(), permission);
     }
 
     /**
      * Assigns a role to an identity.
      *
      * @param identity the identity to assign the role to
-     * @param roleId   the role UUID
+     * @param role     the role to assign
      * @throws IllegalArgumentException if the role does not exist
      */
     @Transactional
-    public void assignRoleToIdentity(Identity identity, UUID roleId) {
-        if (!roleRepository.existsById(roleId)) {
-            throw new IllegalArgumentException("Role not found: " + roleId);
+    public void assignRoleToIdentity(Identity identity, Role role) {
+        if (!roleRepository.existsById(role.id())) {
+            throw new IllegalArgumentException("Role not found: " + role.id());
         }
-        identityRoleRepository.assignRole(identity.id(), roleId);
+        identityRoleRepository.assignRole(identity.id(), role.id());
     }
 
     /**
      * Removes a role assignment from an identity.
      *
      * @param identity the identity to remove the role from
-     * @param roleId   the role UUID
+     * @param role     the role to remove
      * @throws IllegalArgumentException if the role is not currently assigned to the identity
      */
     @Transactional
-    public void removeRoleFromIdentity(Identity identity, UUID roleId) {
-        if (!identityRoleRepository.findRoleIdsByIdentityId(identity.id()).contains(roleId)) {
+    public void removeRoleFromIdentity(Identity identity, Role role) {
+        if (!identityRoleRepository.findRoleIdsByIdentityId(identity.id()).contains(role.id())) {
             throw new IllegalArgumentException(
-                    "Role " + roleId + " is not assigned to identity: " + identity.id());
+                    "Role " + role.id() + " is not assigned to identity: " + identity.id());
         }
-        identityRoleRepository.removeRole(identity.id(), roleId);
+        identityRoleRepository.removeRole(identity.id(), role.id());
     }
 }

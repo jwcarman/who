@@ -29,7 +29,7 @@ class JdbcRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void savesNewRoleAndRetrievesItById() {
-        Role role = Role.create(UUID.randomUUID(), "ADMIN");
+        Role role = Role.create("ADMIN");
         repository.save(role);
 
         assertThat(repository.findById(role.id())).isPresent()
@@ -41,7 +41,7 @@ class JdbcRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void savesNewRoleAndRetrievesItByName() {
-        Role role = Role.create(UUID.randomUUID(), "USER");
+        Role role = Role.create("USER");
         repository.save(role);
 
         assertThat(repository.findByName("USER")).isPresent()
@@ -50,17 +50,18 @@ class JdbcRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void upsertUpdatesNameOnConflict() {
-        UUID id = UUID.randomUUID();
-        repository.save(Role.create(id, "OLD_NAME"));
-        repository.save(Role.create(id, "NEW_NAME"));
+        Role original = Role.create("OLD_NAME");
+        repository.save(original);
+        Role updated = new Role(original.id(), "NEW_NAME");
+        repository.save(updated);
 
-        assertThat(repository.findById(id)).isPresent()
+        assertThat(repository.findById(original.id())).isPresent()
                 .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("NEW_NAME"));
     }
 
     @Test
     void existsByIdReturnsTrueWhenRoleExists() {
-        Role role = Role.create(UUID.randomUUID(), "EXISTS");
+        Role role = Role.create("EXISTS");
         repository.save(role);
 
         assertThat(repository.existsById(role.id())).isTrue();
@@ -73,7 +74,7 @@ class JdbcRoleRepositoryTest extends AbstractRbacTest {
 
     @Test
     void deleteByIdRemovesRole() {
-        Role role = Role.create(UUID.randomUUID(), "TO_DELETE");
+        Role role = Role.create("TO_DELETE");
         repository.save(role);
 
         repository.deleteById(role.id());

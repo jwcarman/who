@@ -16,13 +16,12 @@
 package org.jwcarman.who.enrollment;
 
 import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.UUID;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,32 +33,30 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
     @Autowired
     private IdentityRepository identityRepository;
 
-    private UUID identityId;
+    private Identity identity;
 
     @BeforeEach
     void setUp() {
-        Identity identity = Identity.create();
-        identityRepository.save(identity);
-        identityId = identity.id();
+        identity = identityRepository.save(Identity.create());
     }
 
     @Test
     void savesAndRetrievesById() {
-        EnrollmentToken token = EnrollmentToken.create(identityId, 24);
+        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
         repository.save(token);
 
         assertThat(repository.findById(token.id())).isPresent()
                 .get()
                 .satisfies(found -> {
                     assertThat(found.id()).isEqualTo(token.id());
-                    assertThat(found.identityId()).isEqualTo(identityId);
+                    assertThat(found.identityId()).isEqualTo(identity.id());
                     assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.PENDING);
                 });
     }
 
     @Test
     void findsByValue() {
-        EnrollmentToken token = EnrollmentToken.create(identityId, 24);
+        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
         repository.save(token);
 
         assertThat(repository.findByValue(token.value())).isPresent()
@@ -74,7 +71,7 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
 
     @Test
     void upsertUpdatesStatusOnConflict() {
-        EnrollmentToken token = EnrollmentToken.create(identityId, 24);
+        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
         repository.save(token);
 
         EnrollmentToken redeemed = token.redeem();
@@ -87,7 +84,7 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
 
     @Test
     void deleteByIdRemovesToken() {
-        EnrollmentToken token = EnrollmentToken.create(identityId, 24);
+        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
         repository.save(token);
 
         repository.deleteById(token.id());
@@ -97,10 +94,10 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
 
     @Test
     void deletingIdentityCascadesToTokens() {
-        EnrollmentToken token = EnrollmentToken.create(identityId, 24);
+        EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
         repository.save(token);
 
-        identityRepository.deleteById(identityId);
+        identityRepository.deleteById(identity.id());
 
         assertThat(repository.findById(token.id())).isEmpty();
     }

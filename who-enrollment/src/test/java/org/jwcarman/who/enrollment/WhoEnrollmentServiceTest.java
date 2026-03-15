@@ -16,7 +16,6 @@
 package org.jwcarman.who.enrollment;
 
 import org.jwcarman.who.core.domain.Identity;
-import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
@@ -24,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -76,7 +76,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     }
 
     @Test
-    void createTokenUsesConfiguredExpirationHours() {
+    void createTokenUsesConfiguredExpiration() {
         Identity identity = savedIdentity();
         Instant before = Instant.now();
 
@@ -115,7 +115,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     void enrollThrowsForExpiredToken() {
         Identity identity = savedIdentity();
         // Insert a token that is already expired
-        EnrollmentToken expired = EnrollmentToken.create(identityId(identity), -1);
+        EnrollmentToken expired = EnrollmentToken.create(identity, Duration.ofHours(-1));
         tokenRepository.save(expired);
         String tokenValue = expired.value();
         Credential cred = credential();
@@ -141,7 +141,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     void enrollThrowsForRevokedToken() {
         Identity identity = savedIdentity();
         EnrollmentToken token = service.createToken(identity);
-        service.revokeToken(token.id());
+        service.revokeToken(token);
         String tokenValue = token.value();
         Credential cred = credential();
 
@@ -154,7 +154,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         Identity identity = savedIdentity();
         EnrollmentToken token = service.createToken(identity);
 
-        service.revokeToken(token.id());
+        service.revokeToken(token);
 
         assertThat(tokenRepository.findById(token.id()))
                 .isPresent().get()
@@ -175,7 +175,4 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         assertThat(service.findToken("no-such-value")).isEmpty();
     }
 
-    private UUID identityId(Identity identity) {
-        return identity.id();
-    }
 }
