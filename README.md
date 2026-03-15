@@ -91,9 +91,10 @@ spring:
     init:
       mode: always
       schema-locations:
-        - classpath:org/jwcarman/who/jdbc/schema.sql      # who-jdbc:       who_identity, who_credential_identity
-        - classpath:org/jwcarman/who/rbac/schema.sql      # who-rbac:       who_role, who_role_permission, who_identity_role
-        - classpath:org/jwcarman/who/jwt/schema.sql       # who-jwt:        who_jwt_credential
+        - classpath:org/jwcarman/who/jdbc/schema.sql       # who-jdbc:       who_identity, who_credential_identity
+        - classpath:org/jwcarman/who/rbac/schema.sql       # who-rbac:       who_role, who_role_permission, who_identity_role
+        - classpath:org/jwcarman/who/jwt/schema.sql        # who-jwt:        who_jwt_credential
+        - classpath:org/jwcarman/who/apikey/schema.sql     # who-apikey:     who_api_key_credential
         - classpath:org/jwcarman/who/enrollment/schema.sql # who-enrollment: who_enrollment_token
 ```
 
@@ -141,6 +142,12 @@ CREATE TABLE IF NOT EXISTS who_jwt_credential (
     issuer  VARCHAR(255) NOT NULL,
     subject VARCHAR(255) NOT NULL,
     UNIQUE (issuer, subject)
+);
+
+CREATE TABLE IF NOT EXISTS who_api_key_credential (
+    id       UUID         PRIMARY KEY,
+    name     VARCHAR(255) NOT NULL,
+    key_hash VARCHAR(64)  NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS who_enrollment_token (
@@ -303,6 +310,30 @@ databaseChangeLog:
             columnNames: issuer, subject
 
   - changeSet:
+      id: who-api-key-credential
+      author: who
+      changes:
+        - createTable:
+            tableName: who_api_key_credential
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: key_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+  - changeSet:
       id: who-enrollment-token
       author: who
       changes:
@@ -385,6 +416,70 @@ public SecurityFilterChain apiSecurityFilterChain(
 
 ---
 
+## API Key Authentication
+
+Who supports API key authentication via `who-apikey`. API keys are hashed before storage — the raw key is shown once at creation and cannot be retrieved again.
+
+### Schema setup
+
+Add `classpath:org/jwcarman/who/apikey/schema.sql` to the `spring.sql.init.schema-locations` list (see [Option A](#option-a-spring-boot-springsqlinit) above). The DDL it applies:
+
+```sql
+CREATE TABLE IF NOT EXISTS who_api_key_credential (
+    id       UUID         PRIMARY KEY,
+    name     VARCHAR(255) NOT NULL,
+    key_hash VARCHAR(64)  NOT NULL UNIQUE
+);
+```
+
+### Wiring the filter
+
+Add `ApiKeyAuthenticationFilter` to your security filter chain:
+
+```java
+http.addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+```
+
+`ApiKeyAuthenticationFilter` is auto-configured by `who-autoconfigure` — inject it as a bean.
+
+### Configuring the header name
+
+The default header is `X-API-Key`. Override it with:
+
+```yaml
+who:
+  api-key:
+    header-name: X-API-Key  # default
+```
+
+### Generating a key
+
+```java
+String rawKey = apiKeyService.create(identityId, "Production server");
+// Show rawKey to the user once — it cannot be retrieved again
+```
+
+The returned key is prefixed with `who_`. Store it securely — the library stores only the hash.
+
+### Using the key
+
+```bash
+curl https://api.example.com/endpoint \
+  -H "X-API-Key: who_<your-key>"
+```
+
+### Revoking a key
+
+Delete the `who_api_key_credential` row by `id`:
+
+```sql
+DELETE FROM who_api_key_credential WHERE id = '<key-id>';
+```
+
+Revocation takes effect immediately — the next request using that key will be denied.
+
+---
+
 ## Enroll credentials
 
 Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer, subject)` pair and must be linked to an active `Identity`. Who does not auto-provision — access is denied for unknown credentials.
@@ -460,6 +555,7 @@ public List<Task> getTasks(@AuthenticationPrincipal WhoPrincipal principal) {
 | `who-jdbc` | JDBC implementations of core repositories using Spring `JdbcClient` |
 | `who-rbac` | `RbacService` and `PermissionsResolver` backed by roles and permissions |
 | `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` extraction |
+| `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` for API key issuance and authentication |
 | `who-enrollment` | `WhoEnrollmentService` for issuing and redeeming credential enrollment tokens |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
 | `who-spring-boot-starter` | Convenience starter: pulls in all of the above |
