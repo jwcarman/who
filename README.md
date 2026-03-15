@@ -554,14 +554,35 @@ rbacService.assignRoleByName(identity, AppRole.EDITOR);
 Role found = rbacService.findRequiredRole(AppRole.EDITOR);
 ```
 
-Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:
+Permissions resolve transitively through all roles assigned to an identity. Use `@RequiresPermission` from `who-spring-security` to authorize methods:
 
 ```java
 @GetMapping("/tasks")
-@PreAuthorize("hasAuthority('task.read')")
+@RequiresPermission("task.read")
 public List<Task> getTasks(@AuthenticationPrincipal WhoPrincipal principal) {
     return taskService.findAll(principal.identity().id());
 }
+```
+
+For larger applications, use `@RequiresPermission` as a meta-annotation to build a typed permission vocabulary with no raw strings at the call site:
+
+```java
+public interface TaskPermissions {
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @RequiresPermission("task.read")
+    @interface Read {}
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @RequiresPermission("task.write")
+    @interface Write {}
+}
+
+// Usage — no strings at the call site:
+@TaskPermissions.Read
+public List<Task> getTasks(...) { ... }
 ```
 
 ---
