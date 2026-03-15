@@ -101,10 +101,10 @@ class WhoAutoConfigurationTest {
                 .withPropertyValues("who.initialize-schema=never")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
-                    JdbcClient jdbcClient = context.getBean(JdbcClient.class);
-                    assertThatThrownBy(() -> jdbcClient.sql("SELECT COUNT(*) FROM who_identity")
-                            .query(Integer.class).single())
-                            .isInstanceOf(BadSqlGrammarException.class);
+                    JdbcClient.MappedQuerySpec<Integer> query = context.getBean(JdbcClient.class)
+                            .sql("SELECT COUNT(*) FROM who_identity")
+                            .query(Integer.class);
+                    assertThatThrownBy(query::single).isInstanceOf(BadSqlGrammarException.class);
                 });
     }
 }
