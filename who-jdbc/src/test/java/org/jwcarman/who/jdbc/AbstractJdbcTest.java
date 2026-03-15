@@ -37,7 +37,6 @@ abstract class AbstractJdbcTest {
     // test classes, which would cause a new container (and new datasource URL) for each
     // class, preventing Spring context reuse. The static initializer provides the same
     // lifecycle guarantee without the per-class stop/restart cycle.
-    @SuppressWarnings("resource")
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
     static {

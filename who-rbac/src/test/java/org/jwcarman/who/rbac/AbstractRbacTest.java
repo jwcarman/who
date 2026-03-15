@@ -36,7 +36,6 @@ abstract class AbstractRbacTest {
     // @Container is intentionally omitted: TC 2.x stops @Container static fields between
     // test classes, which would cause a new container (and new datasource URL) for each
     // class, preventing Spring context reuse.
-    @SuppressWarnings("resource")
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
     static {

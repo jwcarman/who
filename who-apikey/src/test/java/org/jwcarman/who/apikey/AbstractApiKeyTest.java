@@ -33,7 +33,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 abstract class AbstractApiKeyTest {
 
     // Singleton container — started once per JVM and shared across all test classes.
-    @SuppressWarnings("resource")
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
     static {
