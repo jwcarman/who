@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
  */
 public final class MessageDigests {
 
+    /** Algorithm name for SHA-256, as expected by {@link java.security.MessageDigest#getInstance(String)}. */
     public static final String SHA_256 = "SHA-256";
 
     private MessageDigests() {

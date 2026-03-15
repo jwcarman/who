@@ -28,9 +28,16 @@ import static java.util.Objects.requireNonNull;
  * is stable for the lifetime of the credential and used as the FK to the identity mapping table.
  * The {@link #name()} is a human-readable label (e.g. "Production server", "CI pipeline") to
  * help users identify and manage their keys.
+ *
+ * @param id      the stable UUID for this credential record
+ * @param name    a human-readable label identifying this key (e.g. "Production server")
+ * @param keyHash the SHA-256 hex digest of the raw API key
  */
 public record ApiKeyCredential(UUID id, String name, String keyHash) implements Credential {
 
+    /**
+     * Compact constructor — validates that no field is {@code null}.
+     */
     public ApiKeyCredential {
         requireNonNull(id, "id must not be null");
         requireNonNull(name, "name must not be null");

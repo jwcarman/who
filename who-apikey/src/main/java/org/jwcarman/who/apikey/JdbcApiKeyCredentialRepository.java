@@ -42,6 +42,11 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
 
     private final JdbcClient jdbcClient;
 
+    /**
+     * Creates a new {@code JdbcApiKeyCredentialRepository}.
+     *
+     * @param jdbcClient the JDBC client used to execute queries
+     */
     public JdbcApiKeyCredentialRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
