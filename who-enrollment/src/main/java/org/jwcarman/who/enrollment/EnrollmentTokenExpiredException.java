@@ -17,8 +17,10 @@ package org.jwcarman.who.enrollment;
 
 import java.util.UUID;
 
+import org.jwcarman.who.core.WhoException;
+
 /** Thrown when an enrollment token has passed its expiration time. */
-public class EnrollmentTokenExpiredException extends RuntimeException {
+public class EnrollmentTokenExpiredException extends WhoException {
 
   /**
    * Creates a new exception for the given token id.
@@ -26,6 +28,6 @@ public class EnrollmentTokenExpiredException extends RuntimeException {
    * @param tokenId the id of the expired token
    */
   public EnrollmentTokenExpiredException(UUID tokenId) {
-    super("Enrollment token has expired: " + tokenId);
+    super("Enrollment token has expired: %s", tokenId);
   }
 }

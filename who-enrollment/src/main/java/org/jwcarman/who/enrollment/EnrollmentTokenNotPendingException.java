@@ -17,11 +17,13 @@ package org.jwcarman.who.enrollment;
 
 import java.util.UUID;
 
+import org.jwcarman.who.core.WhoException;
+
 /**
  * Thrown when an enrollment token cannot be redeemed because it is not in {@code PENDING} status
  * (e.g. already redeemed or revoked).
  */
-public class EnrollmentTokenNotPendingException extends RuntimeException {
+public class EnrollmentTokenNotPendingException extends WhoException {
 
   /**
    * Creates a new exception for the given token id and status.
@@ -30,6 +32,6 @@ public class EnrollmentTokenNotPendingException extends RuntimeException {
    * @param status the actual status of the token
    */
   public EnrollmentTokenNotPendingException(UUID tokenId, EnrollmentTokenStatus status) {
-    super("Enrollment token " + tokenId + " is not pending (status: " + status + ")");
+    super("Enrollment token %s is not pending (status: %s)", tokenId, status);
   }
 }

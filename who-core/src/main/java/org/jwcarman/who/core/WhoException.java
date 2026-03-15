@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.enrollment;
+package org.jwcarman.who.core;
 
-import org.jwcarman.who.core.WhoException;
-
-/** Thrown when an enrollment token cannot be found by the given value. */
-public class EnrollmentTokenNotFoundException extends WhoException {
+/** Base class for all Who framework exceptions. */
+public class WhoException extends RuntimeException {
 
   /**
-   * Creates a new exception for the given token value.
+   * Creates a new exception with a formatted message.
    *
-   * @param tokenValue the token value that was not found
+   * @param pattern a {@link String#format} pattern
+   * @param args arguments referenced by the pattern
    */
-  public EnrollmentTokenNotFoundException(String tokenValue) {
-    super("Enrollment token not found: %s", tokenValue);
+  public WhoException(String pattern, Object... args) {
+    super(String.format(pattern, args));
   }
 }
