@@ -91,7 +91,7 @@ class WhoAuthenticationTokenTest {
         WhoAuthenticationToken token2 = new WhoAuthenticationToken(principal);
 
         assertThat(token1).isEqualTo(token2);
-        assertThat(token1.hashCode()).isEqualTo(token2.hashCode());
+        assertThat(token1).hasSameHashCodeAs(token2);
     }
 
     @Test
