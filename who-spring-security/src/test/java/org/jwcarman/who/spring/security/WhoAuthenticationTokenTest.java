@@ -76,4 +76,36 @@ class WhoAuthenticationTokenTest {
                 .isThrownBy(() -> new WhoAuthenticationToken(null))
                 .withMessage("principal must not be null");
     }
+
+    @Test
+    void equalsReturnsTrueForSameInstance() {
+        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+
+        assertThat(token).isEqualTo(token);
+    }
+
+    @Test
+    void equalsReturnsTrueForTokensWithSamePrincipal() {
+        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read"));
+        WhoAuthenticationToken token1 = new WhoAuthenticationToken(principal);
+        WhoAuthenticationToken token2 = new WhoAuthenticationToken(principal);
+
+        assertThat(token1).isEqualTo(token2);
+        assertThat(token1.hashCode()).isEqualTo(token2.hashCode());
+    }
+
+    @Test
+    void equalsReturnsFalseForDifferentPrincipal() {
+        WhoAuthenticationToken token1 = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+        WhoAuthenticationToken token2 = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+
+        assertThat(token1).isNotEqualTo(token2);
+    }
+
+    @Test
+    void equalsReturnsFalseForNonTokenObject() {
+        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+
+        assertThat(token).isNotEqualTo("not a token");
+    }
 }
