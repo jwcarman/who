@@ -543,6 +543,17 @@ To look up an existing role by name (throws `RoleNotFoundException` if absent):
 Role editorRole = rbacService.findRequiredRole("editor");
 ```
 
+**Tip:** define your roles as an enum to avoid raw strings throughout your application:
+
+```java
+public enum AppRole { EDITOR, VIEWER, ADMIN }
+
+// All three methods accept enum constants directly
+Role editorRole = rbacService.createRole(AppRole.EDITOR);
+rbacService.assignRoleByName(identity, AppRole.EDITOR);
+Role found = rbacService.findRequiredRole(AppRole.EDITOR);
+```
+
 Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:
 
 ```java
