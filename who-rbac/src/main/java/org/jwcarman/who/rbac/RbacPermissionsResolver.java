@@ -33,7 +33,7 @@ public class RbacPermissionsResolver implements PermissionsResolver {
     private final IdentityRoleRepository identityRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
 
-    RbacPermissionsResolver(IdentityRoleRepository identityRoleRepository,
+    public RbacPermissionsResolver(IdentityRoleRepository identityRoleRepository,
                             RolePermissionRepository rolePermissionRepository) {
         this.identityRoleRepository = identityRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;

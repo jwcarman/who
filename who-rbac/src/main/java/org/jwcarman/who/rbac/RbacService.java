@@ -32,7 +32,7 @@ public class RbacService {
     private final RolePermissionRepository rolePermissionRepository;
     private final IdentityRoleRepository identityRoleRepository;
 
-    RbacService(RoleRepository roleRepository,
+    public RbacService(RoleRepository roleRepository,
                 RolePermissionRepository rolePermissionRepository,
                 IdentityRoleRepository identityRoleRepository) {
         this.roleRepository = roleRepository;

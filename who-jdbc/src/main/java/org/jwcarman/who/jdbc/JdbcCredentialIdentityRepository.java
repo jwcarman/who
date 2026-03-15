@@ -27,11 +27,11 @@ import java.util.UUID;
  * {@code who_credential_identity} table.
  */
 @Repository
-class JdbcCredentialIdentityRepository implements CredentialIdentityRepository {
+public class JdbcCredentialIdentityRepository implements CredentialIdentityRepository {
 
     private final JdbcClient jdbcClient;
 
-    JdbcCredentialIdentityRepository(JdbcClient jdbcClient) {
+    public JdbcCredentialIdentityRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
 

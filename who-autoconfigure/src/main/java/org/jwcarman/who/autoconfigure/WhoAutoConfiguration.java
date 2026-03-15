@@ -1,0 +1,158 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.autoconfigure;
+
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
+import org.jwcarman.who.jdbc.JdbcIdentityRepository;
+import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
+import org.jwcarman.who.jwt.JwtCredentialRepository;
+import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
+import org.jwcarman.who.rbac.IdentityRoleRepository;
+import org.jwcarman.who.rbac.JdbcIdentityRoleRepository;
+import org.jwcarman.who.rbac.JdbcRolePermissionRepository;
+import org.jwcarman.who.rbac.JdbcRoleRepository;
+import org.jwcarman.who.rbac.RbacPermissionsResolver;
+import org.jwcarman.who.rbac.RbacService;
+import org.jwcarman.who.rbac.RolePermissionRepository;
+import org.jwcarman.who.rbac.RoleRepository;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.simple.JdbcClient;
+
+import java.util.List;
+
+/**
+ * Spring Boot autoconfiguration that wires all Who modules together.
+ *
+ * <p>All beans are guarded with {@link ConditionalOnMissingBean} so applications can override
+ * any of them. Optional module beans (JDBC repositories, RBAC, JWT) are additionally guarded
+ * with {@link ConditionalOnClass} so they are only registered when the relevant module is
+ * present on the classpath.
+ *
+ * <p>This class does NOT enable {@code @EnableMethodSecurity} — that is the application's
+ * responsibility.
+ */
+@AutoConfiguration
+@EnableConfigurationProperties(WhoProperties.class)
+public class WhoAutoConfiguration {
+
+    /**
+     * Creates the core {@link WhoService} that resolves credentials to principals.
+     *
+     * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
+     * @param identityRepository           stores and retrieves identities
+     * @param permissionsResolvers         all registered resolvers; may be empty
+     * @return a configured {@link WhoService}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public WhoService whoService(CredentialIdentityRepository credentialIdentityRepository,
+                                 IdentityRepository identityRepository,
+                                 List<PermissionsResolver> permissionsResolvers) {
+        return new WhoService(identityRepository, credentialIdentityRepository, permissionsResolvers);
+    }
+
+    /**
+     * Registers JDBC repository beans when {@code who-jdbc} is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.jwcarman.who.jdbc.JdbcIdentityRepository")
+    static class JdbcRepositoriesConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public IdentityRepository identityRepository(JdbcClient jdbcClient) {
+            return new JdbcIdentityRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public CredentialIdentityRepository credentialIdentityRepository(JdbcClient jdbcClient) {
+            return new JdbcCredentialIdentityRepository(jdbcClient);
+        }
+    }
+
+    /**
+     * Registers RBAC beans when {@code who-rbac} is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.jwcarman.who.rbac.RbacPermissionsResolver")
+    static class RbacConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public RoleRepository roleRepository(JdbcClient jdbcClient) {
+            return new JdbcRoleRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public RolePermissionRepository rolePermissionRepository(JdbcClient jdbcClient) {
+            return new JdbcRolePermissionRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public IdentityRoleRepository identityRoleRepository(JdbcClient jdbcClient) {
+            return new JdbcIdentityRoleRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public RbacPermissionsResolver rbacPermissionsResolver(IdentityRoleRepository identityRoleRepository,
+                                                               RolePermissionRepository rolePermissionRepository) {
+            return new RbacPermissionsResolver(identityRoleRepository, rolePermissionRepository);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public RbacService rbacService(RoleRepository roleRepository,
+                                       RolePermissionRepository rolePermissionRepository,
+                                       IdentityRoleRepository identityRoleRepository) {
+            return new RbacService(roleRepository, rolePermissionRepository, identityRoleRepository);
+        }
+    }
+
+    /**
+     * Registers JWT beans when {@code who-jwt} is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.jwcarman.who.jwt.WhoJwtAuthenticationConverter")
+    static class JwtConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public JwtCredentialRepository jwtCredentialRepository(JdbcClient jdbcClient) {
+            return new JdbcJwtCredentialRepository(jdbcClient);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public WhoJwtAuthenticationConverter whoJwtAuthenticationConverter(
+                JwtCredentialRepository jwtCredentialRepository,
+                WhoService whoService) {
+            return new WhoJwtAuthenticationConverter(jwtCredentialRepository, whoService);
+        }
+    }
+}

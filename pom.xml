@@ -97,6 +97,8 @@
         <module>who-jdbc</module>
         <module>who-rbac</module>
         <module>who-jwt</module>
+        <module>who-autoconfigure</module>
+        <module>who-spring-boot-starter</module>
     </modules>
 
     <dependencyManagement>

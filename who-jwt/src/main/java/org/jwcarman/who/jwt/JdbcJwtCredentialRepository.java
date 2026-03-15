@@ -26,7 +26,7 @@ import java.util.UUID;
  * JDBC implementation of {@link JwtCredentialRepository} backed by the {@code who_jwt_credential} table.
  */
 @Repository
-class JdbcJwtCredentialRepository implements JwtCredentialRepository {
+public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
 
     private static final RowMapper<JwtCredential> ROW_MAPPER = (rs, rowNum) ->
             new JwtCredential(
@@ -36,7 +36,7 @@ class JdbcJwtCredentialRepository implements JwtCredentialRepository {
 
     private final JdbcClient jdbcClient;
 
-    JdbcJwtCredentialRepository(JdbcClient jdbcClient) {
+    public JdbcJwtCredentialRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
 

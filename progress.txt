@@ -1,8 +1,8 @@
-LAST_RUN: 2026-03-14T22:19:20-04:00
-ITERATION: 5
-SPEC_COMPLETED: 004-who-jwt.md
-WHAT_WAS_DONE: Created who-jwt Maven module with JwtCredential record, JwtCredentialRepository interface, JdbcJwtCredentialRepository (JDBC impl), WhoAuthenticationToken (extends AbstractAuthenticationToken), and WhoJwtAuthenticationConverter (Converter<Jwt, AbstractAuthenticationToken>) with unit tests using mocks and JDBC integration tests against real PostgreSQL via Testcontainers.
-VERIFICATION: mvn test → BUILD SUCCESS (9 who-jwt tests: 5 WhoJwtAuthenticationConverterTest + 4 JdbcJwtCredentialRepositoryTest, 0 failures); mvn -P license verify -pl who-jwt -am → BUILD SUCCESS
+LAST_RUN: 2026-03-14T22:30:47-04:00
+ITERATION: 6
+SPEC_COMPLETED: 005-who-autoconfigure.md
+WHAT_WAS_DONE: Created who-autoconfigure module (WhoProperties, WhoAutoConfiguration with nested conditional configs for JDBC/RBAC/JWT, AutoConfiguration.imports, 2 ApplicationContextRunner integration tests) and who-spring-boot-starter POM-only module; made JDBC repo classes/constructors public in who-jdbc, who-rbac, who-jwt so autoconfiguration can instantiate them.
+VERIFICATION: mvn test → BUILD SUCCESS (2 who-autoconfigure tests pass, all prior tests pass); mvn -P license verify → BUILD SUCCESS; spring-configuration-metadata.json generated in jar
 STATUS: MORE_WORK
-NEXT_SPEC: 005-who-autoconfigure.md
-NOTES: Spring Boot 4.0.2 moved security auto-configuration classes to a new package: org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration (was org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration in Boot 3.x). The test app excludes these to avoid requiring a JWT decoder config at context startup. WhoJwtAuthenticationConverter uses jwt.getIssuer().toString() which works via JwtClaimAccessor. The Jwt class is constructed directly using its public constructor in unit tests (not mocked).
+NEXT_SPEC: 006-who-example.md
+NOTES: spring-boot-configuration-processor requires explicit <annotationProcessorPaths> in maven-compiler-plugin config (not just <optional>true</optional> dependency) to generate spring-configuration-metadata.json. JDBC repo implementations were made public (class + constructor) so WhoAutoConfiguration nested static classes can instantiate them from a different package. @ConditionalOnClass uses name= string form on nested static @Configuration classes to avoid ClassNotFoundError when optional modules are absent at runtime.

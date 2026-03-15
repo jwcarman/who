@@ -25,11 +25,11 @@ import java.util.UUID;
  * JDBC implementation of {@link IdentityRoleRepository} backed by the {@code who_identity_role} table.
  */
 @Repository
-class JdbcIdentityRoleRepository implements IdentityRoleRepository {
+public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
 
     private final JdbcClient jdbcClient;
 
-    JdbcIdentityRoleRepository(JdbcClient jdbcClient) {
+    public JdbcIdentityRoleRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
 

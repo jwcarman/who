@@ -26,14 +26,14 @@ import java.util.UUID;
  * JDBC implementation of {@link RoleRepository} backed by the {@code who_role} table.
  */
 @Repository
-class JdbcRoleRepository implements RoleRepository {
+public class JdbcRoleRepository implements RoleRepository {
 
     private static final RowMapper<Role> ROLE_ROW_MAPPER = (rs, rowNum) ->
             Role.create(rs.getObject("id", UUID.class), rs.getString("name"));
 
     private final JdbcClient jdbcClient;
 
-    JdbcRoleRepository(JdbcClient jdbcClient) {
+    public JdbcRoleRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
 

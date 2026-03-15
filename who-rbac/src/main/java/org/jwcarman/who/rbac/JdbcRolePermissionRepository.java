@@ -27,11 +27,11 @@ import java.util.UUID;
  * JDBC implementation of {@link RolePermissionRepository} backed by the {@code who_role_permission} table.
  */
 @Repository
-class JdbcRolePermissionRepository implements RolePermissionRepository {
+public class JdbcRolePermissionRepository implements RolePermissionRepository {
 
     private final JdbcClient jdbcClient;
 
-    JdbcRolePermissionRepository(JdbcClient jdbcClient) {
+    public JdbcRolePermissionRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
 

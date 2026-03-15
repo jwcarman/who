@@ -30,7 +30,7 @@ import java.util.UUID;
  * JDBC implementation of {@link IdentityRepository} backed by the {@code who_identity} table.
  */
 @Repository
-class JdbcIdentityRepository implements IdentityRepository {
+public class JdbcIdentityRepository implements IdentityRepository {
 
     private static final RowMapper<Identity> IDENTITY_ROW_MAPPER = (rs, rowNum) -> new Identity(
             rs.getObject("id", UUID.class),
@@ -41,7 +41,7 @@ class JdbcIdentityRepository implements IdentityRepository {
 
     private final JdbcClient jdbcClient;
 
-    JdbcIdentityRepository(JdbcClient jdbcClient) {
+    public JdbcIdentityRepository(JdbcClient jdbcClient) {
         this.jdbcClient = jdbcClient;
     }
 
