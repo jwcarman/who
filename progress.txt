@@ -1,0 +1,8 @@
+LAST_RUN: 2026-03-14T21:22:01-04:00
+ITERATION: 1
+SPEC_COMPLETED: 001-who-core-foundation.md
+WHAT_WAS_DONE: Deleted all modules except who-core, stripped who-core to a clean pure-Java foundation with IdentityStatus/Identity/WhoPrincipal domain types, Credential/PermissionsResolver SPIs, IdentityRepository/CredentialIdentityRepository interfaces, and WhoService with full TDD coverage.
+VERIFICATION: mvn test → Tests run: 6, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS; mvn -P license verify → BUILD SUCCESS (added *.txt, *.sh, *.md, specs/**, docs/** to license excludes to cover ralph-loop files)
+STATUS: MORE_WORK
+NEXT_SPEC: none — check specs/backlog/ for items to promote
+NOTES: Root pom.xml now has only who-core as a module. who-core pom.xml has only spring-boot-starter-test (test scope) for JUnit/Mockito — no Spring compile-time dependency. Added broader license excludes in root pom.xml to cover *.txt, *.sh, *.md, specs/, docs/ directories which are Ralph Loop artifacts and documentation that should not carry Apache headers.

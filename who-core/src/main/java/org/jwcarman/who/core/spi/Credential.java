@@ -13,24 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.core.domain;
+package org.jwcarman.who.core.spi;
 
-import java.util.Set;
 import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * Resolved principal placed into the security context. Carries the stable identity UUID and
- * the union of all permission strings granted to that identity.
+ * Marker interface for credential types. Each credential implementation (e.g. JWT, API key)
+ * provides a stable UUID that can be linked to an {@link org.jwcarman.who.core.domain.Identity}.
  */
-public record WhoPrincipal(
-        UUID identityId,
-        Set<String> permissions
-) {
-    public WhoPrincipal {
-        requireNonNull(identityId, "identityId must not be null");
-        requireNonNull(permissions, "permissions must not be null");
-        permissions = Set.copyOf(permissions);
-    }
+public interface Credential {
+
+    /**
+     * Returns the unique identifier for this credential.
+     *
+     * @return the credential UUID
+     */
+    UUID id();
 }

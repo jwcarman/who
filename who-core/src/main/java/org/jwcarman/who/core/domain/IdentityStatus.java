@@ -15,22 +15,11 @@
  */
 package org.jwcarman.who.core.domain;
 
-import java.util.Set;
-import java.util.UUID;
-
-import static java.util.Objects.requireNonNull;
-
 /**
- * Resolved principal placed into the security context. Carries the stable identity UUID and
- * the union of all permission strings granted to that identity.
+ * Lifecycle status of an {@link Identity}.
  */
-public record WhoPrincipal(
-        UUID identityId,
-        Set<String> permissions
-) {
-    public WhoPrincipal {
-        requireNonNull(identityId, "identityId must not be null");
-        requireNonNull(permissions, "permissions must not be null");
-        permissions = Set.copyOf(permissions);
-    }
+public enum IdentityStatus {
+    ACTIVE,
+    SUSPENDED,
+    DISABLED
 }

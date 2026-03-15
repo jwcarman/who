@@ -94,12 +94,6 @@
 
     <modules>
         <module>who-core</module>
-        <module>who-jdbc</module>
-        <module>who-security</module>
-        <module>who-web</module>
-        <module>who-autoconfigure</module>
-        <module>who-spring-boot-starter</module>
-        <module>who-example</module>
     </modules>
 
     <dependencyManagement>
@@ -328,6 +322,11 @@ limitations under the License.]]></inlineHeader>
                                         <exclude>src/main/resources/**</exclude>
                                         <exclude>LICENSE</exclude>
                                         <exclude>.github/**</exclude>
+                                        <exclude>**/*.txt</exclude>
+                                        <exclude>**/*.sh</exclude>
+                                        <exclude>**/*.md</exclude>
+                                        <exclude>specs/**</exclude>
+                                        <exclude>docs/**</exclude>
                                     </excludes>
                                 </licenseSet>
                             </licenseSets>
