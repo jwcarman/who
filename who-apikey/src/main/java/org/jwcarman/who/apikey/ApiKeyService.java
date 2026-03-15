@@ -18,8 +18,6 @@ package org.jwcarman.who.apikey;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.UUID;
@@ -82,13 +80,6 @@ public class ApiKeyService {
     }
 
     static String sha256Hex(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HEX.formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            // SHA-256 is guaranteed by the JVM spec
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
+        return HEX.formatHex(MessageDigests.sha256(input.getBytes(StandardCharsets.UTF_8)));
     }
 }
