@@ -33,6 +33,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
  */
 public class WhoAuthenticationToken extends AbstractAuthenticationToken {
 
+  /** The resolved principal for this authentication. */
   private final WhoPrincipal principal;
 
   /**
