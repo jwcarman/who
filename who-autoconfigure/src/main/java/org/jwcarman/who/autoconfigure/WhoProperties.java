@@ -97,6 +97,7 @@ public class WhoProperties {
      */
     public static class Jdbc {
 
+        /** Classpath locations of the who-jdbc DDL schema files. */
         private List<String> schemaLocations = new ArrayList<>(
                 List.of("classpath:org/jwcarman/who/jdbc/schema.sql"));
 
@@ -124,6 +125,7 @@ public class WhoProperties {
      */
     public static class Rbac {
 
+        /** Classpath locations of the who-rbac DDL schema files. */
         private List<String> schemaLocations = new ArrayList<>(
                 List.of("classpath:org/jwcarman/who/rbac/schema.sql"));
 
@@ -169,6 +171,7 @@ public class WhoProperties {
      */
     public static class Enrollment {
 
+        /** Duration after which a newly created enrollment token expires. */
         private Duration tokenExpiration = Duration.ofHours(24);
 
         /**
@@ -213,6 +216,7 @@ public class WhoProperties {
      */
     public static class ApiKey {
 
+        /** HTTP header name that carries the API key. */
         private String headerName = "X-API-Key";
 
         /**
@@ -239,6 +243,7 @@ public class WhoProperties {
      */
     public static class Jwt {
 
+        /** Classpath locations of the who-jwt DDL schema files. */
         private List<String> schemaLocations = new ArrayList<>(
                 List.of("classpath:org/jwcarman/who/jwt/schema.sql"));
 
