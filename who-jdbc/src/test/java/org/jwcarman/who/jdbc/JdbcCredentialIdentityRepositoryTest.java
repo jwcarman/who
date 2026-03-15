@@ -73,7 +73,7 @@ class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
     }
 
     private Identity savedIdentity() {
-        Identity identity = Identity.create(UUID.randomUUID(), IdentityStatus.ACTIVE);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
         return identityRepository.save(identity);
     }
 }

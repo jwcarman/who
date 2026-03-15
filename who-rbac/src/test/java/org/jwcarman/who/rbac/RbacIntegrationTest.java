@@ -43,16 +43,15 @@ class RbacIntegrationTest extends AbstractRbacTest {
         rbacService.addPermissionToRole(roleId, "READ");
         rbacService.addPermissionToRole(roleId, "WRITE");
 
-        UUID identityId = UUID.randomUUID();
-        rbacService.assignRoleToIdentity(identityId, roleId);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        rbacService.assignRoleToIdentity(identity.id(), roleId);
 
-        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
         assertThat(resolver.resolve(identity)).containsExactlyInAnyOrder("READ", "WRITE");
     }
 
     @Test
     void resolverReturnsEmptySetWhenIdentityHasNoRoles() {
-        Identity identity = Identity.create(UUID.randomUUID(), IdentityStatus.ACTIVE);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
         assertThat(resolver.resolve(identity)).isEmpty();
     }
 
@@ -63,11 +62,10 @@ class RbacIntegrationTest extends AbstractRbacTest {
         rbacService.addPermissionToRole(role1Id, "READ");
         rbacService.addPermissionToRole(role2Id, "WRITE");
 
-        UUID identityId = UUID.randomUUID();
-        rbacService.assignRoleToIdentity(identityId, role1Id);
-        rbacService.assignRoleToIdentity(identityId, role2Id);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        rbacService.assignRoleToIdentity(identity.id(), role1Id);
+        rbacService.assignRoleToIdentity(identity.id(), role2Id);
 
-        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
         assertThat(resolver.resolve(identity)).containsExactlyInAnyOrder("READ", "WRITE");
     }
 
@@ -122,22 +120,19 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
         rbacService.removePermissionFromRole(roleId, "DELETE");
 
-        UUID identityId = UUID.randomUUID();
-        rbacService.assignRoleToIdentity(identityId, roleId);
-        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        rbacService.assignRoleToIdentity(identity.id(), roleId);
         assertThat(resolver.resolve(identity)).doesNotContain("DELETE");
     }
 
     @Test
     void removeRoleFromIdentitySucceeds() {
         UUID roleId = rbacService.createRole("REMOVE_ASSIGN_SUCCESS_ROLE");
-        UUID identityId = UUID.randomUUID();
-        rbacService.assignRoleToIdentity(identityId, roleId);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        rbacService.assignRoleToIdentity(identity.id(), roleId);
 
-        rbacService.removeRoleFromIdentity(identityId, roleId);
+        rbacService.removeRoleFromIdentity(identity.id(), roleId);
 
-        // After removal, identity has no roles
-        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
         assertThat(resolver.resolve(identity)).isEmpty();
     }
 
@@ -145,13 +140,11 @@ class RbacIntegrationTest extends AbstractRbacTest {
     void deleteRoleCascadesPermissionsAndIdentityAssignments() {
         UUID roleId = rbacService.createRole("CASCADE_ROLE");
         rbacService.addPermissionToRole(roleId, "READ");
-        UUID identityId = UUID.randomUUID();
-        rbacService.assignRoleToIdentity(identityId, roleId);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        rbacService.assignRoleToIdentity(identity.id(), roleId);
 
         rbacService.deleteRole(roleId);
 
-        // After cascade delete, identity has no roles → resolver returns empty
-        Identity identity = Identity.create(identityId, IdentityStatus.ACTIVE);
         assertThat(resolver.resolve(identity)).isEmpty();
     }
 }

@@ -32,6 +32,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -51,17 +54,15 @@ class WhoServiceTest {
     private Credential credential;
 
     private UUID credentialId;
-    private UUID identityId;
 
     @BeforeEach
     void setUp() {
         credentialId = UUID.randomUUID();
-        identityId = UUID.randomUUID();
-        when(credential.id()).thenReturn(credentialId);
     }
 
     @Test
     void returnsEmptyWhenCredentialNotLinked() {
+        when(credential.id()).thenReturn(credentialId);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
                 .thenReturn(Optional.empty());
 
@@ -72,9 +73,11 @@ class WhoServiceTest {
 
     @Test
     void returnsEmptyWhenIdentityNotFound() {
+        UUID unknownIdentityId = UUID.randomUUID();
+        when(credential.id()).thenReturn(credentialId);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
-                .thenReturn(Optional.of(identityId));
-        when(identityRepository.findById(identityId)).thenReturn(Optional.empty());
+                .thenReturn(Optional.of(unknownIdentityId));
+        when(identityRepository.findById(unknownIdentityId)).thenReturn(Optional.empty());
 
         WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
@@ -83,10 +86,11 @@ class WhoServiceTest {
 
     @Test
     void returnsEmptyWhenIdentitySuspended() {
-        Identity suspended = Identity.create(identityId, IdentityStatus.SUSPENDED);
+        Identity suspended = Identity.create(IdentityStatus.SUSPENDED);
+        when(credential.id()).thenReturn(credentialId);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
-                .thenReturn(Optional.of(identityId));
-        when(identityRepository.findById(identityId)).thenReturn(Optional.of(suspended));
+                .thenReturn(Optional.of(suspended.id()));
+        when(identityRepository.findById(suspended.id())).thenReturn(Optional.of(suspended));
 
         WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
@@ -95,10 +99,11 @@ class WhoServiceTest {
 
     @Test
     void returnsEmptyWhenIdentityDisabled() {
-        Identity disabled = Identity.create(identityId, IdentityStatus.DISABLED);
+        Identity disabled = Identity.create(IdentityStatus.DISABLED);
+        when(credential.id()).thenReturn(credentialId);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
-                .thenReturn(Optional.of(identityId));
-        when(identityRepository.findById(identityId)).thenReturn(Optional.of(disabled));
+                .thenReturn(Optional.of(disabled.id()));
+        when(identityRepository.findById(disabled.id())).thenReturn(Optional.of(disabled));
 
         WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
@@ -107,17 +112,30 @@ class WhoServiceTest {
 
     @Test
     void returnsPrincipalWithPermissionsFromResolver() {
-        Identity active = Identity.create(identityId, IdentityStatus.ACTIVE);
+        Identity active = Identity.create(IdentityStatus.ACTIVE);
+        when(credential.id()).thenReturn(credentialId);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
-                .thenReturn(Optional.of(identityId));
-        when(identityRepository.findById(identityId)).thenReturn(Optional.of(active));
+                .thenReturn(Optional.of(active.id()));
+        when(identityRepository.findById(active.id())).thenReturn(Optional.of(active));
         when(permissionsResolver.resolve(active)).thenReturn(Set.of("read", "write"));
 
         WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
 
         Optional<WhoPrincipal> result = service.resolve(credential);
         assertThat(result).isPresent();
-        assertThat(result.get().identityId()).isEqualTo(identityId);
+        assertThat(result.get().identityId()).isEqualTo(active.id());
         assertThat(result.get().permissions()).containsExactlyInAnyOrder("read", "write");
+    }
+
+    @Test
+    void createIdentityPersistsActiveIdentityAndReturnsIt() {
+        when(identityRepository.save(any(Identity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WhoService service = new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
+        Identity result = service.createIdentity();
+
+        verify(identityRepository).save(any(Identity.class));
+        assertThat(result.id()).isNotNull();
+        assertThat(result.status()).isEqualTo(IdentityStatus.ACTIVE);
     }
 }

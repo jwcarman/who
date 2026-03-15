@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.core.domain;
 
+import org.jwcarman.who.core.Identifiers;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -37,15 +39,14 @@ public record Identity(
     }
 
     /**
-     * Creates a new {@code Identity} with both timestamps set to now.
+     * Creates a new {@code Identity} with a generated UUID and both timestamps set to now.
      *
-     * @param id     the identity's UUID
      * @param status the initial status
      * @return a new {@code Identity}
      */
-    public static Identity create(UUID id, IdentityStatus status) {
+    public static Identity create(IdentityStatus status) {
         Instant now = Instant.now();
-        return new Identity(id, status, now, now);
+        return new Identity(Identifiers.uuid(), status, now, now);
     }
 
     /**

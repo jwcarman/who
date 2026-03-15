@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.core.service;
 
+import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
@@ -62,6 +63,15 @@ public class WhoService {
         this.credentialIdentityRepository = requireNonNull(credentialIdentityRepository,
                 "credentialIdentityRepository must not be null");
         this.permissionsResolver = requireNonNull(permissionsResolver, "permissionsResolver must not be null");
+    }
+
+    /**
+     * Creates a new {@link Identity} with a generated UUID and {@link IdentityStatus#ACTIVE} status.
+     *
+     * @return the persisted identity
+     */
+    public Identity createIdentity() {
+        return identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
     }
 
     /**

@@ -17,15 +17,13 @@ package org.jwcarman.who.core.domain;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class IdentityTest {
 
     @Test
     void withStatusReturnsNewIdentityWithUpdatedStatus() {
-        Identity identity = Identity.create(UUID.randomUUID(), IdentityStatus.ACTIVE);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
 
         Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
 

@@ -99,7 +99,7 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
     }
 
     private UUID createActiveIdentity() {
-        Identity identity = Identity.create(UUID.randomUUID(), IdentityStatus.ACTIVE);
+        Identity identity = Identity.create(IdentityStatus.ACTIVE);
         identityRepository.save(identity);
         return identity.id();
     }
