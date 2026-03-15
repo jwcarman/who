@@ -38,7 +38,7 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
 
     @BeforeEach
     void setUp() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
         identityRepository.save(identity);
         identityId = identity.id();
     }

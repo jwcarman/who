@@ -23,7 +23,7 @@ class IdentityTest {
 
     @Test
     void withStatusReturnsNewIdentityWithUpdatedStatus() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
 
         Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
 

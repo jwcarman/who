@@ -55,7 +55,7 @@ public class HomeController {
         jwtCredentialRepository.findByIssuerAndSubject(issuer, username).ifPresent(cred -> {
             WhoPrincipal principal = whoService.resolve(cred).orElse(null);
             if (principal != null) {
-                model.addAttribute("identityId", principal.identityId());
+                model.addAttribute("identityId", principal.identity().id());
                 model.addAttribute("permissions", principal.permissions());
             }
         });

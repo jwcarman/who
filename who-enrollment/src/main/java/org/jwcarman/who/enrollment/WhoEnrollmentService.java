@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 import java.util.UUID;
 
+
 /**
  * Service for managing enrollment tokens that link credentials to identities.
  *
@@ -53,15 +54,15 @@ public class WhoEnrollmentService {
      *
      * <p>The caller is responsible for delivering {@code token.value()} to the user.
      *
-     * @param identityId the identity to enroll a credential for
+     * @param identity the identity to enroll a credential for
      * @return the newly created {@code PENDING} token
      * @throws IllegalArgumentException if no identity with the given id exists
      */
-    public EnrollmentToken createToken(UUID identityId) {
-        if (!identityRepository.existsById(identityId)) {
-            throw new IllegalArgumentException("Identity not found: " + identityId);
+    public EnrollmentToken createToken(Identity identity) {
+        if (!identityRepository.existsById(identity.id())) {
+            throw new IllegalArgumentException("Identity not found: " + identity.id());
         }
-        return enrollmentTokenRepository.save(EnrollmentToken.create(identityId, expirationHours));
+        return enrollmentTokenRepository.save(EnrollmentToken.create(identity.id(), expirationHours));
     }
 
     /**

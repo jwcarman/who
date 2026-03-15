@@ -48,7 +48,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     private JdbcClient jdbcClient;
 
     private Identity savedIdentity() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
         return identityRepository.save(identity);
     }
 
@@ -59,8 +59,8 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
 
     @Test
     void createTokenThrowsForUnknownIdentity() {
-        UUID unknownId = UUID.randomUUID();
-        assertThatThrownBy(() -> service.createToken(unknownId))
+        Identity unknownIdentity = Identity.create();
+        assertThatThrownBy(() -> service.createToken(unknownIdentity))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -68,7 +68,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     void createTokenReturnsPendingToken() {
         Identity identity = savedIdentity();
 
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
 
         assertThat(token.status()).isEqualTo(EnrollmentTokenStatus.PENDING);
         assertThat(token.identityId()).isEqualTo(identity.id());
@@ -80,7 +80,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         Identity identity = savedIdentity();
         Instant before = Instant.now();
 
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
 
         // default expiration is 24 hours
         assertThat(token.expiresAt()).isAfter(before.plusSeconds(23 * 3600))
@@ -90,7 +90,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     @Test
     void enrollLinksCredentialAndMarkesTokenRedeemed() {
         Identity identity = savedIdentity();
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
         Credential cred = credential();
 
         Identity result = service.enroll(token.value(), cred);
@@ -127,7 +127,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     @Test
     void enrollThrowsForRedeemedToken() {
         Identity identity = savedIdentity();
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
         service.enroll(token.value(), credential());
 
         // Try to redeem again with a different credential
@@ -140,7 +140,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     @Test
     void enrollThrowsForRevokedToken() {
         Identity identity = savedIdentity();
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
         service.revokeToken(token.id());
         String tokenValue = token.value();
         Credential cred = credential();
@@ -152,7 +152,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     @Test
     void revokeTokenMarksTokenRevoked() {
         Identity identity = savedIdentity();
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
 
         service.revokeToken(token.id());
 
@@ -164,7 +164,7 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     @Test
     void findTokenReturnsTokenByValue() {
         Identity identity = savedIdentity();
-        EnrollmentToken token = service.createToken(identity.id());
+        EnrollmentToken token = service.createToken(identity);
 
         assertThat(service.findToken(token.value())).isPresent()
                 .get().satisfies(t -> assertThat(t.id()).isEqualTo(token.id()));

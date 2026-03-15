@@ -456,7 +456,7 @@ who:
 
 ```java
 Identity identity = whoService.createIdentity();
-String rawKey = apiKeyService.create(identity.id(), "Production server");
+String rawKey = apiKeyService.create(identity, "Production server");
 // Show rawKey to the user once — it cannot be retrieved again
 ```
 
@@ -508,7 +508,7 @@ Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer
 Identity identity = whoService.createIdentity();
 
 // 2. Issue an enrollment token and deliver token.value() to the user out of band
-EnrollmentToken token = enrollmentService.createToken(identity.id());
+EnrollmentToken token = enrollmentService.createToken(identity);
 notifyUser(token.value()); // email, admin console, etc.
 
 // 3. User redeems the token with their JwtCredential
@@ -551,7 +551,7 @@ rbacService.addPermissionToRole(editorRoleId, "task.read");
 rbacService.addPermissionToRole(editorRoleId, "task.write");
 
 // Assign the role to the identity
-rbacService.assignRoleToIdentity(identity.id(), editorRoleId);
+rbacService.assignRoleToIdentity(identity, editorRoleId);
 ```
 
 Permissions resolve transitively through all roles assigned to an identity. Use them in controllers with `@PreAuthorize`:

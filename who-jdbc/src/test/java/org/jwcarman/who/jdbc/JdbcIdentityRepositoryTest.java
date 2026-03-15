@@ -32,7 +32,7 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
     @Test
     void savesNewIdentityAndRetrievesItById() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
         repository.save(identity);
 
         Optional<Identity> found = repository.findById(identity.id());
@@ -44,7 +44,7 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
     @Test
     void upsertUpdatesStatusOnConflict() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
         repository.save(identity);
 
         Identity suspended = identity.withStatus(IdentityStatus.SUSPENDED);
@@ -57,7 +57,7 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
     @Test
     void existsByIdReturnsTrueWhenIdentityExists() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
         repository.save(identity);
 
         assertThat(repository.existsById(identity.id())).isTrue();
@@ -70,7 +70,7 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
     @Test
     void deleteByIdRemovesIdentity() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
+        Identity identity = Identity.create();
         repository.save(identity);
 
         repository.deleteById(identity.id());

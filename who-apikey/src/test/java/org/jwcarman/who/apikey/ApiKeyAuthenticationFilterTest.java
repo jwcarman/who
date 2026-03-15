@@ -32,6 +32,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 import java.util.Set;
+import org.jwcarman.who.core.domain.Identity;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,7 +110,7 @@ class ApiKeyAuthenticationFilterTest {
     void validKeyResolvesToWhoAuthenticationTokenInSecurityContext() throws Exception {
         ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
                 ApiKeyService.sha256Hex(RAW_KEY));
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read:data"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data"));
 
         when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
                 .thenReturn(Optional.of(credential));
@@ -132,7 +133,7 @@ class ApiKeyAuthenticationFilterTest {
     void validKeyAuthoritiesMatchPermissions() throws Exception {
         ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "Test Key",
                 ApiKeyService.sha256Hex(RAW_KEY));
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read:data", "write:data"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
 
         when(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(RAW_KEY)))
                 .thenReturn(Optional.of(credential));

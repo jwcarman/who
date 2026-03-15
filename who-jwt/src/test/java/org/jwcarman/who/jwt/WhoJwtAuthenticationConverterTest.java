@@ -30,7 +30,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -78,7 +79,7 @@ class WhoJwtAuthenticationConverterTest {
     @Test
     void returnsAuthenticationTokenForValidCredential() {
         JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read:data", "write:data"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
         Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
         when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
@@ -94,7 +95,7 @@ class WhoJwtAuthenticationConverterTest {
     @Test
     void authoritiesMatchPermissionsInPrincipal() {
         JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read:data", "write:data"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
         Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
         when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
@@ -112,7 +113,7 @@ class WhoJwtAuthenticationConverterTest {
     @Test
     void getCredentialsReturnsNull() {
         JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of());
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
         Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
         when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))

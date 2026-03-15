@@ -16,6 +16,7 @@
 package org.jwcarman.who.apikey;
 
 import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 
 import java.nio.charset.StandardCharsets;
@@ -60,12 +61,12 @@ public class ApiKeyService {
      *
      * <p>This is the only opportunity to retrieve the raw key — it is not stored anywhere.
      *
-     * @param identityId the identity UUID to link the new credential to
-     * @param name       a human-readable label for this key (e.g. "Production server")
+     * @param identity the identity to link the new credential to
+     * @param name     a human-readable label for this key (e.g. "Production server")
      * @return the raw API key (e.g. {@code who_a3f8...}), never stored
      */
-    public String create(UUID identityId, String name) {
-        requireNonNull(identityId, "identityId must not be null");
+    public String create(Identity identity, String name) {
+        requireNonNull(identity, "identity must not be null");
         requireNonNull(name, "name must not be null");
 
         byte[] bytes = new byte[32];
@@ -75,7 +76,7 @@ public class ApiKeyService {
 
         ApiKeyCredential credential = new ApiKeyCredential(Identifiers.uuid(), name, keyHash);
         apiKeyCredentialRepository.save(credential);
-        credentialIdentityRepository.link(credential.id(), identityId);
+        credentialIdentityRepository.link(credential.id(), identity.id());
 
         return rawKey;
     }

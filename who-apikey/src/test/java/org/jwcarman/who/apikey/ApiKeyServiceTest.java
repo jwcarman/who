@@ -42,16 +42,16 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
 
     @Test
     void createReturnsKeyWithWhoPrefix() {
-        UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId, "Test Key");
+        Identity identity = createActiveIdentity();
+        String rawKey = apiKeyService.create(identity, "Test Key");
 
         assertThat(rawKey).startsWith("who_").hasSize(4 + 64); // "who_" + 64 hex chars
     }
 
     @Test
     void createStoresHashNotRawKey() {
-        UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId, "Test Key");
+        Identity identity = createActiveIdentity();
+        String rawKey = apiKeyService.create(identity, "Test Key");
 
         // The raw key must NOT be stored as-is
         assertThat(apiKeyCredentialRepository.findByKeyHash(rawKey)).isEmpty();
@@ -63,8 +63,8 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
 
     @Test
     void createStoresName() {
-        UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId, "Production Server");
+        Identity identity = createActiveIdentity();
+        String rawKey = apiKeyService.create(identity, "Production Server");
 
         String hash = ApiKeyService.sha256Hex(rawKey);
         ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
@@ -74,22 +74,22 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
 
     @Test
     void createLinksCredentialToIdentity() {
-        UUID identityId = createActiveIdentity();
-        String rawKey = apiKeyService.create(identityId, "Test Key");
+        Identity identity = createActiveIdentity();
+        String rawKey = apiKeyService.create(identity, "Test Key");
 
         String hash = ApiKeyService.sha256Hex(rawKey);
         ApiKeyCredential credential = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow();
 
         assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credential.id()))
                 .isPresent()
-                .hasValue(identityId);
+                .hasValue(identity.id());
     }
 
     @Test
     void twoCreatesForSameIdentityProduceDifferentKeys() {
-        UUID identityId = createActiveIdentity();
-        String key1 = apiKeyService.create(identityId, "Key One");
-        String key2 = apiKeyService.create(identityId, "Key Two");
+        Identity identity = createActiveIdentity();
+        String key1 = apiKeyService.create(identity, "Key One");
+        String key2 = apiKeyService.create(identity, "Key Two");
 
         assertThat(key1).isNotEqualTo(key2);
 
@@ -98,9 +98,7 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
         assertThat(apiKeyCredentialRepository.findByKeyHash(ApiKeyService.sha256Hex(key2))).isPresent();
     }
 
-    private UUID createActiveIdentity() {
-        Identity identity = Identity.create(IdentityStatus.ACTIVE);
-        identityRepository.save(identity);
-        return identity.id();
+    private Identity createActiveIdentity() {
+        return identityRepository.save(Identity.create());
     }
 }

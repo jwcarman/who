@@ -71,7 +71,7 @@ public class WhoService {
      * @return the persisted identity
      */
     public Identity createIdentity() {
-        return identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
+        return identityRepository.save(Identity.create());
     }
 
     /**
@@ -85,7 +85,7 @@ public class WhoService {
                 .flatMap(identityRepository::findById)
                 .filter(identity -> identity.status() == IdentityStatus.ACTIVE)
                 .map(identity -> new WhoPrincipal(
-                        identity.id(),
+                        identity,
                         permissionsResolver.resolve(identity)
                 ));
     }

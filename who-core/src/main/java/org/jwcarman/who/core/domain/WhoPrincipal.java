@@ -17,20 +17,19 @@ package org.jwcarman.who.core.domain;
 
 import java.io.Serializable;
 import java.util.Set;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Resolved principal placed into the security context. Carries the stable identity UUID and
+ * Resolved principal placed into the security context. Carries the resolved {@link Identity} and
  * the union of all permission strings granted to that identity.
  */
 public record WhoPrincipal(
-        UUID identityId,
+        Identity identity,
         Set<String> permissions
 ) implements Serializable {
     public WhoPrincipal {
-        requireNonNull(identityId, "identityId must not be null");
+        requireNonNull(identity, "identity must not be null");
         requireNonNull(permissions, "permissions must not be null");
         permissions = Set.copyOf(permissions);
     }

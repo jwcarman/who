@@ -15,13 +15,13 @@
  */
 package org.jwcarman.who.apikey;
 
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
@@ -45,9 +45,9 @@ class ApiKeyServiceUnitTest {
     @Test
     void createThrowsWhenNameIsNull() {
         ApiKeyService service = new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
-        UUID identityId = UUID.randomUUID();
+        Identity identity = Identity.create();
 
         assertThatNullPointerException()
-                .isThrownBy(() -> service.create(identityId, null));
+                .isThrownBy(() -> service.create(identity, null));
     }
 }

@@ -112,7 +112,7 @@ class WhoServiceTest {
 
     @Test
     void returnsPrincipalWithPermissionsFromResolver() {
-        Identity active = Identity.create(IdentityStatus.ACTIVE);
+        Identity active = Identity.create();
         when(credential.id()).thenReturn(credentialId);
         when(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId))
                 .thenReturn(Optional.of(active.id()));
@@ -123,7 +123,7 @@ class WhoServiceTest {
 
         Optional<WhoPrincipal> result = service.resolve(credential);
         assertThat(result).isPresent();
-        assertThat(result.get().identityId()).isEqualTo(active.id());
+        assertThat(result.get().identity()).isEqualTo(active);
         assertThat(result.get().permissions()).containsExactlyInAnyOrder("read", "write");
     }
 

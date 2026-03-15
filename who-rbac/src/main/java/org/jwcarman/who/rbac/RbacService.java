@@ -16,6 +16,7 @@
 package org.jwcarman.who.rbac;
 
 import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.domain.Identity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,31 +108,31 @@ public class RbacService {
     /**
      * Assigns a role to an identity.
      *
-     * @param identityId the identity UUID
-     * @param roleId     the role UUID
+     * @param identity the identity to assign the role to
+     * @param roleId   the role UUID
      * @throws IllegalArgumentException if the role does not exist
      */
     @Transactional
-    public void assignRoleToIdentity(UUID identityId, UUID roleId) {
+    public void assignRoleToIdentity(Identity identity, UUID roleId) {
         if (!roleRepository.existsById(roleId)) {
             throw new IllegalArgumentException("Role not found: " + roleId);
         }
-        identityRoleRepository.assignRole(identityId, roleId);
+        identityRoleRepository.assignRole(identity.id(), roleId);
     }
 
     /**
      * Removes a role assignment from an identity.
      *
-     * @param identityId the identity UUID
-     * @param roleId     the role UUID
+     * @param identity the identity to remove the role from
+     * @param roleId   the role UUID
      * @throws IllegalArgumentException if the role is not currently assigned to the identity
      */
     @Transactional
-    public void removeRoleFromIdentity(UUID identityId, UUID roleId) {
-        if (!identityRoleRepository.findRoleIdsByIdentityId(identityId).contains(roleId)) {
+    public void removeRoleFromIdentity(Identity identity, UUID roleId) {
+        if (!identityRoleRepository.findRoleIdsByIdentityId(identity.id()).contains(roleId)) {
             throw new IllegalArgumentException(
-                    "Role " + roleId + " is not assigned to identity: " + identityId);
+                    "Role " + roleId + " is not assigned to identity: " + identity.id());
         }
-        identityRoleRepository.removeRole(identityId, roleId);
+        identityRoleRepository.removeRole(identity.id(), roleId);
     }
 }

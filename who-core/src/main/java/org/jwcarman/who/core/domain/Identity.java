@@ -39,6 +39,15 @@ public record Identity(
     }
 
     /**
+     * Creates a new {@code ACTIVE} {@code Identity} with a generated UUID and both timestamps set to now.
+     *
+     * @return a new active {@code Identity}
+     */
+    public static Identity create() {
+        return create(IdentityStatus.ACTIVE);
+    }
+
+    /**
      * Creates a new {@code Identity} with a generated UUID and both timestamps set to now.
      *
      * @param status the initial status

@@ -15,12 +15,13 @@
  */
 package org.jwcarman.who.spring.security;
 
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Set;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
@@ -29,7 +30,7 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void principalWithPermissionsProducesMatchingAuthorities() {
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("a", "b"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("a", "b"));
         WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
         assertThat(token.getAuthorities())
@@ -40,7 +41,7 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void principalWithNoPermissionsProducesEmptyAuthorities() {
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of());
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
         WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
         assertThat(token.getAuthorities()).isEmpty();
@@ -48,7 +49,7 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void getPrincipalReturnsSamePrincipal() {
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
         WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
         assertThat(token.getPrincipal()).isSameAs(principal);
@@ -56,7 +57,7 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void getCredentialsReturnsNull() {
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of());
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
         WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
         assertThat(token.getCredentials()).isNull();
@@ -64,7 +65,7 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void tokenIsAuthenticated() {
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of());
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
         WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
 
         assertThat(token.isAuthenticated()).isTrue();
@@ -79,14 +80,14 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void equalsReturnsTrueForSameInstance() {
-        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
         assertThat(token).isEqualTo(token);
     }
 
     @Test
     void equalsReturnsTrueForTokensWithSamePrincipal() {
-        WhoPrincipal principal = new WhoPrincipal(UUID.randomUUID(), Set.of("read"));
+        WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
         WhoAuthenticationToken token1 = new WhoAuthenticationToken(principal);
         WhoAuthenticationToken token2 = new WhoAuthenticationToken(principal);
 
@@ -95,15 +96,15 @@ class WhoAuthenticationTokenTest {
 
     @Test
     void equalsReturnsFalseForDifferentPrincipal() {
-        WhoAuthenticationToken token1 = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
-        WhoAuthenticationToken token2 = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+        WhoAuthenticationToken token1 = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
+        WhoAuthenticationToken token2 = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
         assertThat(token1).isNotEqualTo(token2);
     }
 
     @Test
     void equalsReturnsFalseForNonTokenObject() {
-        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(UUID.randomUUID(), Set.of()));
+        WhoAuthenticationToken token = new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
         assertThat(token).isNotEqualTo("not a token");
     }
