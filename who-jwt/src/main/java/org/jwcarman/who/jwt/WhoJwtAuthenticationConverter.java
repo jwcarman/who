@@ -22,9 +22,6 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import java.util.List;
-import java.util.Optional;
-
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -59,24 +56,14 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        String issuer = jwt.getIssuer().toString();
-        String subject = jwt.getSubject();
-
-        Optional<JwtCredential> credentialOpt = jwtCredentialRepository.findByIssuerAndSubject(issuer, subject);
-        if (credentialOpt.isEmpty()) {
-            return null;
-        }
-
-        Optional<WhoPrincipal> principalOpt = whoService.resolve(credentialOpt.get());
-        if (principalOpt.isEmpty()) {
-            return null;
-        }
-
-        WhoPrincipal principal = principalOpt.get();
-        List<SimpleGrantedAuthority> authorities = principal.permissions().stream()
-                .map(SimpleGrantedAuthority::new)
-                .toList();
-
-        return new WhoAuthenticationToken(principal, authorities);
+        return jwtCredentialRepository.findByIssuerAndSubject(jwt.getIssuer().toString(), jwt.getSubject())
+                .flatMap(whoService::resolve)
+                .map(principal -> new WhoAuthenticationToken(
+                        principal,
+                        principal.permissions().stream()
+                                .map(SimpleGrantedAuthority::new)
+                                .toList()
+                ))
+                .orElse(null);
     }
 }
