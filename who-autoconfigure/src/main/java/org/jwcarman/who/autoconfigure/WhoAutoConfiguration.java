@@ -42,10 +42,13 @@ import org.jwcarman.who.rbac.RoleRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+
+import javax.sql.DataSource;
 
 /**
  * Spring Boot autoconfiguration that wires all Who modules together.
@@ -61,6 +64,21 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @AutoConfiguration
 @EnableConfigurationProperties(WhoProperties.class)
 public class WhoAutoConfiguration {
+
+    /**
+     * Initializes Who's bundled DDL schemas against the configured {@link DataSource}.
+     *
+     * @param dataSource the data source to initialize
+     * @param properties Who configuration properties
+     * @return the database initializer
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnSingleCandidate(DataSource.class)
+    public WhoDataSourceScriptDatabaseInitializer whoDataSourceScriptDatabaseInitializer(
+            DataSource dataSource, WhoProperties properties) {
+        return new WhoDataSourceScriptDatabaseInitializer(dataSource, properties.getInitializeSchema());
+    }
 
     /**
      * Fallback {@link PermissionsResolver} that grants no permissions.

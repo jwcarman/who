@@ -32,7 +32,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
 
     private static final String COL_ID = "id";
     private static final String COL_IDENTITY_ID = "identity_id";
-    private static final String COL_VALUE = "value";
+    private static final String COL_VALUE = "token_value";
     private static final String COL_STATUS = "status";
     private static final String COL_CREATED_AT = "created_at";
     private static final String COL_EXPIRES_AT = "expires_at";
@@ -57,8 +57,8 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     public EnrollmentToken save(EnrollmentToken token) {
         jdbcClient
                 .sql("""
-                        INSERT INTO who_enrollment_token (id, identity_id, value, status, created_at, expires_at)
-                        VALUES (:id, :identityId, :value, :status, :createdAt, :expiresAt)
+                        INSERT INTO who_enrollment_token (id, identity_id, token_value, status, created_at, expires_at)
+                        VALUES (:id, :identityId, :token_value, :status, :createdAt, :expiresAt)
                         ON CONFLICT (id) DO UPDATE SET status = :status
                         """)
                 .param(COL_ID, token.id())
@@ -74,7 +74,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     @Override
     public Optional<EnrollmentToken> findById(UUID id) {
         return jdbcClient
-                .sql("SELECT id, identity_id, value, status, created_at, expires_at FROM who_enrollment_token WHERE id = :id")
+                .sql("SELECT id, identity_id, token_value, status, created_at, expires_at FROM who_enrollment_token WHERE id = :id")
                 .param(COL_ID, id)
                 .query(ROW_MAPPER)
                 .optional();
@@ -83,7 +83,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     @Override
     public Optional<EnrollmentToken> findByValue(String value) {
         return jdbcClient
-                .sql("SELECT id, identity_id, value, status, created_at, expires_at FROM who_enrollment_token WHERE value = :value")
+                .sql("SELECT id, identity_id, token_value, status, created_at, expires_at FROM who_enrollment_token WHERE token_value = :token_value")
                 .param(COL_VALUE, value)
                 .query(ROW_MAPPER)
                 .optional();

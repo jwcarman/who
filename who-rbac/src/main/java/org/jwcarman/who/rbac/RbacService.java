@@ -41,6 +41,18 @@ public class RbacService {
     }
 
     /**
+     * Returns the role with the given name.
+     *
+     * @param name the role name to look up
+     * @return the role
+     * @throws RoleNotFoundException if no role with that name exists
+     */
+    public Role findRequiredRole(String name) {
+        return roleRepository.findByName(name)
+                .orElseThrow(() -> new RoleNotFoundException(name));
+    }
+
+    /**
      * Creates a new role with the given name.
      *
      * @param name the role name (must be unique)

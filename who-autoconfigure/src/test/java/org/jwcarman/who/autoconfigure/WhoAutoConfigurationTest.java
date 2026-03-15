@@ -24,6 +24,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
@@ -31,6 +32,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class WhoAutoConfigurationTest {
 
@@ -75,6 +77,34 @@ class WhoAutoConfigurationTest {
                     assertThat(context).hasSingleBean(WhoService.class);
                     assertThat(context).doesNotHaveBean(RbacPermissionsResolver.class);
                     assertThat(context).doesNotHaveBean(WhoJwtAuthenticationConverter.class);
+                });
+    }
+
+    @Test
+    void schemaInitializationRunsForEmbeddedDatabaseByDefault() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+                .withUserConfiguration(TestDataSourceConfig.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    JdbcClient jdbcClient = context.getBean(JdbcClient.class);
+                    assertThat(jdbcClient.sql("SELECT COUNT(*) FROM who_identity")
+                            .query(Integer.class).single()).isZero();
+                });
+    }
+
+    @Test
+    void schemaInitializationSkippedWhenModeIsNever() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+                .withUserConfiguration(TestDataSourceConfig.class)
+                .withPropertyValues("who.initialize-schema=never")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    JdbcClient jdbcClient = context.getBean(JdbcClient.class);
+                    assertThatThrownBy(() -> jdbcClient.sql("SELECT COUNT(*) FROM who_identity")
+                            .query(Integer.class).single())
+                            .isInstanceOf(BadSqlGrammarException.class);
                 });
     }
 }

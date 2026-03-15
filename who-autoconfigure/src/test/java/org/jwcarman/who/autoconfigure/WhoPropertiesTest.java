@@ -16,9 +16,9 @@
 package org.jwcarman.who.autoconfigure;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 import java.time.Duration;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,12 +28,7 @@ class WhoPropertiesTest {
     void defaultsArePopulated() {
         WhoProperties props = new WhoProperties();
 
-        assertThat(props.getJdbc().getSchemaLocations())
-                .containsExactly("classpath:org/jwcarman/who/jdbc/schema.sql");
-        assertThat(props.getRbac().getSchemaLocations())
-                .containsExactly("classpath:org/jwcarman/who/rbac/schema.sql");
-        assertThat(props.getJwt().getSchemaLocations())
-                .containsExactly("classpath:org/jwcarman/who/jwt/schema.sql");
+        assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.EMBEDDED);
         assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
         assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
     }
@@ -42,20 +37,8 @@ class WhoPropertiesTest {
     void settersRoundTrip() {
         WhoProperties props = new WhoProperties();
 
-        WhoProperties.Jdbc jdbc = new WhoProperties.Jdbc();
-        jdbc.setSchemaLocations(List.of("classpath:custom-jdbc.sql"));
-        props.setJdbc(jdbc);
-        assertThat(props.getJdbc().getSchemaLocations()).containsExactly("classpath:custom-jdbc.sql");
-
-        WhoProperties.Rbac rbac = new WhoProperties.Rbac();
-        rbac.setSchemaLocations(List.of("classpath:custom-rbac.sql"));
-        props.setRbac(rbac);
-        assertThat(props.getRbac().getSchemaLocations()).containsExactly("classpath:custom-rbac.sql");
-
-        WhoProperties.Jwt jwt = new WhoProperties.Jwt();
-        jwt.setSchemaLocations(List.of("classpath:custom-jwt.sql"));
-        props.setJwt(jwt);
-        assertThat(props.getJwt().getSchemaLocations()).containsExactly("classpath:custom-jwt.sql");
+        props.setInitializeSchema(DatabaseInitializationMode.ALWAYS);
+        assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.ALWAYS);
 
         WhoProperties.Enrollment enrollment = new WhoProperties.Enrollment();
         enrollment.setTokenExpiration(Duration.ofHours(48));

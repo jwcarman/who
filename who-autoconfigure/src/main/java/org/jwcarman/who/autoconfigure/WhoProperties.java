@@ -16,136 +16,38 @@
 package org.jwcarman.who.autoconfigure;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Configuration properties for the Who identity framework.
- *
- * <p>All properties are informational hints documenting where each module's schema DDL lives.
- * Applications that want automatic schema initialization should configure
- * {@code spring.sql.init.schema-locations} (or use {@code ResourceDatabasePopulator}) pointing
- * at these locations.
  */
 @ConfigurationProperties(prefix = "who")
 public class WhoProperties {
 
-    private Jdbc jdbc = new Jdbc();
-    private Rbac rbac = new Rbac();
-    private Jwt jwt = new Jwt();
+    /** When to run Who's bundled DDL schema scripts: {@code always}, {@code embedded}, or {@code never}. */
+    private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
+
     private Enrollment enrollment = new Enrollment();
     private ApiKey apiKey = new ApiKey();
 
     /**
-     * Returns the JDBC module properties.
+     * Returns when to run Who's bundled DDL schema scripts.
      *
-     * @return jdbc properties
+     * @return schema initialization mode
      */
-    public Jdbc getJdbc() {
-        return jdbc;
+    public DatabaseInitializationMode getInitializeSchema() {
+        return initializeSchema;
     }
 
     /**
-     * Sets the JDBC module properties.
+     * Sets when to run Who's bundled DDL schema scripts.
      *
-     * @param jdbc jdbc properties
+     * @param initializeSchema schema initialization mode
      */
-    public void setJdbc(Jdbc jdbc) {
-        this.jdbc = jdbc;
-    }
-
-    /**
-     * Returns the RBAC module properties.
-     *
-     * @return rbac properties
-     */
-    public Rbac getRbac() {
-        return rbac;
-    }
-
-    /**
-     * Sets the RBAC module properties.
-     *
-     * @param rbac rbac properties
-     */
-    public void setRbac(Rbac rbac) {
-        this.rbac = rbac;
-    }
-
-    /**
-     * Returns the JWT module properties.
-     *
-     * @return jwt properties
-     */
-    public Jwt getJwt() {
-        return jwt;
-    }
-
-    /**
-     * Sets the JWT module properties.
-     *
-     * @param jwt jwt properties
-     */
-    public void setJwt(Jwt jwt) {
-        this.jwt = jwt;
-    }
-
-    /**
-     * Properties for the {@code who-jdbc} module.
-     */
-    public static class Jdbc {
-
-        /** Classpath locations of the who-jdbc DDL schema files. */
-        private List<String> schemaLocations = new ArrayList<>(
-                List.of("classpath:org/jwcarman/who/jdbc/schema.sql"));
-
-        /**
-         * Locations of the who-jdbc DDL schema files.
-         *
-         * @return schema locations
-         */
-        public List<String> getSchemaLocations() {
-            return schemaLocations;
-        }
-
-        /**
-         * Sets the locations of the who-jdbc DDL schema files.
-         *
-         * @param schemaLocations schema locations
-         */
-        public void setSchemaLocations(List<String> schemaLocations) {
-            this.schemaLocations = schemaLocations;
-        }
-    }
-
-    /**
-     * Properties for the {@code who-rbac} module.
-     */
-    public static class Rbac {
-
-        /** Classpath locations of the who-rbac DDL schema files. */
-        private List<String> schemaLocations = new ArrayList<>(
-                List.of("classpath:org/jwcarman/who/rbac/schema.sql"));
-
-        /**
-         * Locations of the who-rbac DDL schema files.
-         *
-         * @return schema locations
-         */
-        public List<String> getSchemaLocations() {
-            return schemaLocations;
-        }
-
-        /**
-         * Sets the locations of the who-rbac DDL schema files.
-         *
-         * @param schemaLocations schema locations
-         */
-        public void setSchemaLocations(List<String> schemaLocations) {
-            this.schemaLocations = schemaLocations;
-        }
+    public void setInitializeSchema(DatabaseInitializationMode initializeSchema) {
+        this.initializeSchema = initializeSchema;
     }
 
     /**
@@ -167,33 +69,6 @@ public class WhoProperties {
     }
 
     /**
-     * Properties for the {@code who-enrollment} module.
-     */
-    public static class Enrollment {
-
-        /** Duration after which a newly created enrollment token expires. */
-        private Duration tokenExpiration = Duration.ofHours(24);
-
-        /**
-         * Duration after which a newly created enrollment token expires.
-         *
-         * @return token expiration duration
-         */
-        public Duration getTokenExpiration() {
-            return tokenExpiration;
-        }
-
-        /**
-         * Sets the duration after which a newly created enrollment token expires.
-         *
-         * @param tokenExpiration token expiration duration
-         */
-        public void setTokenExpiration(Duration tokenExpiration) {
-            this.tokenExpiration = tokenExpiration;
-        }
-    }
-
-    /**
      * Returns the API key module properties.
      *
      * @return api key properties
@@ -212,6 +87,33 @@ public class WhoProperties {
     }
 
     /**
+     * Properties for the {@code who-enrollment} module.
+     */
+    public static class Enrollment {
+
+        /** Duration after which a newly created enrollment token expires. */
+        private Duration tokenExpiration = Duration.ofHours(24);
+
+        /**
+         * Returns the duration after which a newly created enrollment token expires.
+         *
+         * @return token expiration duration
+         */
+        public Duration getTokenExpiration() {
+            return tokenExpiration;
+        }
+
+        /**
+         * Sets the duration after which a newly created enrollment token expires.
+         *
+         * @param tokenExpiration token expiration duration
+         */
+        public void setTokenExpiration(Duration tokenExpiration) {
+            this.tokenExpiration = tokenExpiration;
+        }
+    }
+
+    /**
      * Properties for the {@code who-apikey} module.
      */
     public static class ApiKey {
@@ -220,7 +122,7 @@ public class WhoProperties {
         private String headerName = "X-API-Key";
 
         /**
-         * The HTTP header name that carries the API key.
+         * Returns the HTTP header name that carries the API key.
          *
          * @return header name
          */
@@ -235,34 +137,6 @@ public class WhoProperties {
          */
         public void setHeaderName(String headerName) {
             this.headerName = headerName;
-        }
-    }
-
-    /**
-     * Properties for the {@code who-jwt} module.
-     */
-    public static class Jwt {
-
-        /** Classpath locations of the who-jwt DDL schema files. */
-        private List<String> schemaLocations = new ArrayList<>(
-                List.of("classpath:org/jwcarman/who/jwt/schema.sql"));
-
-        /**
-         * Locations of the who-jwt DDL schema files.
-         *
-         * @return schema locations
-         */
-        public List<String> getSchemaLocations() {
-            return schemaLocations;
-        }
-
-        /**
-         * Sets the locations of the who-jwt DDL schema files.
-         *
-         * @param schemaLocations schema locations
-         */
-        public void setSchemaLocations(List<String> schemaLocations) {
-            this.schemaLocations = schemaLocations;
         }
     }
 }

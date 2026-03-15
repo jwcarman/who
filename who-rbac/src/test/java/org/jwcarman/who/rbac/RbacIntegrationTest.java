@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * End-to-end integration test covering the full role → permission → identity chain
@@ -131,6 +132,21 @@ class RbacIntegrationTest extends AbstractRbacTest {
         rbacService.removeRoleFromIdentity(identity, role);
 
         assertThat(resolver.resolve(identity)).isEmpty();
+    }
+
+    @Test
+    void findRequiredRoleReturnsRoleByName() {
+        rbacService.createRole("FIND_ME");
+        assertThatNoException().isThrownBy(() -> {
+            Role found = rbacService.findRequiredRole("FIND_ME");
+            assertThat(found.name()).isEqualTo("FIND_ME");
+        });
+    }
+
+    @Test
+    void findRequiredRoleThrowsWhenNotFound() {
+        assertThatThrownBy(() -> rbacService.findRequiredRole("NO_SUCH_ROLE"))
+                .isInstanceOf(RoleNotFoundException.class);
     }
 
     @Test
