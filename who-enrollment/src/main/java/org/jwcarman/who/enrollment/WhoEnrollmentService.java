@@ -63,6 +63,7 @@ public class WhoEnrollmentService {
     if (!identityRepository.existsById(identity.id())) {
       throw new IllegalArgumentException("Identity not found: " + identity.id());
     }
+    enrollmentTokenRepository.revokeAllPendingForIdentity(identity.id());
     EnrollmentToken rawToken = EnrollmentToken.create(identity, tokenExpiration);
     EnrollmentToken hashedToken =
         new EnrollmentToken(
@@ -71,7 +72,8 @@ public class WhoEnrollmentService {
             MessageDigests.sha256Hex(rawToken.value()),
             rawToken.status(),
             rawToken.createdAt(),
-            rawToken.expiresAt());
+            rawToken.expiresAt(),
+            null);
     enrollmentTokenRepository.save(hashedToken);
     return rawToken;
   }

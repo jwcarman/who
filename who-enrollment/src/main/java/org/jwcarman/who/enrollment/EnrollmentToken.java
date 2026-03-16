@@ -36,6 +36,7 @@ import org.jwcarman.who.core.id.Identifiers;
  * @param status current lifecycle status ({@code PENDING}, {@code REDEEMED}, or {@code REVOKED})
  * @param createdAt when the token was created
  * @param expiresAt when the token expires
+ * @param redeemedAt when the token was redeemed, or {@code null} if not yet redeemed
  */
 public record EnrollmentToken(
     UUID id,
@@ -43,7 +44,8 @@ public record EnrollmentToken(
     String value,
     EnrollmentTokenStatus status,
     Instant createdAt,
-    Instant expiresAt) {
+    Instant expiresAt,
+    Instant redeemedAt) {
 
   /** Compact constructor for null-safety validation. */
   public EnrollmentToken {
@@ -70,7 +72,8 @@ public record EnrollmentToken(
         Identifiers.uuid().toString(),
         EnrollmentTokenStatus.PENDING,
         now,
-        now.plus(expiration));
+        now.plus(expiration),
+        null);
   }
 
   /**
@@ -98,7 +101,7 @@ public record EnrollmentToken(
    */
   public EnrollmentToken redeem() {
     return new EnrollmentToken(
-        id, identityId, value, EnrollmentTokenStatus.REDEEMED, createdAt, expiresAt);
+        id, identityId, value, EnrollmentTokenStatus.REDEEMED, createdAt, expiresAt, Instant.now());
   }
 
   /**
@@ -108,6 +111,6 @@ public record EnrollmentToken(
    */
   public EnrollmentToken revoke() {
     return new EnrollmentToken(
-        id, identityId, value, EnrollmentTokenStatus.REVOKED, createdAt, expiresAt);
+        id, identityId, value, EnrollmentTokenStatus.REVOKED, createdAt, expiresAt, null);
   }
 }

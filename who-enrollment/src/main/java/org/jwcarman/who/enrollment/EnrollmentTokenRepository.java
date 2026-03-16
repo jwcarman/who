@@ -46,6 +46,13 @@ public interface EnrollmentTokenRepository {
   Optional<EnrollmentToken> findByValue(String value);
 
   /**
+   * Revokes all {@code PENDING} tokens for the given identity. No-op if none exist.
+   *
+   * @param identityId the identity whose pending tokens should be revoked
+   */
+  void revokeAllPendingForIdentity(UUID identityId);
+
+  /**
    * Deletes the token with the given id. No-op if not found.
    *
    * @param id the token's UUID

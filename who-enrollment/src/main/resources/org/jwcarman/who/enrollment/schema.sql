@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS who_enrollment_token (
     status      VARCHAR(20)  NOT NULL,
     created_at  TIMESTAMP(9) NOT NULL,
     expires_at  TIMESTAMP(9) NOT NULL,
+    redeemed_at TIMESTAMP(9),
     FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
 );

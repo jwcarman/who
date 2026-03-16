@@ -36,17 +36,21 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
   private static final String COL_STATUS = "status";
   private static final String COL_CREATED_AT = "created_at";
   private static final String COL_EXPIRES_AT = "expires_at";
+  private static final String COL_REDEEMED_AT = "redeemed_at";
   private static final String PARAM_IDENTITY_ID = "identityId";
 
   private static final RowMapper<EnrollmentToken> ROW_MAPPER =
-      (rs, rowNum) ->
-          new EnrollmentToken(
-              rs.getObject(COL_ID, UUID.class),
-              rs.getObject(COL_IDENTITY_ID, UUID.class),
-              rs.getString(COL_VALUE),
-              EnrollmentTokenStatus.valueOf(rs.getString(COL_STATUS)),
-              rs.getTimestamp(COL_CREATED_AT).toInstant(),
-              rs.getTimestamp(COL_EXPIRES_AT).toInstant());
+      (rs, rowNum) -> {
+        var redeemedAt = rs.getTimestamp(COL_REDEEMED_AT);
+        return new EnrollmentToken(
+            rs.getObject(COL_ID, UUID.class),
+            rs.getObject(COL_IDENTITY_ID, UUID.class),
+            rs.getString(COL_VALUE),
+            EnrollmentTokenStatus.valueOf(rs.getString(COL_STATUS)),
+            rs.getTimestamp(COL_CREATED_AT).toInstant(),
+            rs.getTimestamp(COL_EXPIRES_AT).toInstant(),
+            redeemedAt != null ? redeemedAt.toInstant() : null);
+      };
 
   private final JdbcClient jdbcClient;
 
@@ -59,9 +63,9 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
     jdbcClient
         .sql(
             """
-                        INSERT INTO who_enrollment_token (id, identity_id, token_value, status, created_at, expires_at)
-                        VALUES (:id, :identityId, :token_value, :status, :createdAt, :expiresAt)
-                        ON CONFLICT (id) DO UPDATE SET status = :status
+                        INSERT INTO who_enrollment_token (id, identity_id, token_value, status, created_at, expires_at, redeemed_at)
+                        VALUES (:id, :identityId, :token_value, :status, :createdAt, :expiresAt, :redeemedAt)
+                        ON CONFLICT (id) DO UPDATE SET status = :status, redeemed_at = :redeemedAt
                         """)
         .param(COL_ID, token.id())
         .param(PARAM_IDENTITY_ID, token.identityId())
@@ -69,6 +73,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
         .param(COL_STATUS, token.status().name())
         .param("createdAt", Timestamp.from(token.createdAt()))
         .param("expiresAt", Timestamp.from(token.expiresAt()))
+        .param("redeemedAt", token.redeemedAt() != null ? Timestamp.from(token.redeemedAt()) : null)
         .update();
     return token;
   }
@@ -77,7 +82,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
   public Optional<EnrollmentToken> findById(UUID id) {
     return jdbcClient
         .sql(
-            "SELECT id, identity_id, token_value, status, created_at, expires_at FROM who_enrollment_token WHERE id = :id")
+            "SELECT id, identity_id, token_value, status, created_at, expires_at, redeemed_at FROM who_enrollment_token WHERE id = :id")
         .param(COL_ID, id)
         .query(ROW_MAPPER)
         .optional();
@@ -87,10 +92,19 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
   public Optional<EnrollmentToken> findByValue(String value) {
     return jdbcClient
         .sql(
-            "SELECT id, identity_id, token_value, status, created_at, expires_at FROM who_enrollment_token WHERE token_value = :token_value")
+            "SELECT id, identity_id, token_value, status, created_at, expires_at, redeemed_at FROM who_enrollment_token WHERE token_value = :token_value")
         .param(COL_VALUE, value)
         .query(ROW_MAPPER)
         .optional();
+  }
+
+  @Override
+  public void revokeAllPendingForIdentity(UUID identityId) {
+    jdbcClient
+        .sql(
+            "UPDATE who_enrollment_token SET status = 'REVOKED' WHERE identity_id = :identityId AND status = 'PENDING'")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .update();
   }
 
   @Override

@@ -122,7 +122,8 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
             MessageDigests.sha256Hex(expired.value()),
             expired.status(),
             expired.createdAt(),
-            expired.expiresAt()));
+            expired.expiresAt(),
+            null));
     String tokenValue = expired.value();
     Credential cred = credential();
 
@@ -182,6 +183,37 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
   @Test
   void findTokenReturnsEmptyForUnknownValue() {
     assertThat(service.findToken("no-such-value")).isEmpty();
+  }
+
+  @Test
+  void enrollRecordsRedeemedAtTimestamp() {
+    Identity identity = savedIdentity();
+    EnrollmentToken token = service.createToken(identity);
+    Instant before = Instant.now();
+
+    service.enroll(token.value(), credential());
+
+    assertThat(tokenRepository.findById(token.id()))
+        .isPresent()
+        .get()
+        .satisfies(
+            t -> {
+              assertThat(t.redeemedAt()).isNotNull();
+              assertThat(t.redeemedAt()).isBetween(before, Instant.now());
+            });
+  }
+
+  @Test
+  void createTokenRevokesExistingPendingTokenForSameIdentity() {
+    Identity identity = savedIdentity();
+    EnrollmentToken first = service.createToken(identity);
+
+    service.createToken(identity);
+
+    assertThat(tokenRepository.findById(first.id()))
+        .isPresent()
+        .get()
+        .satisfies(t -> assertThat(t.status()).isEqualTo(EnrollmentTokenStatus.REVOKED));
   }
 
   @Test
