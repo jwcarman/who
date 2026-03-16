@@ -15,7 +15,7 @@
  */
 package org.jwcarman.who.enrollment;
 
-import org.jwcarman.who.core.WhoException;
+import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when an enrollment token cannot be found by the given value. */
 public class EnrollmentTokenNotFoundException extends WhoException {

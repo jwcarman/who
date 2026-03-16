@@ -18,6 +18,7 @@ package org.jwcarman.who.enrollment;
 import java.time.Duration;
 import java.util.Optional;
 
+import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -62,7 +63,17 @@ public class WhoEnrollmentService {
     if (!identityRepository.existsById(identity.id())) {
       throw new IllegalArgumentException("Identity not found: " + identity.id());
     }
-    return enrollmentTokenRepository.save(EnrollmentToken.create(identity, tokenExpiration));
+    EnrollmentToken rawToken = EnrollmentToken.create(identity, tokenExpiration);
+    EnrollmentToken hashedToken =
+        new EnrollmentToken(
+            rawToken.id(),
+            rawToken.identityId(),
+            MessageDigests.sha256Hex(rawToken.value()),
+            rawToken.status(),
+            rawToken.createdAt(),
+            rawToken.expiresAt());
+    enrollmentTokenRepository.save(hashedToken);
+    return rawToken;
   }
 
   /**
@@ -82,7 +93,7 @@ public class WhoEnrollmentService {
   public Identity enroll(String tokenValue, Credential credential) {
     EnrollmentToken token =
         enrollmentTokenRepository
-            .findByValue(tokenValue)
+            .findByValue(MessageDigests.sha256Hex(tokenValue))
             .orElseThrow(() -> new EnrollmentTokenNotFoundException(tokenValue));
 
     if (token.isExpired()) {
@@ -123,6 +134,6 @@ public class WhoEnrollmentService {
    * @return the token, or empty if not found
    */
   public Optional<EnrollmentToken> findToken(String tokenValue) {
-    return enrollmentTokenRepository.findByValue(tokenValue);
+    return enrollmentTokenRepository.findByValue(MessageDigests.sha256Hex(tokenValue));
   }
 }

@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -112,9 +113,16 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
   @Test
   void enrollThrowsForExpiredToken() {
     Identity identity = savedIdentity();
-    // Insert a token that is already expired
+    // Insert a token that is already expired — save with hashed value to match service behaviour
     EnrollmentToken expired = EnrollmentToken.create(identity, Duration.ofHours(-1));
-    tokenRepository.save(expired);
+    tokenRepository.save(
+        new EnrollmentToken(
+            expired.id(),
+            expired.identityId(),
+            MessageDigests.sha256Hex(expired.value()),
+            expired.status(),
+            expired.createdAt(),
+            expired.expiresAt()));
     String tokenValue = expired.value();
     Credential cred = credential();
 
@@ -174,5 +182,22 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
   @Test
   void findTokenReturnsEmptyForUnknownValue() {
     assertThat(service.findToken("no-such-value")).isEmpty();
+  }
+
+  @Test
+  void tokenValueStoredInDatabaseIsHashNotRawValue() {
+    Identity identity = savedIdentity();
+    EnrollmentToken token = service.createToken(identity);
+
+    String storedValue =
+        jdbcClient
+            .sql("SELECT token_value FROM who_enrollment_token WHERE id = :id")
+            .param("id", token.id())
+            .query(String.class)
+            .single();
+
+    assertThat(storedValue)
+        .isNotEqualTo(token.value())
+        .isEqualTo(MessageDigests.sha256Hex(token.value()));
   }
 }

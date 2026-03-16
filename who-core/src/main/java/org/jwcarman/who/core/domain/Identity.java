@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.id.Identifiers;
 
 /** Stable internal identity record. All application domain objects FK against the {@code id}. */
 public record Identity(UUID id, IdentityStatus status, Instant createdAt, Instant updatedAt) {

@@ -17,12 +17,12 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 
-import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 
 /**
@@ -35,7 +35,6 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 public class ApiKeyService {
 
   private static final HexFormat HEX = HexFormat.of();
-
   private final ApiKeyCredentialRepository apiKeyCredentialRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final SecureRandom secureRandom;
@@ -83,6 +82,6 @@ public class ApiKeyService {
   }
 
   static String sha256Hex(String input) {
-    return HEX.formatHex(MessageDigests.sha256(input.getBytes(StandardCharsets.UTF_8)));
+    return MessageDigests.sha256Hex(input);
   }
 }

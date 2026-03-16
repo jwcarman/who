@@ -16,6 +16,7 @@
 package org.jwcarman.who.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -33,6 +34,7 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,16 +55,17 @@ class WhoJwtAuthenticationConverterTest {
   }
 
   @Test
-  void returnsNullWhenCredentialNotFound() {
+  void throwsBadCredentialsWhenCredentialNotFound() {
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
     when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.empty());
 
-    assertThat(converter.convert(jwt)).isNull();
+    assertThatExceptionOfType(BadCredentialsException.class)
+        .isThrownBy(() -> converter.convert(jwt));
   }
 
   @Test
-  void returnsNullWhenWhoServiceReturnsEmpty() {
+  void throwsBadCredentialsWhenWhoServiceReturnsEmpty() {
     JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
@@ -70,7 +73,8 @@ class WhoJwtAuthenticationConverterTest {
         .thenReturn(Optional.of(credential));
     when(whoService.resolve(credential)).thenReturn(Optional.empty());
 
-    assertThat(converter.convert(jwt)).isNull();
+    assertThatExceptionOfType(BadCredentialsException.class)
+        .isThrownBy(() -> converter.convert(jwt));
   }
 
   @Test

@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -46,7 +47,8 @@ class WhoEnrollmentServiceUnitTest {
     Credential credential = UUID::randomUUID;
     String tokenValue = token.value();
 
-    when(enrollmentTokenRepository.findByValue(tokenValue)).thenReturn(Optional.of(token));
+    when(enrollmentTokenRepository.findByValue(MessageDigests.sha256Hex(tokenValue)))
+        .thenReturn(Optional.of(token));
     when(enrollmentTokenRepository.save(any())).thenReturn(token);
     when(identityRepository.findById(identity.id())).thenReturn(Optional.empty());
 

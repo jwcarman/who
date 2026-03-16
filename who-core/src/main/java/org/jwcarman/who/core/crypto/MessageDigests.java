@@ -13,32 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.apikey;
+package org.jwcarman.who.core.crypto;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
 /** Utility methods for computing message digests. */
 public final class MessageDigests {
 
-  /**
-   * Algorithm name for SHA-256, as expected by {@link
-   * java.security.MessageDigest#getInstance(String)}.
-   */
-  public static final String SHA_256 = "SHA-256";
+  private static final String SHA_256 = "SHA-256";
+  private static final HexFormat HEX = HexFormat.of();
 
   private MessageDigests() {
     // utility class
   }
 
   /**
-   * Computes the SHA-256 digest of the given bytes.
+   * Computes the SHA-256 digest of the given string (UTF-8 encoded) and returns it as a lowercase
+   * hex string.
    *
-   * @param bytes the input bytes
-   * @return the SHA-256 digest
+   * @param input the input string
+   * @return 64-character lowercase hex string of the SHA-256 digest
    */
-  public static byte[] sha256(byte[] bytes) {
-    return messageDigest(SHA_256, bytes);
+  public static String sha256Hex(String input) {
+    return HEX.formatHex(messageDigest(SHA_256, input.getBytes(StandardCharsets.UTF_8)));
   }
 
   /**

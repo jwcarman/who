@@ -19,7 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.UUID;
 
-import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.spi.Credential;
 
 /**

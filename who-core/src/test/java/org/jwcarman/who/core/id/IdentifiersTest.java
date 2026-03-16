@@ -13,17 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.core;
+package org.jwcarman.who.core.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-class WhoExceptionTest {
+class IdentifiersTest {
 
   @Test
-  void messageIsFormattedFromPatternAndArgs() {
-    WhoException ex = new WhoException("Hello, %s! You are number %d.", "world", 1);
-    assertThat(ex.getMessage()).isEqualTo("Hello, world! You are number 1.");
+  void uuidReturnsNonNullValue() {
+    assertThat(Identifiers.uuid()).isNotNull();
+  }
+
+  @Test
+  void uuidReturnsUniqueValuesOnEachCall() {
+    assertThat(Identifiers.uuid()).isNotEqualTo(Identifiers.uuid());
+  }
+
+  @Test
+  void uuidIsVersion7() {
+    assertThat(Identifiers.uuid().version()).isEqualTo(7);
   }
 }

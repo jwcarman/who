@@ -15,7 +15,7 @@
  */
 package org.jwcarman.who.rbac;
 
-import org.jwcarman.who.core.WhoException;
+import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when a role lookup by name finds no matching role. */
 public class RoleNotFoundException extends WhoException {

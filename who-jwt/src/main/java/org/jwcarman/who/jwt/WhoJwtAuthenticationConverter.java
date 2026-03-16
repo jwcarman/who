@@ -22,6 +22,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 /**
@@ -29,7 +30,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
  * {@link WhoAuthenticationToken} by resolving the JWT's issuer/subject pair to a {@link
  * WhoPrincipal}.
  *
- * <p>Returns {@code null} — causing Spring Security to treat the request as unauthenticated — when:
+ * <p>Throws {@link BadCredentialsException} — causing Spring Security to return a 401 — when:
  *
  * <ul>
  *   <li>no {@link JwtCredential} is registered for the issuer/subject pair, or
@@ -63,6 +64,6 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
         .findByIssuerAndSubject(jwt.getIssuer().toString(), jwt.getSubject())
         .flatMap(whoService::resolve)
         .map(WhoAuthenticationToken::new)
-        .orElse(null);
+        .orElseThrow(() -> new BadCredentialsException("Unknown JWT credential"));
   }
 }

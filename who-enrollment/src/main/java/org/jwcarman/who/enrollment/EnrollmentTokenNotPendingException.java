@@ -17,7 +17,7 @@ package org.jwcarman.who.enrollment;
 
 import java.util.UUID;
 
-import org.jwcarman.who.core.WhoException;
+import org.jwcarman.who.core.exception.WhoException;
 
 /**
  * Thrown when an enrollment token cannot be redeemed because it is not in {@code PENDING} status

@@ -13,16 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.core;
+package org.jwcarman.who.core.id;
 
 import java.util.UUID;
 
 import com.fasterxml.uuid.Generators;
 
+/** Utility methods for generating identifiers. */
 public final class Identifiers {
 
   private Identifiers() {}
 
+  /**
+   * Generates a new time-based (UUIDv7) identifier.
+   *
+   * @return a new unique UUID
+   */
   public static UUID uuid() {
     return Generators.timeBasedEpochGenerator().generate();
   }

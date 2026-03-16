@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.core;
+package org.jwcarman.who.core.exception;
 
-/** Base class for all Who framework exceptions. */
-public class WhoException extends RuntimeException {
+import static org.assertj.core.api.Assertions.assertThat;
 
-  /**
-   * Creates a new exception with a formatted message.
-   *
-   * @param pattern a {@link String#format} pattern
-   * @param args arguments referenced by the pattern
-   */
-  public WhoException(String pattern, Object... args) {
-    super(String.format(pattern, args));
+import org.junit.jupiter.api.Test;
+
+class WhoExceptionTest {
+
+  @Test
+  void messageIsFormattedFromPatternAndArgs() {
+    WhoException ex = new WhoException("Hello, %s! You are number %d.", "world", 1);
+    assertThat(ex.getMessage()).isEqualTo("Hello, world! You are number 1.");
   }
 }

@@ -18,7 +18,7 @@ package org.jwcarman.who.rbac;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.jwcarman.who.core.Identifiers;
+import org.jwcarman.who.core.id.Identifiers;
 
 /**
  * An immutable domain record representing a named role that can be assigned to identities and

@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.apikey;
+package org.jwcarman.who.core.exception;
 
-import static org.assertj.core.api.Assertions.assertThat;
+/** Base class for all Who framework exceptions. */
+public class WhoException extends RuntimeException {
 
-import org.junit.jupiter.api.Test;
-import org.jwcarman.who.core.crypto.MessageDigests;
-
-class MessageDigestsTest {
-
-  @Test
-  void sha256HexIsAvailableFromCore() {
-    assertThat(MessageDigests.sha256Hex("hello")).hasSize(64);
+  /**
+   * Creates a new exception with a formatted message.
+   *
+   * @param pattern a {@link String#format} pattern
+   * @param args arguments referenced by the pattern
+   */
+  public WhoException(String pattern, Object... args) {
+    super(String.format(pattern, args));
   }
 }
