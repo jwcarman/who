@@ -74,7 +74,7 @@ public class RbacService {
    */
   @Transactional
   public <R extends Enum<R>> Role createRole(R role) {
-    return createRole(role.name());
+    return createRoleByName(role.name());
   }
 
   /**
@@ -86,11 +86,14 @@ public class RbacService {
    */
   @Transactional
   public Role createRole(String name) {
+    return createRoleByName(name);
+  }
+
+  private Role createRoleByName(String name) {
     if (roleRepository.findByName(name).isPresent()) {
       throw new IllegalArgumentException("Role already exists with name: " + name);
     }
-    Role role = Role.create(name);
-    return roleRepository.save(role);
+    return roleRepository.save(Role.create(name));
   }
 
   /**
@@ -164,7 +167,7 @@ public class RbacService {
    */
   @Transactional
   public <R extends Enum<R>> void assignRoleByName(Identity identity, R role) {
-    assignRoleByName(identity, role.name());
+    assignRoleByNameInternal(identity, role.name());
   }
 
   /**
@@ -176,7 +179,12 @@ public class RbacService {
    */
   @Transactional
   public void assignRoleByName(Identity identity, String roleName) {
-    Role role = findRequiredRole(roleName);
+    assignRoleByNameInternal(identity, roleName);
+  }
+
+  private void assignRoleByNameInternal(Identity identity, String roleName) {
+    Role role =
+        roleRepository.findByName(roleName).orElseThrow(() -> new RoleNotFoundException(roleName));
     identityRoleRepository.assignRole(identity.id(), role.id());
   }
 
