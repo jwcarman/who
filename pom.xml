@@ -40,7 +40,7 @@
 
         <!-- Dependency Versions -->
         <java-uuid-generator.version>5.2.0</java-uuid-generator.version>
-        <spring-boot.version>4.0.3</spring-boot.version>
+        <spring-boot.version>4.0.4</spring-boot.version>
 
         <!-- Plugin Versions -->
         <compiler.plugin.version>3.15.0</compiler.plugin.version>
