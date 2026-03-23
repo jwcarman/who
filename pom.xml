@@ -55,7 +55,7 @@
         <source.plugin.version>3.4.0</source.plugin.version>
         <surefire.plugin.version>3.5.5</surefire.plugin.version>
         <license.plugin.version>5.0.0</license.plugin.version>
-        <spotless.plugin.version>3.3.0</spotless.plugin.version>
+        <spotless.plugin.version>3.4.0</spotless.plugin.version>
         <google-java-format.version>1.35.0</google-java-format.version>
 
         <!-- SonarCloud Configuration -->
