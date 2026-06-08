@@ -44,16 +44,16 @@
 
         <!-- Plugin Versions -->
         <compiler.plugin.version>3.15.0</compiler.plugin.version>
-        <dependency.plugin.version>3.10.0</dependency.plugin.version>
-        <enforcer.plugin.version>3.6.2</enforcer.plugin.version>
-        <failsafe.plugin.version>3.5.5</failsafe.plugin.version>
+        <dependency.plugin.version>3.11.0</dependency.plugin.version>
+        <enforcer.plugin.version>3.6.3</enforcer.plugin.version>
+        <failsafe.plugin.version>3.5.6</failsafe.plugin.version>
         <gpg.plugin.version>3.2.8</gpg.plugin.version>
-        <jacoco.plugin.version>0.8.14</jacoco.plugin.version>
+        <jacoco.plugin.version>0.8.15</jacoco.plugin.version>
         <javadoc.plugin.version>3.12.0</javadoc.plugin.version>
-        <sonar.plugin.version>5.5.0.6356</sonar.plugin.version>
+        <sonar.plugin.version>5.7.0.6970</sonar.plugin.version>
         <sonatype.plugin.version>0.10.0</sonatype.plugin.version>
         <source.plugin.version>3.4.0</source.plugin.version>
-        <surefire.plugin.version>3.5.5</surefire.plugin.version>
+        <surefire.plugin.version>3.5.6</surefire.plugin.version>
         <license.plugin.version>5.0.0</license.plugin.version>
         <spotless.plugin.version>3.3.0</spotless.plugin.version>
         <google-java-format.version>1.35.0</google-java-format.version>
