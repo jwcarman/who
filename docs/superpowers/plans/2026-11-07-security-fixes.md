@@ -404,3 +404,23 @@ Expected: FAIL: the first test's call succeeds, because there's no method securi
 - [ ] **Step 2: Run the whole build.** `./mvnw -q spotless:apply && ./mvnw -B verify`. Expected:
   BUILD SUCCESS; the existing tests plus the new ones all pass.
 - [ ] **Step 3: Commit:** `docs: 0.10.0 security changes in the README and example`.
+
+### Task 9: Spring Boot 4.1.2
+
+Added on 2026-11-07 at the owner's request. Spring Boot 4.2.0 is only a release candidate (RC2), so this
+release moves to 4.1.2, the latest stable version; 4.2.0 follows once it is released. Run this after Task 5
+and before Task 6, so the remaining tasks are built on 4.1.2.
+
+**Files:**
+- Modify: `pom.xml` (`spring-boot.version` 4.0.3 → 4.1.2), plus any test or main code the upgrade breaks
+
+**Interfaces:**
+- Produces: the whole build on Spring Boot 4.1.2 / Spring Security 7.1. No public API changes, unless
+  4.1 removes something who uses; then the smallest change that keeps behaviour, named in the commit.
+
+- [ ] **Step 1: Bump the property** and run `./mvnw -q spotless:apply && ./mvnw -B verify`.
+- [ ] **Step 2: Fix what breaks,** module by module. Deprecation warnings that 4.1 introduces in who's code
+  get fixed where the replacement is direct; list the others in the report.
+- [ ] **Step 3: Run the whole build.** Expected: BUILD SUCCESS, with every test passing, the same count
+  as before plus none lost.
+- [ ] **Step 4: Commit:** `build: Spring Boot 4.1.2`.
