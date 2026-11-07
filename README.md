@@ -86,7 +86,11 @@ HttpRequest → CredentialExtractor → Credential → Identity → Set<String> 
 - **API key filter wiring.** `ApiKeyAuthenticationFilter` is no longer registered globally with the servlet container. Add it to each chain that should accept API keys: `http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults())`. The filter skips requests that are already authenticated. See [Wiring the filter](#wiring-the-filter).
 - **Method security is on by default.** `@RequiresPermission` is now enforced without any setup. Set `who.method-security.enabled=false` to turn it off. An `@EnableMethodSecurity` in your own configuration is respected.
 - **`ApiKeyCredentialRepository.deleteById` returns `boolean`.** It returns `true` if a key was deleted. Update custom implementations. To revoke a key, call `ApiKeyService.revoke(UUID)`.
-- **New key and token format.** New API keys are `who_` plus 43 URL-safe characters (256 random bits). Enrollment tokens use the same random source. Existing keys and tokens keep working, because both are stored and looked up as hashes.
+- **New key and token format.** New API keys are `who_` plus 43 URL-safe characters (256 random bits). Enrollment tokens use the same random source. Existing API keys keep working. Pending enrollment tokens issued before 0.10.0 are predictable (the token value followed from its id), so revoke them and issue new ones:
+
+  ```sql
+  UPDATE who_enrollment_token SET status = 'REVOKED' WHERE status = 'PENDING';
+  ```
 - **Enrollment exceptions.** `enroll` throws `EnrollmentIdentityInactiveException` for an identity that is not active, and `CredentialAlreadyLinkedException` for a credential that is already linked. A token is single use, even under concurrent requests. `EnrollmentTokenNotFoundException` no longer contains the token value, and `EnrollmentToken.toString()` masks the value.
 - **JWT claims.** A token with no `iss` or no `sub` claim now gets 401 instead of 500. Validate the issuer too. See [Configure JWT](#configure-jwt).
 - **Foreign key on `who_identity_role`.** `who_identity_role.identity_id` now references `who_identity(id)` with `ON DELETE CASCADE`. Deleting an identity removes its role assignments, and assigning a role to an identity that is not in `who_identity` now fails. The `CREATE TABLE IF NOT EXISTS` schema does not change existing tables, so on an existing database run this yourself. Delete orphan rows first, or the constraint fails:
@@ -546,9 +550,13 @@ Identity identity = whoService.createIdentity();
 EnrollmentToken token = enrollmentService.createToken(identity);
 notifyUser(token.value()); // email, admin console, etc.
 
-// 3. The user logs in, then redeems the token. Persist the JwtCredential, then enroll.
-//    issuer and subject come from the redeemer's validated JWT.
-JwtCredential credential = jwtCredentialRepository.save(JwtCredential.create(issuer, subject));
+// 3. The user logs in, then redeems the token. issuer and subject come from the
+//    redeemer's validated JWT. Do this in one @Transactional method: find the
+//    credential or create it, then enroll. A failed enroll then leaves no credential
+//    row behind, and a retry finds the existing one.
+JwtCredential credential = jwtCredentialRepository
+    .findByIssuerAndSubject(issuer, subject)
+    .orElseGet(() -> jwtCredentialRepository.save(JwtCredential.create(issuer, subject)));
 Identity enrolled = enrollmentService.enroll(token.value(), credential);
 
 // To cancel a token before it is redeemed:
