@@ -255,8 +255,16 @@ base64url text as in Spring:
   null, display_name varchar(200))`:
   - The user handle (`id`) is 64 random bytes, not derived from the identity or the email address.
     Sign-in maps by user handle, never by name.
-  - `name` is what the passkey picker shows: the identity's email address when it has one,
-    otherwise the identity id. `display_name` is the same.
+  - `name` is what the passkey picker shows; `display_name` is the same. who does not assume an
+    identity has an email address (an identity may have none, or several), so it picks, in order:
+    1. the address of the email credential the current session signed in with (registering
+       requires a sign-in within the registration window, usually by email link, so this is the
+       address the user just proved they own);
+    2. otherwise, the address of the identity's oldest email credential;
+    3. otherwise, the identity id.
+  - The picker label is stored on the user's device when the passkey is created. If the address
+    changes later, who updates its own row, but devices keep the old label until the browser
+    supports updating it. Sign-in is unaffected, because it maps by user handle. The docs say so.
   - `findByUsername(name)` looks the entity up by identity id, because Spring passes
     `Authentication.getName()`.
   - The email address is stored in the user's synced credential manager; the spec accepts and
