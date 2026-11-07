@@ -37,8 +37,9 @@ class WhoPasskeyTestApp {
   }
 
   @Bean
-  JdbcWhoPasskeyUserRepository passkeyUserRepository(JdbcClient jdbcClient) {
-    return new JdbcWhoPasskeyUserRepository(jdbcClient);
+  JdbcWhoPasskeyUserRepository passkeyUserRepository(
+      JdbcClient jdbcClient, CredentialIdentityRepository credentialIdentityRepository) {
+    return new JdbcWhoPasskeyUserRepository(jdbcClient, credentialIdentityRepository);
   }
 
   @Bean

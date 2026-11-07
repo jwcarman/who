@@ -16,15 +16,18 @@
 package org.jwcarman.who.passkey;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.web.webauthn.api.Bytes;
+import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 
@@ -32,6 +35,8 @@ class JdbcWhoPasskeyUserRepositoryTest extends AbstractPasskeyTest {
 
   @Autowired private JdbcWhoPasskeyUserRepository repository;
   @Autowired private IdentityRepository identityRepository;
+  @Autowired private JdbcWhoPasskeyCredentialRepository credentialRepository;
+  @Autowired private CredentialIdentityRepository credentialIdentityRepository;
 
   @Test
   void createMakesA64ByteHandleOncePerIdentity() {
@@ -104,5 +109,63 @@ class JdbcWhoPasskeyUserRepositoryTest extends AbstractPasskeyTest {
 
     assertThat(repository.findById(entity.getId())).isNull();
     assertThat(repository.findByUsername(identity.id().toString())).isNull();
+  }
+
+  @Test
+  void aMaximumLengthNameRoundTrips() {
+    Identity identity = identityRepository.save(Identity.create());
+    String name = "a".repeat(64) + "@" + "b".repeat(251) + ".com";
+
+    PublicKeyCredentialUserEntity entity = repository.create(identity.id(), name);
+
+    assertThat(name).hasSize(320);
+    assertThat(repository.findById(entity.getId()).getName()).isEqualTo(name);
+    assertThat(repository.findById(entity.getId()).getDisplayName()).isEqualTo(name);
+  }
+
+  @Test
+  void deletingTheUserEntityUnlinksItsPasskeys() {
+    Identity identity = identityRepository.save(Identity.create());
+    PublicKeyCredentialUserEntity entity = repository.create(identity.id(), "owner@example.com");
+    ImmutableCredentialRecord laptop =
+        CredentialRecords.registration(entity.getId(), "Laptop").build();
+    ImmutableCredentialRecord phone =
+        CredentialRecords.registration(entity.getId(), "Phone").build();
+    credentialRepository.save(laptop);
+    credentialRepository.save(phone);
+    UUID laptopUuid = credentialRepository.credentialUuid(laptop.getCredentialId()).orElseThrow();
+    UUID phoneUuid = credentialRepository.credentialUuid(phone.getCredentialId()).orElseThrow();
+
+    repository.delete(entity.getId());
+
+    assertThat(credentialRepository.findByUserId(entity.getId())).isEmpty();
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(laptopUuid)).isEmpty();
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(phoneUuid)).isEmpty();
+  }
+
+  @Test
+  void createTwiceInOneTransactionKeepsTheTransactionUsable() {
+    Identity identity = identityRepository.save(Identity.create());
+
+    PublicKeyCredentialUserEntity first = repository.create(identity.id(), "owner@example.com");
+    PublicKeyCredentialUserEntity second = repository.create(identity.id(), "owner@example.com");
+
+    assertThat(second).isEqualTo(first);
+    assertThat(repository.findByUsername(identity.id().toString())).isEqualTo(first);
+  }
+
+  @Test
+  void saveOfANewEntityNeedsAnIdentityIdName() {
+    PublicKeyCredentialUserEntity unnamed =
+        ImmutablePublicKeyCredentialUserEntity.builder()
+            .id(Bytes.random())
+            .name("someone@example.com")
+            .displayName("someone@example.com")
+            .build();
+
+    assertThatThrownBy(() -> repository.save(unnamed))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageNotContaining("someone@example.com")
+        .hasMessageNotContaining(unnamed.getId().toBase64UrlString());
   }
 }

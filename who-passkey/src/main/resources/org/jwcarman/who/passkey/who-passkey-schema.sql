@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS who_passkey_user (
     id           VARCHAR(1000) PRIMARY KEY,
     identity_id  UUID          NOT NULL UNIQUE REFERENCES who_identity (id) ON DELETE CASCADE,
-    name         VARCHAR(100)  NOT NULL,
-    display_name VARCHAR(200)
+    name         VARCHAR(320)  NOT NULL,
+    display_name VARCHAR(320)
 );
 
 CREATE TABLE IF NOT EXISTS who_passkey_credential (

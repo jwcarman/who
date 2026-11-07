@@ -29,8 +29,8 @@
                 <constraints nullable="false" unique="true" foreignKeyName="fk_who_passkey_user_identity"
                              referencedTableName="who_identity" referencedColumnNames="id" deleteCascade="true"/>
             </column>
-            <column name="name" type="varchar(100)"><constraints nullable="false"/></column>
-            <column name="display_name" type="varchar(200)"/>
+            <column name="name" type="varchar(320)"><constraints nullable="false"/></column>
+            <column name="display_name" type="varchar(320)"/>
         </createTable>
     </changeSet>
 

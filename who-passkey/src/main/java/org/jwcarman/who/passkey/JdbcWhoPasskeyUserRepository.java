@@ -21,13 +21,14 @@ import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.dao.DuplicateKeyException;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.management.PublicKeyCredentialUserEntityRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * JDBC implementation of Spring Security's {@link PublicKeyCredentialUserEntityRepository} on
@@ -59,14 +60,20 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
 
   private final SecureRandom random = new SecureRandom();
   private final JdbcClient jdbcClient;
+  private final CredentialIdentityRepository credentialIdentityRepository;
 
   /**
    * Creates a new repository.
    *
    * @param jdbcClient the JDBC client used to execute queries
+   * @param credentialIdentityRepository unlinks an entity's passkeys when the entity is deleted
    */
-  public JdbcWhoPasskeyUserRepository(JdbcClient jdbcClient) {
+  public JdbcWhoPasskeyUserRepository(
+      JdbcClient jdbcClient, CredentialIdentityRepository credentialIdentityRepository) {
     this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient must not be null");
+    this.credentialIdentityRepository =
+        requireNonNull(
+            credentialIdentityRepository, "credentialIdentityRepository must not be null");
   }
 
   /**
@@ -81,25 +88,20 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   public PublicKeyCredentialUserEntity create(UUID identityId, String name) {
     requireNonNull(identityId, "identityId must not be null");
     requireNonNull(name, "name must not be null");
-    Optional<PublicKeyCredentialUserEntity> existing = findByIdentityId(identityId);
-    if (existing.isPresent()) {
-      return existing.get();
-    }
     byte[] handle = new byte[USER_HANDLE_LENGTH];
     random.nextBytes(handle);
-    PublicKeyCredentialUserEntity entity =
-        ImmutablePublicKeyCredentialUserEntity.builder()
-            .id(new Bytes(handle))
-            .name(name)
-            .displayName(name)
-            .build();
-    try {
-      insert(entity, identityId);
-    } catch (DuplicateKeyException _) {
-      // A concurrent create for the same identity won.
-      return findByIdentityId(identityId).orElseThrow();
-    }
-    return entity;
+    // ON CONFLICT keeps a concurrent create from aborting the caller's transaction.
+    jdbcClient
+        .sql(
+            "INSERT INTO who_passkey_user (id, identity_id, name, display_name)"
+                + " VALUES (:id, :identity_id, :name, :display_name)"
+                + " ON CONFLICT (identity_id) DO NOTHING")
+        .param(COL_ID, new Bytes(handle).toBase64UrlString())
+        .param(COL_IDENTITY_ID, identityId)
+        .param(COL_NAME, name)
+        .param(COL_DISPLAY_NAME, name)
+        .update();
+    return findByIdentityId(identityId).orElseThrow();
   }
 
   /**
@@ -139,41 +141,54 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   }
 
   /**
-   * Updates the entity's {@code name} and {@code display_name}, or inserts it if no row has its id.
-   * An insert takes the identity id from the entity's {@code name}, as Spring's own registration
-   * creates entities named {@code Authentication.getName()}.
+   * Upserts the entity on its id: inserts it, or updates {@code name} and {@code display_name}. The
+   * identity id comes from the existing row, or for a new entity from its {@code name}, as Spring's
+   * own registration creates entities named {@code Authentication.getName()}.
    *
    * @param userEntity the entity
    * @throws IllegalArgumentException if a new entity's name is not an identity id
    */
   @Override
   public void save(PublicKeyCredentialUserEntity userEntity) {
-    int updated =
-        jdbcClient
-            .sql(
-                "UPDATE who_passkey_user SET name = :name, display_name = :display_name"
-                    + " WHERE id = :id")
-            .param(COL_ID, userEntity.getId().toBase64UrlString())
-            .param(COL_NAME, userEntity.getName())
-            .param(COL_DISPLAY_NAME, userEntity.getDisplayName())
-            .update();
-    if (updated == 0) {
-      UUID identityId =
-          parseUuid(userEntity.getName())
-              .orElseThrow(
-                  () ->
-                      new IllegalArgumentException(
-                          "a new user entity's name must be an identity id"));
-      insert(userEntity, identityId);
-    }
+    UUID identityId =
+        parseUuid(userEntity.getName())
+            .or(() -> findIdentityId(userEntity.getId()))
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "a new user entity's name must be an identity id"));
+    jdbcClient
+        .sql(
+            "INSERT INTO who_passkey_user (id, identity_id, name, display_name)"
+                + " VALUES (:id, :identity_id, :name, :display_name)"
+                + " ON CONFLICT (id) DO UPDATE"
+                + " SET name = EXCLUDED.name, display_name = EXCLUDED.display_name")
+        .param(COL_ID, userEntity.getId().toBase64UrlString())
+        .param(COL_IDENTITY_ID, identityId)
+        .param(COL_NAME, userEntity.getName())
+        .param(COL_DISPLAY_NAME, userEntity.getDisplayName())
+        .update();
   }
 
+  /**
+   * Deletes the entity. Its passkeys are deleted by the foreign key cascade; this method unlinks
+   * each of them from the identity first, so no session signed in with one stays valid.
+   *
+   * @param id the user handle
+   */
   @Override
+  @Transactional
   public void delete(Bytes id) {
+    String handle = id.toBase64UrlString();
     jdbcClient
-        .sql("DELETE FROM who_passkey_user WHERE id = :id")
-        .param(COL_ID, id.toBase64UrlString())
-        .update();
+        .sql(
+            "SELECT credential_uuid FROM who_passkey_credential"
+                + " WHERE user_entity_user_id = :id")
+        .param(COL_ID, handle)
+        .query(UUID.class)
+        .list()
+        .forEach(credentialIdentityRepository::unlink);
+    jdbcClient.sql("DELETE FROM who_passkey_user WHERE id = :id").param(COL_ID, handle).update();
   }
 
   private Optional<PublicKeyCredentialUserEntity> findByIdentityId(UUID identityId) {
@@ -182,18 +197,6 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
         .param(COL_IDENTITY_ID, identityId)
         .query(ROW_MAPPER)
         .optional();
-  }
-
-  private void insert(PublicKeyCredentialUserEntity entity, UUID identityId) {
-    jdbcClient
-        .sql(
-            "INSERT INTO who_passkey_user (id, identity_id, name, display_name)"
-                + " VALUES (:id, :identity_id, :name, :display_name)")
-        .param(COL_ID, entity.getId().toBase64UrlString())
-        .param(COL_IDENTITY_ID, identityId)
-        .param(COL_NAME, entity.getName())
-        .param(COL_DISPLAY_NAME, entity.getDisplayName())
-        .update();
   }
 
   private static Optional<UUID> parseUuid(String value) {
