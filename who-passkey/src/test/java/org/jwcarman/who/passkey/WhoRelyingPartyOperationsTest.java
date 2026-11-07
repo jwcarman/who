@@ -35,6 +35,7 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -126,13 +127,37 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
     Authentication anonymous =
         new AnonymousAuthenticationToken(
             "key", "anonymousUser", AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS"));
+    var request = new ImmutablePublicKeyCredentialCreationOptionsRequest(anonymous);
 
-    assertThatThrownBy(
-            () ->
-                operations.createPublicKeyCredentialCreationOptions(
-                    new ImmutablePublicKeyCredentialCreationOptionsRequest(anonymous)))
+    assertThatThrownBy(() -> operations.createPublicKeyCredentialCreationOptions(request))
         .isInstanceOf(IllegalArgumentException.class);
     assertThat(resolvedSessionCredentials).isEmpty();
+  }
+
+  @Test
+  void creationOptionsRequireAnIdentityIdAsTheName() {
+    var request =
+        new ImmutablePublicKeyCredentialCreationOptionsRequest(
+            UsernamePasswordAuthenticationToken.authenticated("alice", null, List.of()));
+
+    assertThatThrownBy(() -> operations.createPublicKeyCredentialCreationOptions(request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("the authentication's name must be an identity id");
+    assertThat(resolvedSessionCredentials).isEmpty();
+  }
+
+  @Test
+  void creationOptionsForAnotherAuthenticationHaveNoSessionCredential() {
+    var request =
+        new ImmutablePublicKeyCredentialCreationOptionsRequest(
+            UsernamePasswordAuthenticationToken.authenticated(
+                identity.id().toString(), null, List.of()));
+
+    PublicKeyCredentialCreationOptions options =
+        operations.createPublicKeyCredentialCreationOptions(request);
+
+    assertThat(userRepository.findIdentityId(options.getUser().getId())).contains(identity.id());
+    assertThat(resolvedSessionCredentials).containsExactly(Optional.empty());
   }
 
   @Test
@@ -149,12 +174,12 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
   void registrationSucceedsWithUserVerification() {
     PublicKeyCredentialCreationOptions options = creationOptions();
 
-    CredentialRecord record =
+    CredentialRecord credential =
         operations.registerCredential(PasskeyEmulator.honest(ORIGIN).register(options, "Laptop"));
 
-    assertThat(record.isUvInitialized()).isTrue();
-    assertThat(record.getUserEntityUserId()).isEqualTo(options.getUser().getId());
-    assertThat(credentialRepository.findByCredentialId(record.getCredentialId())).isNotNull();
+    assertThat(credential.isUvInitialized()).isTrue();
+    assertThat(credential.getUserEntityUserId()).isEqualTo(options.getUser().getId());
+    assertThat(credentialRepository.findByCredentialId(credential.getCredentialId())).isNotNull();
   }
 
   @Test
@@ -207,10 +232,10 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
         failing.createPublicKeyCredentialCreationOptions(
             new ImmutablePublicKeyCredentialCreationOptionsRequest(signedIn()));
 
-    CredentialRecord record =
+    CredentialRecord credential =
         failing.registerCredential(PasskeyEmulator.honest(ORIGIN).register(options, "Laptop"));
 
-    assertThat(credentialRepository.findByCredentialId(record.getCredentialId())).isNotNull();
+    assertThat(credentialRepository.findByCredentialId(credential.getCredentialId())).isNotNull();
   }
 
   @Test
@@ -226,6 +251,34 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessageNotContaining(identity.id().toString())
         .hasMessageNotContaining(other.id().toString());
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+    assertThat(notifications).isEmpty();
+  }
+
+  @Test
+  void registrationWhenTheSignedInNameIsNotAnIdentityIdFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request = PasskeyEmulator.honest(ORIGIN).register(options, "Laptop");
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            UsernamePasswordAuthenticationToken.authenticated("alice", null, List.of()));
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("the creation options do not belong to the signed-in identity");
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+    assertThat(notifications).isEmpty();
+  }
+
+  @Test
+  void registrationWithOptionsWhoseUserEntityIsGoneFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request = PasskeyEmulator.honest(ORIGIN).register(options, "Laptop");
+    userRepository.delete(options.getUser().getId());
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("the creation options do not belong to the signed-in identity");
     assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
     assertThat(notifications).isEmpty();
   }

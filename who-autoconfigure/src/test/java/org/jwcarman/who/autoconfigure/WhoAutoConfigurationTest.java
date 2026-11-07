@@ -22,7 +22,9 @@ import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
@@ -165,6 +167,9 @@ class WhoAutoConfigurationTest {
               assertThat(context).hasSingleBean(WhoService.class);
               assertThat(context).doesNotHaveBean(RbacPermissionsResolver.class);
               assertThat(context).doesNotHaveBean(WhoJwtAuthenticationConverter.class);
+              // without who-rbac, no identity has permissions
+              assertThat(context.getBean(PermissionsResolver.class).resolve(Identity.create()))
+                  .isEmpty();
             });
   }
 

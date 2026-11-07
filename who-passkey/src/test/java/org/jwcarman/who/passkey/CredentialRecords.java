@@ -32,11 +32,11 @@ final class CredentialRecords {
   private CredentialRecords() {}
 
   /** Saves a new record as a registration does: the only save that inserts. */
-  static void register(JdbcWhoPasskeyCredentialRepository repository, CredentialRecord record) {
+  static void register(JdbcWhoPasskeyCredentialRepository repository, CredentialRecord credential) {
     JdbcWhoPasskeyCredentialRepository.registering(
         () -> {
-          repository.save(record);
-          return record;
+          repository.save(credential);
+          return credential;
         });
   }
 

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.Set;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -68,11 +69,41 @@ class PasskeySettingsTest {
   @ParameterizedTest
   @ValueSource(strings = {"", " "})
   void blankRpNameFails(String rpName) {
-    assertThatThrownBy(
-            () ->
-                new PasskeySettings(
-                    "app.example.com", rpName, Set.of("https://app.example.com"), WINDOW))
+    Set<String> origins = Set.of("https://app.example.com");
+
+    assertThatThrownBy(() -> new PasskeySettings("app.example.com", rpName, origins, WINDOW))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("who.passkey.rp-name");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " "})
+  void blankRpIdFails(String rpId) {
+    Set<String> origins = Set.of("https://app.example.com");
+
+    assertThatThrownBy(() -> new PasskeySettings(rpId, "App", origins, WINDOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("rpId must not be blank");
+  }
+
+  @Test
+  void noOriginsFails() {
+    Set<String> origins = Set.of();
+
+    assertThatThrownBy(() -> new PasskeySettings("app.example.com", "App", origins, WINDOW))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("allowedOrigins must not be empty");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"PT0S", "-PT1M"})
+  void aWindowThatIsNotPositiveFails(String window) {
+    Set<String> origins = Set.of("https://app.example.com");
+    Duration registrationWindow = Duration.parse(window);
+
+    assertThatThrownBy(
+            () -> new PasskeySettings("app.example.com", "App", origins, registrationWindow))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("registrationWindow must be positive");
   }
 }

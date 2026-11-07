@@ -178,6 +178,24 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
   }
 
   @Test
+  void noCredentialTypeOrAttestationRoundTrips() {
+    ImmutableCredentialRecord registered =
+        CredentialRecords.registration(user.getId(), "Key")
+            .credentialType(null)
+            .attestationObject(null)
+            .attestationClientDataJSON(null)
+            .build();
+
+    CredentialRecords.register(repository, registered);
+
+    CredentialRecord found = repository.findByCredentialId(registered.getCredentialId());
+    assertThat(found.getCredentialType()).isNull();
+    assertThat(found.getAttestationObject()).isNull();
+    assertThat(found.getAttestationClientDataJSON()).isNull();
+    assertThat(found).usingRecursiveComparison().isEqualTo(registered);
+  }
+
+  @Test
   void nullLastUsedReadsBack() {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Key").lastUsed(null).build();

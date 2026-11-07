@@ -64,6 +64,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
@@ -191,6 +192,7 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
   @Autowired private JdbcWhoPasskeyUserRepository userRepository;
   @Autowired private JdbcWhoPasskeyCredentialRepository credentialRepository;
   @Autowired private WebAuthnRelyingPartyOperations relyingPartyOperations;
+  @Autowired private ApplicationContext applicationContext;
 
   private <T extends Filter> T filter(Class<T> type) {
     List<T> found = chain.getFilters().stream().filter(type::isInstance).map(type::cast).toList();
@@ -274,10 +276,22 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     filter(PasskeyRegistrationGuardFilter.class);
     int guard = indexOf(PasskeyRegistrationGuardFilter.class);
 
-    assertThat(guard).isGreaterThan(indexOf(ExceptionTranslationFilter.class));
-    assertThat(guard).isLessThan(indexOf(PublicKeyCredentialCreationOptionsFilter.class));
-    assertThat(guard).isLessThan(indexOf(AuthorizationFilter.class));
-    assertThat(guard).isLessThan(indexOf(WebAuthnRegistrationFilter.class));
+    assertThat(guard)
+        .isGreaterThan(indexOf(ExceptionTranslationFilter.class))
+        .isLessThan(indexOf(PublicKeyCredentialCreationOptionsFilter.class))
+        .isLessThan(indexOf(AuthorizationFilter.class))
+        .isLessThan(indexOf(WebAuthnRegistrationFilter.class));
+  }
+
+  @Test
+  void chainWithoutSessionManagementFailsToBuild() throws Exception {
+    HttpSecurity http = applicationContext.getBean(HttpSecurity.class);
+    http.sessionManagement(AbstractHttpConfigurer::disable);
+    loginMethod.configure(http);
+
+    assertThatThrownBy(http::build)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("session management");
   }
 
   private PasskeyLoginMethod standalone() {
@@ -311,7 +325,8 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
 
     ArgumentCaptor<UserDetailsService> stub = ArgumentCaptor.forClass(UserDetailsService.class);
     verify(http).setSharedObject(eq(UserDetailsService.class), stub.capture());
-    assertThatThrownBy(() -> stub.getValue().loadUserByUsername("anyone"))
+    UserDetailsService noUsers = stub.getValue();
+    assertThatThrownBy(() -> noUsers.loadUserByUsername("anyone"))
         .isInstanceOf(UsernameNotFoundException.class);
   }
 

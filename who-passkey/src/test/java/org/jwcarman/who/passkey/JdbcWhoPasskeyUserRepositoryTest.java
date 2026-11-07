@@ -18,7 +18,6 @@ package org.jwcarman.who.passkey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -72,7 +71,7 @@ class JdbcWhoPasskeyUserRepositoryTest extends AbstractPasskeyTest {
     Bytes unknown = Bytes.random();
 
     assertThat(repository.findById(unknown)).isNull();
-    assertThat(repository.findIdentityId(unknown)).isEqualTo(Optional.empty());
+    assertThat(repository.findIdentityId(unknown)).isEmpty();
   }
 
   @Test
