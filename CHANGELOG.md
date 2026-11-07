@@ -39,6 +39,10 @@ databases must convert their timestamp columns first.
   (tables `who_passkey_user` and `who_passkey_credential`).
 - `who.passkey.rp-id`, `rp-name`, `allowed-origins`, `registration-window` and `from` properties.
 - The [Passkeys](https://jwcarman.github.io/who/guides/passkeys/) guide.
+- Native image support with no app configuration. Every module ships GraalVM reachability
+  metadata for its Liquibase changelogs and schema script, and `who-passkey` registers Spring AOT
+  hints for the Spring Security WebAuthn and webauthn4j type families.
+- The [Native Images](https://jwcarman.github.io/who/guides/native/) guide.
 
 ### Changed
 
@@ -48,6 +52,10 @@ databases must convert their timestamp columns first.
 - The session keeps only the identity and credential ids. Who re-resolves the principal on every
   request, so role changes and deactivation take effect on the next request.
 - The Liquibase guide now includes `who-changelog.xml` instead of a copied changelog.
+- Who's JDBC repositories are no longer annotated `@Repository`, so no exception-translation proxy
+  is created for them (which Spring AOT could not generate natively). Exceptions are still
+  translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy.
+- With `who.initialize-schema: never`, who no longer looks up its schema scripts.
 
 ## [0.10.0] - 2026-11-07
 
