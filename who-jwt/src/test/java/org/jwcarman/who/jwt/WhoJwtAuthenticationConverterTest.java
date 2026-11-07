@@ -127,6 +127,42 @@ class WhoJwtAuthenticationConverterTest {
     assertThat(token.getCredentials()).isNull();
   }
 
+  @Test
+  void missingIssuerIsBadCredentials() {
+    Jwt jwt = jwtWithClaims(Map.of("sub", SUBJECT));
+
+    assertThatExceptionOfType(BadCredentialsException.class)
+        .isThrownBy(() -> converter.convert(jwt))
+        .withMessage("JWT is missing iss or sub");
+  }
+
+  @Test
+  void blankSubjectIsUnauthorized() {
+    Jwt jwt = jwtWithClaims(Map.of("iss", ISSUER, "sub", " "));
+
+    assertThatExceptionOfType(BadCredentialsException.class)
+        .isThrownBy(() -> converter.convert(jwt))
+        .withMessage("JWT is missing iss or sub");
+  }
+
+  @Test
+  void nonUrlIssuerIsLookedUp() {
+    JwtCredential credential = JwtCredential.create("noir", SUBJECT);
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+    Jwt jwt = buildJwt("noir", SUBJECT);
+
+    when(jwtCredentialRepository.findByIssuerAndSubject("noir", SUBJECT))
+        .thenReturn(Optional.of(credential));
+    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+
+    assertThat(converter.convert(jwt).getPrincipal()).isSameAs(principal);
+  }
+
+  private static Jwt jwtWithClaims(Map<String, Object> claims) {
+    Instant now = Instant.now();
+    return new Jwt("token-value", now, now.plusSeconds(3600), Map.of("alg", "RS256"), claims);
+  }
+
   private static Jwt buildJwt(String issuer, String subject) {
     Instant now = Instant.now();
     return new Jwt(

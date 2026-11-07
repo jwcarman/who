@@ -24,6 +24,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
 
 /**
  * Converts a Spring Security {@link Jwt} (already validated by the OAuth2 resource server) into a
@@ -60,8 +61,13 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
 
   @Override
   public AbstractAuthenticationToken convert(Jwt jwt) {
+    String issuer = jwt.getClaimAsString(JwtClaimNames.ISS);
+    String subject = jwt.getClaimAsString(JwtClaimNames.SUB);
+    if (issuer == null || issuer.isBlank() || subject == null || subject.isBlank()) {
+      throw new BadCredentialsException("JWT is missing iss or sub");
+    }
     return jwtCredentialRepository
-        .findByIssuerAndSubject(jwt.getIssuer().toString(), jwt.getSubject())
+        .findByIssuerAndSubject(issuer, subject)
         .flatMap(whoService::resolve)
         .map(WhoAuthenticationToken::new)
         .orElseThrow(() -> new BadCredentialsException("Unknown JWT credential"));
