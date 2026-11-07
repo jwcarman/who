@@ -8,3 +8,6 @@ target/
 .settings/
 .worktrees/
 logs/
+
+# superpowers implementation plans are local execution scripts; specs are tracked
+docs/superpowers/plans/
