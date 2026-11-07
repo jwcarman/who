@@ -17,16 +17,28 @@ package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+
+import java.util.List;
 
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
+import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.jwcarman.who.emaillink.EmailCredentialRepository;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
+import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
+import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
+import org.jwcarman.who.jwt.JwtCredentialRepository;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -224,6 +236,58 @@ class WhoAutoConfigurationTest {
                   .filteredOn(r -> r.getFilter() instanceof ApiKeyAuthenticationFilter)
                   .singleElement()
                   .satisfies(r -> assertThat(r.isEnabled()).isFalse());
+            });
+  }
+
+  @Test
+  void everyPresentCredentialModuleRegistersItsRepositoryAsItsRemover() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
+        .withBean(EmailLinkSender.class, () -> (address, link) -> {})
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              List<Object> removers =
+                  List.copyOf(context.getBeansOfType(CredentialRemover.class).values());
+              assertThat(removers)
+                  .containsExactlyInAnyOrder(
+                      context.getBean(EmailCredentialRepository.class),
+                      context.getBean(JwtCredentialRepository.class),
+                      context.getBean(ApiKeyCredentialRepository.class));
+              assertThat(context.getBean(EmailCredentialRepository.class))
+                  .isInstanceOf(JdbcEmailCredentialRepository.class);
+              assertThat(context.getBean(JwtCredentialRepository.class))
+                  .isInstanceOf(JdbcJwtCredentialRepository.class);
+              assertThat(context.getBean(ApiKeyCredentialRepository.class))
+                  .isInstanceOf(JdbcApiKeyCredentialRepository.class);
+            });
+  }
+
+  @Test
+  void withoutEmailLinksThereIsNoEmailRemover() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .run(
+            context ->
+                assertThat(context.getBeansOfType(CredentialRemover.class).values())
+                    .hasSize(2)
+                    .noneMatch(JdbcEmailCredentialRepository.class::isInstance));
+  }
+
+  @Test
+  void whoServiceUsesEveryCredentialRemover() {
+    CredentialRemover own = mock(CredentialRemover.class);
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .withBean("ownCredentialRemover", CredentialRemover.class, () -> own)
+        .run(
+            context -> {
+              context.getBean(WhoService.class).purgeOrphanedCredentials();
+              verify(own).removeUnlinked();
             });
   }
 }

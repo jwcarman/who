@@ -29,6 +29,7 @@ import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialRepository;
@@ -169,6 +170,7 @@ public class WhoAutoConfiguration {
    * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
    * @param identityRepository stores and retrieves identities
    * @param permissionsResolver resolves permissions for an active identity
+   * @param credentialRemovers every credential module's remover, used to delete identities
    * @return a configured {@link WhoService}
    */
   @Bean
@@ -176,8 +178,13 @@ public class WhoAutoConfiguration {
   public WhoService whoService(
       CredentialIdentityRepository credentialIdentityRepository,
       IdentityRepository identityRepository,
-      PermissionsResolver permissionsResolver) {
-    return new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
+      PermissionsResolver permissionsResolver,
+      ObjectProvider<CredentialRemover> credentialRemovers) {
+    return new WhoService(
+        identityRepository,
+        credentialIdentityRepository,
+        permissionsResolver,
+        credentialRemovers.orderedStream().toList());
   }
 
   /** Registers JDBC repository beans when {@code who-jdbc} is on the classpath. */
@@ -270,9 +277,16 @@ public class WhoAutoConfiguration {
   @ConditionalOnClass(name = "org.jwcarman.who.jwt.WhoJwtAuthenticationConverter")
   static class JwtConfiguration {
 
+    /**
+     * The repository is also this module's {@link CredentialRemover}; its declared type exposes
+     * both, so {@link WhoService} finds it without a second bean.
+     *
+     * @param jdbcClient the JDBC client
+     * @return the repository
+     */
     @Bean
-    @ConditionalOnMissingBean
-    public JwtCredentialRepository jwtCredentialRepository(JdbcClient jdbcClient) {
+    @ConditionalOnMissingBean(JwtCredentialRepository.class)
+    public JdbcJwtCredentialRepository jwtCredentialRepository(JdbcClient jdbcClient) {
       return new JdbcJwtCredentialRepository(jdbcClient);
     }
 
@@ -289,9 +303,16 @@ public class WhoAutoConfiguration {
   @ConditionalOnClass(name = "org.jwcarman.who.apikey.ApiKeyAuthenticationFilter")
   static class ApiKeyConfiguration {
 
+    /**
+     * The repository is also this module's {@link CredentialRemover}; its declared type exposes
+     * both, so {@link WhoService} finds it without a second bean.
+     *
+     * @param jdbcClient the JDBC client
+     * @return the repository
+     */
     @Bean
-    @ConditionalOnMissingBean
-    public ApiKeyCredentialRepository apiKeyCredentialRepository(JdbcClient jdbcClient) {
+    @ConditionalOnMissingBean(ApiKeyCredentialRepository.class)
+    public JdbcApiKeyCredentialRepository apiKeyCredentialRepository(JdbcClient jdbcClient) {
       return new JdbcApiKeyCredentialRepository(jdbcClient);
     }
 
@@ -393,9 +414,16 @@ public class WhoAutoConfiguration {
       return new EmailLinkSettings(emailLink.getLinkBaseUrl(), tokenTtl, resendInterval);
     }
 
+    /**
+     * The repository is also this module's {@link CredentialRemover}; its declared type exposes
+     * both, so {@link WhoService} finds it without a second bean.
+     *
+     * @param jdbcClient the JDBC client
+     * @return the repository
+     */
     @Bean
-    @ConditionalOnMissingBean
-    public EmailCredentialRepository emailCredentialRepository(JdbcClient jdbcClient) {
+    @ConditionalOnMissingBean(EmailCredentialRepository.class)
+    public JdbcEmailCredentialRepository emailCredentialRepository(JdbcClient jdbcClient) {
       return new JdbcEmailCredentialRepository(jdbcClient);
     }
 
