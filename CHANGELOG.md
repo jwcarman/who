@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-07
+
 Read [Upgrading](https://jwcarman.github.io/who/guides/upgrading/) before you upgrade. Existing
 databases must convert their timestamp columns first.
 
@@ -62,7 +64,6 @@ databases must convert their timestamp columns first.
   implementations must add it.
 - The autoconfiguration declares the email, JWT and API key repository beans with their JDBC
   types. They are still replaced by any bean of the repository interface.
-
 - `WhoAuthenticationToken.getName()` returns the identity id, for every chain (sessions, JWTs and
   API keys). Spring's WebAuthn support keys on it. Anything that reads `authentication.name`, such
   as SpEL expressions or audit logs, now sees the identity id.
@@ -74,6 +75,20 @@ databases must convert their timestamp columns first.
   translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy. An app that component-scans
   `org.jwcarman.who` no longer picks these classes up; who's autoconfiguration creates them.
 - With `who.initialize-schema: never`, who no longer looks up its schema scripts.
+
+### Fixed
+
+- Deleting an identity left its email, JWT and API key credentials behind, and an orphaned email
+  address could never be registered again. Use `WhoService.deleteIdentity`; registration now
+  reclaims an orphaned address, and `purgeOrphanedCredentials()` cleans up old data.
+- A native image could not start: who's changelogs and schema files were missing from the image,
+  and who's `@Repository` beans needed proxies Spring AOT could not generate.
+
+### Requirements
+
+- Spring Boot 4.1 (built against 4.1.2). Passkeys use `spring-security-webauthn` with
+  `webauthn4j-core` 0.32.0.RELEASE, pinned by who.
+- Java 25+ and PostgreSQL 14+, unchanged.
 
 ## [0.10.0] - 2026-11-07
 
@@ -123,5 +138,6 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.10.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.11.0...HEAD
+[0.11.0]: https://github.com/jwcarman/who/releases/tag/0.11.0
 [0.10.0]: https://github.com/jwcarman/who/releases/tag/0.10.0
