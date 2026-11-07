@@ -2,7 +2,7 @@
 
 Who works in a GraalVM native image with no native configuration in your app. Its jars carry what the image needs, so you add who to a Spring Boot app, build it with Spring Boot's native support (`process-aot` and GraalVM's `native-maven-plugin`), and the binary signs users in with email links and passkeys as the JVM build does.
 
-Who is tested natively against GraalVM 25 and Spring Boot 4.1: a Spring Boot app built on who runs its whole browser suite (email links, P-256 and Ed25519 passkeys, roles, invitations and passkey revocation) against the native binary, with no reflection, resource or proxy configuration of its own.
+Who's native support is proven against GraalVM 25 and Spring Boot 4.1 by a separate Spring Boot app built on who (not by who's own build): it runs its whole browser suite (email links, P-256 and Ed25519 passkeys, roles, invitations and passkey revocation) against the native binary, with no reflection, resource or proxy configuration of its own.
 
 ## What who ships
 

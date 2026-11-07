@@ -54,7 +54,8 @@ databases must convert their timestamp columns first.
 - The Liquibase guide now includes `who-changelog.xml` instead of a copied changelog.
 - Who's JDBC repositories are no longer annotated `@Repository`, so no exception-translation proxy
   is created for them (which Spring AOT could not generate natively). Exceptions are still
-  translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy.
+  translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy. An app that component-scans
+  `org.jwcarman.who` no longer picks these classes up; who's autoconfiguration creates them.
 - With `who.initialize-schema: never`, who no longer looks up its schema scripts.
 
 ## [0.10.0] - 2026-11-07
