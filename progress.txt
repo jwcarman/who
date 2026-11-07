@@ -1,8 +1,0 @@
-LAST_RUN: 2026-03-15T00:39:45-04:00
-ITERATION: 16
-SPEC_COMPLETED: 015-authentication-token-principal-only.md
-WHAT_WAS_DONE: Simplified WhoAuthenticationToken to a single-arg constructor that derives SimpleGrantedAuthority from principal.permissions() internally; updated WhoJwtAuthenticationConverter and ApiKeyAuthenticationFilter to use new constructor; added WhoAuthenticationTokenTest in who-spring-security.
-VERIFICATION: mvn test → BUILD SUCCESS (all 11 modules); mvn -P license verify → BUILD SUCCESS
-STATUS: DONE
-NEXT_SPEC: none
-NOTES: specs/ now contains only 000-spec-template.md.example and the done/ directory. No further specs to process.
