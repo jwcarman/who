@@ -110,7 +110,7 @@ async function post(path, body) {
 }
 ```
 
-The cookie exists after the first response from the server, so make any GET first (for example `GET /who/me`, which answers `401` but sets the cookie).
+The cookie exists after the first response from the server, so make any GET first (for example `GET /who/me`, which answers `401` but sets the cookie). `/logout` clears the cookie. After signing out, make another GET before the next POST, or `/ott/generate` answers `403`.
 
 1. **Ask for a link.** `POST /ott/generate` with `{"email": "user@example.com"}`. The answer is always `202` with an empty body, whether or not the address is registered. The server does the lookup and sends the email after it has answered.
 
@@ -135,7 +135,12 @@ The cookie exists after the first response from the server, so make any GET firs
 
 4. **Use the session.** `GET /who/me` answers `{"identityId": "...", "permissions": ["..."]}` for a signed-in caller and `401` otherwise.
 
-5. **Sign out.** `POST /logout` answers `204` and clears the `XSRF-TOKEN` cookie.
+5. **Sign out.** `POST /logout` answers `204` and clears the `XSRF-TOKEN` cookie. Fetch the cookie again with any GET (for example `GET /who/me`) before the next POST.
+
+    ```javascript
+    await post('/logout');
+    await fetch('/who/me', { credentials: 'same-origin' }); // sets a new XSRF-TOKEN cookie
+    ```
 
 Each address holds one live link. A new link replaces the old one, so only the newest works. A link works once.
 

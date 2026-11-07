@@ -92,16 +92,16 @@ CREATE TABLE IF NOT EXISTS who_email_link_token (
 
 ## Liquibase
 
-Every module ships a changelog that matches its `schema.sql`. `who-autoconfigure` ships `org/jwcarman/who/db/changelog-all.xml`, which includes the changelog of each module on the classpath, `who-jdbc` first. Include that one file from your master changelog:
+Every module ships a changelog that matches its bundled `who-<module>-schema.sql`. `who-autoconfigure` ships `org/jwcarman/who/db/who-changelog.xml`, which includes the changelog of each module on the classpath, `who-jdbc` first. Include that one file from your master changelog:
 
 ```yaml
 databaseChangeLog:
   - include:
-      file: classpath:org/jwcarman/who/db/changelog-all.xml
+      file: classpath:org/jwcarman/who/db/who-changelog.xml
 ```
 
 Then set `who.initialize-schema: never`. Modules that are not on the classpath are skipped.
 
-The `classpath:` includes inside `changelog-all.xml` need Spring Boot's Liquibase integration. The Liquibase CLI and the Liquibase Maven plugin may skip them without a warning, so run the changelog through Spring Boot.
+The `classpath:` includes inside `who-changelog.xml` need Spring Boot's Liquibase integration. The Liquibase CLI and the Liquibase Maven plugin may skip them without a warning, so run the changelog through Spring Boot.
 
-The changelogs have no preconditions. Use them on a fresh schema. If the tables already exist because `schema.sql` created them, run Liquibase `changelog-sync` once before the first update, so Liquibase records the change sets as applied and does not try to create the tables again.
+The changelogs have no preconditions. Use them on a fresh schema. If the tables already exist because the bundled schema files created them, run Liquibase `changelog-sync` once before the first update, so Liquibase records the change sets as applied and does not try to create the tables again.

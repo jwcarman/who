@@ -14,6 +14,12 @@ databases must convert their timestamp columns first.
 - Every timestamp column is `TIMESTAMP WITH TIME ZONE`, and repositories bind `OffsetDateTime` in
   UTC. Databases created by 0.10.0 or earlier need `ALTER TABLE` statements (in the upgrade guide)
   before the upgrade, or reading timestamps may fail.
+- The bundled schema files are renamed to `who-<module>-schema.sql`:
+  `org/jwcarman/who/jdbc/who-jdbc-schema.sql`, `rbac/who-rbac-schema.sql`, `jwt/who-jwt-schema.sql`,
+  `enrollment/who-enrollment-schema.sql`, `apikey/who-apikey-schema.sql` and
+  `emaillink/who-email-link-schema.sql`. Update any `spring.sql.init.schema-locations` that names them.
+- Liquibase users who copied the old YAML changelog should switch to including
+  `classpath:org/jwcarman/who/db/who-changelog.xml`, on a fresh schema or after `changelog-sync`.
 
 ### Added
 
@@ -25,14 +31,14 @@ databases must convert their timestamp columns first.
   401 for unauthenticated requests, and `/logout` answering 204. It fails at startup if the chain
   disables CSRF or is stateless.
 - `GET /who/me` returns `{"identityId", "permissions"}` for the signed-in caller.
-- Liquibase changelogs for every module, and `changelog-all.xml` in `who-autoconfigure`.
+- Liquibase changelogs for every module, and `who-changelog.xml` in `who-autoconfigure`.
 - The [Email Links](https://jwcarman.github.io/who/guides/email-links/) guide.
 
 ### Changed
 
 - The session keeps only the identity and credential ids. Who re-resolves the principal on every
   request, so role changes and deactivation take effect on the next request.
-- The Liquibase guide now includes `changelog-all.xml` instead of a copied changelog.
+- The Liquibase guide now includes `who-changelog.xml` instead of a copied changelog.
 
 ## [0.10.0] - 2026-11-07
 
