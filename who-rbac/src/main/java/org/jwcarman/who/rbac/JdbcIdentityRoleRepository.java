@@ -19,13 +19,11 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /**
  * JDBC implementation of {@link IdentityRoleRepository} backed by the {@code who_identity_role}
  * table.
  */
-@Repository
 public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
 
   private static final String PARAM_IDENTITY_ID = "identityId";

@@ -16,6 +16,8 @@
 package org.jwcarman.who.jdbc;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
+@Import({JdbcIdentityRepository.class, JdbcCredentialIdentityRepository.class})
 class WhoJdbcTestApp {}

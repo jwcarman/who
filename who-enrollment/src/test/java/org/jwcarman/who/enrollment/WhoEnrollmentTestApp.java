@@ -19,12 +19,19 @@ import java.time.Duration;
 
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
+import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
-// Scan both the enrollment package (JdbcEnrollmentTokenRepository) and the jdbc package
-// (JdbcIdentityRepository, JdbcCredentialIdentityRepository).
-@SpringBootApplication(scanBasePackages = {"org.jwcarman.who.enrollment", "org.jwcarman.who.jdbc"})
+// who's JDBC repositories are not component-scanned; import them explicitly.
+@Import({
+  JdbcEnrollmentTokenRepository.class,
+  JdbcIdentityRepository.class,
+  JdbcCredentialIdentityRepository.class
+})
+@SpringBootApplication
 class WhoEnrollmentTestApp {
 
   @Bean

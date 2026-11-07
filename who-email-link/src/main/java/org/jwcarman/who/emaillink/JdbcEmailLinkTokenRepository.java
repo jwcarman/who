@@ -22,10 +22,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /** JDBC implementation of {@link EmailLinkTokenRepository} on {@code who_email_link_token}. */
-@Repository
 public class JdbcEmailLinkTokenRepository implements EmailLinkTokenRepository {
 
   private static final String PARAM_CREDENTIAL_ID = "credentialId";

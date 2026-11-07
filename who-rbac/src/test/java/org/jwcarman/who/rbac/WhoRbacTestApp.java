@@ -16,6 +16,12 @@
 package org.jwcarman.who.rbac;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 
+@Import({
+  JdbcRoleRepository.class,
+  JdbcIdentityRoleRepository.class,
+  JdbcRolePermissionRepository.class
+})
 @SpringBootApplication
 class WhoRbacTestApp {}

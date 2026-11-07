@@ -27,10 +27,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 // Security auto-configuration excluded — integration tests only need the repository and service
 // beans.
+@Import({JdbcApiKeyCredentialRepository.class})
 @SpringBootApplication(
     exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
 class WhoApiKeyTestApp {

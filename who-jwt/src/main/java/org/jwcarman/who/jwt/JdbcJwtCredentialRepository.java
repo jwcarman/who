@@ -20,13 +20,11 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /**
  * JDBC implementation of {@link JwtCredentialRepository} backed by the {@code who_jwt_credential}
  * table.
  */
-@Repository
 public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
 
   private static final String COL_ISSUER = "issuer";

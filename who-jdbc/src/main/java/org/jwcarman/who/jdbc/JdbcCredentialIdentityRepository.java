@@ -20,13 +20,11 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /**
  * JDBC implementation of {@link CredentialIdentityRepository} backed by the {@code
  * who_credential_identity} table.
  */
-@Repository
 public class JdbcCredentialIdentityRepository implements CredentialIdentityRepository {
 
   private static final String PARAM_CREDENTIAL_ID = "credentialId";

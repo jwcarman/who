@@ -16,11 +16,13 @@
 package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 
 class JdbcEmailCredentialRepositoryTest extends AbstractEmailLinkTest {
 
@@ -45,5 +47,13 @@ class JdbcEmailCredentialRepositoryTest extends AbstractEmailLinkTest {
     assertThat(repository.deleteById(saved.id())).isTrue();
     assertThat(repository.deleteById(saved.id())).isFalse();
     assertThat(repository.findById(saved.id())).isEmpty();
+  }
+
+  @Test
+  void duplicateKeyIsStillTranslated() {
+    repository.save(EmailCredential.create("dup@example.com"));
+
+    assertThatThrownBy(() -> repository.save(EmailCredential.create("dup@example.com")))
+        .isInstanceOf(DuplicateKeyException.class);
   }
 }

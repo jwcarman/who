@@ -20,10 +20,8 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /** JDBC implementation of {@link EmailCredentialRepository} on {@code who_email_credential}. */
-@Repository
 public class JdbcEmailCredentialRepository implements EmailCredentialRepository {
 
   private static final String COL_ID = "id";

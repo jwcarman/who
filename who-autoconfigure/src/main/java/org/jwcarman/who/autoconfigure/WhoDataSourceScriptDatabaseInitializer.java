@@ -75,12 +75,16 @@ public class WhoDataSourceScriptDatabaseInitializer extends DataSourceScriptData
   private static DatabaseInitializationSettings settings(DatabaseInitializationMode mode) {
     DatabaseInitializationSettings settings = new DatabaseInitializationSettings();
     settings.setMode(mode);
-    settings.setSchemaLocations(detectSchemaLocations());
+    settings.setSchemaLocations(
+        schemaLocations(mode, WhoDataSourceScriptDatabaseInitializer.class.getClassLoader()));
     return settings;
   }
 
-  private static List<String> detectSchemaLocations() {
-    return detectSchemaLocations(WhoDataSourceScriptDatabaseInitializer.class.getClassLoader());
+  static List<String> schemaLocations(DatabaseInitializationMode mode, ClassLoader classLoader) {
+    if (mode == DatabaseInitializationMode.NEVER) {
+      return List.of();
+    }
+    return detectSchemaLocations(classLoader);
   }
 
   static List<String> detectSchemaLocations(ClassLoader classLoader) {

@@ -16,6 +16,7 @@
 package org.jwcarman.who.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 
 class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
 
@@ -68,6 +70,16 @@ class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
     identityRepository.deleteById(identity.id());
 
     assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId)).isEmpty();
+  }
+
+  @Test
+  void duplicateKeyIsStillTranslated() {
+    Identity identity = savedIdentity();
+    UUID credentialId = UUID.randomUUID();
+    credentialIdentityRepository.link(credentialId, identity.id());
+
+    assertThatThrownBy(() -> credentialIdentityRepository.link(credentialId, identity.id()))
+        .isInstanceOf(DuplicateKeyException.class);
   }
 
   private Identity savedIdentity() {

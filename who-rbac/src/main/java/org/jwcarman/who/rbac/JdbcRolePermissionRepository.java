@@ -21,13 +21,11 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /**
  * JDBC implementation of {@link RolePermissionRepository} backed by the {@code who_role_permission}
  * table.
  */
-@Repository
 public class JdbcRolePermissionRepository implements RolePermissionRepository {
 
   private static final String PARAM_ROLE_ID = "roleId";

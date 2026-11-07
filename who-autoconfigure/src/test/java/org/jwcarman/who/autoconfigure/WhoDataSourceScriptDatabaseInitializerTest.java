@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.rbac.JdbcRoleRepository;
+import org.springframework.boot.sql.init.DatabaseInitializationMode;
 import org.springframework.boot.test.context.FilteredClassLoader;
 
 class WhoDataSourceScriptDatabaseInitializerTest {
@@ -52,5 +53,29 @@ class WhoDataSourceScriptDatabaseInitializerTest {
             "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql",
             "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql",
             "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql");
+  }
+
+  @Test
+  void neverResolvesNoLocations() {
+    ClassLoader failing =
+        new ClassLoader(null) {
+          @Override
+          protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            throw new IllegalStateException("must not look anything up: " + name);
+          }
+        };
+
+    assertThat(
+            WhoDataSourceScriptDatabaseInitializer.schemaLocations(
+                DatabaseInitializationMode.NEVER, failing))
+        .isEmpty();
+  }
+
+  @Test
+  void alwaysStillRunsEveryModuleScript() {
+    assertThat(
+            WhoDataSourceScriptDatabaseInitializer.schemaLocations(
+                DatabaseInitializationMode.ALWAYS, getClass().getClassLoader()))
+        .hasSize(7);
   }
 }

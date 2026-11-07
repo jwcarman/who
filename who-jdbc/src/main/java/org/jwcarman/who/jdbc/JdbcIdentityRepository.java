@@ -25,10 +25,8 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /** JDBC implementation of {@link IdentityRepository} backed by the {@code who_identity} table. */
-@Repository
 public class JdbcIdentityRepository implements IdentityRepository {
 
   private static final String COL_ID = "id";

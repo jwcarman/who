@@ -20,10 +20,8 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /** JDBC implementation of {@link RoleRepository} backed by the {@code who_role} table. */
-@Repository
 public class JdbcRoleRepository implements RoleRepository {
 
   private static final String COL_ID = "id";

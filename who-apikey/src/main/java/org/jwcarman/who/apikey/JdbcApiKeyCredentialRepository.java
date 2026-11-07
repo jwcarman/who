@@ -20,13 +20,11 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /**
  * JDBC implementation of {@link ApiKeyCredentialRepository} backed by the {@code
  * who_api_key_credential} table.
  */
-@Repository
 public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepository {
 
   private static final String COL_ID = "id";

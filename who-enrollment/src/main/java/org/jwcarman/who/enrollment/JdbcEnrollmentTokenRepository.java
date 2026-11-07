@@ -23,13 +23,11 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 
 /**
  * JDBC implementation of {@link EnrollmentTokenRepository} backed by the {@code
  * who_enrollment_token} table.
  */
-@Repository
 public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository {
 
   private static final String COL_ID = "id";
