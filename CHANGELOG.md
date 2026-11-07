@@ -42,6 +42,9 @@ databases must convert their timestamp columns first.
 
 ### Changed
 
+- `WhoAuthenticationToken.getName()` returns the identity id, for every chain (sessions, JWTs and
+  API keys). Spring's WebAuthn support keys on it. Anything that reads `authentication.name`, such
+  as SpEL expressions or audit logs, now sees the identity id.
 - The session keeps only the identity and credential ids. Who re-resolves the principal on every
   request, so role changes and deactivation take effect on the next request.
 - The Liquibase guide now includes `who-changelog.xml` instead of a copied changelog.

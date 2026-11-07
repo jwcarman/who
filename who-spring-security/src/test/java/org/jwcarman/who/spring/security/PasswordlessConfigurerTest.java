@@ -329,6 +329,7 @@ class PasswordlessConfigurerTest {
         .extracting(ILoggingEvent::getFormattedMessage)
         .asString()
         .contains("found no sign-in methods")
-        .contains("who.email-link.link-base-url");
+        .contains("who.email-link.link-base-url")
+        .contains("who.passkey.rp-id");
   }
 }

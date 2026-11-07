@@ -165,7 +165,7 @@ The link expires after `who.email-link.token-ttl` (default 5 minutes). The resen
 
 ## Rate limiting at the ingress
 
-Who does not limit requests by client IP and never reads `X-Forwarded-For`. Put per-IP limits on `/ott/generate` and `/login/ott` at the load balancer, WAF or ingress, where the real client address is known. For example, with nginx:
+Who does not limit requests by client IP and never reads `X-Forwarded-For`. Put per-IP limits on `/ott/generate` and `/login/ott` at the load balancer, WAF or ingress, where the real client address is known. With [Passkeys](passkeys.md) on, limit `/webauthn/authenticate/options` and `/login/webauthn` the same way: the options endpoint creates a session for any anonymous caller. For example, with nginx:
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=who_signin:10m rate=10r/m;

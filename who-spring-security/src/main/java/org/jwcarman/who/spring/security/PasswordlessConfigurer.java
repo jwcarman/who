@@ -47,7 +47,7 @@ public class PasswordlessConfigurer
 
   static final String NO_METHODS =
       "WhoWebSecurity.passwordless() found no sign-in methods; set who.email-link.link-base-url"
-          + " to enable email-link sign-in";
+          + " to enable email-link sign-in, or who.passkey.rp-id to enable passkeys";
   static final String CSRF_REQUIRED =
       "WhoWebSecurity.passwordless() requires CSRF protection; remove csrf.disable() from this chain";
   static final String SESSIONS_REQUIRED =
