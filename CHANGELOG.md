@@ -53,8 +53,9 @@ databases must convert their timestamp columns first.
 
 ### Changed
 
-- `EmailCredentialService.register` reuses an address that is registered but linked to no
-  identity, linking it to the new identity, and returns the existing credential when the address
+- `EmailCredentialService.register` accepts an address that is registered but linked to no
+  identity: it deletes that orphaned credential (and any outstanding sign-in link) and registers
+  a new one for the identity. It returns the existing credential when the address
   is already the identity's own. It still throws `EmailAddressTakenException` when another identity
   holds the address.
 - `CredentialIdentityRepository` has a new method, `findCredentialIdsByIdentityId(UUID)`. Custom

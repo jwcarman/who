@@ -48,6 +48,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>It also deletes identities together with their credentials ({@link #deleteIdentity(UUID)}) and
  * purges credentials that are linked to no identity ({@link #purgeOrphanedCredentials()}), through
  * the {@link CredentialRemover}s it is given. Wiring is done by the autoconfigure module.
+ *
+ * <p>{@code who-core} needs no Spring at runtime. The {@code @Transactional} methods run in a
+ * transaction when Spring's transaction support is present, as it always is with who's starter.
  */
 public class WhoService {
 
@@ -150,7 +153,8 @@ public class WhoService {
    * identity row was deleted directly instead of through {@link #deleteIdentity(UUID)}.
    *
    * <p>A credential saved for enrollment but not yet enrolled is linked to no identity either, so
-   * it is deleted too. Run this when no enrollment is in flight.
+   * it is deleted too, as is a credential being registered between its save and its link. Run this
+   * when no enrollment or registration is in flight.
    *
    * @return the number of credentials deleted
    */

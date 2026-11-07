@@ -153,7 +153,7 @@ Identity identity = whoService.createIdentity();
 emailCredentialService.register(identity, "user@example.com");
 ```
 
-Call `register` only with an address you have verified, for example one that received an invitation. Who does not verify ownership here. `register` throws `EmailAddressTakenException` if the address is registered to another identity. If the address is already the identity's own, `register` returns that credential. If it is registered but linked to no identity (its identity was deleted directly, not with [`WhoService.deleteIdentity`](getting-started.md#deleting-an-identity)), `register` links it to the new identity. Addresses are trimmed and lower-cased.
+Call `register` only with an address you have verified, for example one that received an invitation. Who does not verify ownership here. `register` throws `EmailAddressTakenException` if the address is registered to another identity. If the address is already the identity's own, `register` returns that credential. If it is registered but linked to no identity (its identity was deleted directly, not with [`WhoService.deleteIdentity`](getting-started.md#deleting-an-identity)), `register` deletes that old credential, along with any sign-in link sent before, and registers a new one for the identity. Addresses are trimmed and lower-cased.
 
 `EmailCredentialService` also has `findByAddress(String)` and `revoke(UUID credentialId)`. `revoke` deletes the credential and its link to the identity.
 

@@ -83,16 +83,19 @@ enrollment tokens and passkeys go with it.
 
 Do not run `DELETE FROM who_identity` yourself. Credential rows do not reference
 their identity, so a raw delete removes only the links and leaves the credential
-rows behind. `EmailCredentialService.register` reuses such an unlinked address
-for the next identity that registers it. To clean them up, call:
+rows behind. `EmailCredentialService.register` lets the next identity register
+such an orphaned address: it deletes the old credential, with any sign-in link
+sent to the deleted user, and registers a new one. To clean them up, call:
 
 ```java
 int removed = whoService.purgeOrphanedCredentials();
 ```
 
-It deletes every credential linked to no identity. A JWT credential saved for
-[enrollment](enrollment.md) is unlinked until the user enrolls, so run the purge
-when no enrollment is in flight.
+It deletes every credential linked to no identity, including credentials that
+are unlinked only for now. A JWT credential saved for [enrollment](enrollment.md)
+is unlinked until the user enrolls, and a credential being registered (an API
+key, say) is unlinked between being saved and being linked. Run the purge when
+no enrollment or registration is in flight.
 
 If you replace one of who's credential repository beans, `deleteIdentity` and
 the purge skip that module's rows unless your bean also implements

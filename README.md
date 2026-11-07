@@ -81,7 +81,7 @@ foreign key and revoked pending enrollment tokens. See
 
 | Module | What it is |
 |--------|------------|
-| `who-core` | Domain types (`Identity`, `WhoPrincipal`), service and SPI interfaces. No Spring dependency |
+| `who-core` | Domain types (`Identity`, `WhoPrincipal`), service and SPI interfaces. Needs no Spring at runtime; `WhoService`'s `@Transactional` applies when Spring's transaction support is present (always, with who's starter) |
 | `who-jdbc` | JDBC repositories, using Spring `JdbcClient` |
 | `who-rbac` | `RbacService` and a `PermissionsResolver` backed by roles and permissions |
 | `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` |

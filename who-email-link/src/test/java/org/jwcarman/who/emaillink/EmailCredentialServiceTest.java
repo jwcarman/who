@@ -19,11 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,7 +35,6 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 class EmailCredentialServiceTest extends AbstractEmailLinkTest {
@@ -158,19 +158,42 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
 
   @Autowired private JdbcClient jdbcClient;
 
+  @Autowired private EmailLinkTokenRepository tokenRepository;
+
   @Test
   void registerReusesAnOrphanedAddress() {
     Identity deleted = identityRepository.save(Identity.create());
     EmailCredential orphan = service.register(deleted, "orphan@example.com");
-    // A raw delete leaves the credential row behind; only its link cascades.
-    jdbcClient.sql("DELETE FROM who_identity WHERE id = :id").param("id", deleted.id()).update();
+    deleteIdentityRow(deleted);
     Identity identity = identityRepository.save(Identity.create());
 
     EmailCredential credential = service.register(identity, "Orphan@Example.com");
 
-    assertThat(credential).isEqualTo(orphan);
-    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(orphan.id()))
+    assertThat(credential.address()).isEqualTo("orphan@example.com");
+    assertThat(credential.id()).isNotEqualTo(orphan.id());
+    assertThat(service.findByAddress("orphan@example.com")).contains(credential);
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credential.id()))
         .contains(identity.id());
+  }
+
+  @Test
+  void aLinkSentToTheDeletedIdentityDoesNotSignInTheNewOne() {
+    Identity deleted = identityRepository.save(Identity.create());
+    EmailCredential orphan = service.register(deleted, "stale-link@example.com");
+    Instant now = Instant.now();
+    tokenRepository.issue(
+        orphan.id(), "stale-token-hash", now, now.plus(Duration.ofMinutes(15)), Duration.ZERO);
+    deleteIdentityRow(deleted);
+    Identity identity = identityRepository.save(Identity.create());
+
+    service.register(identity, "stale-link@example.com");
+
+    assertThat(tokenRepository.consume("stale-token-hash", now)).isEmpty();
+  }
+
+  private void deleteIdentityRow(Identity identity) {
+    // A raw delete leaves the credential row (and its link token) behind; only its link cascades.
+    jdbcClient.sql("DELETE FROM who_identity WHERE id = :id").param("id", identity.id()).update();
   }
 
   @Test
@@ -195,14 +218,17 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
 
   @Test
   void aConcurrentClaimOfAnOrphanLosingTheRaceIsReportedAsTaken() {
-    EmailCredential orphan =
-        emailCredentialRepository.save(EmailCredential.create("claim@example.com"));
-    // The link check sees no owner, as it would if the winner linked it a moment later.
-    CredentialIdentityRepository links = mock(CredentialIdentityRepository.class);
-    when(links.findIdentityIdByCredentialId(orphan.id())).thenReturn(Optional.empty());
-    Identity identity = Identity.create();
-    doThrow(new DuplicateKeyException("taken")).when(links).link(orphan.id(), identity.id());
-    EmailCredentialService racing = new EmailCredentialService(emailCredentialRepository, links);
+    // The winner already replaced the orphan with its own credential; this registration still sees
+    // the orphan it looked up a moment earlier, which is gone by the time it deletes it.
+    emailCredentialRepository.save(EmailCredential.create("claim@example.com"));
+    EmailCredential stale = EmailCredential.create("claim@example.com");
+    EmailCredentialRepository behind = mock(EmailCredentialRepository.class);
+    when(behind.findByAddress("claim@example.com")).thenReturn(Optional.of(stale));
+    when(behind.save(any()))
+        .thenAnswer(call -> emailCredentialRepository.save(call.getArgument(0)));
+    EmailCredentialService racing =
+        new EmailCredentialService(behind, credentialIdentityRepository);
+    Identity identity = identityRepository.save(Identity.create());
 
     assertThatThrownBy(() -> racing.register(identity, "claim@example.com"))
         .isInstanceOf(EmailAddressTakenException.class);
