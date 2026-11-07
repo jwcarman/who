@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationTrustResolver;
 import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.webauthn.api.AuthenticatorSelectionCriteria;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
@@ -51,6 +52,10 @@ import org.springframework.security.web.webauthn.management.Webauthn4JRelyingPar
  *       downgrade them.
  *   <li>Creation options first create who's user entity for the identity (a 64-byte user handle,
  *       named by the {@link PasskeyNameResolver}), so Spring never creates its own.
+ *   <li>A registration is refused unless the creation options in the session belong to the identity
+ *       signed in now. Spring takes the owner from the stored options alone, so options left in a
+ *       session by one identity could otherwise register a passkey for it after another identity
+ *       signs in on the same session.
  *   <li>A successful registration is reported to the {@link PasskeyAddedNotifier}.
  * </ul>
  */
@@ -127,9 +132,17 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
     return delegate.createPublicKeyCredentialCreationOptions(request);
   }
 
-  /** Delegates, then tells the notifier; a notifier failure is logged and not rethrown. */
+  /**
+   * Checks that the creation options belong to the signed-in identity, delegates, then tells the
+   * notifier; a notifier failure is logged and not rethrown.
+   *
+   * @throws IllegalStateException if no identity is signed in, or the options' user entity is not
+   *     the signed-in identity's
+   */
   @Override
   public CredentialRecord registerCredential(RelyingPartyRegistrationRequest request) {
+    requireNonNull(request, "request must not be null");
+    requireOptionsOfCurrentIdentity(request.getCreationOptions());
     CredentialRecord record = delegate.registerCredential(request);
     userRepository
         .findIdentityId(record.getUserEntityUserId())
@@ -148,6 +161,22 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
     return delegate.authenticate(request);
   }
 
+  private void requireOptionsOfCurrentIdentity(PublicKeyCredentialCreationOptions options) {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (!trustResolver.isAuthenticated(authentication)) {
+      throw new IllegalStateException("registering a passkey requires a signed-in identity");
+    }
+    Optional<UUID> current = parseUuid(authentication.getName());
+    Optional<UUID> owner =
+        options == null || options.getUser() == null
+            ? Optional.empty()
+            : userRepository.findIdentityId(options.getUser().getId());
+    if (current.isEmpty() || owner.isEmpty() || !owner.equals(current)) {
+      throw new IllegalStateException(
+          "the creation options do not belong to the signed-in identity");
+    }
+  }
+
   private void notify(UUID identityId, String label) {
     try {
       notifier.passkeyAdded(identityId, label);
@@ -162,6 +191,14 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
       return UUID.fromString(authentication.getName());
     } catch (IllegalArgumentException _) {
       throw new IllegalArgumentException("the authentication's name must be an identity id");
+    }
+  }
+
+  private static Optional<UUID> parseUuid(String value) {
+    try {
+      return Optional.of(UUID.fromString(value));
+    } catch (IllegalArgumentException _) {
+      return Optional.empty();
     }
   }
 

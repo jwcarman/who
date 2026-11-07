@@ -260,6 +260,12 @@ class PasskeySignInTest {
 
   private Browser signedInByEmail(String address) throws Exception {
     Browser browser = new Browser(mvc);
+    signInByEmail(browser, address);
+    return browser;
+  }
+
+  /** Signs the browser in by email link, on whatever session it already has. */
+  private void signInByEmail(Browser browser, String address) throws Exception {
     int before = sender.sent.size();
     MvcResult generated =
         browser.performWithCsrf(
@@ -271,7 +277,6 @@ class PasskeySignInTest {
         browser.performWithCsrf(json(post("/login/ott")).content("{\"token\":\"" + token + "\"}"));
     assertThat(confirmed.getResponse().getStatus()).isEqualTo(200);
     assertThat(browser.me()).isEqualTo(200);
-    return browser;
   }
 
   private static MvcResult creationOptions(Browser browser) throws Exception {
@@ -454,6 +459,31 @@ class PasskeySignInTest {
                 .query(Long.class)
                 .single())
         .isZero();
+    assertThat(notifier.added).isEmpty();
+  }
+
+  @Test
+  void staleOptionsCannotRegisterAPasskeyForAnotherIdentity() throws Exception {
+    Browser browser = signedInByEmail(OWNER);
+    String ownersOptions = creationOptionsJson(browser);
+    // someone else signs in on the same browser session; the owner's options stay in it
+    signInByEmail(browser, OTHER);
+    assertThat(identityIdOf(browser)).isEqualTo(other.id().toString());
+
+    MvcResult registered =
+        register(browser, new PasskeyDevice(ORIGIN).register(ownersOptions, "Planted"));
+
+    assertThat(registered.getResponse().getStatus()).isEqualTo(400);
+    assertThat(registered.getResponse().getContentAsString())
+        .isEqualTo("{\"error\":\"invalid_registration\"}");
+    assertThat(
+            jdbcClient
+                .sql("SELECT count(*) FROM who_passkey_credential")
+                .query(Long.class)
+                .single())
+        .isZero();
+    assertThat(passkeyService.list(owner.id())).isEmpty();
+    assertThat(passkeyService.list(other.id())).isEmpty();
     assertThat(notifier.added).isEmpty();
   }
 

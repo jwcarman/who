@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -35,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
@@ -66,6 +68,13 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
     identity = identityRepository.save(Identity.create());
     sessionCredentialId = UUID.randomUUID();
     operations = operations((identityId, label) -> notifications.add(identityId + ":" + label));
+    // Spring's registration filter runs with the caller signed in
+    SecurityContextHolder.getContext().setAuthentication(signedIn());
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
   }
 
   private WhoRelyingPartyOperations operations(PasskeyAddedNotifier notifier) {
@@ -200,5 +209,34 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
         failing.registerCredential(PasskeyEmulator.honest(ORIGIN).register(options, "Laptop"));
 
     assertThat(credentialRepository.findByCredentialId(record.getCredentialId())).isNotNull();
+  }
+
+  @Test
+  void registrationWithAnotherIdentitysOptionsFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request = PasskeyEmulator.honest(ORIGIN).register(options, "Laptop");
+    Identity other = identityRepository.save(Identity.create());
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new WhoAuthenticationToken(new WhoPrincipal(other, Set.of()), UUID.randomUUID()));
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageNotContaining(identity.id().toString())
+        .hasMessageNotContaining(other.id().toString());
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+    assertThat(notifications).isEmpty();
+  }
+
+  @Test
+  void registrationWhileSignedOutFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request = PasskeyEmulator.honest(ORIGIN).register(options, "Laptop");
+    SecurityContextHolder.clearContext();
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+    assertThat(notifications).isEmpty();
   }
 }

@@ -33,6 +33,7 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
@@ -78,7 +79,13 @@ class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
     PublicKeyCredentialCreationOptions creationOptions =
         operations.createPublicKeyCredentialCreationOptions(
             new ImmutablePublicKeyCredentialCreationOptionsRequest(signedIn));
-    registered = operations.registerCredential(device.register(creationOptions, "Laptop"));
+    // Spring's registration filter runs with the caller signed in
+    SecurityContextHolder.getContext().setAuthentication(signedIn);
+    try {
+      registered = operations.registerCredential(device.register(creationOptions, "Laptop"));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
   }
 
   private PublicKeyCredentialRequestOptions requestOptions() {
