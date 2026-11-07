@@ -16,7 +16,9 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 import java.time.Duration;
@@ -44,6 +46,7 @@ import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.passkey.PasskeySettings;
 import org.jwcarman.who.passkey.WhoRelyingPartyOperations;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
+import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -52,11 +55,14 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerA
 import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
 import org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -278,6 +284,23 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
+  void oneNameResolverAndOneNotifierWithEverythingOn() {
+    postgresRunner()
+        .withPropertyValues(
+            RP_ID,
+            LINK_BASE_URL,
+            "spring.mail.host=localhost",
+            "who.email-link.from=who@example.com",
+            "who.passkey.from=security@example.com")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context.getBeanNamesForType(PasskeyNameResolver.class)).hasSize(1);
+              assertThat(context.getBeanNamesForType(PasskeyAddedNotifier.class)).hasSize(1);
+            });
+  }
+
+  @Test
   void existingWebAuthnRelyingPartyOperationsBeanWins() {
     WebAuthnRelyingPartyOperations own = mock(WebAuthnRelyingPartyOperations.class);
     postgresRunner()
@@ -408,6 +431,97 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
+  void passkeyAddedEmailGoesToTheOldestAddress() {
+    JavaMailSender mailSender = mock(JavaMailSender.class);
+    postgresRunner()
+        .withPropertyValues(
+            RP_ID,
+            LINK_BASE_URL,
+            "who.email-link.from=who@example.com",
+            "who.passkey.from=security@example.com")
+        .withBean(JavaMailSender.class, () -> mailSender)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              Identity identity =
+                  context
+                      .getBean(IdentityRepository.class)
+                      .save(Identity.create(IdentityStatus.ACTIVE));
+              String address = "passkey-added-" + identity.id() + "@example.com";
+              context.getBean(EmailCredentialService.class).register(identity, address);
+
+              context.getBean(PasskeyAddedNotifier.class).passkeyAdded(identity.id(), "Laptop");
+
+              ArgumentCaptor<SimpleMailMessage> sent =
+                  ArgumentCaptor.forClass(SimpleMailMessage.class);
+              verify(mailSender).send(sent.capture());
+              assertThat(sent.getValue().getTo()).containsExactly(address);
+              assertThat(sent.getValue().getFrom()).isEqualTo("security@example.com");
+            });
+  }
+
+  @Test
+  void withoutWhoEmailLinkTheNameIsTheIdentityIdAndNoPasskeyAddedEmails() {
+    ApplicationContextRunner runner =
+        postgresRunner()
+            .withClassLoader(new FilteredClassLoader("org.jwcarman.who.emaillink"))
+            .withPropertyValues(
+                RP_ID, "spring.mail.host=localhost", "who.passkey.from=security@example.com");
+
+    assertThat(passkeyAddedEmailWarnings(runner, false))
+        .singleElement()
+        .asString()
+        .contains("who-email-link or spring-boot-starter-mail is not present")
+        .doesNotContain("security@example.com");
+    runner.run(
+        context -> {
+          assertThat(context).doesNotHaveBean(EmailCredentialService.class);
+          // the notifier that sends nothing accepts the news and does nothing with it
+          assertThatNoException()
+              .isThrownBy(
+                  () ->
+                      context
+                          .getBean(PasskeyAddedNotifier.class)
+                          .passkeyAdded(UUID.randomUUID(), "Laptop"));
+          assertThat(context).hasSingleBean(PasskeyNameResolver.class);
+          UUID identityId = UUID.randomUUID();
+          assertThat(
+                  context.getBean(PasskeyNameResolver.class).nameFor(identityId, Optional.empty()))
+              .isEqualTo(identityId.toString());
+        });
+  }
+
+  @Test
+  void withoutSpringMailNoPasskeyAddedEmailsButTheNameIsStillTheAddress() {
+    ApplicationContextRunner runner =
+        postgresRunner()
+            .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
+            .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+            .withPropertyValues(RP_ID, LINK_BASE_URL, "who.passkey.from=security@example.com");
+
+    assertThat(passkeyAddedEmailWarnings(runner, false))
+        .singleElement()
+        .asString()
+        .contains("who-email-link or spring-boot-starter-mail is not present")
+        .doesNotContain("security@example.com");
+    runner.run(
+        context -> {
+          assertThat(context).hasNotFailed();
+          Identity identity =
+              context
+                  .getBean(IdentityRepository.class)
+                  .save(Identity.create(IdentityStatus.ACTIVE));
+          String address = "passkey-name-" + identity.id() + "@example.com";
+          context.getBean(EmailCredentialService.class).register(identity, address);
+          assertThat(
+                  context
+                      .getBean(PasskeyNameResolver.class)
+                      .nameFor(identity.id(), Optional.empty()))
+              .isEqualTo(address);
+        });
+  }
+
+  @Test
   void withoutFromNoPasskeyAddedEmails() {
     assertThat(
             passkeyAddedEmailWarnings(
@@ -465,23 +579,29 @@ class PasskeyAutoConfigurationTest {
    * about those emails, all of it at WARN.
    */
   private static List<String> passkeyAddedEmailWarnings(boolean sends, String... properties) {
+    return passkeyAddedEmailWarnings(
+        postgresRunner()
+            // email links can then be on without a JavaMailSender
+            .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+            .withPropertyValues(properties),
+        sends);
+  }
+
+  /** Starts the runner's context and returns what who logged about passkey-added emails. */
+  private static List<String> passkeyAddedEmailWarnings(
+      ApplicationContextRunner runner, boolean sends) {
     Logger logger = (Logger) LoggerFactory.getLogger(WhoAutoConfiguration.class);
     ListAppender<ILoggingEvent> logs = new ListAppender<>();
     logs.start();
     logger.addAppender(logs);
     try {
-      postgresRunner()
-          // email links can then be on without a JavaMailSender
-          .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
-          .withPropertyValues(properties)
-          .run(
-              context -> {
-                assertThat(context).hasNotFailed();
-                assertThat(
-                        context.getBean(PasskeyAddedNotifier.class)
-                            instanceof MailPasskeyAddedNotifier)
-                    .isEqualTo(sends);
-              });
+      runner.run(
+          context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(
+                    context.getBean(PasskeyAddedNotifier.class) instanceof MailPasskeyAddedNotifier)
+                .isEqualTo(sends);
+          });
     } finally {
       logger.detachAppender(logs);
     }
