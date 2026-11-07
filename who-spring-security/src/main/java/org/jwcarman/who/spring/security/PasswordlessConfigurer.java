@@ -1,0 +1,104 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.spring.security;
+
+import static org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER;
+
+import java.util.List;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+
+/**
+ * Makes a browser chain safe for session sign-in, using only Spring Security's own types: a
+ * script-readable CSRF cookie for an SPA, {@code 401} instead of login redirects, a logout that
+ * answers {@code 204}, a {@code no-referrer} policy, and who's session-backed {@link
+ * WhoSessionSecurityContextRepository}. Every {@link PasswordlessLoginMethod} bean is then applied
+ * in {@code @Order} order.
+ *
+ * <p>Obtain one with {@link WhoWebSecurity#passwordless()}.
+ */
+public class PasswordlessConfigurer
+    extends AbstractHttpConfigurer<PasswordlessConfigurer, HttpSecurity> {
+
+  static final String CSRF_REQUIRED =
+      "WhoWebSecurity.passwordless() requires CSRF protection; remove csrf.disable() from this chain";
+  static final String SESSIONS_REQUIRED =
+      "WhoWebSecurity.passwordless() needs sessions; this chain is STATELESS";
+  static final String CSRF_COOKIE = "XSRF-TOKEN";
+
+  private boolean statelessChain;
+
+  PasswordlessConfigurer() {}
+
+  @Override
+  public void init(HttpSecurity http) {
+    if (http.getConfigurer(CsrfConfigurer.class) == null) {
+      throw new IllegalStateException(CSRF_REQUIRED);
+    }
+    // SessionManagementConfigurer.init (which runs before ours on Boot's HttpSecurity) shares a
+    // request-attribute-only repository when the chain is STATELESS; Spring exposes the policy no
+    // other way. Capture that before our repository replaces it.
+    statelessChain =
+        http.getSharedObject(SecurityContextRepository.class)
+            instanceof RequestAttributeSecurityContextRepository;
+    ApplicationContext context = http.getSharedObject(ApplicationContext.class);
+    WhoSessionSecurityContextRepository repository =
+        context.getBean(WhoSessionSecurityContextRepository.class);
+
+    CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
+    // load the token on every request so the cookie reaches the SPA before its first write
+    csrfHandler.setCsrfRequestAttributeName(null);
+
+    http.csrf(
+            csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(csrfHandler))
+        .securityContext(c -> c.securityContextRepository(repository))
+        .exceptionHandling(
+            e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+        .logout(
+            l ->
+                l.logoutSuccessHandler(
+                        new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
+                    .deleteCookies(CSRF_COOKIE))
+        .headers(h -> h.referrerPolicy(r -> r.policy(NO_REFERRER)));
+
+    List<PasswordlessLoginMethod> methods =
+        context.getBeanProvider(PasswordlessLoginMethod.class).orderedStream().toList();
+    for (PasswordlessLoginMethod method : methods) {
+      method.configure(http);
+    }
+  }
+
+  @Override
+  public void configure(HttpSecurity http) {
+    if (statelessChain
+        || http.getSharedObject(SessionCreationPolicy.class) == SessionCreationPolicy.STATELESS) {
+      throw new IllegalStateException(SESSIONS_REQUIRED);
+    }
+  }
+}
