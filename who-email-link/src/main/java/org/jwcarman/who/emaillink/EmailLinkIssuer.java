@@ -19,7 +19,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Optional;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.service.WhoService;
@@ -30,8 +29,9 @@ import org.slf4j.LoggerFactory;
  * Does the real work behind {@code POST /ott/generate}, off the request thread: looks up the
  * address, stores the token's hash (the upsert that is also the resend limit), and sends the link.
  *
- * <p>Nothing here is visible to the caller, who has already been answered {@code 202}. The address
- * and the token value are never logged.
+ * <p>Nothing here is visible to the caller, who has already been answered {@code 202}. {@link
+ * #issue} never throws: every failure is logged at WARN with only the credential id (when known)
+ * and the exception class, never the exception message, the address or the token value.
  */
 public class EmailLinkIssuer {
 
@@ -82,33 +82,63 @@ public class EmailLinkIssuer {
     if (!looksLikeAnAddress(address)) {
       return;
     }
-    Optional<EmailCredential> found = credentialService.findByAddress(address);
-    if (found.isEmpty()) {
+    try {
+      credentialService
+          .findByAddress(address)
+          .ifPresentOrElse(
+              credential -> issueTo(credential, tokenValue),
+              () -> log.debug("Sign-in link requested for an unknown address"));
+    } catch (RuntimeException e) {
+      log.warn("Failed to look up a sign-in link address: {}", e.getClass().getName());
+    }
+  }
+
+  private void issueTo(EmailCredential credential, String tokenValue) {
+    try {
+      if (whoService.resolve(credential).isEmpty()) {
+        return;
+      }
+      Instant now = clock.instant();
+      boolean issued =
+          repository.issue(
+              credential.id(),
+              MessageDigests.sha256Hex(tokenValue),
+              now,
+              now.plus(settings.tokenTtl()),
+              settings.resendInterval());
+      if (!issued) {
+        log.debug(
+            "Sign-in link for credential {} suppressed by the resend interval", credential.id());
+        return;
+      }
+    } catch (RuntimeException e) {
+      log.warn(
+          "Failed to issue sign-in link for credential {}: {}",
+          credential.id(),
+          e.getClass().getName());
       return;
     }
-    EmailCredential credential = found.get();
-    if (whoService.resolve(credential).isEmpty()) {
-      return;
-    }
-    Instant now = clock.instant();
-    boolean issued =
-        repository.issue(
-            credential.id(),
-            MessageDigests.sha256Hex(tokenValue),
-            now,
-            now.plus(settings.tokenTtl()),
-            settings.resendInterval());
-    if (!issued) {
-      log.debug(
-          "Sign-in link for credential {} suppressed by the resend interval", credential.id());
-      return;
-    }
+    send(credential, tokenValue);
+  }
+
+  private void send(EmailCredential credential, String tokenValue) {
     try {
       sender.send(credential.address(), settings.linkBaseUrl() + "#token=" + tokenValue);
     } catch (RuntimeException e) {
-      repository.delete(credential.id());
       log.warn(
           "Failed to send sign-in link for credential {}: {}",
+          credential.id(),
+          e.getClass().getName());
+      deleteQuietly(credential);
+    }
+  }
+
+  private void deleteQuietly(EmailCredential credential) {
+    try {
+      repository.delete(credential.id());
+    } catch (RuntimeException e) {
+      log.warn(
+          "Failed to remove unsent sign-in link for credential {}: {}",
           credential.id(),
           e.getClass().getName());
     }

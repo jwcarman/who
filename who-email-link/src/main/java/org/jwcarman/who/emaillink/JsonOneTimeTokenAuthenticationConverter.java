@@ -27,9 +27,18 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reads {@code {"token": "..."}} from the body of {@code POST /login/ott}. Malformed input of any
- * kind yields {@code null}, never an exception.
+ * kind yields a token for {@link #NO_TOKEN}, never {@code null} or an exception, so every sign-in
+ * failure reaches the failure handler and gets the same answer.
  */
 public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationConverter {
+
+  /**
+   * The token value used for malformed requests. Returning {@code null} would make Spring skip the
+   * failure handler, so this stands in for "no token"; {@link EmailLinkAuthenticationProvider}
+   * rejects it as {@code invalid_token} without consuming anything. Real tokens are 43 characters,
+   * so this can never be one.
+   */
+  public static final String NO_TOKEN = "-";
 
   private final JsonMapper jsonMapper;
 
@@ -46,7 +55,7 @@ public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationCo
   public Authentication convert(HttpServletRequest request) {
     String token = JsonBodies.readString(jsonMapper, request, "token");
     if (token == null || token.isBlank()) {
-      return null;
+      return OneTimeTokenAuthenticationToken.unauthenticated(NO_TOKEN);
     }
     return OneTimeTokenAuthenticationToken.unauthenticated(token);
   }

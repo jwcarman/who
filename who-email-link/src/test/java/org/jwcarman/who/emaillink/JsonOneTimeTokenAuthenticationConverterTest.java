@@ -50,8 +50,31 @@ class JsonOneTimeTokenAuthenticationConverterTest {
 
   @ParameterizedTest
   @ValueSource(
-      strings = {"{", "{}", "{\"token\": 5}", "", "{\"token\": \"\"}", "[]", "null", "token=abc"})
-  void malformedGivesNull(String body) {
-    assertThat(converter.convert(post(body))).isNull();
+      strings = {
+        "{",
+        "{}",
+        "{\"token\": 5}",
+        "",
+        "{\"token\": \"\"}",
+        "{\"token\": \"  \"}",
+        "[]",
+        "null",
+        "token=abc"
+      })
+  void malformedNeverGivesNull(String body) {
+    Authentication result = converter.convert(post(body));
+
+    assertThat(result).isInstanceOf(OneTimeTokenAuthenticationToken.class);
+    assertThat(((OneTimeTokenAuthenticationToken) result).getTokenValue())
+        .isEqualTo(JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
+    assertThat(result.isAuthenticated()).isFalse();
+  }
+
+  @Test
+  void requestWithNoBodyNeverGivesNull() {
+    Authentication result = converter.convert(new MockHttpServletRequest("POST", "/login/ott"));
+
+    assertThat(((OneTimeTokenAuthenticationToken) result).getTokenValue())
+        .isEqualTo(JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
   }
 }

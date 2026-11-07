@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -106,5 +107,17 @@ class EmailLinkAuthenticationProviderTest {
     assertThatThrownBy(() -> provider.authenticate(request))
         .isInstanceOf(InvalidOneTimeTokenException.class)
         .hasMessage("invalid_token");
+  }
+
+  @Test
+  void sentinelTokenIsInvalidWithoutConsuming() {
+    OneTimeTokenAuthenticationToken sentinel =
+        OneTimeTokenAuthenticationToken.unauthenticated(
+            JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
+
+    assertThatThrownBy(() -> provider.authenticate(sentinel))
+        .isInstanceOf(InvalidOneTimeTokenException.class)
+        .hasMessage("invalid_token");
+    verifyNoInteractions(tokenService, whoService);
   }
 }

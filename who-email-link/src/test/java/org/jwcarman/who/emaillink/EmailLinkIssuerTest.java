@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.emaillink;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -31,15 +32,25 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class EmailLinkIssuerTest {
 
@@ -63,6 +74,38 @@ class EmailLinkIssuerTest {
           Clock.fixed(NOW, ZoneOffset.UTC));
 
   private final EmailCredential credential = new EmailCredential(UUID.randomUUID(), ADDRESS);
+
+  private final Logger logger = (Logger) LoggerFactory.getLogger(EmailLinkIssuer.class);
+  private final ListAppender<ILoggingEvent> logs = new ListAppender<>();
+
+  @BeforeEach
+  void captureLogs() {
+    logs.start();
+    logger.addAppender(logs);
+  }
+
+  @AfterEach
+  void releaseLogs() {
+    logger.detachAppender(logs);
+  }
+
+  private void assertOneSafeWarning(String exceptionClass, boolean withCredentialId) {
+    assertThat(logs.list).filteredOn(e -> e.getLevel() == Level.WARN).hasSize(1);
+    ILoggingEvent warning =
+        logs.list.stream().filter(e -> e.getLevel() == Level.WARN).findFirst().orElseThrow();
+    String message = warning.getFormattedMessage();
+    assertThat(message).contains(exceptionClass);
+    if (withCredentialId) {
+      assertThat(message).contains(credential.id().toString());
+    }
+    assertThat(warning.getThrowableProxy()).isNull();
+    for (ILoggingEvent event : logs.list) {
+      assertThat(event.getFormattedMessage())
+          .doesNotContain(ADDRESS)
+          .doesNotContain(TOKEN)
+          .doesNotContain("secret-detail");
+    }
+  }
 
   private void known(boolean active) {
     when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
@@ -129,5 +172,45 @@ class EmailLinkIssuerTest {
     issuer.issue(ADDRESS, TOKEN);
 
     verify(repository).delete(credential.id());
+  }
+
+  @Test
+  void failedSendIsLoggedWithoutTheAddressOrToken() {
+    known(true);
+    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    doThrow(new IllegalStateException("secret-detail " + ADDRESS))
+        .when(sender)
+        .send(anyString(), anyString());
+
+    issuer.issue(ADDRESS, TOKEN);
+
+    assertOneSafeWarning(IllegalStateException.class.getName(), true);
+  }
+
+  static Stream<String> failingSteps() {
+    return Stream.of("findByAddress", "resolve", "issue");
+  }
+
+  @ParameterizedTest
+  @MethodSource("failingSteps")
+  void lookupFailureIsContainedAndLogged(String step) {
+    RuntimeException failure = new IllegalStateException("secret-detail " + ADDRESS + " " + TOKEN);
+    switch (step) {
+      case "findByAddress" -> when(credentials.findByAddress(ADDRESS)).thenThrow(failure);
+      case "resolve" -> {
+        when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
+        when(whoService.resolve(any(Credential.class))).thenThrow(failure);
+      }
+      default -> {
+        known(true);
+        when(repository.issue(any(), anyString(), any(), any(), any())).thenThrow(failure);
+      }
+    }
+
+    issuer.issue(ADDRESS, TOKEN);
+
+    verifyNoInteractions(sender);
+    verify(repository, never()).delete(any());
+    assertOneSafeWarning(IllegalStateException.class.getName(), !step.equals("findByAddress"));
   }
 }

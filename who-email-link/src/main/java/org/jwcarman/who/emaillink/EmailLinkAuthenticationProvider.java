@@ -53,7 +53,11 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
 
   @Override
   public Authentication authenticate(Authentication authentication) {
-    OneTimeToken token = tokenService.consume((OneTimeTokenAuthenticationToken) authentication);
+    OneTimeTokenAuthenticationToken presented = (OneTimeTokenAuthenticationToken) authentication;
+    if (JsonOneTimeTokenAuthenticationConverter.NO_TOKEN.equals(presented.getTokenValue())) {
+      throw new InvalidOneTimeTokenException(INVALID_TOKEN);
+    }
+    OneTimeToken token = tokenService.consume(presented);
     if (token == null) {
       throw new InvalidOneTimeTokenException(INVALID_TOKEN);
     }
