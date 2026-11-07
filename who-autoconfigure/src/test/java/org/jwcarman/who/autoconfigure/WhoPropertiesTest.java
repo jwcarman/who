@@ -65,4 +65,14 @@ class WhoPropertiesTest {
     props.setApiKey(apiKey);
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("Authorization");
   }
+
+  @Test
+  void emailLinkSubjectRoundTrips() {
+    WhoProperties props = new WhoProperties();
+    assertThat(props.getEmailLink().getSubject()).isEqualTo("Your sign-in link");
+
+    props.getEmailLink().setSubject("Sign in to Acme");
+
+    assertThat(props.getEmailLink().getSubject()).isEqualTo("Sign in to Acme");
+  }
 }

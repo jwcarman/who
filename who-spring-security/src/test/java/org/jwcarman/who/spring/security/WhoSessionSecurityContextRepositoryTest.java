@@ -17,7 +17,9 @@ package org.jwcarman.who.spring.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -27,6 +29,8 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
+import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -40,6 +44,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.security.web.context.HttpRequestResponseHolder;
 
 class WhoSessionSecurityContextRepositoryTest {
 
@@ -235,5 +240,137 @@ class WhoSessionSecurityContextRepositoryTest {
     public Instant instant() {
       return now;
     }
+  }
+
+  @Test
+  void deprecatedLoadContextReturnsWhatTheDeferredLoadDoes() {
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    when(whoService.resolve(any(Credential.class)))
+        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
+
+    SecurityContext viaHolder =
+        repository.loadContext(new HttpRequestResponseHolder(request, response));
+    SecurityContext deferred = repository.loadDeferredContext(request).get();
+
+    assertThat(viaHolder.getAuthentication()).isEqualTo(deferred.getAuthentication());
+    assertThat(viaHolder.getAuthentication()).isInstanceOf(WhoAuthenticationToken.class);
+  }
+
+  @Test
+  void aSessionThatCannotBeInvalidatedStillLoadsAnEmptyContext() {
+    HttpSession session = mock(HttpSession.class);
+    when(session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+        .thenReturn(new WhoSession(identity.id(), credId, NOW));
+    doThrow(new IllegalStateException("already invalidated")).when(session).invalidate();
+    MockHttpServletRequest sessionRequest =
+        new MockHttpServletRequest() {
+          @Override
+          public HttpSession getSession(boolean create) {
+            return session;
+          }
+        };
+    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+
+    SecurityContext loaded = repository.loadDeferredContext(sessionRequest).get();
+
+    assertThat(loaded.getAuthentication()).isNull();
+    verify(session).invalidate();
+  }
+
+  @Test
+  void aTokenWithoutACredentialIdIsNotStored() {
+    SecurityContext context = new SecurityContextImpl();
+    context.setAuthentication(new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of("a"))));
+
+    repository.saveContext(context, request, response);
+
+    assertThat(request.getSession(false)).isNull();
+  }
+
+  @Test
+  void savingAnEmptyContextWithoutASessionCreatesNone() {
+    repository.saveContext(new SecurityContextImpl(), request, response);
+
+    assertThat(request.getSession(false)).isNull();
+  }
+
+  private MockHttpSession loadedSession() {
+    MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
+    request.setSession(session);
+    when(whoService.resolve(any(Credential.class)))
+        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("a"))));
+    return session;
+  }
+
+  @Test
+  void resavingTheLoadedTokenWithoutAStoredSessionStampsANewOne() {
+    MockHttpSession session = loadedSession();
+    SecurityContext loaded = repository.loadDeferredContext(request).get();
+    session.removeAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE);
+    clock.set(NOW.plusSeconds(30));
+
+    repository.saveContext(loaded, request, response);
+
+    assertThat(repository.currentSession(request))
+        .contains(new WhoSession(identity.id(), credId, NOW.plusSeconds(30)));
+  }
+
+  @Test
+  void resavingTheLoadedTokenAfterTheStoredIdentityChangedReStamps() {
+    MockHttpSession session = loadedSession();
+    SecurityContext loaded = repository.loadDeferredContext(request).get();
+    session.setAttribute(
+        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+        new WhoSession(UUID.randomUUID(), credId, NOW.minusSeconds(5)));
+    clock.set(NOW.plusSeconds(30));
+
+    repository.saveContext(loaded, request, response);
+
+    assertThat(repository.currentSession(request))
+        .contains(new WhoSession(identity.id(), credId, NOW.plusSeconds(30)));
+  }
+
+  @Test
+  void resavingTheLoadedTokenAfterTheStoredCredentialChangedReStamps() {
+    MockHttpSession session = loadedSession();
+    SecurityContext loaded = repository.loadDeferredContext(request).get();
+    session.setAttribute(
+        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+        new WhoSession(identity.id(), UUID.randomUUID(), NOW.minusSeconds(5)));
+    clock.set(NOW.plusSeconds(30));
+
+    repository.saveContext(loaded, request, response);
+
+    assertThat(repository.currentSession(request))
+        .contains(new WhoSession(identity.id(), credId, NOW.plusSeconds(30)));
+  }
+
+  @Test
+  void theCredentialPassedToTheResolverCarriesTheSessionsCredentialId() {
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+
+    repository.loadDeferredContext(request).get();
+
+    org.mockito.ArgumentCaptor<Credential> credential =
+        org.mockito.ArgumentCaptor.forClass(Credential.class);
+    verify(whoService).resolve(credential.capture());
+    assertThat(credential.getValue().id()).isEqualTo(credId);
+  }
+
+  @Test
+  void aSessionThatVanishesBeforeItIsInvalidatedLoadsAnEmptyContext() {
+    HttpSession session = mock(HttpSession.class);
+    when(session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+        .thenReturn(new WhoSession(identity.id(), credId, NOW));
+    jakarta.servlet.http.HttpServletRequest vanishing =
+        mock(jakarta.servlet.http.HttpServletRequest.class);
+    when(vanishing.getSession(false)).thenReturn(session, (HttpSession) null);
+    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+
+    SecurityContext loaded = repository.loadDeferredContext(vanishing).get();
+
+    assertThat(loaded.getAuthentication()).isNull();
+    verify(session, org.mockito.Mockito.never()).invalidate();
   }
 }

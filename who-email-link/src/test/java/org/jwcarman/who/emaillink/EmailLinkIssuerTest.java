@@ -216,4 +216,41 @@ class EmailLinkIssuerTest {
     verify(repository, never()).delete(any(), anyString());
     assertOneSafeWarning(IllegalStateException.class.getName(), !step.equals("findByAddress"));
   }
+
+  @Test
+  void aTextWithoutAnAtSignOrNullAddressStopsBeforeTheLookup() {
+    issuer.issue("not-an-address", TOKEN);
+    issuer.issue(null, TOKEN);
+
+    verifyNoInteractions(credentials, repository, sender, whoService);
+  }
+
+  @Test
+  void failedCleanupAfterAFailedSendIsLoggedWithoutTheAddressOrToken() {
+    known(true);
+    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
+    doThrow(new IllegalArgumentException("secret-detail " + ADDRESS))
+        .when(repository)
+        .delete(any(), anyString());
+
+    issuer.issue(ADDRESS, TOKEN);
+
+    assertThat(logs.list).filteredOn(e -> e.getLevel() == Level.WARN).hasSize(2);
+    String cleanup =
+        logs.list.stream()
+            .filter(e -> e.getLevel() == Level.WARN)
+            .map(ILoggingEvent::getFormattedMessage)
+            .filter(m -> m.contains(IllegalArgumentException.class.getName()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(cleanup).contains(credential.id().toString());
+    for (ILoggingEvent event : logs.list) {
+      assertThat(event.getFormattedMessage())
+          .doesNotContain(ADDRESS)
+          .doesNotContain(TOKEN)
+          .doesNotContain("secret-detail");
+      assertThat(event.getThrowableProxy()).isNull();
+    }
+  }
 }

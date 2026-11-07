@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -109,5 +110,27 @@ class WhoAuthenticationTokenTest {
         new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()));
 
     assertThat(token).isNotEqualTo("not a token");
+  }
+
+  @Test
+  void equalsRequiresTheSameCredentialId() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
+    UUID credentialId = UUID.randomUUID();
+
+    assertThat(new WhoAuthenticationToken(principal, credentialId))
+        .isEqualTo(new WhoAuthenticationToken(principal, credentialId))
+        .isNotEqualTo(new WhoAuthenticationToken(principal, UUID.randomUUID()))
+        .isNotEqualTo(new WhoAuthenticationToken(principal));
+  }
+
+  @Test
+  void equalsRequiresTheSamePrincipalEvenWithTheSameCredentialId() {
+    UUID credentialId = UUID.randomUUID();
+    WhoAuthenticationToken one =
+        new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()), credentialId);
+    WhoAuthenticationToken other =
+        new WhoAuthenticationToken(new WhoPrincipal(Identity.create(), Set.of()), credentialId);
+
+    assertThat(one).isNotEqualTo(other);
   }
 }

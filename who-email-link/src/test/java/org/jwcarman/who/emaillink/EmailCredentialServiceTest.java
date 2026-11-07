@@ -17,6 +17,13 @@ package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -72,5 +79,34 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
     assertThat(service.findByAddress("gone@example.com")).isEmpty();
     assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credential.id()))
         .isEmpty();
+  }
+
+  @Autowired private EmailCredentialRepository emailCredentialRepository;
+
+  @Test
+  void aConcurrentRegistrationLosingTheRaceIsReportedAsTaken() {
+    Identity identity = identityRepository.save(Identity.create());
+    service.register(identity, "race@example.com");
+    // The pre-check misses the winner's row, as it would if the winner committed a moment later;
+    // the real insert then hits the unique constraint.
+    EmailCredentialRepository blind = mock(EmailCredentialRepository.class);
+    when(blind.findByAddress(anyString())).thenReturn(Optional.empty());
+    when(blind.save(org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(call -> emailCredentialRepository.save(call.getArgument(0)));
+    EmailCredentialService racing = new EmailCredentialService(blind, credentialIdentityRepository);
+    Identity other = identityRepository.save(Identity.create());
+
+    assertThatThrownBy(() -> racing.register(other, "race@example.com"))
+        .isInstanceOf(EmailAddressTakenException.class);
+  }
+
+  @Test
+  void revokingAnUnknownCredentialDoesNothing() {
+    CredentialIdentityRepository links = mock(CredentialIdentityRepository.class);
+    EmailCredentialService isolated = new EmailCredentialService(emailCredentialRepository, links);
+
+    isolated.revoke(UUID.randomUUID());
+
+    verifyNoInteractions(links);
   }
 }
