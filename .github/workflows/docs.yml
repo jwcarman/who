@@ -22,7 +22,6 @@ on:
     paths:
       - 'docs/**'
       - '!docs/superpowers/**'
-      - '!docs/plans/**'
       - 'mkdocs.yml'
       - '.github/workflows/docs.yml'
   # The API docs workflow dispatches this workflow after it updates the api-docs branch.

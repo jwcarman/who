@@ -28,10 +28,9 @@ validation:
   links:
     absolute_links: warn
 
-# Process artifacts (specs and plans) stay out of the site.
+# Process artifacts (superpowers specs and plans) stay out of the site.
 exclude_docs: |
   /superpowers/
-  /plans/
 
 theme:
   name: material
