@@ -85,7 +85,7 @@ public record PasskeySettings(
     return ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))
         && uri.getHost() != null
         && uri.getRawUserInfo() == null
-        && (uri.getRawPath() == null || uri.getRawPath().isEmpty())
+        && uri.getRawPath().isEmpty()
         && uri.getRawQuery() == null
         && uri.getRawFragment() == null;
   }

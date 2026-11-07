@@ -149,12 +149,12 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
   public CredentialRecord registerCredential(RelyingPartyRegistrationRequest request) {
     requireNonNull(request, "request must not be null");
     requireOptionsOfCurrentIdentity(request.getCreationOptions());
-    CredentialRecord record =
+    CredentialRecord credential =
         JdbcWhoPasskeyCredentialRepository.registering(() -> delegate.registerCredential(request));
     userRepository
-        .findIdentityId(record.getUserEntityUserId())
-        .ifPresent(identityId -> notify(identityId, record.getLabel()));
-    return record;
+        .findIdentityId(credential.getUserEntityUserId())
+        .ifPresent(identityId -> notify(identityId, credential.getLabel()));
+    return credential;
   }
 
   @Override
@@ -174,10 +174,7 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
       throw new IllegalStateException("registering a passkey requires a signed-in identity");
     }
     Optional<UUID> current = parseUuid(authentication.getName());
-    Optional<UUID> owner =
-        options == null || options.getUser() == null
-            ? Optional.empty()
-            : userRepository.findIdentityId(options.getUser().getId());
+    Optional<UUID> owner = userRepository.findIdentityId(options.getUser().getId());
     if (current.isEmpty() || owner.isEmpty() || !owner.equals(current)) {
       throw new IllegalStateException(
           "the creation options do not belong to the signed-in identity");

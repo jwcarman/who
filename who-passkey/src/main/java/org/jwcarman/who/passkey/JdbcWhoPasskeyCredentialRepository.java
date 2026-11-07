@@ -301,8 +301,6 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
             .orElseThrow(
                 () -> new IllegalStateException("the credential's user entity does not exist"));
     PasskeyCredential passkey = new PasskeyCredential(Identifiers.uuid());
-    Instant created =
-        credentialRecord.getCreated() != null ? credentialRecord.getCreated() : Instant.now();
     jdbcClient
         .sql(
             "INSERT INTO who_passkey_credential (credential_id, user_entity_user_id, public_key,"
@@ -327,7 +325,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
         .param(
             COL_ATTESTATION_CLIENT_DATA_JSON,
             writeBytes(credentialRecord.getAttestationClientDataJSON()))
-        .param(COL_CREATED, toOffsetDateTime(created))
+        .param(COL_CREATED, toOffsetDateTime(credentialRecord.getCreated()))
         .param(COL_LAST_USED, toOffsetDateTime(credentialRecord.getLastUsed()))
         .param(COL_LABEL, credentialRecord.getLabel())
         .param(COL_CREDENTIAL_UUID, passkey.id())
@@ -336,7 +334,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   }
 
   private static String writeTransports(Set<AuthenticatorTransport> transports) {
-    if (transports == null || transports.isEmpty()) {
+    if (transports.isEmpty()) {
       return null;
     }
     return transports.stream()
@@ -349,8 +347,6 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
     Set<AuthenticatorTransport> result = new HashSet<>();
     if (transports != null) {
       Arrays.stream(transports.split(TRANSPORT_SEPARATOR))
-          .map(String::trim)
-          .filter(value -> !value.isEmpty())
           .map(AuthenticatorTransport::valueOf)
           .forEach(result::add);
     }

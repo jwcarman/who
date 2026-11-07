@@ -220,9 +220,6 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   }
 
   private static Optional<UUID> parseUuid(String value) {
-    if (value == null) {
-      return Optional.empty();
-    }
     try {
       return Optional.of(UUID.fromString(value));
     } catch (IllegalArgumentException _) {
