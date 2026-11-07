@@ -52,9 +52,10 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
         new ApiKeyCredential(UUID.randomUUID(), "Delete Me", "hash-to-delete");
     repository.save(credential);
 
-    repository.deleteById(credential.id());
+    assertThat(repository.deleteById(credential.id())).isTrue();
 
     assertThat(repository.findByKeyHash("hash-to-delete")).isEmpty();
+    assertThat(repository.deleteById(credential.id())).isFalse();
   }
 
   @Test

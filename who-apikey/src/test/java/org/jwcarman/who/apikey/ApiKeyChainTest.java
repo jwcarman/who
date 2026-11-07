@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.apikey;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -29,8 +30,10 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
@@ -66,6 +69,21 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
     mvc.perform(get("/plain/ping").header(HEADER, key)).andExpect(status().isUnauthorized());
   }
 
+  @Test
+  void applyingItTwiceRegistersTheFilterOnce() {
+    SecurityFilterChain twice =
+        springSecurityFilterChain.getFilterChains().stream()
+            .filter(
+                c ->
+                    c instanceof DefaultSecurityFilterChain d
+                        && d.getRequestMatcher().toString().contains("/twice/"))
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(twice.getFilters().stream().filter(ApiKeyAuthenticationFilter.class::isInstance))
+        .hasSize(1);
+  }
+
   @TestConfiguration
   @EnableWebSecurity
   static class ChainConfig {
@@ -88,7 +106,19 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
           .authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .httpBasic(withDefaults())
           .csrf(c -> c.disable());
-      WhoApiKeySecurity.apiKey().customize(http);
+      http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());
+      return http.build();
+    }
+
+    @Bean
+    @Order(3)
+    SecurityFilterChain twice(HttpSecurity http) throws Exception {
+      http.securityMatcher("/twice/**")
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .httpBasic(withDefaults())
+          .csrf(c -> c.disable());
+      http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());
+      http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());
       return http.build();
     }
 

@@ -76,7 +76,11 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
   }
 
   @Override
-  public void deleteById(UUID id) {
-    jdbcClient.sql("DELETE FROM who_api_key_credential WHERE id = :id").param(COL_ID, id).update();
+  public boolean deleteById(UUID id) {
+    return jdbcClient
+            .sql("DELETE FROM who_api_key_credential WHERE id = :id")
+            .param(COL_ID, id)
+            .update()
+        > 0;
   }
 }

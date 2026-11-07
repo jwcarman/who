@@ -42,6 +42,7 @@ public interface ApiKeyCredentialRepository {
    * Deletes the credential with the given id.
    *
    * @param id the credential UUID
+   * @return {@code true} if a credential was deleted, {@code false} if there was none
    */
-  void deleteById(UUID id);
+  boolean deleteById(UUID id);
 }

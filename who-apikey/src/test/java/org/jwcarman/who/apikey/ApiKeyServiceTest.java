@@ -117,6 +117,18 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
   }
 
   @Test
+  void revokeLeavesALinkedNonApiKeyCredentialAlone() {
+    Identity identity = createActiveIdentity();
+    UUID otherCredentialId = UUID.randomUUID();
+    credentialIdentityRepository.link(otherCredentialId, identity.id());
+
+    apiKeyService.revoke(otherCredentialId);
+
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(otherCredentialId))
+        .hasValue(identity.id());
+  }
+
+  @Test
   void twoCreatesForSameIdentityProduceDifferentKeys() {
     Identity identity = createActiveIdentity();
     String key1 = apiKeyService.create(identity, "Key One");

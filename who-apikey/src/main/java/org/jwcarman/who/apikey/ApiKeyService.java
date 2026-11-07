@@ -85,8 +85,11 @@ public class ApiKeyService {
   @Transactional
   public void revoke(UUID credentialId) {
     requireNonNull(credentialId, "credentialId must not be null");
-    apiKeyCredentialRepository.deleteById(credentialId);
-    credentialIdentityRepository.unlink(credentialId);
+    // Only unlink when an API key was actually deleted, so another credential's link is never
+    // touched.
+    if (apiKeyCredentialRepository.deleteById(credentialId)) {
+      credentialIdentityRepository.unlink(credentialId);
+    }
   }
 
   static String sha256Hex(String input) {
