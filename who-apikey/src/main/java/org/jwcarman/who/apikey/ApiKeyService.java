@@ -17,27 +17,26 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
-import java.security.SecureRandom;
-import java.util.HexFormat;
+import java.util.UUID;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
+import org.jwcarman.who.core.crypto.Secrets;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service for creating and managing API key credentials.
  *
- * <p>Each key is a prefixed opaque string ({@code who_<64 hex chars>}) generated from 32 random
- * bytes. Only the SHA-256 hash of the raw key is stored — the raw key is returned once and never
- * persisted.
+ * <p>Each key is a prefixed opaque string ({@code who_<43 URL-safe Base64 chars>}) carrying 256
+ * random bits. Only the SHA-256 hash of the raw key is stored — the raw key is returned once and
+ * never persisted.
  */
 public class ApiKeyService {
 
-  private static final HexFormat HEX = HexFormat.of();
   private final ApiKeyCredentialRepository apiKeyCredentialRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
-  private final SecureRandom secureRandom;
 
   /**
    * Creates a new {@code ApiKeyService}.
@@ -53,7 +52,6 @@ public class ApiKeyService {
     this.credentialIdentityRepository =
         requireNonNull(
             credentialIdentityRepository, "credentialIdentityRepository must not be null");
-    this.secureRandom = new SecureRandom();
   }
 
   /**
@@ -63,15 +61,13 @@ public class ApiKeyService {
    *
    * @param identity the identity to link the new credential to
    * @param name a human-readable label for this key (e.g. "Production server")
-   * @return the raw API key (e.g. {@code who_a3f8...}), never stored
+   * @return the raw API key (e.g. {@code who_...}), never stored
    */
   public String create(Identity identity, String name) {
     requireNonNull(identity, "identity must not be null");
     requireNonNull(name, "name must not be null");
 
-    byte[] bytes = new byte[32];
-    secureRandom.nextBytes(bytes);
-    String rawKey = "who_" + HEX.formatHex(bytes);
+    String rawKey = "who_" + Secrets.token();
     String keyHash = sha256Hex(rawKey);
 
     ApiKeyCredential credential = new ApiKeyCredential(Identifiers.uuid(), name, keyHash);
@@ -79,6 +75,18 @@ public class ApiKeyService {
     credentialIdentityRepository.link(credential.id(), identity.id());
 
     return rawKey;
+  }
+
+  /**
+   * Revokes an API key: deletes the credential and its identity link, so the key stops resolving.
+   *
+   * @param credentialId the id of the API key credential
+   */
+  @Transactional
+  public void revoke(UUID credentialId) {
+    requireNonNull(credentialId, "credentialId must not be null");
+    apiKeyCredentialRepository.deleteById(credentialId);
+    credentialIdentityRepository.unlink(credentialId);
   }
 
   static String sha256Hex(String input) {

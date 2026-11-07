@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -41,6 +42,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
@@ -89,6 +91,30 @@ class ApiKeyAuthenticationFilterTest {
 
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     verify(apiKeyCredentialRepository, never()).findByKeyHash(any());
+  }
+
+  @Test
+  void blankHeaderIsIgnored() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, "   ");
+
+    filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    verifyNoInteractions(apiKeyCredentialRepository);
+  }
+
+  @Test
+  void keyDoesNotReplaceAnExistingAuthentication() throws Exception {
+    TestingAuthenticationToken existing = new TestingAuthenticationToken("alice", "n/a", "ROLE_X");
+    SecurityContextHolder.getContext().setAuthentication(existing);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HEADER, RAW_KEY);
+
+    filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isSameAs(existing);
+    verifyNoInteractions(apiKeyCredentialRepository);
   }
 
   @Test

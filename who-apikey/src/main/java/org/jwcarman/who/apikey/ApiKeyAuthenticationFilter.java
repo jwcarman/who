@@ -26,6 +26,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -35,6 +37,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>If the configured header is absent or blank the request proceeds unauthenticated. If the
  * header value does not match any known key the request also proceeds unauthenticated — the filter
  * never produces a 401; that decision is left to the rest of the filter chain.
+ *
+ * <p>The filter never replaces an authentication that is already present (anything other than
+ * anonymous). Add it to a chain with {@link WhoApiKeySecurity}; it is not registered with the
+ * servlet container on its own.
  *
  * <p>On any exception during key processing the {@link SecurityContextHolder} is cleared before the
  * exception propagates.
@@ -67,7 +73,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     String headerValue = request.getHeader(headerName);
-    if (headerValue != null && !headerValue.isBlank()) {
+    if (headerValue != null && !headerValue.isBlank() && noAuthenticationPresent()) {
       try {
         String keyHash = ApiKeyService.sha256Hex(headerValue);
         apiKeyCredentialRepository
@@ -81,5 +87,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
       }
     }
     filterChain.doFilter(request, response);
+  }
+
+  private static boolean noAuthenticationPresent() {
+    Authentication existing = SecurityContextHolder.getContext().getAuthentication();
+    return existing == null || existing instanceof AnonymousAuthenticationToken;
   }
 }

@@ -46,6 +46,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -241,6 +242,19 @@ public class WhoAutoConfiguration {
         WhoProperties properties) {
       return new ApiKeyAuthenticationFilter(
           apiKeyCredentialRepository, whoService, properties.getApiKey().getHeaderName());
+    }
+
+    /**
+     * Keeps Spring Boot from also registering the filter with the servlet container; it runs only
+     * inside security chains that add it with {@code WhoApiKeySecurity}.
+     */
+    @Bean
+    public FilterRegistrationBean<ApiKeyAuthenticationFilter> apiKeyFilterRegistration(
+        ApiKeyAuthenticationFilter filter) {
+      FilterRegistrationBean<ApiKeyAuthenticationFilter> registration =
+          new FilterRegistrationBean<>(filter);
+      registration.setEnabled(false);
+      return registration;
     }
   }
 }

@@ -17,11 +17,14 @@ package org.jwcarman.who.apikey;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class ApiKeyServiceTest extends AbstractApiKeyTest {
 
@@ -33,12 +36,47 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
 
   @Autowired private IdentityRepository identityRepository;
 
+  @Autowired private JdbcClient jdbcClient;
+
   @Test
   void createReturnsKeyWithWhoPrefix() {
     Identity identity = createActiveIdentity();
     String rawKey = apiKeyService.create(identity, "Test Key");
 
-    assertThat(rawKey).startsWith("who_").hasSize(4 + 64); // "who_" + 64 hex chars
+    assertThat(rawKey).startsWith("who_").hasSize(4 + 43);
+  }
+
+  @Test
+  void keyIsPrefixedSecret() {
+    String rawKey = apiKeyService.create(createActiveIdentity(), "Test Key");
+
+    assertThat(rawKey).matches("who_[A-Za-z0-9_-]{43}");
+  }
+
+  @Test
+  void revokeRemovesCredentialAndLink() {
+    String rawKey = apiKeyService.create(createActiveIdentity(), "Test Key");
+    String hash = ApiKeyService.sha256Hex(rawKey);
+    UUID credentialId = apiKeyCredentialRepository.findByKeyHash(hash).orElseThrow().id();
+
+    apiKeyService.revoke(credentialId);
+
+    assertThat(apiKeyCredentialRepository.findByKeyHash(hash)).isEmpty();
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialId)).isEmpty();
+    assertThat(
+            jdbcClient
+                .sql("SELECT count(*) FROM who_api_key_credential WHERE id = ?")
+                .param(credentialId)
+                .query(Integer.class)
+                .single())
+        .isZero();
+    assertThat(
+            jdbcClient
+                .sql("SELECT count(*) FROM who_credential_identity WHERE credential_id = ?")
+                .param(credentialId)
+                .query(Integer.class)
+                .single())
+        .isZero();
   }
 
   @Test

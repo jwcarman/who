@@ -21,12 +21,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.BadSqlGrammarException;
@@ -113,6 +116,24 @@ class WhoAutoConfigurationTest {
                       .sql("SELECT COUNT(*) FROM who_identity")
                       .query(Integer.class);
               assertThatThrownBy(query::single).isInstanceOf(BadSqlGrammarException.class);
+            });
+  }
+
+  @Test
+  void apiKeyFilterIsNotRegisteredWithTheServletContainer() {
+    new WebApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context).hasSingleBean(ApiKeyAuthenticationFilter.class);
+              assertThat(context)
+                  .getBeans(FilterRegistrationBean.class)
+                  .values()
+                  .filteredOn(r -> r.getFilter() instanceof ApiKeyAuthenticationFilter)
+                  .singleElement()
+                  .satisfies(r -> assertThat(r.isEnabled()).isFalse());
             });
   }
 }
