@@ -18,22 +18,26 @@ package org.jwcarman.who.jwt;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
  * JDBC implementation of {@link JwtCredentialRepository} backed by the {@code who_jwt_credential}
- * table.
+ * table. It is also the JWT module's {@link CredentialRemover}.
  */
-public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
+public class JdbcJwtCredentialRepository implements JwtCredentialRepository, CredentialRemover {
 
+  private static final String COL_ID = "id";
   private static final String COL_ISSUER = "issuer";
   private static final String COL_SUBJECT = "subject";
 
   private static final RowMapper<JwtCredential> ROW_MAPPER =
       (rs, rowNum) ->
           new JwtCredential(
-              rs.getObject("id", UUID.class), rs.getString(COL_ISSUER), rs.getString(COL_SUBJECT));
+              rs.getObject(COL_ID, UUID.class),
+              rs.getString(COL_ISSUER),
+              rs.getString(COL_SUBJECT));
 
   private final JdbcClient jdbcClient;
 
@@ -61,7 +65,7 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
                         VALUES (:id, :issuer, :subject)
                         ON CONFLICT (id) DO NOTHING
                         """)
-        .param("id", credential.id())
+        .param(COL_ID, credential.id())
         .param(COL_ISSUER, credential.issuer())
         .param(COL_SUBJECT, credential.subject())
         .update();
@@ -70,6 +74,24 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository {
 
   @Override
   public void deleteById(UUID id) {
-    jdbcClient.sql("DELETE FROM who_jwt_credential WHERE id = :id").param("id", id).update();
+    jdbcClient.sql("DELETE FROM who_jwt_credential WHERE id = :id").param(COL_ID, id).update();
+  }
+
+  @Override
+  public boolean remove(UUID credentialId) {
+    return jdbcClient
+            .sql("DELETE FROM who_jwt_credential WHERE id = :id")
+            .param(COL_ID, credentialId)
+            .update()
+        > 0;
+  }
+
+  @Override
+  public int removeUnlinked() {
+    return jdbcClient
+        .sql(
+            "DELETE FROM who_jwt_credential j WHERE NOT EXISTS"
+                + " (SELECT 1 FROM who_credential_identity ci WHERE ci.credential_id = j.id)")
+        .update();
   }
 }

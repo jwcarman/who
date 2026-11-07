@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.jwt;
 
+import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
+import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
@@ -23,7 +25,11 @@ import org.springframework.context.annotation.Import;
 // Security auto-configuration is excluded so the integration tests can boot without
 // a configured JWT decoder or security filter chain. The converter itself is tested
 // in WhoJwtAuthenticationConverterTest using mocks.
-@Import({JdbcJwtCredentialRepository.class})
+@Import({
+  JdbcJwtCredentialRepository.class,
+  JdbcIdentityRepository.class,
+  JdbcCredentialIdentityRepository.class
+})
 @SpringBootApplication(
     exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
 class WhoJwtTestApp {}

@@ -20,11 +20,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
   @Autowired private JdbcJwtCredentialRepository repository;
+  @Autowired private IdentityRepository identityRepository;
+  @Autowired private CredentialIdentityRepository credentialIdentityRepository;
+
+  private static final String ISSUER = "https://issuer.example.com";
 
   @Test
   void savesAndFindsCredentialByIssuerAndSubject() {
@@ -72,5 +79,31 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
         .isPresent();
     assertThat(repository.findByIssuerAndSubject("https://other.example.com", "subject-b"))
         .isEmpty();
+  }
+
+  @Test
+  void removeDeletesTheCredentialItOwns() {
+    JwtCredential credential = repository.save(JwtCredential.create(ISSUER, "to-remove"));
+
+    assertThat(repository.remove(credential.id())).isTrue();
+    assertThat(repository.findByIssuerAndSubject(ISSUER, "to-remove")).isEmpty();
+  }
+
+  @Test
+  void removeOfAnotherModulesCredentialDeletesNothing() {
+    assertThat(repository.remove(UUID.randomUUID())).isFalse();
+  }
+
+  @Test
+  void removeUnlinkedDeletesOnlyUnlinkedCredentials() {
+    repository.removeUnlinked();
+    Identity identity = identityRepository.save(Identity.create());
+    JwtCredential linked = repository.save(JwtCredential.create(ISSUER, "linked"));
+    credentialIdentityRepository.link(linked.id(), identity.id());
+    repository.save(JwtCredential.create(ISSUER, "orphan"));
+
+    assertThat(repository.removeUnlinked()).isOne();
+    assertThat(repository.findByIssuerAndSubject(ISSUER, "orphan")).isEmpty();
+    assertThat(repository.findByIssuerAndSubject(ISSUER, "linked")).contains(linked);
   }
 }
