@@ -46,7 +46,7 @@ tooling (see 8).
 
 **Delivered as three plans, in order, each ending shippable and reviewed:**
 
-1. Sessions, `who-email-link`, `/who/me`, `/logout`, rate limits, `TIMESTAMPTZ`, Liquibase.
+1. Sessions, `who-email-link` (with its resend limit), `/who/me`, `/logout`, `TIMESTAMPTZ`, Liquibase.
 2. `who-passkey`.
 3. Native support, `who-example-passwordless` with JVM and native end-to-end tests, the spike on who.
 
@@ -64,9 +64,9 @@ tooling (see 8).
 | Session principal | Re-resolved from the database on every request (D1) |
 | Configurer | `WhoWebSecurity.passwordless()` returns an `AbstractHttpConfigurer`, the same pattern as `WhoApiKeySecurity.apiKey()` |
 | CSRF | Required. Cookie token for the SPA, rotated at sign-in; the sign-in POSTs are protected too (D2) |
-| Rate limits | Counters in a who table; client IP from Spring's forwarded-header support only (D4) |
+| Rate limits | who limits only what it alone can see: at most one sign-in email per address per `resend-interval`, enforced by the token row itself. Per-IP limiting and flood protection belong upstream, at the ingress (D4) |
 | Timestamps | `TIMESTAMPTZ` in every who table, new and existing |
-| Tables | All `who_`-prefixed: `who_email_credential`, `who_email_link_token`, `who_rate_limit`, `who_passkey_user`, `who_passkey_credential` |
+| Tables | All `who_`-prefixed: `who_email_credential`, `who_email_link_token`, `who_passkey_user`, `who_passkey_credential` |
 | Schema | Each module keeps its `schema.sql` and adds `db/changelog.xml` (Liquibase XML), equivalent to it |
 | Responses | Sign-in endpoints answer JSON and status codes, never redirects |
 | Native | Hints for data-dependent type families, plus tracing-agent metadata from end-to-end tests, shipped in each module's jar |
@@ -122,10 +122,25 @@ trimmed and lower-cased, and unique. It is linked to an identity through the exi
 - `Optional<EmailCredential> findByAddress(String address)`, normalized the same way;
 - `void revoke(UUID credentialId)`: deletes the credential and its link.
 
-**Tokens (D3).** `who_email_link_token(token_hash varchar(64) pk, credential_id uuid fk cascade,
-expires_at timestamptz)`. A token value comes from `Secrets.token()`; only its SHA-256 hash is
-stored. It expires after `who.email-link.token-ttl` (default 5 minutes). Consuming is one atomic
-statement:
+**Tokens (D3).** `who_email_link_token(credential_id uuid pk fk cascade, token_hash varchar(64)
+unique, created_at timestamptz, expires_at timestamptz)`. Each address holds at most one live token,
+so only the newest link works. A token value comes from `Secrets.token()`; only its SHA-256 hash is
+stored. It expires after `who.email-link.token-ttl` (default 5 minutes).
+
+Issuing is one atomic upsert, which is also the resend limit (section 5):
+
+```sql
+INSERT INTO who_email_link_token (credential_id, token_hash, created_at, expires_at)
+VALUES (:credentialId, :hash, :now, :expiresAt)
+ON CONFLICT (credential_id) DO UPDATE
+   SET token_hash = EXCLUDED.token_hash,
+       created_at = EXCLUDED.created_at,
+       expires_at = EXCLUDED.expires_at
+ WHERE who_email_link_token.created_at <= :now - :resendInterval
+```
+
+One row changed means "send this link". No row changed means a link went out within the resend
+interval, so nothing is sent. Consuming is one atomic statement:
 
 ```sql
 DELETE FROM who_email_link_token
@@ -140,9 +155,9 @@ so two concurrent confirmations cannot both succeed. Expired rows are deleted by
 
 | Hook | who's part |
 |---|---|
-| `tokenService` | `JdbcWhoOneTimeTokenService`: hashed tokens, atomic consume (below) |
+| `tokenService` | `WhoOneTimeTokenService`: `generate` only creates a random value and touches no table; `consume` is the atomic delete above |
 | `generateRequestResolver` | reads `{"email": "..."}` from the JSON body |
-| `tokenGenerationSuccessHandler` | answers `202`, then sends the link asynchronously |
+| `tokenGenerationSuccessHandler` | answers `202`, then, asynchronously, looks up the address, issues the token (the upsert above) and sends the link |
 | `authenticationConverter` | reads `{"token": "..."}` from the JSON body |
 | `authenticationProvider` | resolves the token's credential to a `WhoAuthenticationToken` |
 | `authenticationSuccessHandler` / `authenticationFailureHandler` | JSON `200` / `401` |
@@ -153,19 +168,17 @@ The endpoint paths stay Spring's defaults.
 **Requesting a link.** `POST /ott/generate` with JSON `{"email": "..."}`:
 
 - always answers `202` with an empty body, whether or not the address is known (no enumeration);
-- for an unknown address, or one whose identity is not `ACTIVE`, the token service returns a token
-  it does not store, and the handler sends nothing. Spring's filter always asks for a token, so this
-  keeps unknown addresses from writing rows;
-- sending runs asynchronously after the response, so the response time does not reveal whether the
-  address is known (D6);
-- for a known address with an `ACTIVE` identity, the token is stored and
-  `EmailLinkSender.send(address, link)` is called;
+- the request thread does no lookup and no write: Spring's filter asks the token service for a
+  token, which only generates a random value, and the handler answers `202` at once. The response
+  time therefore cannot reveal whether the address is known (D6);
+- after the response, the handler looks up the address. For an unknown address, or one whose
+  identity is not `ACTIVE`, it stops. Otherwise it issues the token with the upsert above and, if a
+  row changed, calls `EmailLinkSender.send(address, link)`;
 - `link` is `who.email-link.link-base-url` + `#token=` + the token value. The token is in the URL
   fragment, which browsers never send to a server or in a `Referer` header, so it stays out of
   access logs (D6). The app's page reads the fragment and confirms it (below); a mail scanner
   fetching the link does nothing;
-- rate limits apply in a filter before Spring's generating filter (section 5); above them the
-  answer is `429`.
+- the answer is `202` even when the resend interval suppresses the email (section 5).
 
 `EmailLinkSender` is an SPI. `MailEmailLinkSender` (when `JavaMailSender` is present) sends a plain
 text email from `who.email-link.from`, subject `who.email-link.subject`.
@@ -218,19 +231,20 @@ registrable domain as their `rp-id`, or every app's passkeys appear in every oth
 
 ## 5. Rate limits (plan 1, D4)
 
-`POST /ott/generate` is limited per address and per client IP: at most
-`who.email-link.rate-limit.per-address` and `…per-ip` requests within `…window` (defaults 5, 20,
-15 minutes).
+Spring Security has no rate limiting, and limiting well across a cluster is hard. who limits only
+what it alone can see, and leaves the rest upstream.
 
-- **Counters live in the database** (`who_rate_limit(bucket varchar(400), window_start timestamptz,
-  count int, primary key (bucket, window_start))`), incremented with one upsert, so the limits hold
-  across instances and restarts. Old windows are deleted by the same sweep as expired tokens.
-- **Client IP** is `HttpServletRequest.getRemoteAddr()`. who never reads `X-Forwarded-For` itself.
-  Behind a load balancer, the app sets `server.forward-headers-strategy=native` (or `framework`) and
-  its trusted proxies, so Spring replaces the remote address with the real client's. The docs say so
-  plainly: without it, every user shares the proxy's address and the per-IP limit blocks them all.
-- **Known cost:** the per-address limit lets anyone exhaust a victim's sign-in emails for one window.
-  The docs state it; passkeys are not rate limited by this and still work.
+- **In who: one sign-in email per address per `who.email-link.resend-interval` (default 60
+  seconds).** The address is inside the JSON body, so only the app can limit by it. The limit is the
+  token row itself: the upsert in section 3 replaces a token only once the interval has passed.
+  PostgreSQL serializes the upsert on that row, so two instances cannot both send. who needs no
+  counter table, no windows and no extra sweep. This protects a person's inbox from email bombing
+  and the app's sending reputation. The worst an attacker can do to a victim is delay their sign-in
+  email by one interval; passkey sign-in is unaffected.
+- **Upstream: per-IP limits and flood protection.** The load balancer, WAF or ingress sees the real
+  client IP and stops floods before they reach the app. who never reads `X-Forwarded-For`. The docs
+  say plainly that `/ott/generate` and `/login/ott` need per-IP limits at the ingress, with an nginx
+  example. On the noir platform, the platform's ingress provides them for every customer app.
 
 ## 6. Timestamps
 
@@ -273,7 +287,7 @@ changelogs and the `schema.sql` files to PostgreSQL and compares the resulting s
     authenticator);
   - `/who/me` and `/logout`;
   - a role-protected endpoint;
-  - rate limiting;
+  - the resend interval (a second request within it sends no email);
   - a used link and an expired link;
   - a suspended identity losing access on its next request.
 
@@ -290,7 +304,8 @@ its probe and Playwright tests pass on the JVM and natively.
 - **Unit:**
   - address normalization and uniqueness;
   - token generation and hashing, expiry, single use;
-  - rate-limit windows (per address, per IP, window reset);
+  - the resend interval (within it nothing is sent; after it a new token replaces the old one, and
+    the old link stops working);
   - the passkey stores (Spring's repository contracts) and the random user handle;
   - hint predicates for every registered family.
 - **Integration** (Testcontainers PostgreSQL):
@@ -299,7 +314,8 @@ its probe and Playwright tests pass on the JVM and natively.
     next request;
   - two concurrent confirmations of one token: exactly one succeeds;
   - no enumeration (the same `202` for known and unknown addresses);
-  - `429` over each limit, counted across two application contexts sharing one database;
+  - two concurrent link requests for one address, from two application contexts sharing one
+    database: exactly one email is sent;
   - sign-in POSTs without a CSRF token are `403`, and `passwordless()` on a chain with CSRF disabled
     fails at startup;
   - registering a passkey while signed out, or outside the registration window, is `401`;
