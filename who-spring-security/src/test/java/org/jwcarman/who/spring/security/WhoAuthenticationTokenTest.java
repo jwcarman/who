@@ -141,7 +141,9 @@ class WhoAuthenticationTokenTest {
     WhoAuthenticationToken token = new WhoAuthenticationToken(principal, credentialId);
     WhoAuthenticationToken same = new WhoAuthenticationToken(principal, credentialId);
 
-    assertThat(token).isEqualTo(same).hasSameHashCodeAs(same);
-    assertThat(token).isNotEqualTo(new WhoAuthenticationToken(principal, UUID.randomUUID()));
+    assertThat(token)
+        .isEqualTo(same)
+        .hasSameHashCodeAs(same)
+        .isNotEqualTo(new WhoAuthenticationToken(principal, UUID.randomUUID()));
   }
 }
