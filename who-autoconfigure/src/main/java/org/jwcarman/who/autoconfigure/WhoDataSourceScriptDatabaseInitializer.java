@@ -41,22 +41,22 @@ public class WhoDataSourceScriptDatabaseInitializer extends DataSourceScriptData
       List.of(
           new ModuleSchema(
               "org.jwcarman.who.jdbc.JdbcIdentityRepository",
-              "classpath:org/jwcarman/who/jdbc/schema.sql"),
+              "classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.rbac.JdbcRoleRepository",
-              "classpath:org/jwcarman/who/rbac/schema.sql"),
+              "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.jwt.JdbcJwtCredentialRepository",
-              "classpath:org/jwcarman/who/jwt/schema.sql"),
+              "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.enrollment.JdbcEnrollmentTokenRepository",
-              "classpath:org/jwcarman/who/enrollment/schema.sql"),
+              "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository",
-              "classpath:org/jwcarman/who/apikey/schema.sql"),
+              "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.emaillink.JdbcEmailCredentialRepository",
-              "classpath:org/jwcarman/who/emaillink/schema.sql"));
+              "classpath:org/jwcarman/who/emaillink/who-email-link-schema.sql"));
 
   /**
    * Creates a new initializer.

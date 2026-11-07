@@ -45,18 +45,19 @@ import liquibase.integration.spring.SpringLiquibase;
 @Testcontainers
 class LiquibaseChangelogTest {
 
-  private static final String CHANGELOG_ALL = "org/jwcarman/who/db/changelog-all.xml";
+  private static final String CHANGELOG_ALL = "org/jwcarman/who/db/who-changelog.xml";
 
   private static final List<String> SCHEMA_FILES =
       List.of(
-          "org/jwcarman/who/jdbc/schema.sql",
-          "org/jwcarman/who/rbac/schema.sql",
-          "org/jwcarman/who/jwt/schema.sql",
-          "org/jwcarman/who/enrollment/schema.sql",
-          "org/jwcarman/who/apikey/schema.sql",
-          "org/jwcarman/who/emaillink/schema.sql");
+          "org/jwcarman/who/jdbc/who-jdbc-schema.sql",
+          "org/jwcarman/who/rbac/who-rbac-schema.sql",
+          "org/jwcarman/who/jwt/who-jwt-schema.sql",
+          "org/jwcarman/who/enrollment/who-enrollment-schema.sql",
+          "org/jwcarman/who/apikey/who-apikey-schema.sql",
+          "org/jwcarman/who/emaillink/who-email-link-schema.sql");
 
-  private static final String EMAIL_LINK_CHANGELOG = "org/jwcarman/who/emaillink/db/changelog.xml";
+  private static final String EMAIL_LINK_CHANGELOG =
+      "org/jwcarman/who/emaillink/db/who-email-link-changelog.xml";
 
   private static final List<String> ALL_TABLES =
       List.of(

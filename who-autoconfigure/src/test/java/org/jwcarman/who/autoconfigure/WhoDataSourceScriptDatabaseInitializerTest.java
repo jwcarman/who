@@ -30,12 +30,12 @@ class WhoDataSourceScriptDatabaseInitializerTest {
             WhoDataSourceScriptDatabaseInitializer.detectSchemaLocations(
                 getClass().getClassLoader()))
         .contains(
-            "classpath:org/jwcarman/who/jdbc/schema.sql",
-            "classpath:org/jwcarman/who/rbac/schema.sql",
-            "classpath:org/jwcarman/who/jwt/schema.sql",
-            "classpath:org/jwcarman/who/enrollment/schema.sql",
-            "classpath:org/jwcarman/who/apikey/schema.sql",
-            "classpath:org/jwcarman/who/emaillink/schema.sql");
+            "classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql",
+            "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql",
+            "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql",
+            "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql",
+            "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql",
+            "classpath:org/jwcarman/who/emaillink/who-email-link-schema.sql");
   }
 
   @Test
@@ -45,11 +45,11 @@ class WhoDataSourceScriptDatabaseInitializerTest {
 
     assertThat(WhoDataSourceScriptDatabaseInitializer.detectSchemaLocations(filteredClassLoader))
         .doesNotContain(
-            "classpath:org/jwcarman/who/jdbc/schema.sql",
-            "classpath:org/jwcarman/who/rbac/schema.sql")
+            "classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql",
+            "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql")
         .contains(
-            "classpath:org/jwcarman/who/jwt/schema.sql",
-            "classpath:org/jwcarman/who/enrollment/schema.sql",
-            "classpath:org/jwcarman/who/apikey/schema.sql");
+            "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql",
+            "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql",
+            "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql");
   }
 }
