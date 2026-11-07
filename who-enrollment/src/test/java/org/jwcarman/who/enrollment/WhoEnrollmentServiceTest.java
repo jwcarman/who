@@ -20,16 +20,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
 
@@ -231,5 +238,151 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
     assertThat(storedValue)
         .isNotEqualTo(token.value())
         .isEqualTo(MessageDigests.sha256Hex(token.value()));
+  }
+
+  private EnrollmentToken expiredTokenFor(Identity identity) {
+    EnrollmentToken raw = EnrollmentToken.create(identity, Duration.ofHours(-1));
+    tokenRepository.save(
+        new EnrollmentToken(
+            raw.id(),
+            raw.identityId(),
+            MessageDigests.sha256Hex(raw.value()),
+            raw.status(),
+            raw.createdAt(),
+            raw.expiresAt(),
+            null));
+    return raw;
+  }
+
+  private int linkCount(UUID identityId) {
+    return jdbcClient
+        .sql("SELECT count(*) FROM who_credential_identity WHERE identity_id = :identityId")
+        .param("identityId", identityId)
+        .query(Integer.class)
+        .single();
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  void concurrentRedemptionsLinkExactlyOneCredential() throws Exception {
+    Identity identity = identityRepository.save(Identity.create());
+    try {
+      EnrollmentToken token = service.createToken(identity);
+      CountDownLatch start = new CountDownLatch(1);
+      Callable<Object> attempt =
+          () -> {
+            start.await();
+            try {
+              return service.enroll(token.value(), credential());
+            } catch (EnrollmentTokenNotPendingException e) {
+              return e;
+            }
+          };
+      try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
+        var a = pool.submit(attempt);
+        var b = pool.submit(attempt);
+        start.countDown();
+        List<Object> results = List.of(a.get(), b.get());
+        assertThat(results).filteredOn(r -> r instanceof Identity).hasSize(1);
+        assertThat(results)
+            .filteredOn(r -> r instanceof EnrollmentTokenNotPendingException)
+            .hasSize(1);
+      }
+      assertThat(linkCount(identity.id())).isEqualTo(1);
+    } finally {
+      jdbcClient
+          .sql("DELETE FROM who_credential_identity WHERE identity_id = :identityId")
+          .param("identityId", identity.id())
+          .update();
+      identityRepository.deleteById(identity.id());
+    }
+  }
+
+  @Test
+  void expiredTokenLinksNothing() {
+    Identity identity = savedIdentity();
+    EnrollmentToken expired = expiredTokenFor(identity);
+    String value = expired.value();
+    Credential cred = credential();
+
+    assertThatThrownBy(() -> service.enroll(value, cred))
+        .isInstanceOf(EnrollmentTokenExpiredException.class);
+    assertThat(linkCount(identity.id())).isZero();
+  }
+
+  @Test
+  void suspendedIdentityIsRefused() {
+    Identity identity = identityRepository.save(Identity.create(IdentityStatus.SUSPENDED));
+    EnrollmentToken token = tokenForSuspended(identity);
+    String value = token.value();
+    Credential cred = credential();
+
+    assertThatThrownBy(() -> service.enroll(value, cred))
+        .isInstanceOf(EnrollmentIdentityInactiveException.class)
+        .hasMessage("Identity %s is not active".formatted(identity.id()));
+    assertThat(service.findToken(value))
+        .get()
+        .satisfies(t -> assertThat(t.status()).isEqualTo(EnrollmentTokenStatus.PENDING));
+    assertThat(linkCount(identity.id())).isZero();
+  }
+
+  private EnrollmentToken tokenForSuspended(Identity identity) {
+    EnrollmentToken raw = EnrollmentToken.create(identity, Duration.ofHours(1));
+    tokenRepository.save(
+        new EnrollmentToken(
+            raw.id(),
+            raw.identityId(),
+            MessageDigests.sha256Hex(raw.value()),
+            raw.status(),
+            raw.createdAt(),
+            raw.expiresAt(),
+            null));
+    return raw;
+  }
+
+  @Test
+  void alreadyLinkedCredentialIsAClearError() {
+    Identity x = savedIdentity();
+    Identity y = savedIdentity();
+    Credential cred = credential();
+    credentialIdentityRepository.link(cred.id(), x.id());
+    EnrollmentToken token = service.createToken(y);
+    String value = token.value();
+
+    assertThatThrownBy(() -> service.enroll(value, cred))
+        .isInstanceOf(CredentialAlreadyLinkedException.class)
+        .hasMessage("Credential %s is already linked to an identity".formatted(cred.id()));
+  }
+
+  @Test
+  void revokingARedeemedTokenChangesNothing() {
+    Identity identity = savedIdentity();
+    EnrollmentToken token = service.createToken(identity);
+    service.enroll(token.value(), credential());
+    EnrollmentToken redeemed = service.findToken(token.value()).orElseThrow();
+
+    service.revokeToken(token);
+
+    assertThat(service.findToken(token.value()))
+        .get()
+        .satisfies(
+            t -> {
+              assertThat(t.status()).isEqualTo(EnrollmentTokenStatus.REDEEMED);
+              assertThat(t.redeemedAt()).isNotNull().isEqualTo(redeemed.redeemedAt());
+            });
+  }
+
+  @Test
+  void tokenValueIsExact() {
+    Identity identity = savedIdentity();
+    EnrollmentToken token = service.createToken(identity);
+    String padded = " " + token.value();
+    String upper = token.value().toUpperCase();
+    Credential cred = credential();
+
+    assertThatThrownBy(() -> service.enroll(padded, cred))
+        .isInstanceOf(EnrollmentTokenNotFoundException.class);
+    assertThatThrownBy(() -> service.enroll(upper, cred))
+        .isInstanceOf(EnrollmentTokenNotFoundException.class);
   }
 }

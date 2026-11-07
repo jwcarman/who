@@ -16,13 +16,16 @@
 package org.jwcarman.who.enrollment;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -81,8 +84,9 @@ public class WhoEnrollmentService {
   /**
    * Redeems an enrollment token, linking the credential to the identity.
    *
-   * <p>The token must be {@code PENDING} and not expired. On success the token is marked {@code
-   * REDEEMED} and the credential is linked to the identity.
+   * <p>The token must be {@code PENDING} and not expired, and its identity {@code ACTIVE}. The
+   * token is redeemed with a single conditional update, so concurrent attempts cannot both succeed;
+   * the credential is then linked to the identity in the same transaction.
    *
    * @param tokenValue the shareable token value given to the user
    * @param credential the credential to link
@@ -90,6 +94,8 @@ public class WhoEnrollmentService {
    * @throws EnrollmentTokenNotFoundException if no token with the given value exists
    * @throws EnrollmentTokenExpiredException if the token has passed its expiration time
    * @throws EnrollmentTokenNotPendingException if the token is already redeemed or revoked
+   * @throws EnrollmentIdentityInactiveException if the token's identity is not active
+   * @throws CredentialAlreadyLinkedException if the credential is already linked to an identity
    */
   @Transactional
   public Identity enroll(String tokenValue, Credential credential) {
@@ -98,22 +104,34 @@ public class WhoEnrollmentService {
             .findByValue(MessageDigests.sha256Hex(tokenValue))
             .orElseThrow(EnrollmentTokenNotFoundException::new);
 
-    if (token.isExpired()) {
-      throw new EnrollmentTokenExpiredException(token.id());
-    }
-    if (token.status() != EnrollmentTokenStatus.PENDING) {
-      throw new EnrollmentTokenNotPendingException(token.id(), token.status());
+    Identity identity =
+        identityRepository
+            .findById(token.identityId())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Identity disappeared during enrollment: " + token.identityId()));
+    if (identity.status() != IdentityStatus.ACTIVE) {
+      throw new EnrollmentIdentityInactiveException(identity.id());
     }
 
-    credentialIdentityRepository.link(credential.id(), token.identityId());
-    enrollmentTokenRepository.save(token.redeem());
+    if (!enrollmentTokenRepository.redeem(token.id(), Instant.now())) {
+      EnrollmentToken current =
+          enrollmentTokenRepository
+              .findById(token.id())
+              .orElseThrow(EnrollmentTokenNotFoundException::new);
+      if (current.isExpired()) {
+        throw new EnrollmentTokenExpiredException(current.id());
+      }
+      throw new EnrollmentTokenNotPendingException(current.id(), current.status());
+    }
 
-    return identityRepository
-        .findById(token.identityId())
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "Identity disappeared during enrollment: " + token.identityId()));
+    try {
+      credentialIdentityRepository.link(credential.id(), identity.id());
+    } catch (DuplicateKeyException e) {
+      throw new CredentialAlreadyLinkedException(credential.id());
+    }
+    return identity;
   }
 
   /**
@@ -122,11 +140,12 @@ public class WhoEnrollmentService {
    * @param token the token to revoke
    * @throws EnrollmentTokenNotFoundException if the token does not exist
    */
+  @Transactional
   public void revokeToken(EnrollmentToken token) {
     enrollmentTokenRepository
         .findById(token.id())
         .orElseThrow(EnrollmentTokenNotFoundException::new);
-    enrollmentTokenRepository.save(token.revoke());
+    enrollmentTokenRepository.revoke(token.id());
   }
 
   /**

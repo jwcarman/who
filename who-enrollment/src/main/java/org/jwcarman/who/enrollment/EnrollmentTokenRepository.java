@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,6 +52,24 @@ public interface EnrollmentTokenRepository {
    * @param identityId the identity whose pending tokens should be revoked
    */
   void revokeAllPendingForIdentity(UUID identityId);
+
+  /**
+   * Atomically marks a token {@code REDEEMED} if, and only if, it is still {@code PENDING} and has
+   * not expired at {@code now}.
+   *
+   * @param id the token's UUID
+   * @param now the instant to test expiry and record as the redemption time
+   * @return {@code true} if this call redeemed the token
+   */
+  boolean redeem(UUID id, Instant now);
+
+  /**
+   * Atomically marks a token {@code REVOKED} if, and only if, it is still {@code PENDING}.
+   *
+   * @param id the token's UUID
+   * @return {@code true} if this call revoked the token
+   */
+  boolean revoke(UUID id);
 
   /**
    * Deletes the token with the given id. No-op if not found.

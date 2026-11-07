@@ -16,6 +16,7 @@
 package org.jwcarman.who.enrollment;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -105,6 +106,30 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
             "UPDATE who_enrollment_token SET status = 'REVOKED' WHERE identity_id = :identityId AND status = 'PENDING'")
         .param(PARAM_IDENTITY_ID, identityId)
         .update();
+  }
+
+  @Override
+  public boolean redeem(UUID id, Instant now) {
+    return jdbcClient
+            .sql(
+                """
+                UPDATE who_enrollment_token SET status = 'REDEEMED', redeemed_at = :now
+                WHERE id = :id AND status = 'PENDING' AND expires_at > :now
+                """)
+            .param(COL_ID, id)
+            .param("now", Timestamp.from(now))
+            .update()
+        == 1;
+  }
+
+  @Override
+  public boolean revoke(UUID id) {
+    return jdbcClient
+            .sql(
+                "UPDATE who_enrollment_token SET status = 'REVOKED' WHERE id = :id AND status = 'PENDING'")
+            .param(COL_ID, id)
+            .update()
+        == 1;
   }
 
   @Override

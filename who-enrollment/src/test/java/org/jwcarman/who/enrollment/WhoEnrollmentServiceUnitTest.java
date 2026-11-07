@@ -16,7 +16,6 @@
 package org.jwcarman.who.enrollment;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
@@ -41,7 +40,7 @@ class WhoEnrollmentServiceUnitTest {
   @Mock private CredentialIdentityRepository credentialIdentityRepository;
 
   @Test
-  void enrollThrowsWhenIdentityDisappearsAfterTokenRedemption() {
+  void enrollThrowsWhenIdentityDisappearsDuringEnrollment() {
     Identity identity = Identity.create();
     EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(1));
     Credential credential = UUID::randomUUID;
@@ -49,7 +48,6 @@ class WhoEnrollmentServiceUnitTest {
 
     when(enrollmentTokenRepository.findByValue(MessageDigests.sha256Hex(tokenValue)))
         .thenReturn(Optional.of(token));
-    when(enrollmentTokenRepository.save(any())).thenReturn(token);
     when(identityRepository.findById(identity.id())).thenReturn(Optional.empty());
 
     WhoEnrollmentService service =

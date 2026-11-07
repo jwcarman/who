@@ -18,6 +18,7 @@ package org.jwcarman.who.enrollment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.time.Instant;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -102,5 +103,52 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
     identityRepository.deleteById(identity.id());
 
     assertThat(repository.findById(token.id())).isEmpty();
+  }
+
+  @Test
+  void redeemIsTrueOnceThenFalse() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(token);
+
+    assertThat(repository.redeem(token.id(), Instant.now())).isTrue();
+    assertThat(repository.redeem(token.id(), Instant.now())).isFalse();
+    assertThat(repository.findById(token.id()))
+        .get()
+        .satisfies(
+            found -> {
+              assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.REDEEMED);
+              assertThat(found.redeemedAt()).isNotNull();
+            });
+  }
+
+  @Test
+  void redeemIsFalseWhenExpired() {
+    EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(-1));
+    repository.save(token);
+
+    assertThat(repository.redeem(token.id(), Instant.now())).isFalse();
+    assertThat(repository.findById(token.id()))
+        .get()
+        .satisfies(found -> assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.PENDING));
+  }
+
+  @Test
+  void revokeOnlyAffectsPending() {
+    EnrollmentToken pending = EnrollmentToken.create(identity, Duration.ofHours(24));
+    EnrollmentToken redeemed = EnrollmentToken.create(identity, Duration.ofHours(24));
+    repository.save(pending);
+    repository.save(redeemed);
+    repository.redeem(redeemed.id(), Instant.now());
+
+    assertThat(repository.revoke(pending.id())).isTrue();
+    assertThat(repository.revoke(redeemed.id())).isFalse();
+    assertThat(repository.revoke(pending.id())).isFalse();
+
+    assertThat(repository.findById(pending.id()))
+        .get()
+        .satisfies(found -> assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.REVOKED));
+    assertThat(repository.findById(redeemed.id()))
+        .get()
+        .satisfies(found -> assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.REDEEMED));
   }
 }
