@@ -40,7 +40,7 @@ database rate limiting; `TIMESTAMPTZ` for every who table; Liquibase XML changel
 native support (hints and generated metadata shipped in the jars); a new example app with end-to-end
 tests run on the JVM and natively; the native spike rebuilt on who.
 
-**Out:** a typed sign-in code (designed, later); invitations and roles UI (apps build on
+**Out:** a typed sign-in code (plan 4, below); invitations and roles UI (apps build on
 `who-enrollment` and `who-rbac` as they are); several tenants in one JVM (see 8); admin recovery
 tooling (see 8).
 
@@ -49,6 +49,11 @@ tooling (see 8).
 1. Sessions, `who-email-link` (with its resend limit), `/who/me`, `/logout`, `TIMESTAMPTZ`, Liquibase.
 2. `who-passkey`.
 3. Native support, `who-example-passwordless` with JVM and native end-to-end tests, the spike on who.
+4. A typed sign-in code in the same email as the link ("or enter K7F-2QM"), for new devices,
+   mobile in-app browsers and link-scanning mail security. Digits or alphanumeric (Crockford
+   Base32, case-insensitive, grouped), with a configurable length. A code is low-entropy, so it
+   has an attempt limit, is bound to the browser session that requested it, and each address has
+   at most one live code. Designed in full when plan 4 is written.
 
 ## 1. Decisions
 
