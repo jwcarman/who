@@ -11,3 +11,10 @@ logs/
 
 # superpowers implementation plans are local execution scripts; specs are tracked
 docs/superpowers/plans/
+
+# superpowers working files (SDD ledgers, briefs, review packages)
+.superpowers/
+
+# MkDocs build output and local Python environments
+site/
+.venv/
