@@ -64,7 +64,7 @@ public class HomeController {
             });
 
     // Retrieve the access token for curl examples
-    if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
+    if (authorizedClient != null) {
       model.addAttribute("accessToken", authorizedClient.getAccessToken().getTokenValue());
     }
 

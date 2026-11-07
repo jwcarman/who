@@ -20,6 +20,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
@@ -110,7 +111,7 @@ public class SecurityConfig {
     RegisteredClient client =
         RegisteredClient.withId(UUID.randomUUID().toString())
             .clientId("demo-client")
-            .clientSecret(passwordEncoder.encode("secret"))
+            .clientSecret(Objects.requireNonNull(passwordEncoder.encode("secret")))
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)

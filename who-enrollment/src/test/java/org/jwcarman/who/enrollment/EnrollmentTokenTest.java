@@ -63,8 +63,8 @@ class EnrollmentTokenTest {
     var token = EnrollmentToken.create(identity(), Duration.ofHours(1));
 
     assertThat(token.value()).matches("[A-Za-z0-9_-]{43}");
-    assertThatThrownBy(() -> UUID.fromString(token.value()))
-        .isInstanceOf(IllegalArgumentException.class);
+    String value = token.value();
+    assertThatThrownBy(() -> UUID.fromString(value)).isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

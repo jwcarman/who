@@ -44,6 +44,7 @@ import org.springframework.web.context.WebApplicationContext;
 class ApiKeyChainTest extends AbstractApiKeyTest {
 
   private static final String HEADER = "X-API-Key";
+  private static final String OTHER_HEADER = "X-Other-Key";
 
   @Autowired private WebApplicationContext context;
   @Autowired private FilterChainProxy springSecurityFilterChain;
@@ -67,6 +68,12 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
   @Test
   void keyIsIgnoredOnAChainWithoutIt() throws Exception {
     mvc.perform(get("/plain/ping").header(HEADER, key)).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void explicitFilterIsTheOneTheChainUses() throws Exception {
+    mvc.perform(get("/explicit/ping").header(OTHER_HEADER, key)).andExpect(status().isOk());
+    mvc.perform(get("/explicit/ping").header(HEADER, key)).andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -101,7 +108,7 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
 
     @Bean
     @Order(1)
-    SecurityFilterChain keyed(HttpSecurity http) throws Exception {
+    SecurityFilterChain keyed(HttpSecurity http) {
       http.securityMatcher("/keyed/**")
           .authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .httpBasic(withDefaults())
@@ -112,7 +119,7 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
 
     @Bean
     @Order(3)
-    SecurityFilterChain twice(HttpSecurity http) throws Exception {
+    SecurityFilterChain twice(HttpSecurity http) {
       http.securityMatcher("/twice/**")
           .authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .httpBasic(withDefaults())
@@ -123,8 +130,23 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
     }
 
     @Bean
+    @Order(4)
+    SecurityFilterChain explicit(
+        HttpSecurity http, ApiKeyCredentialRepository repository, WhoService whoService) {
+      http.securityMatcher("/explicit/**")
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .httpBasic(withDefaults())
+          .csrf(c -> c.disable());
+      http.with(
+          WhoApiKeySecurity.apiKey(
+              new ApiKeyAuthenticationFilter(repository, whoService, OTHER_HEADER)),
+          Customizer.withDefaults());
+      return http.build();
+    }
+
+    @Bean
     @Order(2)
-    SecurityFilterChain plain(HttpSecurity http) throws Exception {
+    SecurityFilterChain plain(HttpSecurity http) {
       return http.securityMatcher("/plain/**")
           .authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .httpBasic(withDefaults())
@@ -135,7 +157,11 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
 
   @org.springframework.web.bind.annotation.RestController
   static class PingController {
-    @org.springframework.web.bind.annotation.GetMapping({"/keyed/ping", "/plain/ping"})
+    @org.springframework.web.bind.annotation.GetMapping({
+      "/keyed/ping",
+      "/plain/ping",
+      "/explicit/ping"
+    })
     String ping() {
       return "pong";
     }

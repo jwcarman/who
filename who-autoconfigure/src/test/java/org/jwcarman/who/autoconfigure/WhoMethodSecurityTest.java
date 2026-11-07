@@ -87,11 +87,11 @@ class WhoMethodSecurityTest {
     runner.run(
         context -> {
           assertThat(context).hasNotFailed();
+          Guarded guarded = context.getBean(Guarded.class);
           authenticateWith("other.perm");
-          assertThatThrownBy(() -> context.getBean(Guarded.class).read())
-              .isInstanceOf(AccessDeniedException.class);
+          assertThatThrownBy(guarded::read).isInstanceOf(AccessDeniedException.class);
           authenticateWith("task.read");
-          assertThat(context.getBean(Guarded.class).read()).isEqualTo("ok");
+          assertThat(guarded.read()).isEqualTo("ok");
         });
   }
 
@@ -115,9 +115,9 @@ class WhoMethodSecurityTest {
         .run(
             context -> {
               assertThat(context).hasNotFailed();
+              Guarded guarded = context.getBean(Guarded.class);
               authenticateWith("other.perm");
-              assertThatThrownBy(() -> context.getBean(Guarded.class).read())
-                  .isInstanceOf(AccessDeniedException.class);
+              assertThatThrownBy(guarded::read).isInstanceOf(AccessDeniedException.class);
             });
   }
 }

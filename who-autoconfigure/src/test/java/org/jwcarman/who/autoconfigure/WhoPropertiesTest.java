@@ -18,8 +18,11 @@ package org.jwcarman.who.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 class WhoPropertiesTest {
@@ -31,6 +34,18 @@ class WhoPropertiesTest {
     assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.EMBEDDED);
     assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
+    assertThat(props.getMethodSecurity().isEnabled()).isTrue();
+  }
+
+  @Test
+  void methodSecurityEnabledBindsFromProperties() {
+    WhoProperties props =
+        new Binder(
+                new MapConfigurationPropertySource(Map.of("who.method-security.enabled", "false")))
+            .bind("who", WhoProperties.class)
+            .get();
+
+    assertThat(props.getMethodSecurity().isEnabled()).isFalse();
   }
 
   @Test

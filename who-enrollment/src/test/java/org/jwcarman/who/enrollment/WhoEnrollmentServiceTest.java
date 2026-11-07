@@ -283,9 +283,9 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
         var b = pool.submit(attempt);
         start.countDown();
         List<Object> results = List.of(a.get(), b.get());
-        assertThat(results).filteredOn(r -> r instanceof Identity).hasSize(1);
+        assertThat(results).filteredOn(Identity.class::isInstance).hasSize(1);
         assertThat(results)
-            .filteredOn(r -> r instanceof EnrollmentTokenNotPendingException)
+            .filteredOn(EnrollmentTokenNotPendingException.class::isInstance)
             .hasSize(1);
       }
       assertThat(linkCount(identity.id())).isEqualTo(1);

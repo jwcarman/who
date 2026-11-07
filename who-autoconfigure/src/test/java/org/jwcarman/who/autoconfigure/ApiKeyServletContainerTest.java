@@ -74,7 +74,7 @@ class ApiKeyServletContainerTest {
     }
 
     @Bean
-    SecurityFilterChain plain(HttpSecurity http) throws Exception {
+    SecurityFilterChain plain(HttpSecurity http) {
       return http.authorizeHttpRequests(a -> a.anyRequest().permitAll())
           .csrf(c -> c.disable())
           .build();

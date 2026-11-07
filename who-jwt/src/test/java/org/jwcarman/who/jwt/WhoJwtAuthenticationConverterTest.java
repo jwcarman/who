@@ -146,6 +146,24 @@ class WhoJwtAuthenticationConverterTest {
   }
 
   @Test
+  void blankIssuerIsBadCredentials() {
+    Jwt jwt = jwtWithClaims(Map.of("iss", " ", "sub", SUBJECT));
+
+    assertThatExceptionOfType(BadCredentialsException.class)
+        .isThrownBy(() -> converter.convert(jwt))
+        .withMessage("JWT is missing iss or sub");
+  }
+
+  @Test
+  void missingSubjectIsBadCredentials() {
+    Jwt jwt = jwtWithClaims(Map.of("iss", ISSUER));
+
+    assertThatExceptionOfType(BadCredentialsException.class)
+        .isThrownBy(() -> converter.convert(jwt))
+        .withMessage("JWT is missing iss or sub");
+  }
+
+  @Test
   void nonUrlIssuerIsLookedUp() {
     JwtCredential credential = JwtCredential.create("noir", SUBJECT);
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());

@@ -128,7 +128,7 @@ public class WhoEnrollmentService {
 
     try {
       credentialIdentityRepository.link(credential.id(), identity.id());
-    } catch (DuplicateKeyException e) {
+    } catch (DuplicateKeyException _) {
       throw new CredentialAlreadyLinkedException(credential.id());
     }
     return identity;
