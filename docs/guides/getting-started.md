@@ -69,6 +69,35 @@ UUID identityId = identity.id();
 Everything else (enrolling credentials, assigning roles, issuing API keys) takes
 an identity created this way.
 
+## Deleting an identity
+
+Delete identities through `WhoService` too:
+
+```java
+boolean deleted = whoService.deleteIdentity(identityId); // false if there is no such identity
+```
+
+In one transaction, it deletes each of the identity's email, JWT and API key
+credentials, unlinks them, and deletes the identity. Its role assignments,
+enrollment tokens and passkeys go with it.
+
+Do not run `DELETE FROM who_identity` yourself. Credential rows do not reference
+their identity, so a raw delete removes only the links and leaves the credential
+rows behind. `EmailCredentialService.register` reuses such an unlinked address
+for the next identity that registers it. To clean them up, call:
+
+```java
+int removed = whoService.purgeOrphanedCredentials();
+```
+
+It deletes every credential linked to no identity. A JWT credential saved for
+[enrollment](enrollment.md) is unlinked until the user enrolls, so run the purge
+when no enrollment is in flight.
+
+If you replace one of who's credential repository beans, `deleteIdentity` and
+the purge skip that module's rows unless your bean also implements
+`CredentialRemover` (and is declared with a type that includes it).
+
 ## Next steps
 
 1. [Database Setup](database.md): create Who's tables.

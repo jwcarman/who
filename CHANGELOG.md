@@ -43,8 +43,24 @@ databases must convert their timestamp columns first.
   metadata for its Liquibase changelogs and schema script, and `who-passkey` registers Spring AOT
   hints for the Spring Security WebAuthn and webauthn4j type families.
 - The [Native Images](https://jwcarman.github.io/who/guides/native/) guide.
+- `WhoService.deleteIdentity(UUID)`: deletes an identity with its email, JWT and API key
+  credentials and their links, in one transaction. Deleting `who_identity` directly left those
+  credential rows behind.
+- `WhoService.purgeOrphanedCredentials()`: deletes credentials linked to no identity, such as those
+  left by a direct delete. It also deletes JWT credentials saved for an enrollment not yet redeemed.
+- The `CredentialRemover` SPI. The JDBC email, JWT and API key repositories implement it, and the
+  autoconfiguration passes every `CredentialRemover` bean to `WhoService`.
 
 ### Changed
+
+- `EmailCredentialService.register` reuses an address that is registered but linked to no
+  identity, linking it to the new identity, and returns the existing credential when the address
+  is already the identity's own. It still throws `EmailAddressTakenException` when another identity
+  holds the address.
+- `CredentialIdentityRepository` has a new method, `findCredentialIdsByIdentityId(UUID)`. Custom
+  implementations must add it.
+- The autoconfiguration declares the email, JWT and API key repository beans with their JDBC
+  types. They are still replaced by any bean of the repository interface.
 
 - `WhoAuthenticationToken.getName()` returns the identity id, for every chain (sessions, JWTs and
   API keys). Spring's WebAuthn support keys on it. Anything that reads `authentication.name`, such
