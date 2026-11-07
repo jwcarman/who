@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.jdbc;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,6 +29,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 public class JdbcCredentialIdentityRepository implements CredentialIdentityRepository {
 
   private static final String PARAM_CREDENTIAL_ID = "credentialId";
+  private static final String PARAM_IDENTITY_ID = "identityId";
 
   private final JdbcClient jdbcClient;
 
@@ -45,12 +47,21 @@ public class JdbcCredentialIdentityRepository implements CredentialIdentityRepos
   }
 
   @Override
+  public List<UUID> findCredentialIdsByIdentityId(UUID identityId) {
+    return jdbcClient
+        .sql("SELECT credential_id FROM who_credential_identity WHERE identity_id = :identityId")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .query((rs, rowNum) -> rs.getObject("credential_id", UUID.class))
+        .list();
+  }
+
+  @Override
   public void link(UUID credentialId, UUID identityId) {
     jdbcClient
         .sql(
             "INSERT INTO who_credential_identity (credential_id, identity_id) VALUES (:credentialId, :identityId)")
         .param(PARAM_CREDENTIAL_ID, credentialId)
-        .param("identityId", identityId)
+        .param(PARAM_IDENTITY_ID, identityId)
         .update();
   }
 

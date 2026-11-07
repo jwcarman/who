@@ -51,6 +51,26 @@ class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
   }
 
   @Test
+  void findCredentialIdsByIdentityIdReturnsOnlyThatIdentitysCredentials() {
+    Identity identity = savedIdentity();
+    Identity other = savedIdentity();
+    UUID first = UUID.randomUUID();
+    UUID second = UUID.randomUUID();
+    credentialIdentityRepository.link(first, identity.id());
+    credentialIdentityRepository.link(second, identity.id());
+    credentialIdentityRepository.link(UUID.randomUUID(), other.id());
+
+    assertThat(credentialIdentityRepository.findCredentialIdsByIdentityId(identity.id()))
+        .containsExactlyInAnyOrder(first, second);
+  }
+
+  @Test
+  void findCredentialIdsByIdentityIdIsEmptyWithoutLinks() {
+    assertThat(credentialIdentityRepository.findCredentialIdsByIdentityId(UUID.randomUUID()))
+        .isEmpty();
+  }
+
+  @Test
   void unlinkRemovesCredentialMapping() {
     Identity identity = savedIdentity();
     UUID credentialId = UUID.randomUUID();

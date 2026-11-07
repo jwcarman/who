@@ -17,9 +17,13 @@ package org.jwcarman.who.core.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -33,7 +37,9 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -47,6 +53,10 @@ class WhoServiceTest {
   @Mock private PermissionsResolver permissionsResolver;
 
   @Mock private Credential credential;
+
+  @Mock private CredentialRemover emailRemover;
+
+  @Mock private CredentialRemover apiKeyRemover;
 
   private UUID credentialId;
 
@@ -138,5 +148,79 @@ class WhoServiceTest {
     verify(identityRepository).save(any(Identity.class));
     assertThat(result.id()).isNotNull();
     assertThat(result.status()).isEqualTo(IdentityStatus.ACTIVE);
+  }
+
+  @Test
+  void deleteIdentityRemovesEachLinkedCredentialThenTheIdentity() {
+    UUID identityId = UUID.randomUUID();
+    UUID email = UUID.randomUUID();
+    UUID apiKey = UUID.randomUUID();
+    when(identityRepository.existsById(identityId)).thenReturn(true);
+    when(credentialIdentityRepository.findCredentialIdsByIdentityId(identityId))
+        .thenReturn(List.of(email, apiKey));
+    when(emailRemover.remove(email)).thenReturn(true);
+    when(emailRemover.remove(apiKey)).thenReturn(false);
+    when(apiKeyRemover.remove(apiKey)).thenReturn(true);
+
+    boolean deleted = serviceWithRemovers().deleteIdentity(identityId);
+
+    assertThat(deleted).isTrue();
+    verify(apiKeyRemover, never()).remove(email);
+    InOrder order = inOrder(credentialIdentityRepository, identityRepository);
+    order.verify(credentialIdentityRepository).unlink(email);
+    order.verify(credentialIdentityRepository).unlink(apiKey);
+    order.verify(identityRepository).deleteById(identityId);
+  }
+
+  @Test
+  void deleteIdentityUnlinksACredentialNoRemoverOwns() {
+    UUID identityId = UUID.randomUUID();
+    UUID passkey = UUID.randomUUID();
+    when(identityRepository.existsById(identityId)).thenReturn(true);
+    when(credentialIdentityRepository.findCredentialIdsByIdentityId(identityId))
+        .thenReturn(List.of(passkey));
+
+    WhoService service =
+        new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
+
+    assertThat(service.deleteIdentity(identityId)).isTrue();
+    verify(credentialIdentityRepository).unlink(passkey);
+    verify(identityRepository).deleteById(identityId);
+  }
+
+  @Test
+  void deleteUnknownIdentityReturnsFalse() {
+    UUID identityId = UUID.randomUUID();
+    when(identityRepository.existsById(identityId)).thenReturn(false);
+
+    boolean deleted = serviceWithRemovers().deleteIdentity(identityId);
+
+    assertThat(deleted).isFalse();
+    verify(identityRepository, never()).deleteById(identityId);
+    verifyNoInteractions(credentialIdentityRepository, emailRemover, apiKeyRemover);
+  }
+
+  @Test
+  void purgeOrphanedCredentialsAddsUpEveryRemover() {
+    when(emailRemover.removeUnlinked()).thenReturn(2);
+    when(apiKeyRemover.removeUnlinked()).thenReturn(3);
+
+    assertThat(serviceWithRemovers().purgeOrphanedCredentials()).isEqualTo(5);
+  }
+
+  @Test
+  void purgeOrphanedCredentialsWithoutRemoversDeletesNothing() {
+    WhoService service =
+        new WhoService(identityRepository, credentialIdentityRepository, permissionsResolver);
+
+    assertThat(service.purgeOrphanedCredentials()).isZero();
+  }
+
+  private WhoService serviceWithRemovers() {
+    return new WhoService(
+        identityRepository,
+        credentialIdentityRepository,
+        permissionsResolver,
+        List.of(emailRemover, apiKeyRemover));
   }
 }

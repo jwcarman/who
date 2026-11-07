@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.core.repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,6 +29,14 @@ public interface CredentialIdentityRepository {
    * @return the linked identity UUID, or empty if not linked
    */
   Optional<UUID> findIdentityIdByCredentialId(UUID credentialId);
+
+  /**
+   * Finds the UUIDs of every credential linked to the given identity.
+   *
+   * @param identityId the identity UUID
+   * @return the linked credential UUIDs; empty if none
+   */
+  List<UUID> findCredentialIdsByIdentityId(UUID identityId);
 
   /**
    * Links the given credential to the given identity.

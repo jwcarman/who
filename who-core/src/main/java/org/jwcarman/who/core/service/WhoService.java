@@ -17,7 +17,9 @@ package org.jwcarman.who.core.service;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
@@ -25,7 +27,9 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Core service that resolves a {@link Credential} to a {@link WhoPrincipal}.
@@ -41,17 +45,20 @@ import org.jwcarman.who.core.spi.PermissionsResolver;
  *   <li>Return a populated {@link WhoPrincipal}.
  * </ol>
  *
- * <p>This is a plain Java class with no Spring annotations. Wiring is done by the autoconfigure
- * module.
+ * <p>It also deletes identities together with their credentials ({@link #deleteIdentity(UUID)}) and
+ * purges credentials that are linked to no identity ({@link #purgeOrphanedCredentials()}), through
+ * the {@link CredentialRemover}s it is given. Wiring is done by the autoconfigure module.
  */
 public class WhoService {
 
   private final IdentityRepository identityRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final PermissionsResolver permissionsResolver;
+  private final List<CredentialRemover> credentialRemovers;
 
   /**
-   * Constructs a {@code WhoService} with its required collaborators.
+   * Constructs a {@code WhoService} without credential removers: {@link #deleteIdentity(UUID)} then
+   * deletes only links, and {@link #purgeOrphanedCredentials()} deletes nothing.
    *
    * @param identityRepository stores and retrieves identities
    * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
@@ -61,6 +68,22 @@ public class WhoService {
       IdentityRepository identityRepository,
       CredentialIdentityRepository credentialIdentityRepository,
       PermissionsResolver permissionsResolver) {
+    this(identityRepository, credentialIdentityRepository, permissionsResolver, List.of());
+  }
+
+  /**
+   * Constructs a {@code WhoService} with its collaborators.
+   *
+   * @param identityRepository stores and retrieves identities
+   * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
+   * @param permissionsResolver resolves permissions for an active identity
+   * @param credentialRemovers one per credential module; delete that module's credential rows
+   */
+  public WhoService(
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver,
+      List<CredentialRemover> credentialRemovers) {
     this.identityRepository =
         requireNonNull(identityRepository, "identityRepository must not be null");
     this.credentialIdentityRepository =
@@ -68,6 +91,8 @@ public class WhoService {
             credentialIdentityRepository, "credentialIdentityRepository must not be null");
     this.permissionsResolver =
         requireNonNull(permissionsResolver, "permissionsResolver must not be null");
+    this.credentialRemovers =
+        List.copyOf(requireNonNull(credentialRemovers, "credentialRemovers must not be null"));
   }
 
   /**
@@ -91,5 +116,54 @@ public class WhoService {
         .flatMap(identityRepository::findById)
         .filter(identity -> identity.status() == IdentityStatus.ACTIVE)
         .map(identity -> new WhoPrincipal(identity, permissionsResolver.resolve(identity)));
+  }
+
+  /**
+   * Deletes an identity together with its credentials. Each credential linked to the identity is
+   * offered to the credential removers until one deletes it, then unlinked. Deleting the identity
+   * then removes, by cascade, its role assignments, enrollment tokens and passkeys.
+   *
+   * <p>Prefer this to deleting the {@code who_identity} row directly: credential rows do not
+   * reference the identity, so a direct delete leaves them behind (see {@link
+   * #purgeOrphanedCredentials()}).
+   *
+   * @param identityId the identity to delete
+   * @return {@code true} if the identity was deleted, {@code false} if there is no such identity
+   */
+  @Transactional
+  public boolean deleteIdentity(UUID identityId) {
+    requireNonNull(identityId, "identityId must not be null");
+    if (!identityRepository.existsById(identityId)) {
+      return false;
+    }
+    for (UUID credentialId :
+        credentialIdentityRepository.findCredentialIdsByIdentityId(identityId)) {
+      removeCredential(credentialId);
+      credentialIdentityRepository.unlink(credentialId);
+    }
+    identityRepository.deleteById(identityId);
+    return true;
+  }
+
+  /**
+   * Deletes every credential that is linked to no identity, such as those left behind when an
+   * identity row was deleted directly instead of through {@link #deleteIdentity(UUID)}.
+   *
+   * <p>A credential saved for enrollment but not yet enrolled is linked to no identity either, so
+   * it is deleted too. Run this when no enrollment is in flight.
+   *
+   * @return the number of credentials deleted
+   */
+  @Transactional
+  public int purgeOrphanedCredentials() {
+    return credentialRemovers.stream().mapToInt(CredentialRemover::removeUnlinked).sum();
+  }
+
+  private void removeCredential(UUID credentialId) {
+    for (CredentialRemover remover : credentialRemovers) {
+      if (remover.remove(credentialId)) {
+        return;
+      }
+    }
   }
 }
