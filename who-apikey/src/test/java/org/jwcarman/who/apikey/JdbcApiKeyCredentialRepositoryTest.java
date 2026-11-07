@@ -20,11 +20,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
 
   @Autowired private JdbcApiKeyCredentialRepository repository;
+  @Autowired private IdentityRepository identityRepository;
+  @Autowired private CredentialIdentityRepository credentialIdentityRepository;
 
   @Test
   void savesAndFindsByKeyHash() {
@@ -71,5 +76,33 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
         .isPresent()
         .hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Updated Name"));
     assertThat(repository.findByKeyHash("original-hash")).isEmpty();
+  }
+
+  @Test
+  void removeDeletesTheCredentialItOwns() {
+    ApiKeyCredential credential =
+        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Remove Me", "hash-to-remove"));
+
+    assertThat(repository.remove(credential.id())).isTrue();
+    assertThat(repository.findByKeyHash("hash-to-remove")).isEmpty();
+  }
+
+  @Test
+  void removeOfAnotherModulesCredentialDeletesNothing() {
+    assertThat(repository.remove(UUID.randomUUID())).isFalse();
+  }
+
+  @Test
+  void removeUnlinkedDeletesOnlyUnlinkedCredentials() {
+    repository.removeUnlinked();
+    Identity identity = identityRepository.save(Identity.create());
+    ApiKeyCredential linked =
+        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Linked", "linked-hash"));
+    credentialIdentityRepository.link(linked.id(), identity.id());
+    repository.save(new ApiKeyCredential(UUID.randomUUID(), "Orphan", "orphan-hash"));
+
+    assertThat(repository.removeUnlinked()).isOne();
+    assertThat(repository.findByKeyHash("orphan-hash")).isEmpty();
+    assertThat(repository.findByKeyHash("linked-hash")).contains(linked);
   }
 }

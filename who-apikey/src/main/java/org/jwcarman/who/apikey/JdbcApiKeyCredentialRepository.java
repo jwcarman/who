@@ -18,14 +18,16 @@ package org.jwcarman.who.apikey;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
  * JDBC implementation of {@link ApiKeyCredentialRepository} backed by the {@code
- * who_api_key_credential} table.
+ * who_api_key_credential} table. It is also the API key module's {@link CredentialRemover}.
  */
-public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepository {
+public class JdbcApiKeyCredentialRepository
+    implements ApiKeyCredentialRepository, CredentialRemover {
 
   private static final String COL_ID = "id";
   private static final String COL_NAME = "name";
@@ -80,5 +82,19 @@ public class JdbcApiKeyCredentialRepository implements ApiKeyCredentialRepositor
             .param(COL_ID, id)
             .update()
         > 0;
+  }
+
+  @Override
+  public boolean remove(UUID credentialId) {
+    return deleteById(credentialId);
+  }
+
+  @Override
+  public int removeUnlinked() {
+    return jdbcClient
+        .sql(
+            "DELETE FROM who_api_key_credential k WHERE NOT EXISTS"
+                + " (SELECT 1 FROM who_credential_identity ci WHERE ci.credential_id = k.id)")
+        .update();
   }
 }
