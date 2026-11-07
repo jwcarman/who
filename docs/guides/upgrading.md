@@ -2,7 +2,7 @@
 
 ## Upgrading to 0.11.0
 
-0.11.0 adds email-link sign-in and sessions. It also changes every timestamp column to `TIMESTAMP WITH TIME ZONE`.
+0.11.0 adds email-link sign-in, passkeys and sessions. It also changes every timestamp column to `TIMESTAMP WITH TIME ZONE`.
 
 ### Convert the timestamp columns first
 
@@ -26,6 +26,7 @@ Replace `UTC` with the zone of the JVM (for example `Europe/Berlin`) if it was n
 ### Other changes
 
 - **New tables.** Email-link sign-in adds `who_email_credential` and `who_email_link_token`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md#flyway).
+- **Passkeys are opt-in.** The new `who-passkey` module adds the tables `who_passkey_user` and `who_passkey_credential`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md#flyway). Passkey storage is PostgreSQL only. Nothing changes until you set `who.passkey.rp-id`. See [Passkeys](passkeys.md).
 - **Schema files renamed.** Each bundled schema file now starts with its module name. If you point `spring.sql.init.schema-locations` or your own tooling at them, update the paths:
     - `org/jwcarman/who/jdbc/who-jdbc-schema.sql`
     - `org/jwcarman/who/rbac/who-rbac-schema.sql`
@@ -33,6 +34,7 @@ Replace `UTC` with the zone of the JVM (for example `Europe/Berlin`) if it was n
     - `org/jwcarman/who/enrollment/who-enrollment-schema.sql`
     - `org/jwcarman/who/apikey/who-apikey-schema.sql`
     - `org/jwcarman/who/emaillink/who-email-link-schema.sql`
+    - `org/jwcarman/who/passkey/who-passkey-schema.sql` (new)
 - **Liquibase.** The long YAML changelog in the old guide is gone. Include `classpath:org/jwcarman/who/db/who-changelog.xml` instead. See [Liquibase](database.md#liquibase). Do not run it over tables that were created by hand without `changelog-sync` first.
 - **Email links are opt-in.** Nothing changes for an application that uses only JWT or API keys. To turn them on, see [Email Links](email-links.md).
 - **Sessions.** `WhoWebSecurity.passwordless()` is new and applies only to chains that call it. Other chains are unchanged.

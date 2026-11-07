@@ -82,6 +82,7 @@ nav:
       - JWT: guides/jwt.md
       - API Keys: guides/api-keys.md
       - Email Links: guides/email-links.md
+      - Passkeys: guides/passkeys.md
       - Enrollment: guides/enrollment.md
       - RBAC and Method Security: guides/rbac.md
       - Configuration Reference: guides/configuration.md

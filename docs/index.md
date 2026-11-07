@@ -98,6 +98,7 @@ by creating them yourself.
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
 | `who-email-link` | Email-link sign-in: `EmailCredentialService`, `EmailLinkSender`, and the hooks for Spring's one-time-token login |
+| `who-passkey` | Passkey sign-in: `PasskeyService`, `PasskeyAddedNotifier`, and the hooks for Spring's WebAuthn login |
 | `who-spring-security` | `@RequiresPermission`, `WhoWebSecurity.passwordless()` and `GET /who/me` |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
 | `who-spring-boot-starter` | Starter that pulls in all of the above |

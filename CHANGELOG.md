@@ -33,6 +33,12 @@ databases must convert their timestamp columns first.
 - `GET /who/me` returns `{"identityId", "permissions"}` for the signed-in caller.
 - Liquibase changelogs for every module, and `who-changelog.xml` in `who-autoconfigure`.
 - The [Email Links](https://jwcarman.github.io/who/guides/email-links/) guide.
+- `who-passkey`: sign-in with passkeys, on Spring Security's WebAuthn support and its default
+  endpoints. `PasskeyService` (`list`, `revoke`), the `PasskeyAddedNotifier` SPI and
+  `MailPasskeyAddedNotifier`. It is opt-in: set `who.passkey.rp-id`. Storage is PostgreSQL only
+  (tables `who_passkey_user` and `who_passkey_credential`).
+- `who.passkey.rp-id`, `rp-name`, `allowed-origins`, `registration-window` and `from` properties.
+- The [Passkeys](https://jwcarman.github.io/who/guides/passkeys/) guide.
 
 ### Changed
 
