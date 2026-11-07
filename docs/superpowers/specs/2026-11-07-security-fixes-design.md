@@ -94,8 +94,9 @@ for every path, after the security chain.
 
 ## Testing
 
-- **On PostgreSQL.** Repository and service tests run against PostgreSQL 17 (Testcontainers), the production
-  engine, instead of H2. A shared test fixture provides the container.
+- **On PostgreSQL.** Repository and service tests already run against PostgreSQL (Testcontainers, each
+  module's `Abstract*Test` fixture), the production engine; the new tests use the same fixtures. (The review
+  said all tests run on H2; only who-autoconfigure's embedded-initializer test does.)
 - **C1:** a token value is 43 URL-safe Base64 characters, not a UUID, and unrelated to its id (many tokens:
   no value equals or is adjacent to any id); `Secrets.token()` values are distinct across 10,000 calls.
 - **C2:** two threads redeem one token at once: exactly one succeeds, the other gets
