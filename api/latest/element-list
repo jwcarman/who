@@ -1,0 +1,14 @@
+org.jwcarman.who.apikey
+org.jwcarman.who.autoconfigure
+org.jwcarman.who.core.crypto
+org.jwcarman.who.core.domain
+org.jwcarman.who.core.exception
+org.jwcarman.who.core.id
+org.jwcarman.who.core.repository
+org.jwcarman.who.core.service
+org.jwcarman.who.core.spi
+org.jwcarman.who.enrollment
+org.jwcarman.who.jdbc
+org.jwcarman.who.jwt
+org.jwcarman.who.rbac
+org.jwcarman.who.spring.security
