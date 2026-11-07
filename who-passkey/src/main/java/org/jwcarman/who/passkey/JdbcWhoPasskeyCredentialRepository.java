@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.jwcarman.who.core.id.Identifiers;
@@ -78,6 +79,9 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   private static final String COL_IDENTITY_ID = "identity_id";
 
   private static final String TRANSPORT_SEPARATOR = ",";
+
+  /** Bound while a passkey is being registered: the only time {@link #save} inserts. */
+  private static final ScopedValue<Boolean> REGISTERING = ScopedValue.newInstance();
 
   private static final String SELECT =
       "SELECT credential_id, user_entity_user_id, public_key, signature_count, uv_initialized,"
@@ -135,11 +139,16 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
    * <ul>
    *   <li>At registration, when no row has the credential id: inserts the row with a new {@code
    *       credential_uuid} and links that {@link PasskeyCredential} to the identity that owns the
-   *       record's user entity.
+   *       record's user entity. who's relying party marks the registration (see {@link
+   *       #registering(Supplier)}); a save outside it never inserts.
    *   <li>At every sign-in, when the row exists: updates {@code signature_count}, {@code
    *       last_used}, {@code uv_initialized} and {@code backup_state} only, so the {@code
    *       credential_uuid} and its link are unchanged.
    * </ul>
+   *
+   * <p>A save for an unknown credential outside a registration does nothing. That is a sign-in
+   * whose passkey was revoked after Spring read it: the passkey stays revoked, and the sign-in then
+   * fails because the credential maps to no identity.
    *
    * @param credentialRecord the record
    * @throws IllegalStateException if a new record's user entity does not exist
@@ -150,9 +159,21 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
     String credentialId = credentialRecord.getCredentialId().toBase64UrlString();
     if (findCredentialUuid(credentialId).isPresent()) {
       update(credentialId, credentialRecord);
-    } else {
+    } else if (REGISTERING.isBound()) {
       insert(credentialId, credentialRecord);
     }
+  }
+
+  /**
+   * Runs a registration: while it runs, {@link #save} may insert a new credential record on this
+   * thread. Used by {@link WhoRelyingPartyOperations}.
+   *
+   * @param registration the registration
+   * @param <R> the registration's result
+   * @return the registration's result
+   */
+  static <R> R registering(Supplier<R> registration) {
+    return ScopedValue.where(REGISTERING, Boolean.TRUE).call(registration::get);
   }
 
   /**

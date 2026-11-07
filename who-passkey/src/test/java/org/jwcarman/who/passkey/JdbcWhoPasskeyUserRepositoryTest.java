@@ -131,8 +131,8 @@ class JdbcWhoPasskeyUserRepositoryTest extends AbstractPasskeyTest {
         CredentialRecords.registration(entity.getId(), "Laptop").build();
     ImmutableCredentialRecord phone =
         CredentialRecords.registration(entity.getId(), "Phone").build();
-    credentialRepository.save(laptop);
-    credentialRepository.save(phone);
+    CredentialRecords.register(credentialRepository, laptop);
+    CredentialRecords.register(credentialRepository, phone);
     UUID laptopUuid = credentialRepository.credentialUuid(laptop.getCredentialId()).orElseThrow();
     UUID phoneUuid = credentialRepository.credentialUuid(phone.getCredentialId()).orElseThrow();
 

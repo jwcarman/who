@@ -57,7 +57,7 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Laptop").build();
 
-    repository.save(registered);
+    CredentialRecords.register(repository, registered);
 
     UUID credentialUuid = repository.credentialUuid(registered.getCredentialId()).orElseThrow();
     assertThat(credentialUuid.version()).isEqualTo(7);
@@ -78,7 +78,7 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
     ImmutableCredentialRecord orphan =
         CredentialRecords.registration(Bytes.random(), "Laptop").build();
 
-    assertThatThrownBy(() -> repository.save(orphan))
+    assertThatThrownBy(() -> CredentialRecords.register(repository, orphan))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageNotContaining(orphan.getUserEntityUserId().toBase64UrlString())
         .hasMessageNotContaining(orphan.getCredentialId().toBase64UrlString());
@@ -88,7 +88,7 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
   void signInUpdateKeepsCredentialUuidAndLink() {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Laptop").build();
-    repository.save(registered);
+    CredentialRecords.register(repository, registered);
     UUID credentialUuid = repository.credentialUuid(registered.getCredentialId()).orElseThrow();
 
     Instant later = registered.getCreated().plus(1, ChronoUnit.HOURS);
@@ -121,7 +121,7 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
   void deleteRemovesTheRowAndTheLink() {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Laptop").build();
-    repository.save(registered);
+    CredentialRecords.register(repository, registered);
     UUID credentialUuid = repository.credentialUuid(registered.getCredentialId()).orElseThrow();
 
     repository.delete(registered.getCredentialId());
@@ -134,11 +134,34 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
   }
 
   @Test
+  void signInSaveAfterADeleteDoesNotBringThePasskeyBack() {
+    ImmutableCredentialRecord registered =
+        CredentialRecords.registration(user.getId(), "Laptop").build();
+    CredentialRecords.register(repository, registered);
+    UUID credentialUuid = repository.credentialUuid(registered.getCredentialId()).orElseThrow();
+    // a sign-in read the record, then a revoke committed before the sign-in saved it
+    CredentialRecord signedIn =
+        ImmutableCredentialRecord.fromCredentialRecord(
+                repository.findByCredentialId(registered.getCredentialId()))
+            .lastUsed(registered.getCreated().plus(1, ChronoUnit.HOURS))
+            .signatureCount(1)
+            .build();
+    repository.delete(registered.getCredentialId());
+
+    repository.save(signedIn);
+
+    assertThat(repository.findByCredentialId(registered.getCredentialId())).isNull();
+    assertThat(repository.credentialUuid(registered.getCredentialId())).isEmpty();
+    assertThat(repository.findSummariesByIdentityId(identity.id())).isEmpty();
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credentialUuid)).isEmpty();
+  }
+
+  @Test
   void emptyTransportsRoundTrip() {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Key").transports(Set.of()).build();
 
-    repository.save(registered);
+    CredentialRecords.register(repository, registered);
 
     assertThat(repository.findByCredentialId(registered.getCredentialId()).getTransports())
         .isEmpty();
@@ -159,7 +182,7 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Key").lastUsed(null).build();
 
-    repository.save(registered);
+    CredentialRecords.register(repository, registered);
 
     assertThat(repository.findByCredentialId(registered.getCredentialId()).getLastUsed()).isNull();
   }
@@ -168,7 +191,7 @@ class JdbcWhoPasskeyCredentialRepositoryTest extends AbstractPasskeyTest {
   void deletingTheIdentityCascades() {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Laptop").build();
-    repository.save(registered);
+    CredentialRecords.register(repository, registered);
     UUID credentialUuid = repository.credentialUuid(registered.getCredentialId()).orElseThrow();
 
     identityRepository.deleteById(identity.id());

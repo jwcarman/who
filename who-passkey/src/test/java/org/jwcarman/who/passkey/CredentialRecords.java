@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.springframework.security.web.webauthn.api.AuthenticatorTransport;
 import org.springframework.security.web.webauthn.api.Bytes;
+import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCose;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
@@ -29,6 +30,15 @@ import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 final class CredentialRecords {
 
   private CredentialRecords() {}
+
+  /** Saves a new record as a registration does: the only save that inserts. */
+  static void register(JdbcWhoPasskeyCredentialRepository repository, CredentialRecord record) {
+    JdbcWhoPasskeyCredentialRepository.registering(
+        () -> {
+          repository.save(record);
+          return record;
+        });
+  }
 
   static ImmutableCredentialRecord.ImmutableCredentialRecordBuilder registration(
       Bytes userHandle, String label) {

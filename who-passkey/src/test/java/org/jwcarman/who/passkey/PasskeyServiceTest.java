@@ -51,7 +51,7 @@ class PasskeyServiceTest extends AbstractPasskeyTest {
   void revokeUsesTheCredentialUuid() {
     ImmutableCredentialRecord registered =
         CredentialRecords.registration(user.getId(), "Laptop").build();
-    credentialRepository.save(registered);
+    CredentialRecords.register(credentialRepository, registered);
     UUID credentialUuid =
         credentialRepository.credentialUuid(registered.getCredentialId()).orElseThrow();
 
@@ -76,10 +76,11 @@ class PasskeyServiceTest extends AbstractPasskeyTest {
             .created(created.plus(1, ChronoUnit.HOURS))
             .lastUsed(created.plus(1, ChronoUnit.HOURS))
             .build();
-    credentialRepository.save(phone);
-    credentialRepository.save(laptop);
+    CredentialRecords.register(credentialRepository, phone);
+    CredentialRecords.register(credentialRepository, laptop);
     Identity other = identityRepository.save(Identity.create());
-    credentialRepository.save(
+    CredentialRecords.register(
+        credentialRepository,
         CredentialRecords.registration(
                 userRepository.create(other.id(), "other@example.com").getId(), "Other")
             .build());

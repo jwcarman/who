@@ -143,7 +143,8 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
   public CredentialRecord registerCredential(RelyingPartyRegistrationRequest request) {
     requireNonNull(request, "request must not be null");
     requireOptionsOfCurrentIdentity(request.getCreationOptions());
-    CredentialRecord record = delegate.registerCredential(request);
+    CredentialRecord record =
+        JdbcWhoPasskeyCredentialRepository.registering(() -> delegate.registerCredential(request));
     userRepository
         .findIdentityId(record.getUserEntityUserId())
         .ifPresent(identityId -> notify(identityId, record.getLabel()));
