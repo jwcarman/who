@@ -19,6 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.jspecify.annotations.NonNull;
 import org.jwcarman.who.core.domain.WhoPrincipal;
@@ -36,6 +38,9 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
   /** The resolved principal for this authentication. */
   private final WhoPrincipal principal;
 
+  /** The credential used to authenticate, or {@code null}. */
+  private final UUID credentialId;
+
   /**
    * Creates a new authenticated token. Authorities are derived from {@link
    * WhoPrincipal#permissions()} automatically.
@@ -43,9 +48,29 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
    * @param principal the resolved principal
    */
   public WhoAuthenticationToken(WhoPrincipal principal) {
+    this(principal, null);
+  }
+
+  /**
+   * Creates a new authenticated token that remembers the credential used to authenticate.
+   *
+   * @param principal the resolved principal
+   * @param credentialId the id of the credential used, or {@code null} if unknown
+   */
+  public WhoAuthenticationToken(WhoPrincipal principal, UUID credentialId) {
     super(extractAuthorities(principal));
     this.principal = principal;
+    this.credentialId = credentialId;
     setAuthenticated(true);
+  }
+
+  /**
+   * Returns the id of the credential used to authenticate, if known.
+   *
+   * @return the credential id, or empty
+   */
+  public Optional<UUID> credentialId() {
+    return Optional.ofNullable(credentialId);
   }
 
   private static @NonNull List<SimpleGrantedAuthority> extractAuthorities(WhoPrincipal principal) {
@@ -70,11 +95,12 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
     if (this == o) return true;
     if (!(o instanceof WhoAuthenticationToken that)) return false;
     if (!super.equals(o)) return false;
-    return Objects.equals(principal, that.principal);
+    return Objects.equals(principal, that.principal)
+        && Objects.equals(credentialId, that.credentialId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), principal);
+    return Objects.hash(super.hashCode(), principal, credentialId);
   }
 }
