@@ -60,7 +60,7 @@ class WhoOneTimeTokenServiceTest {
     UUID credentialId = UUID.randomUUID();
     when(repository.consume(anyString(), any())).thenReturn(Optional.of(credentialId));
 
-    OneTimeToken token = service.consume(OneTimeTokenAuthenticationToken.unauthenticated("value"));
+    OneTimeToken token = service.consume(new OneTimeTokenAuthenticationToken("value"));
 
     assertThat(token).isNotNull();
     assertThat(token.getUsername()).isEqualTo(credentialId.toString());
@@ -71,14 +71,14 @@ class WhoOneTimeTokenServiceTest {
   void consumeOfUnknownIsNull() {
     when(repository.consume(anyString(), any())).thenReturn(Optional.empty());
 
-    assertThat(service.consume(OneTimeTokenAuthenticationToken.unauthenticated("value"))).isNull();
+    assertThat(service.consume(new OneTimeTokenAuthenticationToken("value"))).isNull();
   }
 
   @Test
   void onlyTheHashReachesTheRepository() {
     when(repository.consume(anyString(), any())).thenReturn(Optional.empty());
 
-    service.consume(OneTimeTokenAuthenticationToken.unauthenticated("raw-value"));
+    service.consume(new OneTimeTokenAuthenticationToken("raw-value"));
 
     verify(repository).consume(MessageDigests.sha256Hex("raw-value"), NOW);
   }

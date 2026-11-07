@@ -71,7 +71,7 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    * @deprecated use {@link #loadDeferredContext(HttpServletRequest)}
    */
   @Override
-  @Deprecated
+  @Deprecated(since = "5.8")
   public SecurityContext loadContext(HttpRequestResponseHolder holder) {
     return load(holder.getRequest());
   }
@@ -148,7 +148,7 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
     if (session != null) {
       try {
         session.invalidate();
-      } catch (IllegalStateException alreadyInvalidated) {
+      } catch (IllegalStateException _) {
         // a concurrent request ended it first; carry on unauthenticated
       }
     }

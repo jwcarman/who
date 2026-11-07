@@ -32,7 +32,7 @@ import org.springframework.security.authentication.ott.DefaultOneTimeToken;
 class EmailLinkGenerationSuccessHandlerTest {
 
   @Test
-  void answers202BeforeTheWorkRuns() throws Exception {
+  void answers202BeforeTheWorkRuns() {
     EmailLinkIssuer issuer = mock(EmailLinkIssuer.class);
     List<Runnable> tasks = new ArrayList<>();
     EmailLinkGenerationSuccessHandler handler =

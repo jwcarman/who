@@ -140,11 +140,11 @@ class EmailLinkSignInTest {
     @Bean
     @Primary
     PermissionsResolver stubPermissionsResolver() {
-      return identity -> Set.of("task.read");
+      return id -> Set.of("task.read");
     }
 
     @Bean
-    SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain browserChain(HttpSecurity http) {
       http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
@@ -471,7 +471,7 @@ class EmailLinkSignInTest {
   }
 
   @Test
-  void concurrentRequestsSendOneEmail() throws Exception {
+  void concurrentRequestsSendOneEmail() {
     new WebApplicationContextRunner()
         .withUserConfiguration(App.class)
         .withPropertyValues(

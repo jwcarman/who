@@ -102,7 +102,7 @@ class PasswordlessConfigurerTest {
     }
 
     @Bean
-    SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain browserChain(HttpSecurity http) {
       http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
@@ -234,7 +234,7 @@ class PasswordlessConfigurerTest {
   @Configuration
   static class CsrfDisabledBeforeApp {
     @Bean
-    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+    SecurityFilterChain chain(HttpSecurity http) {
       http.csrf(c -> c.disable()).with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
     }
@@ -243,7 +243,7 @@ class PasswordlessConfigurerTest {
   @Configuration
   static class CsrfDisabledAfterApp {
     @Bean
-    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+    SecurityFilterChain chain(HttpSecurity http) {
       http.with(WhoWebSecurity.passwordless(), withDefaults()).csrf(c -> c.disable());
       return http.build();
     }
@@ -252,7 +252,7 @@ class PasswordlessConfigurerTest {
   @Configuration
   static class StatelessApp {
     @Bean
-    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+    SecurityFilterChain chain(HttpSecurity http) {
       http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
@@ -294,7 +294,7 @@ class PasswordlessConfigurerTest {
   @Configuration
   static class NoLoginMethodsApp {
     @Bean
-    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+    SecurityFilterChain chain(HttpSecurity http) {
       http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();

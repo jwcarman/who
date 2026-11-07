@@ -169,7 +169,7 @@ class LiquibaseChangelogTest {
         }
       }
     }
-    Collections.sort(rows);
+    rows.sort(null);
     return rows;
   }
 

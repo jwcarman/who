@@ -55,8 +55,8 @@ public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationCo
   public Authentication convert(HttpServletRequest request) {
     String token = JsonBodies.readString(jsonMapper, request, "token");
     if (token == null || token.isBlank()) {
-      return OneTimeTokenAuthenticationToken.unauthenticated(NO_TOKEN);
+      return new OneTimeTokenAuthenticationToken(NO_TOKEN);
     }
-    return OneTimeTokenAuthenticationToken.unauthenticated(token);
+    return new OneTimeTokenAuthenticationToken(token);
   }
 }

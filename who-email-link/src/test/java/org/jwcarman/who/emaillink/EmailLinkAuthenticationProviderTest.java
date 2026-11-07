@@ -52,7 +52,7 @@ class EmailLinkAuthenticationProviderTest {
 
   private final UUID credentialId = UUID.randomUUID();
   private final OneTimeTokenAuthenticationToken request =
-      OneTimeTokenAuthenticationToken.unauthenticated("value");
+      new OneTimeTokenAuthenticationToken("value");
 
   @Test
   void supportsOnlyOneTimeTokens() {
@@ -112,8 +112,7 @@ class EmailLinkAuthenticationProviderTest {
   @Test
   void sentinelTokenIsInvalidWithoutConsuming() {
     OneTimeTokenAuthenticationToken sentinel =
-        OneTimeTokenAuthenticationToken.unauthenticated(
-            JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
+        new OneTimeTokenAuthenticationToken(JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
 
     assertThatThrownBy(() -> provider.authenticate(sentinel))
         .isInstanceOf(InvalidOneTimeTokenException.class)
