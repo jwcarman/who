@@ -26,6 +26,7 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 /**
  * Native-image reflection for passkeys: Spring Security WebAuthn's JSON model and webauthn4j's CBOR
@@ -76,8 +77,7 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
 
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-    PathMatchingResourcePatternResolver resolver =
-        new PathMatchingResourcePatternResolver(classLoader);
+    ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(classLoader);
     for (String family : FAMILIES) {
       for (String name : classesIn(resolver, family)) {
         register(hints, name);
@@ -91,8 +91,7 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
     hints.reflection().registerType(TypeReference.of(className), MEMBERS);
   }
 
-  private static List<String> classesIn(
-      PathMatchingResourcePatternResolver resolver, String family) {
+  static List<String> classesIn(ResourcePatternResolver resolver, String family) {
     try {
       Resource[] resources = resolver.getResources("classpath*:" + family + "*" + CLASS_SUFFIX);
       return Arrays.stream(resources)

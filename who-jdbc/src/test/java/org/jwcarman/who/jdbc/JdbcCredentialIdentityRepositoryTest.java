@@ -94,11 +94,11 @@ class JdbcCredentialIdentityRepositoryTest extends AbstractJdbcTest {
 
   @Test
   void duplicateKeyIsStillTranslated() {
-    Identity identity = savedIdentity();
+    UUID identityId = savedIdentity().id();
     UUID credentialId = UUID.randomUUID();
-    credentialIdentityRepository.link(credentialId, identity.id());
+    credentialIdentityRepository.link(credentialId, identityId);
 
-    assertThatThrownBy(() -> credentialIdentityRepository.link(credentialId, identity.id()))
+    assertThatThrownBy(() -> credentialIdentityRepository.link(credentialId, identityId))
         .isInstanceOf(DuplicateKeyException.class);
   }
 

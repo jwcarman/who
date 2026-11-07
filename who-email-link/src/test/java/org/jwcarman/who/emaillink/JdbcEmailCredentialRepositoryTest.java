@@ -59,9 +59,9 @@ class JdbcEmailCredentialRepositoryTest extends AbstractEmailLinkTest {
   @Test
   void duplicateKeyIsStillTranslated() {
     repository.save(EmailCredential.create("dup@example.com"));
+    EmailCredential duplicate = EmailCredential.create("dup@example.com");
 
-    assertThatThrownBy(() -> repository.save(EmailCredential.create("dup@example.com")))
-        .isInstanceOf(DuplicateKeyException.class);
+    assertThatThrownBy(() -> repository.save(duplicate)).isInstanceOf(DuplicateKeyException.class);
   }
 
   @Test

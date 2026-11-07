@@ -16,8 +16,12 @@
 package org.jwcarman.who.passkey.aot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -30,8 +34,11 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.io.support.SpringFactoriesLoader;
 
 class PasskeyRuntimeHintsTest {
@@ -170,5 +177,32 @@ class PasskeyRuntimeHintsTest {
             SpringFactoriesLoader.forResourceLocation("META-INF/spring/aot.factories")
                 .load(RuntimeHintsRegistrar.class))
         .hasAtLeastOneElementOfType(PasskeyRuntimeHints.class);
+  }
+
+  @Test
+  void scanSkipsPackageInfoAndResourcesWithoutAFileName() throws IOException {
+    ResourcePatternResolver resolver = mock(ResourcePatternResolver.class);
+    when(resolver.getResources("classpath*:com/example/*.class"))
+        .thenReturn(
+            new Resource[] {
+              new ClassPathResource("com/example/Foo.class"),
+              new ClassPathResource("com/example/package-info.class"),
+              new ByteArrayResource(new byte[0]),
+              new ClassPathResource("com/example/Foo.class")
+            });
+
+    assertThat(PasskeyRuntimeHints.classesIn(resolver, "com/example/"))
+        .containsExactly("com.example.Foo");
+  }
+
+  @Test
+  void aFailedScanIsRethrownUnchecked() throws IOException {
+    ResourcePatternResolver resolver = mock(ResourcePatternResolver.class);
+    when(resolver.getResources("classpath*:com/example/*.class"))
+        .thenThrow(new IOException("unreadable jar"));
+
+    assertThatThrownBy(() -> PasskeyRuntimeHints.classesIn(resolver, "com/example/"))
+        .isInstanceOf(UncheckedIOException.class)
+        .hasRootCauseMessage("unreadable jar");
   }
 }
