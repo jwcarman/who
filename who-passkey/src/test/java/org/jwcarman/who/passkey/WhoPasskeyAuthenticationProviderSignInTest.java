@@ -113,6 +113,9 @@ class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
 
   @Test
   void assertionWithoutUserVerificationIsInvalidCredential() {
+    // compare stored values with stored values: PostgreSQL keeps microseconds, the JVM clock may
+    // not
+    CredentialRecord before = stored();
     WebAuthnAuthenticationRequestToken unverified =
         new WebAuthnAuthenticationRequestToken(
             device.authenticateWithoutUserVerification(requestOptions()));
@@ -123,7 +126,7 @@ class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
         .hasNoCause();
     // rejected by verification: the relying party never recorded the use
     CredentialRecord after = stored();
-    assertThat(after.getSignatureCount()).isEqualTo(registered.getSignatureCount());
-    assertThat(after.getLastUsed()).isEqualTo(registered.getLastUsed());
+    assertThat(after.getSignatureCount()).isEqualTo(before.getSignatureCount());
+    assertThat(after.getLastUsed()).isEqualTo(before.getLastUsed());
   }
 }
