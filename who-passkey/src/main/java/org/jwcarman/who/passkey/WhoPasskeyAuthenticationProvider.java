@@ -35,7 +35,7 @@ import org.springframework.security.web.webauthn.management.WebAuthnRelyingParty
  *
  * <p>Every failure, whether the assertion does not verify, the credential is unknown, the identity
  * is not active, or anything else goes wrong, is the same {@link BadCredentialsException} with the
- * message {@code invalid_credential}.
+ * message {@code invalid_credential} and no cause.
  */
 public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider {
 
@@ -69,8 +69,10 @@ public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider 
     Optional<WhoAuthenticationToken> result;
     try {
       result = signIn(request);
-    } catch (RuntimeException e) {
-      throw new BadCredentialsException(INVALID_CREDENTIAL, e);
+    } catch (RuntimeException _) {
+      // no cause: Spring's and webauthn4j's messages can name the credential id, and a cause
+      // reaches authentication-failure events and logs
+      throw new BadCredentialsException(INVALID_CREDENTIAL);
     }
     return result.orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIAL));
   }

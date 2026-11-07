@@ -151,7 +151,7 @@ class WhoPasskeyAuthenticationProviderTest {
     assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class)
         .hasMessage("invalid_credential")
-        .hasCause(failure);
+        .hasNoCause();
     verify(credentialRepository, never()).credentialUuid(any());
     verify(whoService, never()).resolve(any(Credential.class));
   }
@@ -164,6 +164,22 @@ class WhoPasskeyAuthenticationProviderTest {
 
     assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class)
-        .hasMessage("invalid_credential");
+        .hasMessage("invalid_credential")
+        .hasNoCause();
+  }
+
+  @Test
+  void failureCarriesNoCause() {
+    // Spring's relying party names the credential id when it does not know it
+    when(rpOperations.authenticate(request))
+        .thenThrow(
+            new IllegalArgumentException(
+                "Unable to find CredentialRecord with id " + rawId.toBase64UrlString()));
+
+    assertThatThrownBy(() -> provider.authenticate(token))
+        .isInstanceOf(BadCredentialsException.class)
+        .hasMessage("invalid_credential")
+        .satisfies(e -> assertThat(e.getCause()).isNull())
+        .satisfies(e -> assertThat(e.toString()).doesNotContain(rawId.toBase64UrlString()));
   }
 }

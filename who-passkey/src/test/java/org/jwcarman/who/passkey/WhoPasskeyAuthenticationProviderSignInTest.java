@@ -40,8 +40,6 @@ import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenti
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialCreationOptionsRequest;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialRequestOptionsRequest;
 
-import com.webauthn4j.verifier.exception.UserNotVerifiedException;
-
 /** Sign-in through who's provider with real assertions from an emulated device. */
 class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
 
@@ -98,6 +96,12 @@ class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
     assertThat(who.getPrincipal().identity().id()).isEqualTo(identity.id());
     assertThat(who.credentialId())
         .isEqualTo(credentialRepository.credentialUuid(registered.getCredentialId()));
+    // verification recorded the use
+    assertThat(stored().getSignatureCount()).isGreaterThan(registered.getSignatureCount());
+  }
+
+  private CredentialRecord stored() {
+    return credentialRepository.findByCredentialId(registered.getCredentialId());
   }
 
   @Test
@@ -109,6 +113,10 @@ class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
     assertThatThrownBy(() -> provider.authenticate(unverified))
         .isInstanceOf(BadCredentialsException.class)
         .hasMessage("invalid_credential")
-        .hasCauseInstanceOf(UserNotVerifiedException.class);
+        .hasNoCause();
+    // rejected by verification: the relying party never recorded the use
+    CredentialRecord after = stored();
+    assertThat(after.getSignatureCount()).isEqualTo(registered.getSignatureCount());
+    assertThat(after.getLastUsed()).isEqualTo(registered.getLastUsed());
   }
 }
