@@ -16,6 +16,8 @@
 package org.jwcarman.who.autoconfigure;
 
 import java.time.Duration;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
@@ -34,6 +36,7 @@ public class WhoProperties {
   private ApiKey apiKey = new ApiKey();
   private MethodSecurity methodSecurity = new MethodSecurity();
   private EmailLink emailLink = new EmailLink();
+  private Passkey passkey = new Passkey();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -123,6 +126,142 @@ public class WhoProperties {
    */
   public void setEmailLink(EmailLink emailLink) {
     this.emailLink = emailLink;
+  }
+
+  /**
+   * Returns the passkey module properties.
+   *
+   * @return passkey properties
+   */
+  public Passkey getPasskey() {
+    return passkey;
+  }
+
+  /**
+   * Sets the passkey module properties.
+   *
+   * @param passkey passkey properties
+   */
+  public void setPasskey(Passkey passkey) {
+    this.passkey = passkey;
+  }
+
+  /** Properties for the {@code who-passkey} module. */
+  public static class Passkey {
+
+    /**
+     * Relying party id: the application's own host, such as {@code app.example.com}. Setting it
+     * turns passkeys on; when unset, no passkey beans are registered.
+     */
+    private String rpId;
+
+    /** Relying party name that authenticators show. */
+    private String rpName = "who";
+
+    /**
+     * Origins a registration or sign-in response may come from; defaults to {@code
+     * https://<rp-id>}.
+     */
+    private Set<String> allowedOrigins = new LinkedHashSet<>();
+
+    /** How recently the session must have signed in to register a passkey. */
+    private Duration registrationWindow = Duration.ofMinutes(10);
+
+    /**
+     * Sender address of the email that tells the owner a passkey was added. The email is sent only
+     * when it is set, {@code who-email-link} is on and a {@code JavaMailSender} exists.
+     */
+    private String from;
+
+    /**
+     * Returns the relying party id.
+     *
+     * @return the relying party id
+     */
+    public String getRpId() {
+      return rpId;
+    }
+
+    /**
+     * Sets the relying party id.
+     *
+     * @param rpId the relying party id
+     */
+    public void setRpId(String rpId) {
+      this.rpId = rpId;
+    }
+
+    /**
+     * Returns the relying party name.
+     *
+     * @return the relying party name
+     */
+    public String getRpName() {
+      return rpName;
+    }
+
+    /**
+     * Sets the relying party name.
+     *
+     * @param rpName the relying party name
+     */
+    public void setRpName(String rpName) {
+      this.rpName = rpName;
+    }
+
+    /**
+     * Returns the allowed origins; empty means {@code https://<rp-id>}.
+     *
+     * @return the allowed origins
+     */
+    public Set<String> getAllowedOrigins() {
+      return allowedOrigins;
+    }
+
+    /**
+     * Sets the allowed origins.
+     *
+     * @param allowedOrigins the allowed origins
+     */
+    public void setAllowedOrigins(Set<String> allowedOrigins) {
+      this.allowedOrigins = allowedOrigins;
+    }
+
+    /**
+     * Returns the registration window.
+     *
+     * @return the registration window
+     */
+    public Duration getRegistrationWindow() {
+      return registrationWindow;
+    }
+
+    /**
+     * Sets the registration window.
+     *
+     * @param registrationWindow the registration window
+     */
+    public void setRegistrationWindow(Duration registrationWindow) {
+      this.registrationWindow = registrationWindow;
+    }
+
+    /**
+     * Returns the sender address of passkey-added emails.
+     *
+     * @return the sender address, or {@code null}
+     */
+    public String getFrom() {
+      return from;
+    }
+
+    /**
+     * Sets the sender address of passkey-added emails.
+     *
+     * @param from the sender address
+     */
+    public void setFrom(String from) {
+      this.from = from;
+    }
   }
 
   /** Properties for the {@code who-email-link} module. */

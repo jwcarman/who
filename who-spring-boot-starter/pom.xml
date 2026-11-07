@@ -79,5 +79,10 @@
             <artifactId>who-email-link</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-passkey</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>
