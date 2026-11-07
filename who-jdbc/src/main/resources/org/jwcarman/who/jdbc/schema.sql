@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS who_identity (
     id         UUID PRIMARY KEY,
     status     VARCHAR(20)  NOT NULL,
-    created_at TIMESTAMP(9) NOT NULL,
-    updated_at TIMESTAMP(9) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS who_credential_identity (

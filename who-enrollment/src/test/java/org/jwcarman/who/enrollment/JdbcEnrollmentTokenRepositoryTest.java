@@ -19,18 +19,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.TimeZone;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
 
   @Autowired private EnrollmentTokenRepository repository;
 
   @Autowired private IdentityRepository identityRepository;
+
+  @Autowired private JdbcClient jdbcClient;
 
   private Identity identity;
 
@@ -150,5 +156,44 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
     assertThat(repository.findById(redeemed.id()))
         .get()
         .satisfies(found -> assertThat(found.status()).isEqualTo(EnrollmentTokenStatus.REDEEMED));
+  }
+
+  @Test
+  void timestampColumnsAreTimestamptz() {
+    List<String> types =
+        jdbcClient
+            .sql(
+                "SELECT data_type FROM information_schema.columns WHERE table_name = 'who_enrollment_token' AND column_name IN ('created_at', 'expires_at', 'redeemed_at')")
+            .query(String.class)
+            .list();
+
+    assertThat(types).hasSize(3).containsOnly("timestamp with time zone");
+  }
+
+  @Test
+  void instantsRoundTripRegardlessOfJvmZone() {
+    TimeZone original = TimeZone.getDefault();
+    TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+    try {
+      Instant instant = Instant.parse("2026-01-15T12:34:56.123456Z");
+      EnrollmentToken token =
+          new EnrollmentToken(
+              UUID.randomUUID(),
+              identity.id(),
+              "round-trip-" + UUID.randomUUID(),
+              EnrollmentTokenStatus.REDEEMED,
+              instant,
+              instant,
+              instant);
+      repository.save(token);
+
+      EnrollmentToken found = repository.findById(token.id()).orElseThrow();
+
+      assertThat(found.createdAt()).isEqualTo(instant);
+      assertThat(found.expiresAt()).isEqualTo(instant);
+      assertThat(found.redeemedAt()).isEqualTo(instant);
+    } finally {
+      TimeZone.setDefault(original);
+    }
   }
 }

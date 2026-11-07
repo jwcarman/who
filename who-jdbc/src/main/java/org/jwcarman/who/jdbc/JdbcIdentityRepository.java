@@ -15,7 +15,8 @@
  */
 package org.jwcarman.who.jdbc;
 
-import java.sql.Timestamp;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,8 +41,8 @@ public class JdbcIdentityRepository implements IdentityRepository {
           new Identity(
               rs.getObject(COL_ID, UUID.class),
               IdentityStatus.valueOf(rs.getString(COL_STATUS)),
-              rs.getTimestamp(COL_CREATED_AT).toInstant(),
-              rs.getTimestamp(COL_UPDATED_AT).toInstant());
+              rs.getObject(COL_CREATED_AT, OffsetDateTime.class).toInstant(),
+              rs.getObject(COL_UPDATED_AT, OffsetDateTime.class).toInstant());
 
   private final JdbcClient jdbcClient;
 
@@ -69,8 +70,8 @@ public class JdbcIdentityRepository implements IdentityRepository {
                         """)
         .param(COL_ID, identity.id())
         .param(COL_STATUS, identity.status().name())
-        .param("createdAt", Timestamp.from(identity.createdAt()))
-        .param("updatedAt", Timestamp.from(identity.updatedAt()))
+        .param("createdAt", identity.createdAt().atOffset(ZoneOffset.UTC))
+        .param("updatedAt", identity.updatedAt().atOffset(ZoneOffset.UTC))
         .update();
     return identity;
   }

@@ -17,17 +17,53 @@ package org.jwcarman.who.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
   @Autowired private JdbcIdentityRepository repository;
+
+  @Autowired private JdbcClient jdbcClient;
+
+  @Test
+  void timestampColumnsAreTimestamptz() {
+    List<String> types =
+        jdbcClient
+            .sql(
+                "SELECT data_type FROM information_schema.columns WHERE table_name = 'who_identity' AND column_name IN ('created_at', 'updated_at')")
+            .query(String.class)
+            .list();
+
+    assertThat(types).hasSize(2).containsOnly("timestamp with time zone");
+  }
+
+  @Test
+  void instantsRoundTripRegardlessOfJvmZone() {
+    TimeZone original = TimeZone.getDefault();
+    TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+    try {
+      Instant instant = Instant.parse("2026-01-15T12:34:56.123456Z");
+      Identity identity = new Identity(UUID.randomUUID(), IdentityStatus.ACTIVE, instant, instant);
+      repository.save(identity);
+
+      Identity found = repository.findById(identity.id()).orElseThrow();
+
+      assertThat(found.createdAt()).isEqualTo(instant);
+      assertThat(found.updatedAt()).isEqualTo(instant);
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
 
   @Test
   void savesNewIdentityAndRetrievesItById() {

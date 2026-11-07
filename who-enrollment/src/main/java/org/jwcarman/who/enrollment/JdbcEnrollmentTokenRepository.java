@@ -15,8 +15,9 @@
  */
 package org.jwcarman.who.enrollment;
 
-import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,14 +43,14 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
 
   private static final RowMapper<EnrollmentToken> ROW_MAPPER =
       (rs, rowNum) -> {
-        var redeemedAt = rs.getTimestamp(COL_REDEEMED_AT);
+        var redeemedAt = rs.getObject(COL_REDEEMED_AT, OffsetDateTime.class);
         return new EnrollmentToken(
             rs.getObject(COL_ID, UUID.class),
             rs.getObject(COL_IDENTITY_ID, UUID.class),
             rs.getString(COL_VALUE),
             EnrollmentTokenStatus.valueOf(rs.getString(COL_STATUS)),
-            rs.getTimestamp(COL_CREATED_AT).toInstant(),
-            rs.getTimestamp(COL_EXPIRES_AT).toInstant(),
+            rs.getObject(COL_CREATED_AT, OffsetDateTime.class).toInstant(),
+            rs.getObject(COL_EXPIRES_AT, OffsetDateTime.class).toInstant(),
             redeemedAt != null ? redeemedAt.toInstant() : null);
       };
 
@@ -72,9 +73,11 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
         .param(PARAM_IDENTITY_ID, token.identityId())
         .param(COL_VALUE, token.value())
         .param(COL_STATUS, token.status().name())
-        .param("createdAt", Timestamp.from(token.createdAt()))
-        .param("expiresAt", Timestamp.from(token.expiresAt()))
-        .param("redeemedAt", token.redeemedAt() != null ? Timestamp.from(token.redeemedAt()) : null)
+        .param("createdAt", token.createdAt().atOffset(ZoneOffset.UTC))
+        .param("expiresAt", token.expiresAt().atOffset(ZoneOffset.UTC))
+        .param(
+            "redeemedAt",
+            token.redeemedAt() != null ? token.redeemedAt().atOffset(ZoneOffset.UTC) : null)
         .update();
     return token;
   }
@@ -117,7 +120,7 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
                 WHERE id = :id AND status = 'PENDING' AND expires_at > :now
                 """)
             .param(COL_ID, id)
-            .param("now", Timestamp.from(now))
+            .param("now", now.atOffset(ZoneOffset.UTC))
             .update()
         == 1;
   }
