@@ -133,4 +133,15 @@ class WhoAuthenticationTokenTest {
 
     assertThat(one).isNotEqualTo(other);
   }
+
+  @Test
+  void equalTokensHaveEqualHashCodesAndDifferingCredentialIdsAreUnequal() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
+    UUID credentialId = UUID.randomUUID();
+    WhoAuthenticationToken token = new WhoAuthenticationToken(principal, credentialId);
+    WhoAuthenticationToken same = new WhoAuthenticationToken(principal, credentialId);
+
+    assertThat(token).isEqualTo(same).hasSameHashCodeAs(same);
+    assertThat(token).isNotEqualTo(new WhoAuthenticationToken(principal, UUID.randomUUID()));
+  }
 }

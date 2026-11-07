@@ -40,7 +40,9 @@ final class JsonBodies {
    *     a string
    */
   static String readString(JsonMapper jsonMapper, HttpServletRequest request, String field) {
-    try (InputStream body = request.getInputStream()) {
+    // The servlet container owns the request stream and closes it; who must not.
+    try {
+      InputStream body = request.getInputStream();
       if (body == null) {
         return null;
       }

@@ -22,12 +22,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.Test;
@@ -72,7 +69,7 @@ class JsonBodiesTest {
   }
 
   @Test
-  void aMapperThatYieldsNoNodeIsNull() throws IOException {
+  void aMapperThatYieldsNoNodeIsNull() {
     JsonMapper nullMapper = mock(JsonMapper.class);
     when(nullMapper.readTree(any(InputStream.class))).thenReturn(null);
 
@@ -90,66 +87,5 @@ class JsonBodiesTest {
     HttpServletRequest failing = mock(HttpServletRequest.class);
     when(failing.getInputStream()).thenThrow(new IllegalStateException("boom"));
     assertThat(JsonBodies.readString(mapper, failing, "email")).isNull();
-  }
-
-  private static HttpServletRequest requestWith(String body, boolean readFails, boolean closeFails)
-      throws IOException {
-    ByteArrayInputStream bytes = new ByteArrayInputStream(body.getBytes(UTF_8));
-    ServletInputStream stream =
-        new ServletInputStream() {
-          @Override
-          public int read() throws IOException {
-            if (readFails) {
-              throw new IOException("read failed");
-            }
-            return bytes.read();
-          }
-
-          @Override
-          public int read(byte[] b, int off, int len) throws IOException {
-            if (readFails) {
-              throw new IOException("read failed");
-            }
-            return bytes.read(b, off, len);
-          }
-
-          @Override
-          public void close() throws IOException {
-            if (closeFails) {
-              throw new IOException("close failed");
-            }
-          }
-
-          @Override
-          public boolean isFinished() {
-            return bytes.available() == 0;
-          }
-
-          @Override
-          public boolean isReady() {
-            return true;
-          }
-
-          @Override
-          public void setReadListener(ReadListener readListener) {
-            // not used
-          }
-        };
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    when(request.getInputStream()).thenReturn(stream);
-    return request;
-  }
-
-  @Test
-  void aBodyThatFailsToCloseIsNull() throws IOException {
-    assertThat(
-            JsonBodies.readString(
-                mapper, requestWith("{\"email\":\"a@b.c\"}", false, true), "email"))
-        .isNull();
-  }
-
-  @Test
-  void aBodyThatFailsToReadAndToCloseIsNull() throws IOException {
-    assertThat(JsonBodies.readString(mapper, requestWith("{}", true, true), "email")).isNull();
   }
 }
