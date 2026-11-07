@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -31,6 +32,8 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
   @Autowired private RbacService rbacService;
 
+  @Autowired private IdentityRepository identityRepository;
+
   @Autowired private RbacPermissionsResolver resolver;
 
   @Test
@@ -39,7 +42,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
     rbacService.addPermissionToRole(role, "READ");
     rbacService.addPermissionToRole(role, "WRITE");
 
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     rbacService.assignRoleToIdentity(identity, role);
 
     assertThat(resolver.resolve(identity)).containsExactlyInAnyOrder("READ", "WRITE");
@@ -47,7 +50,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
   @Test
   void resolverReturnsEmptySetWhenIdentityHasNoRoles() {
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     assertThat(resolver.resolve(identity)).isEmpty();
   }
 
@@ -58,7 +61,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
     rbacService.addPermissionToRole(role1, "READ");
     rbacService.addPermissionToRole(role2, "WRITE");
 
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     rbacService.assignRoleToIdentity(identity, role1);
     rbacService.assignRoleToIdentity(identity, role2);
 
@@ -116,7 +119,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
     rbacService.removePermissionFromRole(role, "DELETE");
 
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     rbacService.assignRoleToIdentity(identity, role);
     assertThat(resolver.resolve(identity)).doesNotContain("DELETE");
   }
@@ -124,7 +127,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
   @Test
   void removeRoleFromIdentitySucceeds() {
     Role role = rbacService.createRole("REMOVE_ASSIGN_SUCCESS_ROLE");
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     rbacService.assignRoleToIdentity(identity, role);
 
     rbacService.removeRoleFromIdentity(identity, role);
@@ -153,7 +156,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
   void assignRoleByNameAssignsRole() {
     Role role = rbacService.createRole("BY_NAME_ROLE");
     rbacService.addPermissionToRole(role, "READ");
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
 
     rbacService.assignRoleByName(identity, "BY_NAME_ROLE");
 
@@ -162,7 +165,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
 
   @Test
   void assignRoleByNameThrowsWhenRoleNotFound() {
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     assertThatThrownBy(() -> rbacService.assignRoleByName(identity, "NO_SUCH_ROLE"))
         .isInstanceOf(RoleNotFoundException.class);
   }
@@ -180,7 +183,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
     Role found = rbacService.findRequiredRole(AppRole.EDITOR);
     assertThat(found.name()).isEqualTo("EDITOR");
 
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     rbacService.addPermissionToRole(created, "READ");
     rbacService.assignRoleByName(identity, AppRole.EDITOR);
     assertThat(resolver.resolve(identity)).containsExactly("READ");
@@ -190,7 +193,7 @@ class RbacIntegrationTest extends AbstractRbacTest {
   void deleteRoleCascadesPermissionsAndIdentityAssignments() {
     Role role = rbacService.createRole("CASCADE_ROLE");
     rbacService.addPermissionToRole(role, "READ");
-    Identity identity = Identity.create();
+    Identity identity = identityRepository.save(Identity.create());
     rbacService.assignRoleToIdentity(identity, role);
 
     rbacService.deleteRole(role);

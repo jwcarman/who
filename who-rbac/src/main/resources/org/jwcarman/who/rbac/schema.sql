@@ -14,5 +14,6 @@ CREATE TABLE IF NOT EXISTS who_identity_role (
     identity_id UUID NOT NULL,
     role_id     UUID NOT NULL,
     PRIMARY KEY (identity_id, role_id),
+    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE,
     FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
 );

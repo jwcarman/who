@@ -20,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
@@ -28,10 +30,23 @@ class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
 
   @Autowired private JdbcIdentityRoleRepository identityRoleRepository;
 
+  @Autowired private IdentityRepository identityRepository;
+
+  @Test
+  void deletingAnIdentityRemovesItsRoleAssignments() {
+    Role role = roleRepository.save(Role.create("IR_ROLE_CASCADE"));
+    Identity identity = identityRepository.save(Identity.create());
+    identityRoleRepository.assignRole(identity.id(), role.id());
+
+    identityRepository.deleteById(identity.id());
+
+    assertThat(identityRoleRepository.findRoleIdsByIdentityId(identity.id())).isEmpty();
+  }
+
   @Test
   void assignsRoleToIdentityAndRetrievesIt() {
     Role role = roleRepository.save(Role.create("IR_ROLE_1"));
-    UUID identityId = UUID.randomUUID();
+    UUID identityId = identityRepository.save(Identity.create()).id();
 
     identityRoleRepository.assignRole(identityId, role.id());
 
@@ -42,7 +57,7 @@ class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
   @Test
   void removesRoleFromIdentity() {
     Role role = roleRepository.save(Role.create("IR_ROLE_2"));
-    UUID identityId = UUID.randomUUID();
+    UUID identityId = identityRepository.save(Identity.create()).id();
     identityRoleRepository.assignRole(identityId, role.id());
 
     identityRoleRepository.removeRole(identityId, role.id());
@@ -54,7 +69,7 @@ class JdbcIdentityRoleRepositoryTest extends AbstractRbacTest {
   void removeAllRolesForIdentity() {
     Role role1 = roleRepository.save(Role.create("IR_ROLE_3"));
     Role role2 = roleRepository.save(Role.create("IR_ROLE_4"));
-    UUID identityId = UUID.randomUUID();
+    UUID identityId = identityRepository.save(Identity.create()).id();
     identityRoleRepository.assignRole(identityId, role1.id());
     identityRoleRepository.assignRole(identityId, role2.id());
 

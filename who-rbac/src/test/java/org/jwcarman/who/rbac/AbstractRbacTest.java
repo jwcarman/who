@@ -15,7 +15,9 @@
  */
 package org.jwcarman.who.rbac;
 
+import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest
 @Testcontainers
 @Transactional
+@Import(JdbcIdentityRepository.class)
 abstract class AbstractRbacTest {
 
   // Singleton container — started once per JVM and shared across all test classes.

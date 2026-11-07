@@ -20,8 +20,12 @@ import java.util.Set;
 import org.jwcarman.who.core.domain.Identity;
 
 /**
- * Strategy for resolving permission strings for a given {@link Identity}. Multiple implementations
- * can be registered; their results are unioned by {@link org.jwcarman.who.core.service.WhoService}.
+ * Strategy for resolving permission strings for a given {@link Identity}. {@link
+ * org.jwcarman.who.core.service.WhoService} uses exactly one resolver; results from several
+ * resolvers are not combined. With the Spring Boot autoconfiguration, the {@code who-rbac} resolver
+ * is used when that module is on the classpath, otherwise a fallback that grants no permissions. An
+ * application that needs different behaviour defines its own {@code PermissionsResolver} bean,
+ * which replaces the provided one; to combine sources, that bean must do the combining itself.
  * Returning an empty set is valid and not an error.
  */
 public interface PermissionsResolver {
