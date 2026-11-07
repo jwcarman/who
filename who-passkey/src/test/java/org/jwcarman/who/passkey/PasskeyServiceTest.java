@@ -63,7 +63,7 @@ class PasskeyServiceTest extends AbstractPasskeyTest {
   }
 
   @Test
-  void listReturnsLabelsAndTimes() {
+  void listReturnsIdsLabelsAndTimes() {
     Instant created = Instant.now().truncatedTo(ChronoUnit.MICROS).minus(2, ChronoUnit.DAYS);
     Instant lastUsed = created.plus(1, ChronoUnit.DAYS);
     ImmutableCredentialRecord laptop =
@@ -89,9 +89,15 @@ class PasskeyServiceTest extends AbstractPasskeyTest {
     UUID phoneUuid = credentialRepository.credentialUuid(phone.getCredentialId()).orElseThrow();
     assertThat(service.list(identity.id()))
         .containsExactly(
-            new PasskeySummary(laptopUuid, "Laptop", created, lastUsed),
+            new PasskeySummary(
+                laptopUuid,
+                laptop.getCredentialId().toBase64UrlString(),
+                "Laptop",
+                created,
+                lastUsed),
             new PasskeySummary(
                 phoneUuid,
+                phone.getCredentialId().toBase64UrlString(),
                 "Phone",
                 created.plus(1, ChronoUnit.HOURS),
                 created.plus(1, ChronoUnit.HOURS)));

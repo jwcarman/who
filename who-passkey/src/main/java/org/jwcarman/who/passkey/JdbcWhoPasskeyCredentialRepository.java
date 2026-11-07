@@ -112,6 +112,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
       (rs, rowNum) ->
           new PasskeySummary(
               rs.getObject(COL_CREDENTIAL_UUID, UUID.class),
+              rs.getString(COL_CREDENTIAL_ID),
               rs.getString(COL_LABEL),
               readInstant(rs, COL_CREATED),
               readInstant(rs, COL_LAST_USED));
@@ -255,7 +256,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
     requireNonNull(identityId, "identityId must not be null");
     return jdbcClient
         .sql(
-            "SELECT c.credential_uuid, c.label, c.created, c.last_used"
+            "SELECT c.credential_uuid, c.credential_id, c.label, c.created, c.last_used"
                 + " FROM who_passkey_credential c"
                 + " JOIN who_passkey_user u ON u.id = c.user_entity_user_id"
                 + " WHERE u.identity_id = :identity_id"

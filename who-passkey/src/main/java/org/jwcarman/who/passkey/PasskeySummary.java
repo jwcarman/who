@@ -23,16 +23,20 @@ import java.util.UUID;
 /**
  * A passkey as shown to its owner.
  *
- * @param id the passkey's credential UUID
+ * @param id the passkey's credential UUID, as {@link PasskeyService#revoke(UUID)} takes it
+ * @param credentialId the passkey's WebAuthn credential id, base64url as Spring encodes it: the
+ *     {@code {id}} of Spring's {@code DELETE /webauthn/register/{id}}
  * @param label the label given when the passkey was registered
  * @param created when the passkey was registered
  * @param lastUsed when the passkey was last used, or {@code null} if unknown
  */
-public record PasskeySummary(UUID id, String label, Instant created, Instant lastUsed) {
+public record PasskeySummary(
+    UUID id, String credentialId, String label, Instant created, Instant lastUsed) {
 
   /** Compact constructor: validates the required fields. */
   public PasskeySummary {
     requireNonNull(id, "id must not be null");
+    requireNonNull(credentialId, "credentialId must not be null");
     requireNonNull(label, "label must not be null");
     requireNonNull(created, "created must not be null");
   }

@@ -706,8 +706,14 @@ public class WhoAutoConfiguration {
       }
     }
 
+    /**
+     * The notifier that sends nothing, logged once at WARN: the email is a security notification,
+     * so an app that turned passkeys on should see that owners will not be told.
+     */
     private static PasskeyAddedNotifier noPasskeyAddedEmails(String reason) {
-      log.info("Passkey-added emails are off: {}", reason);
+      log.warn(
+          "Passkey-added emails are off, so owners are not told when a passkey is added: {}",
+          reason);
       return (identityId, label) -> {};
     }
   }

@@ -20,6 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +44,7 @@ import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.passkey.PasskeySettings;
 import org.jwcarman.who.passkey.WhoRelyingPartyOperations;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
@@ -68,6 +70,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.webauthn.management.PublicKeyCredentialUserEntityRepository;
 import org.springframework.security.web.webauthn.management.UserCredentialRepository;
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * Passkeys through who's autoconfiguration. Every context that turns passkeys on runs on
@@ -188,6 +195,56 @@ class PasskeyAutoConfigurationTest {
                     .rootCause()
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("who.passkey.rp-id"));
+  }
+
+  @Test
+  void originWithoutASchemeFailsStartup() {
+    postgresRunner()
+        .withPropertyValues(RP_ID, "who.passkey.allowed-origins=app.example.com")
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("who.passkey.allowed-origins"));
+  }
+
+  @Test
+  void originWithAPathFailsStartup() {
+    postgresRunner()
+        .withPropertyValues(RP_ID, "who.passkey.allowed-origins=https://app.example.com/signin")
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("who.passkey.allowed-origins"));
+  }
+
+  @Test
+  void localDevelopmentOriginStarts() {
+    postgresRunner()
+        .withPropertyValues(
+            "who.passkey.rp-id=localhost", "who.passkey.allowed-origins=http://localhost:8080")
+        .run(
+            context ->
+                assertThat(context.getBean(PasskeySettings.class).allowedOrigins())
+                    .containsExactly("http://localhost:8080"));
+  }
+
+  @Test
+  void blankRpNameFailsStartup() {
+    postgresRunner()
+        .withPropertyValues(RP_ID, "who.passkey.rp-name=")
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("who.passkey.rp-name"));
   }
 
   @Test
@@ -352,32 +409,85 @@ class PasskeyAutoConfigurationTest {
 
   @Test
   void withoutFromNoPasskeyAddedEmails() {
-    postgresRunner()
-        .withPropertyValues(
-            RP_ID,
-            LINK_BASE_URL,
-            "spring.mail.host=localhost",
-            "who.email-link.from=who@example.com")
-        .run(
-            context -> {
-              assertThat(context).hasNotFailed();
-              assertThat(context)
-                  .getBean(PasskeyAddedNotifier.class)
-                  .isNotInstanceOf(MailPasskeyAddedNotifier.class);
-            });
+    assertThat(
+            passkeyAddedEmailWarnings(
+                false,
+                RP_ID,
+                LINK_BASE_URL,
+                "spring.mail.host=localhost",
+                "who.email-link.from=who@example.com"))
+        .singleElement()
+        .asString()
+        .contains("who.passkey.from")
+        .doesNotContain("who@example.com");
   }
 
   @Test
   void withoutEmailLinksNoPasskeyAddedEmails() {
-    postgresRunner()
-        .withPropertyValues(
-            RP_ID, "spring.mail.host=localhost", "who.passkey.from=security@example.com")
-        .run(
-            context -> {
-              assertThat(context).hasNotFailed();
-              assertThat(context)
-                  .getBean(PasskeyAddedNotifier.class)
-                  .isNotInstanceOf(MailPasskeyAddedNotifier.class);
-            });
+    assertThat(
+            passkeyAddedEmailWarnings(
+                false,
+                RP_ID,
+                "spring.mail.host=localhost",
+                "who.passkey.from=security@example.com"))
+        .singleElement()
+        .asString()
+        .contains("who.email-link.link-base-url")
+        .doesNotContain("security@example.com");
+  }
+
+  @Test
+  void withoutAMailSenderNoPasskeyAddedEmails() {
+    assertThat(
+            passkeyAddedEmailWarnings(
+                false, RP_ID, LINK_BASE_URL, "who.passkey.from=security@example.com"))
+        .singleElement()
+        .asString()
+        .contains("spring.mail.host")
+        .doesNotContain("security@example.com");
+  }
+
+  @Test
+  void sendingPasskeyAddedEmailsWarnsNothing() {
+    assertThat(
+            passkeyAddedEmailWarnings(
+                true,
+                RP_ID,
+                LINK_BASE_URL,
+                "spring.mail.host=localhost",
+                "who.email-link.from=who@example.com",
+                "who.passkey.from=security@example.com"))
+        .isEmpty();
+  }
+
+  /**
+   * Starts a context whose notifier sends passkey-added emails, or not, and returns what who logged
+   * about those emails, all of it at WARN.
+   */
+  private static List<String> passkeyAddedEmailWarnings(boolean sends, String... properties) {
+    Logger logger = (Logger) LoggerFactory.getLogger(WhoAutoConfiguration.class);
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    logger.addAppender(logs);
+    try {
+      postgresRunner()
+          // email links can then be on without a JavaMailSender
+          .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+          .withPropertyValues(properties)
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(
+                        context.getBean(PasskeyAddedNotifier.class)
+                            instanceof MailPasskeyAddedNotifier)
+                    .isEqualTo(sends);
+              });
+    } finally {
+      logger.detachAppender(logs);
+    }
+    List<ILoggingEvent> passkeyAdded =
+        logs.list.stream().filter(e -> e.getFormattedMessage().contains("Passkey-added")).toList();
+    assertThat(passkeyAdded).allMatch(e -> e.getLevel() == Level.WARN);
+    return passkeyAdded.stream().map(ILoggingEvent::getFormattedMessage).toList();
   }
 }

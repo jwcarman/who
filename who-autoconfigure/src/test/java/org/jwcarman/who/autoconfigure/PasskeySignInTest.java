@@ -47,6 +47,7 @@ import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyService;
+import org.jwcarman.who.passkey.PasskeySummary;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -543,6 +544,22 @@ class PasskeySignInTest {
     assertInvalidCredential(signInWithPasskey(new Browser(mvc), phone));
     // the email-link session is unaffected
     assertThat(emailSession.me()).isEqualTo(200);
+  }
+
+  @Test
+  void listedCredentialIdDrivesSpringsDelete() throws Exception {
+    Browser browser = signedInByEmail(OWNER);
+    PasskeyDevice device = new PasskeyDevice(ORIGIN);
+    registerPasskey(browser, device, "Laptop");
+    PasskeySummary listed = passkeyService.list(owner.id()).getFirst();
+    assertThat(listed.credentialId()).isEqualTo(device.credentialId());
+
+    MvcResult deleted =
+        browser.performWithCsrf(delete("/webauthn/register/" + listed.credentialId()));
+
+    assertThat(deleted.getResponse().getStatus()).isEqualTo(204);
+    assertThat(passkeyService.list(owner.id())).isEmpty();
+    assertInvalidCredential(signInWithPasskey(new Browser(mvc), device));
   }
 
   @Test

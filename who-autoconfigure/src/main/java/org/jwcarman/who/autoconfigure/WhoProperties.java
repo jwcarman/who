@@ -159,8 +159,9 @@ public class WhoProperties {
     private String rpName = "who";
 
     /**
-     * Origins a registration or sign-in response may come from; defaults to {@code
-     * https://<rp-id>}.
+     * Origins a registration or sign-in response may come from, each a scheme ({@code http} or
+     * {@code https}), a host and an optional port, with no path, such as {@code
+     * http://localhost:8080}; defaults to {@code https://<rp-id>}.
      */
     private Set<String> allowedOrigins = new LinkedHashSet<>();
 
@@ -169,7 +170,8 @@ public class WhoProperties {
 
     /**
      * Sender address of the email that tells the owner a passkey was added. The email is sent only
-     * when it is set, {@code who-email-link} is on and a {@code JavaMailSender} exists.
+     * when it is set, {@code who-email-link} is on and a {@code JavaMailSender} exists; otherwise
+     * who logs a warning at startup. It does not fall back to {@code who.email-link.from}.
      */
     private String from;
 
