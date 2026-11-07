@@ -86,6 +86,29 @@ public class EmailCredentialService {
   }
 
   /**
+   * Finds a credential by id.
+   *
+   * @param credentialId the credential id
+   * @return the credential, if any
+   */
+  public Optional<EmailCredential> findById(UUID credentialId) {
+    requireNonNull(credentialId, "credentialId must not be null");
+    return emailCredentialRepository.findById(credentialId);
+  }
+
+  /**
+   * Finds the identity's oldest email credential: the smallest (UUIDv7, so earliest) id among the
+   * email credentials linked to it.
+   *
+   * @param identityId the identity
+   * @return the oldest credential, or empty if the identity has no email credential
+   */
+  public Optional<EmailCredential> findOldestFor(UUID identityId) {
+    requireNonNull(identityId, "identityId must not be null");
+    return emailCredentialRepository.findOldestByIdentityId(identityId);
+  }
+
+  /**
    * Revokes an email credential: deletes it (and its token) and unlinks it from its identity.
    *
    * @param credentialId the credential id

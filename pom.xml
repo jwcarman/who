@@ -127,6 +127,11 @@
                 <version>${webauthn4j.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.webauthn4j</groupId>
+                <artifactId>webauthn4j-test</artifactId>
+                <version>${webauthn4j.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.fasterxml.uuid</groupId>
                 <artifactId>java-uuid-generator</artifactId>
                 <version>${java-uuid-generator.version}</version>

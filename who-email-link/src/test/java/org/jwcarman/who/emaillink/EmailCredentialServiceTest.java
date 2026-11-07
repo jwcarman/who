@@ -22,8 +22,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -108,5 +110,46 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
     isolated.revoke(UUID.randomUUID());
 
     verifyNoInteractions(links);
+  }
+
+  @Test
+  void findByIdFindsTheCredential() {
+    Identity identity = identityRepository.save(Identity.create());
+    EmailCredential credential = service.register(identity, "byid@example.com");
+
+    assertThat(service.findById(credential.id())).contains(credential);
+    assertThat(service.findById(UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
+  void findOldestForReturnsTheIdentitysCredentialWithTheSmallestId() {
+    Identity identity = identityRepository.save(Identity.create());
+    Identity other = identityRepository.save(Identity.create());
+    EmailCredential first = service.register(identity, "first@example.com");
+    service.register(other, "other@example.com");
+    EmailCredential second = service.register(identity, "second@example.com");
+    // PostgreSQL orders UUIDs by unsigned bytes, which is the order of their hex strings.
+    EmailCredential oldest =
+        Stream.of(first, second).min(Comparator.comparing(c -> c.id().toString())).orElseThrow();
+
+    assertThat(service.findOldestFor(identity.id())).contains(oldest);
+  }
+
+  @Test
+  void findOldestForSkipsRevokedCredentials() {
+    Identity identity = identityRepository.save(Identity.create());
+    EmailCredential first = service.register(identity, "revoked@example.com");
+    EmailCredential second = service.register(identity, "kept@example.com");
+
+    service.revoke(first.id());
+
+    assertThat(service.findOldestFor(identity.id())).contains(second);
+  }
+
+  @Test
+  void findOldestForIsEmptyWithoutEmailCredentials() {
+    Identity identity = identityRepository.save(Identity.create());
+
+    assertThat(service.findOldestFor(identity.id())).isEmpty();
   }
 }

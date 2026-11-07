@@ -47,6 +47,15 @@ public interface EmailCredentialRepository {
   Optional<EmailCredential> findById(UUID id);
 
   /**
+   * Finds the identity's oldest email credential: the one with the smallest id among the email
+   * credentials linked to it. Ids are UUIDv7, so the smallest is the earliest registered.
+   *
+   * @param identityId the identity
+   * @return the oldest credential, or empty if the identity has none
+   */
+  Optional<EmailCredential> findOldestByIdentityId(UUID identityId);
+
+  /**
    * Deletes a credential (and, by cascade, its link token).
    *
    * @param id the credential id

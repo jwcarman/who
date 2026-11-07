@@ -73,6 +73,18 @@ public class JdbcEmailCredentialRepository implements EmailCredentialRepository 
   }
 
   @Override
+  public Optional<EmailCredential> findOldestByIdentityId(UUID identityId) {
+    return jdbcClient
+        .sql(
+            "SELECT e.id, e.address FROM who_email_credential e"
+                + " JOIN who_credential_identity ci ON ci.credential_id = e.id"
+                + " WHERE ci.identity_id = :identity_id ORDER BY e.id LIMIT 1")
+        .param("identity_id", identityId)
+        .query(ROW_MAPPER)
+        .optional();
+  }
+
+  @Override
   public boolean deleteById(UUID id) {
     return jdbcClient
             .sql("DELETE FROM who_email_credential WHERE id = :id")
