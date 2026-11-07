@@ -19,7 +19,10 @@ import java.util.UUID;
 
 import com.fasterxml.uuid.Generators;
 
-/** Utility methods for generating identifiers. */
+/**
+ * Utility methods for generating identifiers. Identifiers are time-ordered and not secret; never
+ * use them as tokens (see {@link org.jwcarman.who.core.crypto.Secrets}).
+ */
 public final class Identifiers {
 
   private Identifiers() {}
