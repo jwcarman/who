@@ -358,33 +358,38 @@ changelogs and the `schema.sql` files to PostgreSQL and compares the resulting s
 
 ## 9. Native (plan 3)
 
-- **Hints in each jar.** `who-passkey` registers whole the type families chosen by the incoming
-  data: every class of `com.webauthn4j.data.attestation.authenticator`, `…attestation.statement`,
-  `com.webauthn4j.data.extension`, `com.webauthn4j.data.client`, Spring's
-  `org.springframework.security.web.webauthn.jackson` and `…webauthn.management`,
-  and Spring's `org.springframework.security.web.webauthn.api`. `who-autoconfigure` registers the
-  changelogs and schema files as resources.
-- **Generated metadata.** The tracing agent runs over the example app's end-to-end tests;
-  `scripts/native-metadata.sh` writes the result, split by package, into each module's
-  `META-INF/native-image/org.jwcarman.who/<module>/reachability-metadata.json`.
-- **`who-example-passwordless`**: a minimal web app (an owner seeded with an email credential and the
-  OWNER role) with Playwright tests:
-  - email-link sign-in;
-  - passkey registration and sign-in with P-256 and with Ed25519 keys (Chrome's virtual
-    authenticator);
-  - `/who/me` and `/logout`;
-  - a role-protected endpoint;
-  - the resend interval (a second request within it sends no email);
-  - a used link and an expired link;
-  - a suspended identity losing access on its next request.
+The proof app is `noir-app-template` (a separate repo), not a who example module. Its Playwright suite
+against a native binary and its tracing-agent run are measured in its `docs/native-findings.md`
+(2026-11-07). As built, the binary did not start. With the gaps below covered, all five scenarios
+passed and startup took about 0.5 s. No reflection for who's own types was needed: Spring AOT covers
+them.
 
-  They run against the JVM build and against the native binary.
+who closes the gaps in its own jars, so an app needs no native configuration for who:
 
-## 10. The spike (plan 3)
+- **Changelogs and schema files (G1, G1b, G2).** Every module ships
+  `META-INF/native-image/org.jwcarman.who/<module>/reachability-metadata.json` with resource globs
+  for its own `org/jwcarman/who/<pkg>/db/*.xml` and `org/jwcarman/who/<pkg>/who-*-schema.sql`.
+  who-autoconfigure ships `org/jwcarman/who/db/who-changelog.xml`. These are static metadata, not a
+  `RuntimeHintsRegistrar`, so they work with or without Spring AOT.
+- **The schema initializer (G2).** `WhoDataSourceScriptDatabaseInitializer` resolves no script
+  locations when `who.initialize-schema` is `never`.
+- **Repository proxies (G3).** who's JDBC repositories drop `@Repository`. who builds them in `@Bean`
+  methods (no scanning), and `JdbcClient` already translates exceptions, so the annotation only
+  caused a class proxy that Spring AOT cannot generate for an interface-typed `@Bean`.
+- **Spring Security WebAuthn JSON (G4a)** and **webauthn4j (G4b).** who-passkey registers every class
+  in these packages, with their constructors, methods and fields, through a `RuntimeHintsRegistrar`
+  (`aot.factories`):
+  - `org.springframework.security.web.webauthn.api`;
+  - `…webauthn.jackson`;
+  - `com.webauthn4j.data.attestation`, with its `authenticator` and `statement` subpackages;
+  - `com.webauthn4j.data.client`.
 
-`~/IdeaProjects/native-spike` drops its hand-built security and depends on who: the owner becomes
-an identity with an email credential and the OWNER role, sign-in goes through who's endpoints, and
-its probe and Playwright tests pass on the JVM and natively.
+  These are whole families, not traced entries. Which key type and attestation format arrive depends
+  on the user's authenticator, and the tests exercise only some. A test checks the hints against the
+  classes on the classpath, so a new type cannot slip through.
+- **Proof.** With who installed, `noir-app-template`'s native end-to-end suite passes with no native
+  configuration in the app and without the `spring.persistence.exceptiontranslation.enabled`
+  workaround.
 
 ## Testing
 
