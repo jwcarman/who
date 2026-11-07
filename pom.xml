@@ -41,6 +41,7 @@
         <!-- Dependency Versions -->
         <java-uuid-generator.version>5.2.0</java-uuid-generator.version>
         <spring-boot.version>4.1.2</spring-boot.version>
+        <webauthn4j.version>0.32.0.RELEASE</webauthn4j.version>
 
         <!-- Plugin Versions -->
         <compiler.plugin.version>3.16.0</compiler.plugin.version>
@@ -105,6 +106,7 @@
         <module>who-enrollment</module>
         <module>who-apikey</module>
         <module>who-email-link</module>
+        <module>who-passkey</module>
         <module>who-autoconfigure</module>
         <module>who-spring-boot-starter</module>
         <module>who-example</module>
@@ -118,6 +120,11 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.webauthn4j</groupId>
+                <artifactId>webauthn4j-core</artifactId>
+                <version>${webauthn4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.uuid</groupId>

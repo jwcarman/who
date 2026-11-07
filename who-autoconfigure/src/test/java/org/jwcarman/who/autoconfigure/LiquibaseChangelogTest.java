@@ -54,7 +54,8 @@ class LiquibaseChangelogTest {
           "org/jwcarman/who/jwt/who-jwt-schema.sql",
           "org/jwcarman/who/enrollment/who-enrollment-schema.sql",
           "org/jwcarman/who/apikey/who-apikey-schema.sql",
-          "org/jwcarman/who/emaillink/who-email-link-schema.sql");
+          "org/jwcarman/who/emaillink/who-email-link-schema.sql",
+          "org/jwcarman/who/passkey/who-passkey-schema.sql");
 
   private static final String EMAIL_LINK_CHANGELOG =
       "org/jwcarman/who/emaillink/db/who-email-link-changelog.xml";
@@ -70,7 +71,9 @@ class LiquibaseChangelogTest {
           "who_enrollment_token",
           "who_api_key_credential",
           "who_email_credential",
-          "who_email_link_token");
+          "who_email_link_token",
+          "who_passkey_user",
+          "who_passkey_credential");
 
   @Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 

@@ -29,13 +29,14 @@ class WhoDataSourceScriptDatabaseInitializerTest {
     assertThat(
             WhoDataSourceScriptDatabaseInitializer.detectSchemaLocations(
                 getClass().getClassLoader()))
-        .contains(
+        .containsExactly(
             "classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql",
             "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql",
             "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql",
             "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql",
             "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql",
-            "classpath:org/jwcarman/who/emaillink/who-email-link-schema.sql");
+            "classpath:org/jwcarman/who/emaillink/who-email-link-schema.sql",
+            "classpath:org/jwcarman/who/passkey/who-passkey-schema.sql");
   }
 
   @Test

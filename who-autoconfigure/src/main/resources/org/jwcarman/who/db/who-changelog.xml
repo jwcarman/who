@@ -30,5 +30,6 @@
     <include file="classpath:org/jwcarman/who/enrollment/db/who-enrollment-changelog.xml" errorIfMissing="false"/>
     <include file="classpath:org/jwcarman/who/apikey/db/who-apikey-changelog.xml" errorIfMissing="false"/>
     <include file="classpath:org/jwcarman/who/emaillink/db/who-email-link-changelog.xml" errorIfMissing="false"/>
+    <include file="classpath:org/jwcarman/who/passkey/db/who-passkey-changelog.xml" errorIfMissing="false"/>
 
 </databaseChangeLog>

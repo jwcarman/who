@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright © 2026 James Carman
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="who-passkey-user-1" author="who">
+        <createTable tableName="who_passkey_user">
+            <column name="id" type="varchar(1000)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="identity_id" type="uuid">
+                <constraints nullable="false" unique="true" foreignKeyName="fk_who_passkey_user_identity"
+                             referencedTableName="who_identity" referencedColumnNames="id" deleteCascade="true"/>
+            </column>
+            <column name="name" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="display_name" type="varchar(200)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="who-passkey-credential-1" author="who">
+        <createTable tableName="who_passkey_credential">
+            <column name="credential_id" type="varchar(1000)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="user_entity_user_id" type="varchar(1000)">
+                <constraints nullable="false" foreignKeyName="fk_who_passkey_credential_user"
+                             referencedTableName="who_passkey_user" referencedColumnNames="id" deleteCascade="true"/>
+            </column>
+            <column name="public_key" type="bytea"><constraints nullable="false"/></column>
+            <column name="signature_count" type="bigint"/>
+            <column name="uv_initialized" type="boolean"/>
+            <column name="backup_eligible" type="boolean"><constraints nullable="false"/></column>
+            <column name="authenticator_transports" type="varchar(1000)"/>
+            <column name="public_key_credential_type" type="varchar(100)"/>
+            <column name="backup_state" type="boolean"><constraints nullable="false"/></column>
+            <column name="attestation_object" type="bytea"/>
+            <column name="attestation_client_data_json" type="bytea"/>
+            <column name="created" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="last_used" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="label" type="varchar(1000)"><constraints nullable="false"/></column>
+            <column name="credential_uuid" type="uuid"><constraints nullable="false" unique="true"/></column>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>
