@@ -20,7 +20,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.config.Customizer.withDefaults;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -39,6 +38,7 @@ import java.util.UUID;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -177,8 +177,18 @@ class PasswordlessConfigurerTest {
     mvc.perform(post("/logout").session(session)).andExpect(status().isForbidden());
     assertThat(session.isInvalid()).isFalse();
 
-    mvc.perform(post("/logout").session(session).with(csrf().asHeader()))
-        .andExpect(status().isNoContent());
+    // as an SPA does: read the XSRF-TOKEN cookie and echo it in the X-XSRF-TOKEN header
+    Cookie xsrf =
+        mvc.perform(get("/who/me").session(session))
+            .andReturn()
+            .getResponse()
+            .getCookie("XSRF-TOKEN");
+    assertThat(xsrf).isNotNull();
+
+    mvc.perform(
+            post("/logout").session(session).cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue()))
+        .andExpect(status().isNoContent())
+        .andExpect(cookie().maxAge("XSRF-TOKEN", 0));
     assertThat(session.isInvalid()).isTrue();
   }
 

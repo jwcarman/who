@@ -29,13 +29,11 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 /**
- * Makes a browser chain safe for session sign-in, using only Spring Security's own types: a
- * script-readable CSRF cookie for an SPA, {@code 401} instead of login redirects, a logout that
- * answers {@code 204}, a {@code no-referrer} policy, and who's session-backed {@link
+ * Makes a browser chain safe for session sign-in, using only Spring Security's own types: Spring's
+ * SPA CSRF setup ({@link CsrfConfigurer#spa()}), {@code 401} instead of login redirects, a logout
+ * that answers {@code 204}, a {@code no-referrer} policy, and who's session-backed {@link
  * WhoSessionSecurityContextRepository}. Every {@link PasswordlessLoginMethod} bean is then applied
  * in {@code @Order} order.
  *
@@ -69,14 +67,9 @@ public class PasswordlessConfigurer
     WhoSessionSecurityContextRepository repository =
         context.getBean(WhoSessionSecurityContextRepository.class);
 
-    CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
-    // load the token on every request so the cookie reaches the SPA before its first write
-    csrfHandler.setCsrfRequestAttributeName(null);
-
-    http.csrf(
-            csrf ->
-                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                    .csrfTokenRequestHandler(csrfHandler))
+    // Spring's SPA setup: script-readable XSRF-TOKEN cookie, token loaded on every request,
+    // BREACH-safe rendered tokens and plain header values accepted
+    http.csrf(CsrfConfigurer::spa)
         .securityContext(c -> c.securityContextRepository(repository))
         .exceptionHandling(
             e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
