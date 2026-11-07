@@ -1,0 +1,120 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.emaillink;
+
+import static java.util.Objects.requireNonNull;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Optional;
+
+import org.jwcarman.who.core.crypto.MessageDigests;
+import org.jwcarman.who.core.service.WhoService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Does the real work behind {@code POST /ott/generate}, off the request thread: looks up the
+ * address, stores the token's hash (the upsert that is also the resend limit), and sends the link.
+ *
+ * <p>Nothing here is visible to the caller, who has already been answered {@code 202}. The address
+ * and the token value are never logged.
+ */
+public class EmailLinkIssuer {
+
+  private static final Logger log = LoggerFactory.getLogger(EmailLinkIssuer.class);
+
+  private final EmailCredentialService credentialService;
+  private final WhoService whoService;
+  private final EmailLinkTokenRepository repository;
+  private final EmailLinkSender sender;
+  private final EmailLinkSettings settings;
+  private final Clock clock;
+
+  /**
+   * Creates a new issuer.
+   *
+   * @param credentialService finds email credentials
+   * @param whoService resolves credentials to active identities
+   * @param repository stores token hashes
+   * @param sender sends the link
+   * @param settings the link settings
+   * @param clock the clock
+   */
+  public EmailLinkIssuer(
+      EmailCredentialService credentialService,
+      WhoService whoService,
+      EmailLinkTokenRepository repository,
+      EmailLinkSender sender,
+      EmailLinkSettings settings,
+      Clock clock) {
+    this.credentialService =
+        requireNonNull(credentialService, "credentialService must not be null");
+    this.whoService = requireNonNull(whoService, "whoService must not be null");
+    this.repository = requireNonNull(repository, "repository must not be null");
+    this.sender = requireNonNull(sender, "sender must not be null");
+    this.settings = requireNonNull(settings, "settings must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
+  }
+
+  /**
+   * Issues and sends a link if the address belongs to an active identity and no recent link is
+   * outstanding; otherwise does nothing.
+   *
+   * @param address the requested address, as typed; the link goes to the registered (normalized)
+   *     address
+   * @param tokenValue the generated token value
+   */
+  public void issue(String address, String tokenValue) {
+    if (!looksLikeAnAddress(address)) {
+      return;
+    }
+    Optional<EmailCredential> found = credentialService.findByAddress(address);
+    if (found.isEmpty()) {
+      return;
+    }
+    EmailCredential credential = found.get();
+    if (whoService.resolve(credential).isEmpty()) {
+      return;
+    }
+    Instant now = clock.instant();
+    boolean issued =
+        repository.issue(
+            credential.id(),
+            MessageDigests.sha256Hex(tokenValue),
+            now,
+            now.plus(settings.tokenTtl()),
+            settings.resendInterval());
+    if (!issued) {
+      log.debug(
+          "Sign-in link for credential {} suppressed by the resend interval", credential.id());
+      return;
+    }
+    try {
+      sender.send(credential.address(), settings.linkBaseUrl() + "#token=" + tokenValue);
+    } catch (RuntimeException e) {
+      repository.delete(credential.id());
+      log.warn(
+          "Failed to send sign-in link for credential {}: {}",
+          credential.id(),
+          e.getClass().getName());
+    }
+  }
+
+  private static boolean looksLikeAnAddress(String address) {
+    return address != null && !address.isBlank() && address.indexOf('@') >= 0;
+  }
+}
