@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.emaillink;
+package org.jwcarman.who.spring.security.web;
 
 import static java.util.Objects.requireNonNull;
 
@@ -29,7 +29,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 
 import tools.jackson.databind.json.JsonMapper;
 
-/** JSON answers for {@code POST /login/ott}. */
+/** JSON answers for sign-in endpoints that do not redirect. */
 public class JsonAuthenticationHandlers {
 
   private final JsonMapper jsonMapper;
@@ -64,8 +64,19 @@ public class JsonAuthenticationHandlers {
    * @return the failure handler
    */
   public AuthenticationFailureHandler failure() {
+    return failure("invalid_token");
+  }
+
+  /**
+   * Returns a failure handler: {@code 401} with {@code {"error": errorCode}}.
+   *
+   * @param errorCode the error code to report
+   * @return the failure handler
+   */
+  public AuthenticationFailureHandler failure(String errorCode) {
+    requireNonNull(errorCode, "errorCode must not be null");
     return (request, response, exception) ->
-        write(response, HttpServletResponse.SC_UNAUTHORIZED, Map.of("error", "invalid_token"));
+        write(response, HttpServletResponse.SC_UNAUTHORIZED, Map.of("error", errorCode));
   }
 
   private void write(HttpServletResponse response, int status, Map<String, String> body)

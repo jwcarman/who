@@ -29,6 +29,18 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 class WhoAuthenticationTokenTest {
 
   @Test
+  void nameIsTheIdentityId() {
+    Identity identity = Identity.create();
+    WhoAuthenticationToken withPermissions =
+        new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of("a")));
+    WhoAuthenticationToken without =
+        new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of()));
+
+    assertThat(withPermissions.getName()).isEqualTo(identity.id().toString());
+    assertThat(without.getName()).isEqualTo(withPermissions.getName());
+  }
+
+  @Test
   void principalWithPermissionsProducesMatchingAuthorities() {
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("a", "b"));
     WhoAuthenticationToken token = new WhoAuthenticationToken(principal);

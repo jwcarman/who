@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.emaillink;
+package org.jwcarman.who.spring.security.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,5 +68,20 @@ class JsonAuthenticationHandlersTest {
     JsonNode body = mapper.readTree(response.getContentAsString());
     assertThat(body.size()).isEqualTo(1);
     assertThat(body.get("error").asString()).isEqualTo("invalid_token");
+  }
+
+  @Test
+  void failureCarriesTheGivenErrorCode() throws Exception {
+    handlers
+        .failure("invalid_credential")
+        .onAuthenticationFailure(
+            new MockHttpServletRequest(),
+            response,
+            new InvalidOneTimeTokenException("invalid_credential"));
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    JsonNode body = mapper.readTree(response.getContentAsString());
+    assertThat(body.size()).isEqualTo(1);
+    assertThat(body.get("error").asString()).isEqualTo("invalid_credential");
   }
 }

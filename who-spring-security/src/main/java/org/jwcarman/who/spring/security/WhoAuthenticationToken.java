@@ -79,6 +79,12 @@ public class WhoAuthenticationToken extends AbstractAuthenticationToken {
         .toList();
   }
 
+  /** Returns the identity id, which stays the same however the permissions change. */
+  @Override
+  public String getName() {
+    return principal.identity().id().toString();
+  }
+
   @Override
   public WhoPrincipal getPrincipal() {
     return principal;
