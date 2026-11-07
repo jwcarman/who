@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.ResidentKeyRequirement;
 import org.springframework.security.web.webauthn.api.UserVerificationRequirement;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialCreationOptionsRequest;
@@ -238,5 +240,34 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
         .isInstanceOf(IllegalStateException.class);
     assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
     assertThat(notifications).isEmpty();
+  }
+
+  @Test
+  void creationOptionsRefreshThePickerNameOnceTheIdentityHasAnAddress() {
+    AtomicReference<String> address = new AtomicReference<>();
+    WhoRelyingPartyOperations byAddress =
+        new WhoRelyingPartyOperations(
+            SETTINGS,
+            userRepository,
+            credentialRepository,
+            PasskeyNameResolver.preferring(
+                credentialId -> Optional.empty(), identityId -> Optional.ofNullable(address.get())),
+            (identityId, label) -> {});
+    PublicKeyCredentialCreationOptions before =
+        byAddress.createPublicKeyCredentialCreationOptions(
+            new ImmutablePublicKeyCredentialCreationOptionsRequest(signedIn()));
+    assertThat(before.getUser().getName()).isEqualTo(identity.id().toString());
+
+    address.set("owner@example.com");
+    PublicKeyCredentialCreationOptions after =
+        byAddress.createPublicKeyCredentialCreationOptions(
+            new ImmutablePublicKeyCredentialCreationOptionsRequest(signedIn()));
+
+    assertThat(after.getUser().getId()).isEqualTo(before.getUser().getId());
+    assertThat(after.getUser().getName()).isEqualTo("owner@example.com");
+    assertThat(after.getUser().getDisplayName()).isEqualTo("owner@example.com");
+    PublicKeyCredentialUserEntity stored = userRepository.findById(before.getUser().getId());
+    assertThat(stored.getName()).isEqualTo("owner@example.com");
+    assertThat(stored.getDisplayName()).isEqualTo("owner@example.com");
   }
 }

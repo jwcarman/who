@@ -101,6 +101,24 @@ class JdbcWhoPasskeyUserRepositoryTest extends AbstractPasskeyTest {
   }
 
   @Test
+  void renameChangesTheNamesOfOneIdentityOnly() {
+    Identity identity = identityRepository.save(Identity.create());
+    PublicKeyCredentialUserEntity entity =
+        repository.create(identity.id(), identity.id().toString());
+    Identity other = identityRepository.save(Identity.create());
+    PublicKeyCredentialUserEntity othersEntity = repository.create(other.id(), "other@example.com");
+
+    repository.rename(identity.id(), "owner@example.com");
+    repository.rename(UUID.randomUUID(), "nobody@example.com");
+
+    PublicKeyCredentialUserEntity renamed = repository.findById(entity.getId());
+    assertThat(renamed.getName()).isEqualTo("owner@example.com");
+    assertThat(renamed.getDisplayName()).isEqualTo("owner@example.com");
+    assertThat(repository.findIdentityId(entity.getId())).contains(identity.id());
+    assertThat(repository.findById(othersEntity.getId()).getName()).isEqualTo("other@example.com");
+  }
+
+  @Test
   void deleteRemovesTheEntity() {
     Identity identity = identityRepository.save(Identity.create());
     PublicKeyCredentialUserEntity entity = repository.create(identity.id(), "owner@example.com");

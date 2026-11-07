@@ -262,9 +262,11 @@ base64url text as in Spring:
        address the user just proved they own);
     2. otherwise, the address of the identity's oldest email credential;
     3. otherwise, the identity id.
-  - The picker label is stored on the user's device when the passkey is created. If the address
-    changes later, who updates its own row, but devices keep the old label until the browser
-    supports updating it. Sign-in is unaffected, because it maps by user handle. The docs say so.
+  - who picks the name again each time registration starts (every creation-options request) and
+    updates its own row, so an identity that gains or changes an address gets the new name on its
+    next passkey. The picker label is stored on the user's device when the passkey is created, and
+    devices keep the old label until the browser supports updating it. Sign-in is unaffected,
+    because it maps by user handle. The docs say so.
   - `findByUsername(name)` looks the entity up by identity id, because Spring passes
     `Authentication.getName()`.
   - The email address is stored in the user's synced credential manager; the spec accepts and

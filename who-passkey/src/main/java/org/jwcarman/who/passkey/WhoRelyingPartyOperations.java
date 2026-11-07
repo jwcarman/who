@@ -50,8 +50,10 @@ import org.springframework.security.web.webauthn.management.Webauthn4JRelyingPar
  *   <li>Registration and sign-in require user verification; registration requires a resident key.
  *       Spring enforces both from the options it stored in the session, so a client cannot
  *       downgrade them.
- *   <li>Creation options first create who's user entity for the identity (a 64-byte user handle,
- *       named by the {@link PasskeyNameResolver}), so Spring never creates its own.
+ *   <li>Creation options first create who's user entity for the identity (a 64-byte user handle),
+ *       so Spring never creates its own, and name it with the {@link PasskeyNameResolver}. The name
+ *       is refreshed on every creation-options call, so an identity that gains or changes an
+ *       address gets it on its next registration. Devices keep the name they stored.
  *   <li>A registration is refused unless the creation options in the session belong to the identity
  *       signed in now. Spring takes the owner from the stored options alone, so options left in a
  *       session by one identity could otherwise register a passkey for it after another identity
@@ -111,7 +113,8 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
   }
 
   /**
-   * Creates who's user entity for the signed-in identity, if it has none, then delegates.
+   * Creates who's user entity for the signed-in identity, if it has none, or refreshes its name,
+   * then delegates.
    *
    * @throws IllegalArgumentException if the request is not authenticated, or the authentication's
    *     name is not an identity id
@@ -125,9 +128,12 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
       throw new IllegalArgumentException("Authentication must be authenticated");
     }
     UUID identityId = identityId(authentication);
+    String name = nameResolver.nameFor(identityId, credentialId(authentication));
     if (userRepository.findByUsername(identityId.toString()) == null) {
-      userRepository.create(
-          identityId, nameResolver.nameFor(identityId, credentialId(authentication)));
+      userRepository.create(identityId, name);
+    } else {
+      // the identity may have gained or changed an address since its last registration
+      userRepository.rename(identityId, name);
     }
     return delegate.createPublicKeyCredentialCreationOptions(request);
   }

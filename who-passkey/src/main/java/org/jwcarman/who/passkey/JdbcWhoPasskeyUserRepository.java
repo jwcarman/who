@@ -105,6 +105,26 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   }
 
   /**
+   * Sets the {@code name} and {@code display_name} of the identity's user entity. Does nothing if
+   * the identity has none. The user handle is unchanged.
+   *
+   * @param identityId the identity
+   * @param name the name the passkey picker shows
+   */
+  public void rename(UUID identityId, String name) {
+    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(name, "name must not be null");
+    jdbcClient
+        .sql(
+            "UPDATE who_passkey_user SET name = :name, display_name = :display_name"
+                + " WHERE identity_id = :identity_id")
+        .param(COL_NAME, name)
+        .param(COL_DISPLAY_NAME, name)
+        .param(COL_IDENTITY_ID, identityId)
+        .update();
+  }
+
+  /**
    * Finds the identity whose user entity has the given user handle.
    *
    * @param userHandle the user handle

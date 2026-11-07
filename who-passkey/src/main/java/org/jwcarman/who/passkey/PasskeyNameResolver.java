@@ -23,7 +23,8 @@ import java.util.function.Function;
 
 /**
  * Picks the name the passkey picker shows for an identity (the user entity's {@code name} and
- * {@code display_name}). It is used once, when the identity's user entity is created.
+ * {@code display_name}). It is asked each time the identity starts registering a passkey, and who
+ * stores its answer.
  */
 @FunctionalInterface
 public interface PasskeyNameResolver {

@@ -208,7 +208,7 @@ The browser shows a name next to each passkey. Who does not assume an identity h
 
 Without `who-email-link` the name is always the identity id.
 
-The browser stores this name on the user's device when the passkey is created. If the address changes later, who updates its own record, but devices keep the old name until the browser supports updating it. Sign-in is not affected, because it maps by user handle. The user handle is 64 random bytes. It is not derived from the identity or the address.
+Who picks the name again each time registration starts (`POST /webauthn/register/options`) and updates its own record, so an identity that gains or changes an address gets the new name on its next passkey. The browser stores the name on the user's device when the passkey is created, and devices keep the old name for passkeys they already hold, until browsers support updating it. Sign-in is not affected, because it maps by user handle. The user handle is 64 random bytes. It is not derived from the identity or the address.
 
 The address lands in the user's synced credential manager (for example iCloud Keychain or a password manager). That is the user's own device, and a trade-off to accept.
 
