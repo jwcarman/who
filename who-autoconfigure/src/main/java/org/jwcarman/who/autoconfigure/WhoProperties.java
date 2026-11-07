@@ -33,6 +33,7 @@ public class WhoProperties {
   private Enrollment enrollment = new Enrollment();
   private ApiKey apiKey = new ApiKey();
   private MethodSecurity methodSecurity = new MethodSecurity();
+  private EmailLink emailLink = new EmailLink();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -104,6 +105,138 @@ public class WhoProperties {
    */
   public void setMethodSecurity(MethodSecurity methodSecurity) {
     this.methodSecurity = methodSecurity;
+  }
+
+  /**
+   * Returns the email link module properties.
+   *
+   * @return email link properties
+   */
+  public EmailLink getEmailLink() {
+    return emailLink;
+  }
+
+  /**
+   * Sets the email link module properties.
+   *
+   * @param emailLink email link properties
+   */
+  public void setEmailLink(EmailLink emailLink) {
+    this.emailLink = emailLink;
+  }
+
+  /** Properties for the {@code who-email-link} module. */
+  public static class EmailLink {
+
+    /**
+     * Page of the application that receives sign-in links; the token is appended as a {@code
+     * #token=...} fragment. Required when {@code who-email-link} is on the classpath.
+     */
+    private String linkBaseUrl;
+
+    /** How long a sign-in link stays valid. */
+    private Duration tokenTtl = Duration.ofMinutes(5);
+
+    /**
+     * Minimum time between two sign-in links for the same address; must not exceed the token TTL.
+     */
+    private Duration resendInterval = Duration.ofSeconds(60);
+
+    /** Sender address of sign-in emails; required when a {@code JavaMailSender} is present. */
+    private String from;
+
+    /** Subject of sign-in emails. */
+    private String subject = "Your sign-in link";
+
+    /**
+     * Returns the page that receives sign-in links.
+     *
+     * @return the link base URL
+     */
+    public String getLinkBaseUrl() {
+      return linkBaseUrl;
+    }
+
+    /**
+     * Sets the page that receives sign-in links.
+     *
+     * @param linkBaseUrl the link base URL
+     */
+    public void setLinkBaseUrl(String linkBaseUrl) {
+      this.linkBaseUrl = linkBaseUrl;
+    }
+
+    /**
+     * Returns how long a sign-in link stays valid.
+     *
+     * @return the token time to live
+     */
+    public Duration getTokenTtl() {
+      return tokenTtl;
+    }
+
+    /**
+     * Sets how long a sign-in link stays valid.
+     *
+     * @param tokenTtl the token time to live
+     */
+    public void setTokenTtl(Duration tokenTtl) {
+      this.tokenTtl = tokenTtl;
+    }
+
+    /**
+     * Returns the minimum time between two sign-in links for the same address.
+     *
+     * @return the resend interval
+     */
+    public Duration getResendInterval() {
+      return resendInterval;
+    }
+
+    /**
+     * Sets the minimum time between two sign-in links for the same address.
+     *
+     * @param resendInterval the resend interval
+     */
+    public void setResendInterval(Duration resendInterval) {
+      this.resendInterval = resendInterval;
+    }
+
+    /**
+     * Returns the sender address of sign-in emails.
+     *
+     * @return the from address
+     */
+    public String getFrom() {
+      return from;
+    }
+
+    /**
+     * Sets the sender address of sign-in emails.
+     *
+     * @param from the from address
+     */
+    public void setFrom(String from) {
+      this.from = from;
+    }
+
+    /**
+     * Returns the subject of sign-in emails.
+     *
+     * @return the subject
+     */
+    public String getSubject() {
+      return subject;
+    }
+
+    /**
+     * Sets the subject of sign-in emails.
+     *
+     * @param subject the subject
+     */
+    public void setSubject(String subject) {
+      this.subject = subject;
+    }
   }
 
   /** Properties for method security. */

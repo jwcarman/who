@@ -40,6 +40,10 @@ spring:
           # Use explicit JWK set URI instead of issuer-uri to avoid OIDC discovery at startup
           jwk-set-uri: http://localhost:8080/oauth2/jwks
 
+who:
+  email-link:
+    link-base-url: http://localhost:8080/signin
+
 logging:
   level:
     org.jwcarman.who: DEBUG

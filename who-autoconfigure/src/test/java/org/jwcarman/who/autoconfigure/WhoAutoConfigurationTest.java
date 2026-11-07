@@ -23,9 +23,15 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
+import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.MailEmailLinkSender;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -50,20 +56,95 @@ class WhoAutoConfigurationTest {
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
     }
+
+    @Bean
+    EmailLinkSender emailLinkSender() {
+      return (address, link) -> {};
+    }
   }
+
+  /** who-email-link is on this module's test classpath, and it requires a link base URL. */
+  private static final String LINK_BASE_URL =
+      "who.email-link.link-base-url=https://app.example.com/signin";
 
   @Test
   void allModulesOnClasspathCreatesWhoServiceAndOptionalBeans() {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
               assertThat(context).hasSingleBean(WhoService.class);
               assertThat(context).hasSingleBean(RbacPermissionsResolver.class);
               assertThat(context).hasSingleBean(WhoJwtAuthenticationConverter.class);
+              assertThat(context).hasSingleBean(WhoSessionSecurityContextRepository.class);
+              assertThat(context).hasSingleBean(EmailLinkLoginMethod.class);
+              assertThat(context).hasBean("whoEmailLinkExecutor");
+              assertThat(context).doesNotHaveBean(MailEmailLinkSender.class);
             });
+  }
+
+  @Test
+  void mailSenderIsUsedWhenSpringBootConfiguresJavaMail() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
+        .withUserConfiguration(MailDataSourceConfig.class)
+        .withPropertyValues(
+            LINK_BASE_URL, "spring.mail.host=localhost", "who.email-link.from=who@example.com")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context).hasSingleBean(MailEmailLinkSender.class);
+            });
+  }
+
+  @Test
+  void mailSenderWithoutFromAddressFailsStartup() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
+        .withUserConfiguration(MailDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL, "spring.mail.host=localhost")
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.from"));
+  }
+
+  @Test
+  void whoMeControllerIsRegisteredInServletWebApplications() {
+    new WebApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
+        .run(context -> assertThat(context).hasSingleBean(WhoMeController.class));
+  }
+
+  @Test
+  void whoMeControllerIsNotRegisteredOutsideWebApplications() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
+        .run(context -> assertThat(context).doesNotHaveBean(WhoMeController.class));
+  }
+
+  @Configuration
+  static class MailDataSourceConfig {
+    @Bean
+    DataSource dataSource() {
+      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+    }
+
+    @Bean
+    JdbcClient jdbcClient(DataSource dataSource) {
+      return JdbcClient.create(dataSource);
+    }
   }
 
   @Test
@@ -71,6 +152,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
         .withClassLoader(
             new FilteredClassLoader(
                 RbacPermissionsResolver.class, WhoJwtAuthenticationConverter.class))
@@ -88,6 +170,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -106,7 +189,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues("who.initialize-schema=never")
+        .withPropertyValues(LINK_BASE_URL, "who.initialize-schema=never")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -124,6 +207,7 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL)
         .run(
             context -> {
               assertThat(context).hasNotFailed();

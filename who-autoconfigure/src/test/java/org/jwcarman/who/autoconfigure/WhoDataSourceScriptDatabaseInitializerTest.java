@@ -34,7 +34,8 @@ class WhoDataSourceScriptDatabaseInitializerTest {
             "classpath:org/jwcarman/who/rbac/schema.sql",
             "classpath:org/jwcarman/who/jwt/schema.sql",
             "classpath:org/jwcarman/who/enrollment/schema.sql",
-            "classpath:org/jwcarman/who/apikey/schema.sql");
+            "classpath:org/jwcarman/who/apikey/schema.sql",
+            "classpath:org/jwcarman/who/emaillink/schema.sql");
   }
 
   @Test

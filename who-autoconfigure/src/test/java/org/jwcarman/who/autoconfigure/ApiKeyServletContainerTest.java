@@ -29,6 +29,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.crypto.Secrets;
+import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -54,7 +55,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    classes = ApiKeyServletContainerTest.App.class)
+    classes = ApiKeyServletContainerTest.App.class,
+    properties = "who.email-link.link-base-url=https://app.example.com/signin")
 class ApiKeyServletContainerTest {
 
   @Configuration
@@ -78,6 +80,11 @@ class ApiKeyServletContainerTest {
       return http.authorizeHttpRequests(a -> a.anyRequest().permitAll())
           .csrf(c -> c.disable())
           .build();
+    }
+
+    @Bean
+    EmailLinkSender emailLinkSender() {
+      return (address, link) -> {};
     }
 
     @Bean

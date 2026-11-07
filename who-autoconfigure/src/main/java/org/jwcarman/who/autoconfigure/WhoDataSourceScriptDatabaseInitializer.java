@@ -53,7 +53,10 @@ public class WhoDataSourceScriptDatabaseInitializer extends DataSourceScriptData
               "classpath:org/jwcarman/who/enrollment/schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository",
-              "classpath:org/jwcarman/who/apikey/schema.sql"));
+              "classpath:org/jwcarman/who/apikey/schema.sql"),
+          new ModuleSchema(
+              "org.jwcarman.who.emaillink.JdbcEmailCredentialRepository",
+              "classpath:org/jwcarman/who/emaillink/schema.sql"));
 
   /**
    * Creates a new initializer.

@@ -15,6 +15,11 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.Executor;
+
 import javax.sql.DataSource;
 
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
@@ -25,6 +30,22 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.jwcarman.who.emaillink.EmailCredentialRepository;
+import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.EmailLinkAuthenticationProvider;
+import org.jwcarman.who.emaillink.EmailLinkGenerationSuccessHandler;
+import org.jwcarman.who.emaillink.EmailLinkIssuer;
+import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
+import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.EmailLinkSettings;
+import org.jwcarman.who.emaillink.EmailLinkTokenRepository;
+import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
+import org.jwcarman.who.emaillink.JdbcEmailLinkTokenRepository;
+import org.jwcarman.who.emaillink.JsonAuthenticationHandlers;
+import org.jwcarman.who.emaillink.JsonGenerateOneTimeTokenRequestResolver;
+import org.jwcarman.who.emaillink.JsonOneTimeTokenAuthenticationConverter;
+import org.jwcarman.who.emaillink.MailEmailLinkSender;
+import org.jwcarman.who.emaillink.WhoOneTimeTokenService;
 import org.jwcarman.who.enrollment.EnrollmentTokenRepository;
 import org.jwcarman.who.enrollment.JdbcEnrollmentTokenRepository;
 import org.jwcarman.who.enrollment.WhoEnrollmentService;
@@ -41,17 +62,28 @@ import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.RolePermissionRepository;
 import org.jwcarman.who.rbac.RoleRepository;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.WhoMeController;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.util.StringUtils;
+
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Spring Boot autoconfiguration that wires all Who modules together.
@@ -65,7 +97,12 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
  * that {@code @RequiresPermission} is enforced; set {@code who.method-security.enabled=false} to
  * opt out. An application that declares its own {@code @EnableMethodSecurity} is left alone.
  */
-@AutoConfiguration
+@AutoConfiguration(
+    afterName = {
+      "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
+      "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration",
+      "org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration"
+    })
 @EnableConfigurationProperties(WhoProperties.class)
 public class WhoAutoConfiguration {
 
@@ -94,7 +131,18 @@ public class WhoAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public PermissionsResolver permissionsResolver() {
-    return identity -> java.util.Set.of();
+    return identity -> Set.of();
+  }
+
+  /**
+   * The clock who reads the current time from (sign-in times, link expiry).
+   *
+   * @return the system UTC clock
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public Clock whoClock() {
+    return Clock.systemUTC();
   }
 
   /**
@@ -258,6 +306,208 @@ public class WhoAutoConfiguration {
           new FilterRegistrationBean<>(filter);
       registration.setEnabled(false);
       return registration;
+    }
+  }
+
+  /** Registers the browser-session beans when {@code who-spring-security} is on the classpath. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository")
+  static class PasswordlessConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
+        WhoService whoService, Clock clock) {
+      return new WhoSessionSecurityContextRepository(whoService, clock);
+    }
+  }
+
+  /** Registers {@code GET /who/me} in servlet web applications that have Spring MVC. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+  @ConditionalOnClass(
+      name = {
+        "org.jwcarman.who.spring.security.web.WhoMeController",
+        "org.springframework.web.servlet.DispatcherServlet"
+      })
+  static class WhoMeConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WhoMeController whoMeController() {
+      return new WhoMeController();
+    }
+  }
+
+  /**
+   * Registers email sign-in link beans when {@code who-email-link} is on the classpath.
+   *
+   * <p>{@code who.email-link.link-base-url} is required, and {@code who.email-link.resend-interval}
+   * must not exceed {@code who.email-link.token-ttl}; startup fails otherwise.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.emaillink.EmailLinkLoginMethod")
+  static class EmailLinkConfiguration {
+
+    static final String EXECUTOR_BEAN_NAME = "whoEmailLinkExecutor";
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailLinkSettings emailLinkSettings(WhoProperties properties) {
+      WhoProperties.EmailLink emailLink = properties.getEmailLink();
+      if (!StringUtils.hasText(emailLink.getLinkBaseUrl())) {
+        throw new IllegalStateException(
+            "who.email-link.link-base-url must be set to the page that receives sign-in links");
+      }
+      Duration tokenTtl = emailLink.getTokenTtl();
+      Duration resendInterval = emailLink.getResendInterval();
+      if (resendInterval.compareTo(tokenTtl) > 0) {
+        throw new IllegalStateException(
+            "who.email-link.resend-interval ("
+                + resendInterval
+                + ") must not be longer than who.email-link.token-ttl ("
+                + tokenTtl
+                + "), or an expired link would block a new one");
+      }
+      return new EmailLinkSettings(emailLink.getLinkBaseUrl(), tokenTtl, resendInterval);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailCredentialRepository emailCredentialRepository(JdbcClient jdbcClient) {
+      return new JdbcEmailCredentialRepository(jdbcClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailLinkTokenRepository emailLinkTokenRepository(JdbcClient jdbcClient) {
+      return new JdbcEmailLinkTokenRepository(jdbcClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailCredentialService emailCredentialService(
+        EmailCredentialRepository emailCredentialRepository,
+        CredentialIdentityRepository credentialIdentityRepository) {
+      return new EmailCredentialService(emailCredentialRepository, credentialIdentityRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WhoOneTimeTokenService whoOneTimeTokenService(
+        EmailLinkTokenRepository emailLinkTokenRepository,
+        Clock clock,
+        EmailLinkSettings settings) {
+      return new WhoOneTimeTokenService(emailLinkTokenRepository, clock, settings.tokenTtl());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JsonGenerateOneTimeTokenRequestResolver jsonGenerateOneTimeTokenRequestResolver(
+        ObjectProvider<JsonMapper> jsonMapper) {
+      return new JsonGenerateOneTimeTokenRequestResolver(jsonMapper(jsonMapper));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JsonOneTimeTokenAuthenticationConverter jsonOneTimeTokenAuthenticationConverter(
+        ObjectProvider<JsonMapper> jsonMapper) {
+      return new JsonOneTimeTokenAuthenticationConverter(jsonMapper(jsonMapper));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JsonAuthenticationHandlers jsonAuthenticationHandlers(
+        ObjectProvider<JsonMapper> jsonMapper) {
+      return new JsonAuthenticationHandlers(jsonMapper(jsonMapper));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailLinkIssuer emailLinkIssuer(
+        EmailCredentialService emailCredentialService,
+        WhoService whoService,
+        EmailLinkTokenRepository emailLinkTokenRepository,
+        EmailLinkSender emailLinkSender,
+        EmailLinkSettings settings,
+        Clock clock) {
+      return new EmailLinkIssuer(
+          emailCredentialService,
+          whoService,
+          emailLinkTokenRepository,
+          emailLinkSender,
+          settings,
+          clock);
+    }
+
+    /**
+     * Sends sign-in emails off the request thread, so a known and an unknown address answer alike.
+     * Not a default candidate, so it never stands in for the application's own executor.
+     */
+    @Bean(name = EXECUTOR_BEAN_NAME, defaultCandidate = false)
+    @ConditionalOnMissingBean(name = EXECUTOR_BEAN_NAME)
+    public Executor whoEmailLinkExecutor() {
+      SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("who-email-link-");
+      executor.setVirtualThreads(true);
+      return executor;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailLinkGenerationSuccessHandler emailLinkGenerationSuccessHandler(
+        EmailLinkIssuer emailLinkIssuer, @Qualifier(EXECUTOR_BEAN_NAME) Executor executor) {
+      return new EmailLinkGenerationSuccessHandler(emailLinkIssuer, executor);
+    }
+
+    /**
+     * The provider is built here rather than published as a bean: a lone {@code
+     * AuthenticationProvider} bean would become Spring Security's global one and switch off the
+     * application's {@code UserDetailsService}.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EmailLinkLoginMethod emailLinkLoginMethod(
+        WhoOneTimeTokenService tokenService,
+        JsonGenerateOneTimeTokenRequestResolver generateRequestResolver,
+        EmailLinkGenerationSuccessHandler generationSuccessHandler,
+        JsonOneTimeTokenAuthenticationConverter authenticationConverter,
+        JsonAuthenticationHandlers handlers,
+        WhoService whoService) {
+      return new EmailLinkLoginMethod(
+          tokenService,
+          generateRequestResolver,
+          generationSuccessHandler,
+          authenticationConverter,
+          new EmailLinkAuthenticationProvider(tokenService, whoService),
+          handlers.success(),
+          handlers.failure());
+    }
+
+    private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> jsonMapper) {
+      return jsonMapper.getIfAvailable(JsonMapper::new);
+    }
+  }
+
+  /** Sends sign-in links by email when Spring Boot has configured a {@code JavaMailSender}. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(
+      name = {
+        "org.jwcarman.who.emaillink.MailEmailLinkSender",
+        "org.springframework.mail.javamail.JavaMailSender"
+      })
+  static class MailEmailLinkSenderConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(EmailLinkSender.class)
+    @ConditionalOnBean(JavaMailSender.class)
+    public MailEmailLinkSender mailEmailLinkSender(
+        JavaMailSender javaMailSender, WhoProperties properties) {
+      WhoProperties.EmailLink emailLink = properties.getEmailLink();
+      if (!StringUtils.hasText(emailLink.getFrom())) {
+        throw new IllegalStateException(
+            "who.email-link.from must be set to the sender address of sign-in emails");
+      }
+      return new MailEmailLinkSender(javaMailSender, emailLink.getFrom(), emailLink.getSubject());
     }
   }
 
