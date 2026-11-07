@@ -341,17 +341,37 @@ class WhoEnrollmentServiceTest extends AbstractEnrollmentTest {
   }
 
   @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void alreadyLinkedCredentialIsAClearError() {
-    Identity x = savedIdentity();
-    Identity y = savedIdentity();
+    Identity x = identityRepository.save(Identity.create());
+    Identity y = identityRepository.save(Identity.create());
     Credential cred = credential();
-    credentialIdentityRepository.link(cred.id(), x.id());
-    EnrollmentToken token = service.createToken(y);
-    String value = token.value();
+    Credential fresh = credential();
+    try {
+      credentialIdentityRepository.link(cred.id(), x.id());
+      EnrollmentToken token = service.createToken(y);
+      String value = token.value();
 
-    assertThatThrownBy(() -> service.enroll(value, cred))
-        .isInstanceOf(CredentialAlreadyLinkedException.class)
-        .hasMessage("Credential %s is already linked to an identity".formatted(cred.id()));
+      assertThatThrownBy(() -> service.enroll(value, cred))
+          .isInstanceOf(CredentialAlreadyLinkedException.class)
+          .hasMessage("Credential %s is already linked to an identity".formatted(cred.id()));
+
+      // the failed link rolled the redemption back
+      assertThat(service.findToken(value))
+          .get()
+          .satisfies(
+              t -> {
+                assertThat(t.status()).isEqualTo(EnrollmentTokenStatus.PENDING);
+                assertThat(t.redeemedAt()).isNull();
+              });
+      assertThat(linkCount(y.id())).isZero();
+      assertThat(service.enroll(value, fresh).id()).isEqualTo(y.id());
+    } finally {
+      credentialIdentityRepository.unlink(cred.id());
+      credentialIdentityRepository.unlink(fresh.id());
+      identityRepository.deleteById(x.id());
+      identityRepository.deleteById(y.id());
+    }
   }
 
   @Test
