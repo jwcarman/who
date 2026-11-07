@@ -26,7 +26,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
@@ -99,8 +98,7 @@ public class PasswordlessConfigurer
 
   @Override
   public void configure(HttpSecurity http) {
-    if (statelessChain
-        || http.getSharedObject(SessionCreationPolicy.class) == SessionCreationPolicy.STATELESS) {
+    if (statelessChain) {
       throw new IllegalStateException(SESSIONS_REQUIRED);
     }
   }
