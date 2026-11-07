@@ -85,7 +85,8 @@ It:
 - turns on Spring Security's `oneTimeTokenLogin()` and `webAuthn()` for whichever credential
   modules are on the classpath, with who's hooks (sections 3 and 4), and permits their endpoints;
 - configures Spring's `logout()` to answer `204` and clear the CSRF cookie;
-- answers `401` with JSON (not a redirect) to unauthenticated requests;
+- answers a plain `401` (Spring's `HttpStatusEntryPoint`, not a redirect) to unauthenticated
+  requests;
 - sets CSRF to `CookieCsrfTokenRepository.withHttpOnlyFalse()` with `CsrfTokenRequestAttributeHandler`
   (the SPA sends `X-XSRF-TOKEN` from the cookie). The sign-in POSTs require the token too, so a
   hostile page cannot sign a victim in to the attacker's account. The token is rotated at sign-in;
@@ -148,8 +149,9 @@ DELETE FROM who_email_link_token
 RETURNING credential_id
 ```
 
-so two concurrent confirmations cannot both succeed. Expired rows are deleted by a scheduled sweep
-(`who.email-link.sweep-interval`, default 1 hour).
+so two concurrent confirmations cannot both succeed. The table holds at most one row per email
+credential, so it cannot grow without bound and needs no sweep: an expired row stays until the next
+request for that address replaces it.
 
 **How it maps onto Spring.** `passwordless()` configures `oneTimeTokenLogin()` with:
 
