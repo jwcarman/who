@@ -18,11 +18,15 @@ package org.jwcarman.who.emaillink;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-/** JDBC implementation of {@link EmailCredentialRepository} on {@code who_email_credential}. */
-public class JdbcEmailCredentialRepository implements EmailCredentialRepository {
+/**
+ * JDBC implementation of {@link EmailCredentialRepository} on {@code who_email_credential}. It is
+ * also the email-link module's {@link CredentialRemover}.
+ */
+public class JdbcEmailCredentialRepository implements EmailCredentialRepository, CredentialRemover {
 
   private static final String COL_ID = "id";
   private static final String COL_ADDRESS = "address";
@@ -89,5 +93,19 @@ public class JdbcEmailCredentialRepository implements EmailCredentialRepository 
             .param(COL_ID, id)
             .update()
         > 0;
+  }
+
+  @Override
+  public boolean remove(UUID credentialId) {
+    return deleteById(credentialId);
+  }
+
+  @Override
+  public int removeUnlinked() {
+    return jdbcClient
+        .sql(
+            "DELETE FROM who_email_credential e WHERE NOT EXISTS"
+                + " (SELECT 1 FROM who_credential_identity ci WHERE ci.credential_id = e.id)")
+        .update();
   }
 }
