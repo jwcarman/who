@@ -200,41 +200,109 @@ text email from `who.email-link.from`, subject `who.email-link.subject`.
 
 ## 4. `who-passkey` (plan 2)
 
-**Stores.** who implements Spring Security's two WebAuthn repositories on its own tables:
+who uses Spring Security's `webAuthn()` and its endpoints, at their default paths:
+`POST /webauthn/register/options`, `POST /webauthn/register`, `DELETE /webauthn/register/{id}`,
+`POST /webauthn/authenticate/options` and `POST /login/webauthn`. Spring Security 7.1.2 fixes
+several collaborators in place, so who supplies them through Spring's own hooks (the evidence for
+each is in the plan 2 research notes):
+
+- By default the sign-in filter stores the session with `HttpSessionSecurityContextRepository` and
+  uses `NullAuthenticatedSessionStrategy`, so it neither changes the session id nor rotates CSRF.
+  who replaces both.
+- The configurer requires a `UserDetailsService` bean, and looks up the two repositories as shared
+  objects first, then as beans. If it finds two beans of one type, it silently falls back to
+  in-memory maps.
+- User verification and the relying-party settings can be customized only through a
+  `WebAuthnRelyingPartyOperations` bean. When that bean exists, the configurer's own `rpId`,
+  `rpName` and origins are ignored.
+
+**Wiring.** `PasskeyLoginMethod implements PasswordlessLoginMethod` (applied by `passwordless()`,
+like email links):
+
+- shares who's two repositories with the chain as `http` shared objects, so no bean lookup is
+  involved;
+- if the app has no `UserDetailsService`, autoconfiguration supplies one that finds no users, only
+  so the configurer can start. who's sign-in never calls it;
+- calls `webAuthn(w -> w.disableDefaultRegistrationPage(true))`;
+- post-processes `WebAuthnAuthenticationFilter` (`withObjectPostProcessor`) to set who's
+  `AuthenticationManager` (below), `WhoSessionSecurityContextRepository`, the chain's shared
+  `SessionAuthenticationStrategy` (so the session id changes and CSRF rotates at sign-in), and JSON
+  success and failure handlers;
+- adds `PasskeyRegistrationGuardFilter` after `ExceptionTranslationFilter`, for the answers Spring
+  has no hook for (Registering, below).
+
+`WhoAuthenticationToken.getName()` returns the identity id. Spring keys registration, its options
+and deletion on `Authentication.getName()`, which must be stable.
+
+**Relying party.** who publishes a `WebAuthnRelyingPartyOperations` bean: a decorator over Spring's
+`Webauthn4JRelyingPartyOperations`, built from `who.passkey.rp-id`, `rp-name` and
+`allowed-origins`. It:
+
+- requires user verification at registration (`setCustomizeCreationOptions`, with a resident key
+  required) and at sign-in (`setCustomizeRequestOptions`). Spring then enforces user verification
+  when it verifies the response. A passkey is the only factor, so it must prove the user is present
+  and verified (D5);
+- creates who's user entity before delegating, so the user handle is who's (below), not the
+  32-byte one Spring would create;
+- calls `PasskeyAddedNotifier` after a credential is registered.
+
+**Stores.** who implements Spring's two repository interfaces on its own tables. Spring's JDBC
+classes are final and hard-code their table names. who's columns mirror Spring's, with ids as
+base64url text as in Spring:
 
 - `JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEntityRepository`, on
-  `who_passkey_user(id varchar(1000) pk, identity_id uuid unique fk cascade, name, display_name)`.
-  The user handle (`id`) is 64 random bytes, not derived from the identity or the email address.
-  `name` is the identity id. `display_name` is the identity's email address when it has one; it is
-  stored in the user's synced credential manager, which the spec accepts and documents (D5).
+  `who_passkey_user(id varchar(1000) pk, identity_id uuid unique fk cascade, name varchar(100) not
+  null, display_name varchar(200))`:
+  - The user handle (`id`) is 64 random bytes, not derived from the identity or the email address.
+    Sign-in maps by user handle, never by name.
+  - `name` is what the passkey picker shows: the identity's email address when it has one,
+    otherwise the identity id. `display_name` is the same.
+  - `findByUsername(name)` looks the entity up by identity id, because Spring passes
+    `Authentication.getName()`.
+  - The email address is stored in the user's synced credential manager; the spec accepts and
+    documents this (D5).
 - `JdbcWhoPasskeyCredentialRepository implements UserCredentialRepository`, on
-  `who_passkey_credential` (Spring's columns, plus `credential_uuid uuid`). Each passkey is a
-  `PasskeyCredential(UUID id)` linked to the identity through `CredentialIdentityRepository`.
-- `PasskeyService.revoke(UUID credentialId)` deletes the `who_passkey_credential` row and the link
-  together (D5).
+  `who_passkey_credential`: Spring's columns (including `attestation_object`, which sign-in needs,
+  and `label not null`, so the registration request must include a label), plus
+  `credential_uuid uuid`. Each passkey is a `PasskeyCredential(UUID id)` linked to the identity
+  through `CredentialIdentityRepository`.
+- Revoking deletes the `who_passkey_credential` row and the identity link together (D5), whether it
+  happens through Spring's `DELETE /webauthn/register/{id}` (whose `delete` who implements) or
+  through `PasskeyService.revoke(UUID credentialId)`.
 
-**Registering** (signed in only): Spring's `POST /webauthn/register/options` and
-`POST /webauthn/register`, keyed by the signed-in identity.
+**Registering** (signed in only):
 
-- Registration requires recent authentication: the session's sign-in happened within
-  `who.passkey.registration-window` (default 10 minutes). Otherwise the answer is `401` with
-  `{"error": "reauthentication_required"}`, and the app sends the user through an email link again.
-  Registering while signed out is `401` (D5).
-- User verification is `required`, both at registration and at sign-in. A passkey is the only
-  factor, so it must prove the user is present and verified (D5). `WebAuthnConfigurer` has no
-  direct setting for it, so who sets it on the relying-party operations; plan 2 confirms how.
+- Registering requires recent authentication: the session's sign-in happened within
+  `who.passkey.registration-window` (default 10 minutes, measured from `WhoSession.signedInAt`).
+  Otherwise the answer is `401` with `{"error": "reauthentication_required"}`, and the app sends the
+  user through an email link again.
+- Registering while signed out is `401`; Spring alone would answer `400` (D5).
+- A response that fails verification is `400` with `{"error": "invalid_registration"}`; Spring alone
+  would answer `500`.
+- Success is Spring's own `200` with `{"success": true}`.
 - After a passkey is added, the `PasskeyAddedNotifier` SPI is called. Its default implementation
   (when `JavaMailSender` is present) emails the identity's address, if it has one, so an owner
   notices a passkey they did not add (D5).
 
-**Signing in:** Spring's `POST /webauthn/authenticate/options` and `POST /login/webauthn`. who's
-authentication resolves the passkey's user entity to its identity and, through `WhoService`, to the
-principal; the session is then established (section 2). Success answers `200` with
-`{"identityId": "..."}`, failure `401`.
+**Signing in:** `POST /webauthn/authenticate/options`, then `POST /login/webauthn`. who's
+`AuthenticationProvider`:
+
+- verifies through the relying-party operations;
+- takes the verified credential id from the request's public key (`getRawId()`) and maps it to
+  `credential_uuid`;
+- resolves the principal through `WhoService` and returns `WhoAuthenticationToken(principal,
+  credentialUuid)`.
+
+The session is then established (section 2). Success answers `200` with `{"identityId": "..."}`.
+Every failure answers `401` with `{"error": "invalid_credential"}`.
 
 **Configuration:** `who.passkey.rp-id`, `who.passkey.rp-name`, `who.passkey.allowed-origins`,
-`who.passkey.registration-window`. The `rp-id` is the app's own host. Apps must not share a
-registrable domain as their `rp-id`, or every app's passkeys appear in every other app's picker (D5).
+`who.passkey.registration-window`. Like email links, passkeys switch on only when
+`who.passkey.rp-id` is set. The `rp-id` is the app's own host. Apps must not share a registrable
+domain as their `rp-id`, or every app's passkeys appear in every other app's picker (D5).
+
+**Dependency:** `spring-security-webauthn` plus `webauthn4j-core` pinned to `0.32.0.RELEASE` (Spring
+7.1.2 declares 0.31.10.RELEASE; the API Spring uses is compatible).
 
 ## 5. Rate limits (plan 1, D4)
 
@@ -282,6 +350,8 @@ changelogs and the `schema.sql` files to PostgreSQL and compares the resulting s
 
 - **Hints in each jar.** `who-passkey` registers whole the type families chosen by the incoming
   data: every class of `com.webauthn4j.data.attestation.authenticator`, `…attestation.statement`,
+  `com.webauthn4j.data.extension`, `com.webauthn4j.data.client`, Spring's
+  `org.springframework.security.web.webauthn.jackson` and `…webauthn.management`,
   and Spring's `org.springframework.security.web.webauthn.api`. `who-autoconfigure` registers the
   changelogs and schema files as resources.
 - **Generated metadata.** The tracing agent runs over the example app's end-to-end tests;
