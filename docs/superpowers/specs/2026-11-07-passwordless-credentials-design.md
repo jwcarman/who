@@ -34,7 +34,8 @@ who's Liquibase changelog, and gets, with no security code of its own:
 
 ## Scope
 
-**In:** the two credential modules; browser-session sign-in and sign-out; JSON sign-in endpoints;
+**In:** the two credential modules; browser-session sign-in and sign-out through Spring Security's
+own endpoints, answering JSON;
 database rate limiting; `TIMESTAMPTZ` for every who table; Liquibase XML changelogs for every module;
 native support (hints and generated metadata shipped in the jars); a new example app with end-to-end
 tests run on the JVM and natively; the native spike rebuilt on who.
@@ -45,7 +46,7 @@ tooling (see 8).
 
 **Delivered as three plans, in order, each ending shippable and reviewed:**
 
-1. Sessions, `who-email-link`, `/who/me`, sign-out, rate limits, `TIMESTAMPTZ`, Liquibase.
+1. Sessions, `who-email-link`, `/who/me`, `/logout`, rate limits, `TIMESTAMPTZ`, Liquibase.
 2. `who-passkey`.
 3. Native support, `who-example-passwordless` with JVM and native end-to-end tests, the spike on who.
 
@@ -56,7 +57,9 @@ tooling (see 8).
 | Spring | Spring Boot 4.1.2 / Spring Security 7.1 (already on `main`) |
 | Version | `0.11.0-SNAPSHOT`; CI sets the release version from the tag |
 | Secrets | Every token value comes from `Secrets.token()` (256 bits, URL-safe Base64). Only its SHA-256 hash is stored |
-| Email-link sign-in | who's own endpoints, token store and authentication. Spring's `oneTimeTokenLogin()` is not used, so its `/ott/generate` and `/login/ott` endpoints never exist (D3) |
+| Spring-native | who uses Spring Security's own endpoints and extension points wherever they exist, and supplies only stores, authentication and handlers. Its only endpoint of its own is `GET /who/me` |
+| Email-link sign-in | Spring Security's one-time-token login (`/ott/generate`, `/login/ott`), configured through its hooks: who's token service, request resolver, converter, provider and JSON handlers (D3) |
+| Sign-out | Spring Security's `/logout`, answering `204` |
 | Passkeys | Spring Security WebAuthn (`spring-security-webauthn`, `webauthn4j-core` 0.32.0.RELEASE); who supplies the stores and the authentication |
 | Session principal | Re-resolved from the database on every request (D1) |
 | Configurer | `WhoWebSecurity.passwordless()` returns an `AbstractHttpConfigurer`, the same pattern as `WhoApiKeySecurity.apiKey()` |
@@ -79,8 +82,9 @@ http.with(WhoWebSecurity.passwordless(), Customizer.withDefaults());
 
 It:
 
-- registers the sign-in endpoints of whichever credential modules are on the classpath, and permits
-  them;
+- turns on Spring Security's `oneTimeTokenLogin()` and `webAuthn()` for whichever credential
+  modules are on the classpath, with who's hooks (sections 3 and 4), and permits their endpoints;
+- configures Spring's `logout()` to answer `204` and clear the CSRF cookie;
 - answers `401` with JSON (not a redirect) to unauthenticated requests;
 - sets CSRF to `CookieCsrfTokenRepository.withHttpOnlyFalse()` with `CsrfTokenRequestAttributeHandler`
   (the SPA sends `X-XSRF-TOKEN` from the cookie). The sign-in POSTs require the token too, so a
@@ -101,8 +105,6 @@ Role and permission changes therefore take effect on the next request.
 
 **`GET /who/me`** (any signed-in caller) answers `{"identityId", "permissions"}`, from the fresh
 principal.
-
-**`POST /who/sign-out`** invalidates the session, clears the CSRF cookie, and answers `204`.
 
 JWT and API-key callers are unaffected; their chains stay stateless.
 
@@ -134,23 +136,41 @@ RETURNING credential_id
 so two concurrent confirmations cannot both succeed. Expired rows are deleted by a scheduled sweep
 (`who.email-link.sweep-interval`, default 1 hour).
 
-**Requesting a link.** `POST /who/email-link` with JSON `{"email": "..."}`:
+**How it maps onto Spring.** `passwordless()` configures `oneTimeTokenLogin()` with:
+
+| Hook | who's part |
+|---|---|
+| `tokenService` | `JdbcWhoOneTimeTokenService`: hashed tokens, atomic consume (below) |
+| `generateRequestResolver` | reads `{"email": "..."}` from the JSON body |
+| `tokenGenerationSuccessHandler` | answers `202`, then sends the link asynchronously |
+| `authenticationConverter` | reads `{"token": "..."}` from the JSON body |
+| `authenticationProvider` | resolves the token's credential to a `WhoAuthenticationToken` |
+| `authenticationSuccessHandler` / `authenticationFailureHandler` | JSON `200` / `401` |
+| `showDefaultSubmitPage(false)` | no generated HTML page |
+
+The endpoint paths stay Spring's defaults.
+
+**Requesting a link.** `POST /ott/generate` with JSON `{"email": "..."}`:
 
 - always answers `202` with an empty body, whether or not the address is known (no enumeration);
-- the lookup, token creation and sending run asynchronously after the response, so the response
-  time does not reveal whether the address is known (D6);
-- only for a known address with an `ACTIVE` identity, a token is created and
+- for an unknown address, or one whose identity is not `ACTIVE`, the token service returns a token
+  it does not store, and the handler sends nothing. Spring's filter always asks for a token, so this
+  keeps unknown addresses from writing rows;
+- sending runs asynchronously after the response, so the response time does not reveal whether the
+  address is known (D6);
+- for a known address with an `ACTIVE` identity, the token is stored and
   `EmailLinkSender.send(address, link)` is called;
 - `link` is `who.email-link.link-base-url` + `#token=` + the token value. The token is in the URL
   fragment, which browsers never send to a server or in a `Referer` header, so it stays out of
   access logs (D6). The app's page reads the fragment and confirms it (below); a mail scanner
   fetching the link does nothing;
-- rate limits apply before anything is queued (section 5); above them the answer is `429`.
+- rate limits apply in a filter before Spring's generating filter (section 5); above them the
+  answer is `429`.
 
 `EmailLinkSender` is an SPI. `MailEmailLinkSender` (when `JavaMailSender` is present) sends a plain
 text email from `who.email-link.from`, subject `who.email-link.subject`.
 
-**Confirming.** `POST /who/email-link/confirm` with JSON `{"token": "..."}`:
+**Confirming.** `POST /login/ott` with JSON `{"token": "..."}`:
 
 - consumes the token, loads its credential, and resolves the principal through `WhoService`;
 - on success the session is established (section 2) and the answer is `200` with
@@ -181,7 +201,8 @@ text email from `who.email-link.from`, subject `who.email-link.subject`.
   `{"error": "reauthentication_required"}`, and the app sends the user through an email link again.
   Registering while signed out is `401` (D5).
 - User verification is `required`, both at registration and at sign-in. A passkey is the only
-  factor, so it must prove the user is present and verified (D5).
+  factor, so it must prove the user is present and verified (D5). `WebAuthnConfigurer` has no
+  direct setting for it, so who sets it on the relying-party operations; plan 2 confirms how.
 - After a passkey is added, the `PasskeyAddedNotifier` SPI is called. Its default implementation
   (when `JavaMailSender` is present) emails the identity's address, if it has one, so an owner
   notices a passkey they did not add (D5).
@@ -197,7 +218,7 @@ registrable domain as their `rp-id`, or every app's passkeys appear in every oth
 
 ## 5. Rate limits (plan 1, D4)
 
-`POST /who/email-link` is limited per address and per client IP: at most
+`POST /ott/generate` is limited per address and per client IP: at most
 `who.email-link.rate-limit.per-address` and `…per-ip` requests within `…window` (defaults 5, 20,
 15 minutes).
 
@@ -250,7 +271,7 @@ changelogs and the `schema.sql` files to PostgreSQL and compares the resulting s
   - email-link sign-in;
   - passkey registration and sign-in with P-256 and with Ed25519 keys (Chrome's virtual
     authenticator);
-  - `/who/me` and sign-out;
+  - `/who/me` and `/logout`;
   - a role-protected endpoint;
   - rate limiting;
   - a used link and an expired link;
