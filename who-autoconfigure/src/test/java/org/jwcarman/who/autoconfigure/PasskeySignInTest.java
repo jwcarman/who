@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -559,6 +560,15 @@ class PasskeySignInTest {
     String otherOptions = creationOptionsJson(otherBrowser);
     byte[] otherHandle = new PasskeyDevice(ORIGIN).userHandle(otherOptions);
     registerPasskey(otherBrowser, new PasskeyDevice(ORIGIN), "Other");
+    // the forged handle really is the other identity's, as who stored it
+    String otherStoredHandle =
+        jdbcClient
+            .sql("SELECT id FROM who_passkey_user WHERE identity_id = :id")
+            .param("id", other.id())
+            .query(String.class)
+            .single();
+    assertThat(Base64.getUrlEncoder().withoutPadding().encodeToString(otherHandle))
+        .isEqualTo(otherStoredHandle);
     Browser browser = new Browser(mvc);
 
     MvcResult result =
