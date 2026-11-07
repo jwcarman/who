@@ -16,6 +16,8 @@
     limitations under the License.
 
 -->
+<!-- The classpath: includes need a Spring-style resource accessor (Spring Boot's Liquibase
+     integration). Other runners may silently skip them. -->
 <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

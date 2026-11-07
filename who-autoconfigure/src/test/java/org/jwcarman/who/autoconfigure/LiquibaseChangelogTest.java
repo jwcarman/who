@@ -30,22 +30,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import liquibase.Scope;
-import liquibase.command.CommandScope;
-import liquibase.command.core.UpdateCommandStep;
-import liquibase.command.core.helpers.DbUrlConnectionArgumentsCommandStep;
-import liquibase.database.Database;
-import liquibase.database.DatabaseFactory;
-import liquibase.database.jvm.JdbcConnection;
-import liquibase.resource.ClassLoaderResourceAccessor;
-import liquibase.resource.Resource;
+import liquibase.integration.spring.SpringLiquibase;
 
 @Testcontainers
 class LiquibaseChangelogTest {
@@ -62,6 +57,19 @@ class LiquibaseChangelogTest {
           "org/jwcarman/who/emaillink/schema.sql");
 
   private static final String EMAIL_LINK_CHANGELOG = "org/jwcarman/who/emaillink/db/changelog.xml";
+
+  private static final List<String> ALL_TABLES =
+      List.of(
+          "who_identity",
+          "who_credential_identity",
+          "who_role",
+          "who_role_permission",
+          "who_identity_role",
+          "who_jwt_credential",
+          "who_enrollment_token",
+          "who_api_key_credential",
+          "who_email_credential",
+          "who_email_link_token");
 
   @Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
@@ -81,6 +89,7 @@ class LiquibaseChangelogTest {
     List<String> fromLiquibase = describe("who_liquibase");
     List<String> fromSql = describe("who_sql");
 
+    assertThat(tableNames(fromLiquibase)).containsExactlyInAnyOrderElementsOf(ALL_TABLES);
     assertThat(fromSql).isNotEmpty();
     assertThat(fromLiquibase).isEqualTo(fromSql);
   }
@@ -92,24 +101,24 @@ class LiquibaseChangelogTest {
     runChangelog("who_skip", new HidingClassLoader(EMAIL_LINK_CHANGELOG));
 
     List<String> description = describe("who_skip");
-    assertThat(description).anyMatch(row -> row.startsWith("who_identity|"));
-    assertThat(description).noneMatch(row -> row.startsWith("who_email_"));
+    assertThat(tableNames(description))
+        .containsExactlyInAnyOrderElementsOf(
+            ALL_TABLES.stream().filter(t -> !t.startsWith("who_email_")).toList());
   }
 
   private static void runChangelog(String database, ClassLoader classLoader) throws Exception {
-    try (Connection connection = connect(database)) {
-      Database db =
-          DatabaseFactory.getInstance()
-              .findCorrectDatabaseImplementation(new JdbcConnection(connection));
-      Scope.child(
-          Map.of(
-              Scope.Attr.resourceAccessor.name(), new ClasspathPrefixResourceAccessor(classLoader)),
-          () ->
-              new CommandScope("update")
-                  .addArgumentValue(DbUrlConnectionArgumentsCommandStep.DATABASE_ARG, db)
-                  .addArgumentValue(UpdateCommandStep.CHANGELOG_FILE_ARG, CHANGELOG_ALL)
-                  .execute());
-    }
+    DriverManagerDataSource dataSource =
+        new DriverManagerDataSource(
+            jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword());
+    SpringLiquibase liquibase = new SpringLiquibase();
+    liquibase.setResourceLoader(new DefaultResourceLoader(classLoader));
+    liquibase.setDataSource(dataSource);
+    liquibase.setChangeLog("classpath:" + CHANGELOG_ALL);
+    liquibase.afterPropertiesSet();
+  }
+
+  private static Set<String> tableNames(List<String> rows) {
+    return rows.stream().map(r -> r.substring(0, r.indexOf('|'))).collect(Collectors.toSet());
   }
 
   private static List<String> describe(String database) throws SQLException {
@@ -172,41 +181,19 @@ class LiquibaseChangelogTest {
     }
   }
 
+  private static String jdbcUrl(String database) {
+    return POSTGRES.getJdbcUrl().replaceFirst("/[^/?]+(\\?|$)", "/" + database + "$1");
+  }
+
   private static Connection connect(String database) throws SQLException {
-    String url = POSTGRES.getJdbcUrl().replaceFirst("/[^/?]+(\\?|$)", "/" + database + "$1");
-    return DriverManager.getConnection(url, POSTGRES.getUsername(), POSTGRES.getPassword());
+    return DriverManager.getConnection(
+        jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword());
   }
 
   private String readResource(String path) throws IOException {
     try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
       assertThat(in).as(path).isNotNull();
       return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
-  }
-
-  /**
-   * Resolves {@code classpath:} paths the way Spring's resource accessor does in a real Boot app;
-   * Liquibase's plain class loader accessor does not understand the prefix.
-   */
-  private static final class ClasspathPrefixResourceAccessor extends ClassLoaderResourceAccessor {
-    private static final String PREFIX = "classpath:";
-
-    ClasspathPrefixResourceAccessor(ClassLoader classLoader) {
-      super(classLoader);
-    }
-
-    private static String strip(String path) {
-      return path.startsWith(PREFIX) ? path.substring(PREFIX.length()) : path;
-    }
-
-    @Override
-    public List<Resource> getAll(String path) throws IOException {
-      return super.getAll(strip(path));
-    }
-
-    @Override
-    public List<Resource> search(String path, SearchOptions searchOptions) throws IOException {
-      return super.search(strip(path), searchOptions);
     }
   }
 
