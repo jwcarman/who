@@ -15,13 +15,16 @@
  */
 package org.jwcarman.who.passkey;
 
+import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorAttestationResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutableAuthenticationExtensionsClientOutputs;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 import org.springframework.security.web.webauthn.management.ImmutableRelyingPartyRegistrationRequest;
+import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyPublicKey;
 import org.springframework.security.web.webauthn.management.RelyingPartyRegistrationRequest;
 
@@ -74,5 +77,50 @@ final class PasskeyEmulator {
             .build();
     return new ImmutableRelyingPartyRegistrationRequest(
         options, new RelyingPartyPublicKey(credential, label));
+  }
+
+  /**
+   * Answers the request options with a credential this device registered, as {@code POST
+   * /login/webauthn} would carry it. The device verifies the user unless it was made {@link
+   * #withoutUserVerification(String) without user verification}.
+   */
+  RelyingPartyAuthenticationRequest authenticate(PublicKeyCredentialRequestOptions options) {
+    return authenticate(options, userVerification);
+  }
+
+  /**
+   * Answers the request options without verifying the user, even if this device registered with
+   * verification and the options require it.
+   */
+  RelyingPartyAuthenticationRequest authenticateWithoutUserVerification(
+      PublicKeyCredentialRequestOptions options) {
+    return authenticate(options, false);
+  }
+
+  private RelyingPartyAuthenticationRequest authenticate(
+      PublicKeyCredentialRequestOptions options, boolean userVerified) {
+    EmulatedAuthenticator.Assertion assertion =
+        authenticator.get(
+            options.getRpId(),
+            options.getChallenge().getBytes(),
+            options.getAllowCredentials().stream().map(d -> d.getId().getBytes()).toList(),
+            userVerified);
+    Bytes rawId = new Bytes(assertion.rawId());
+    PublicKeyCredential<AuthenticatorAssertionResponse> credential =
+        PublicKeyCredential.<AuthenticatorAssertionResponse>builder()
+            .id(rawId.toBase64UrlString())
+            .rawId(rawId)
+            .type(PublicKeyCredentialType.PUBLIC_KEY)
+            .response(
+                AuthenticatorAssertionResponse.builder()
+                    .authenticatorData(new Bytes(assertion.authenticatorData()))
+                    .clientDataJSON(new Bytes(assertion.clientDataJson()))
+                    .signature(new Bytes(assertion.signature()))
+                    .userHandle(
+                        assertion.userHandle() != null ? new Bytes(assertion.userHandle()) : null)
+                    .build())
+            .clientExtensionResults(new ImmutableAuthenticationExtensionsClientOutputs())
+            .build();
+    return new RelyingPartyAuthenticationRequest(options, credential);
   }
 }

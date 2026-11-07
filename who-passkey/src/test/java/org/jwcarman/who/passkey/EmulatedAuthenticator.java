@@ -20,12 +20,14 @@ import java.util.List;
 import com.webauthn4j.converter.AttestationObjectConverter;
 import com.webauthn4j.converter.util.ObjectConverter;
 import com.webauthn4j.data.AttestationConveyancePreference;
+import com.webauthn4j.data.AuthenticatorAssertionResponse;
 import com.webauthn4j.data.AuthenticatorAttestationResponse;
 import com.webauthn4j.data.AuthenticatorSelectionCriteria;
 import com.webauthn4j.data.PublicKeyCredential;
 import com.webauthn4j.data.PublicKeyCredentialCreationOptions;
 import com.webauthn4j.data.PublicKeyCredentialDescriptor;
 import com.webauthn4j.data.PublicKeyCredentialParameters;
+import com.webauthn4j.data.PublicKeyCredentialRequestOptions;
 import com.webauthn4j.data.PublicKeyCredentialRpEntity;
 import com.webauthn4j.data.PublicKeyCredentialType;
 import com.webauthn4j.data.PublicKeyCredentialUserEntity;
@@ -37,6 +39,7 @@ import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
 import com.webauthn4j.data.client.Origin;
 import com.webauthn4j.data.client.challenge.DefaultChallenge;
 import com.webauthn4j.data.extension.authenticator.RegistrationExtensionAuthenticatorOutput;
+import com.webauthn4j.data.extension.client.AuthenticationExtensionClientOutput;
 import com.webauthn4j.data.extension.client.RegistrationExtensionClientOutput;
 import com.webauthn4j.test.authenticator.webauthn.NoneAttestationAuthenticator;
 import com.webauthn4j.test.authenticator.webauthn.WebAuthnAuthenticatorAdaptor;
@@ -50,6 +53,14 @@ final class EmulatedAuthenticator {
 
   /** What the browser posts back after {@code navigator.credentials.create()}. */
   record Attestation(byte[] rawId, byte[] clientDataJson, byte[] attestationObject) {}
+
+  /** What the browser posts back after {@code navigator.credentials.get()}. */
+  record Assertion(
+      byte[] rawId,
+      byte[] clientDataJson,
+      byte[] authenticatorData,
+      byte[] signature,
+      byte[] userHandle) {}
 
   private final ClientPlatform platform;
 
@@ -104,6 +115,40 @@ final class EmulatedAuthenticator {
         credential.getRawId(),
         credential.getResponse().getClientDataJSON(),
         userVerified ? attestationObject : withoutUserVerification(attestationObject));
+  }
+
+  /**
+   * Signs a challenge with a credential this device created, as its authenticator would.
+   *
+   * @param userVerified whether the user was verified. For {@code false} the device is asked not to
+   *     verify, so the UV flag is clear in a correctly signed assertion: what a device that skipped
+   *     verification would send, whatever the server asked for.
+   */
+  Assertion get(
+      String rpId, byte[] challenge, List<byte[]> allowedCredentialIds, boolean userVerified) {
+    PublicKeyCredentialRequestOptions options =
+        new PublicKeyCredentialRequestOptions(
+            new DefaultChallenge(challenge),
+            null,
+            rpId,
+            allowedCredentialIds.stream()
+                .map(
+                    id ->
+                        new PublicKeyCredentialDescriptor(
+                            PublicKeyCredentialType.PUBLIC_KEY, id, null))
+                .toList(),
+            userVerified
+                ? UserVerificationRequirement.REQUIRED
+                : UserVerificationRequirement.DISCOURAGED,
+            null);
+    PublicKeyCredential<AuthenticatorAssertionResponse, AuthenticationExtensionClientOutput>
+        credential = platform.get(options);
+    return new Assertion(
+        credential.getRawId(),
+        credential.getResponse().getClientDataJSON(),
+        credential.getResponse().getAuthenticatorData(),
+        credential.getResponse().getSignature(),
+        credential.getResponse().getUserHandle());
   }
 
   private static byte[] withoutUserVerification(byte[] attestationObject) {
