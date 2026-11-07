@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.Set;
@@ -45,7 +46,7 @@ class WhoSessionSecurityContextRepositoryTest {
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
 
   private final WhoService whoService = mock(WhoService.class);
-  private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+  private final MutableClock clock = new MutableClock(NOW);
   private final WhoSessionSecurityContextRepository repository =
       new WhoSessionSecurityContextRepository(whoService, clock);
   private final MockHttpServletRequest request = new MockHttpServletRequest();
@@ -122,14 +123,76 @@ class WhoSessionSecurityContextRepositoryTest {
   }
 
   @Test
-  void resavingKeepsSignedInAt() {
+  void resavingTheLoadedAuthenticationKeepsSignedInAt() {
     Instant earlier = NOW.minusSeconds(3600);
     request.setSession(sessionWith(new WhoSession(identity.id(), credId, earlier)));
+    when(whoService.resolve(any(Credential.class)))
+        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
 
-    repository.saveContext(contextFor(new WhoPrincipal(identity, Set.of("a"))), request, response);
+    SecurityContext loaded = repository.loadDeferredContext(request).get();
+    repository.saveContext(loaded, request, response);
 
     assertThat(repository.currentSession(request))
         .contains(new WhoSession(identity.id(), credId, earlier));
+  }
+
+  @Test
+  void aNewSignInWithTheSameCredentialStampsANewSignedInAt() {
+    WhoPrincipal principal = new WhoPrincipal(identity, Set.of("a"));
+    repository.saveContext(contextFor(principal), request, response);
+    clock.set(NOW.plusSeconds(600));
+
+    repository.saveContext(contextFor(principal), request, response);
+
+    assertThat(repository.currentSession(request))
+        .contains(new WhoSession(identity.id(), credId, NOW.plusSeconds(600)));
+  }
+
+  @Test
+  void savingAnEmptyContextRemovesTheSession() {
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+
+    repository.saveContext(new SecurityContextImpl(), request, response);
+
+    assertThat(repository.currentSession(request)).isEmpty();
+  }
+
+  @Test
+  void savingANonWhoAuthenticationRemovesTheSession() {
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    SecurityContext context = new SecurityContextImpl();
+    context.setAuthentication(new TestingAuthenticationToken("u", "p", "ROLE_X"));
+
+    repository.saveContext(context, request, response);
+
+    assertThat(repository.currentSession(request)).isEmpty();
+  }
+
+  @Test
+  void isGeneratedWhenThereIsNoSessionOrItEnded() {
+    assertThat(repository.loadDeferredContext(request).isGenerated()).isTrue();
+
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    assertThat(repository.loadDeferredContext(request).isGenerated()).isTrue();
+
+    MockHttpServletRequest valid = new MockHttpServletRequest();
+    valid.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    when(whoService.resolve(any(Credential.class)))
+        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
+    assertThat(repository.loadDeferredContext(valid).isGenerated()).isFalse();
+  }
+
+  @Test
+  void alreadyInvalidatedSessionDoesNotThrow() {
+    MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
+    request.setSession(session);
+    session.invalidate();
+    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+
+    SecurityContext loaded = repository.loadDeferredContext(request).get();
+
+    assertThat(loaded.getAuthentication()).isNull();
   }
 
   @Test
@@ -145,5 +208,32 @@ class WhoSessionSecurityContextRepositoryTest {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE, whoSession);
     return session;
+  }
+
+  private static final class MutableClock extends Clock {
+    private Instant now;
+
+    private MutableClock(Instant now) {
+      this.now = now;
+    }
+
+    private void set(Instant now) {
+      this.now = now;
+    }
+
+    @Override
+    public ZoneId getZone() {
+      return ZoneOffset.UTC;
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return this;
+    }
+
+    @Override
+    public Instant instant() {
+      return now;
+    }
   }
 }

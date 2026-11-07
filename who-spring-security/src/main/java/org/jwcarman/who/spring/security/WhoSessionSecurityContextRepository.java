@@ -43,6 +43,9 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   /** Name of the HTTP session attribute holding the {@link WhoSession}. */
   public static final String SESSION_ATTRIBUTE = "org.jwcarman.who.session";
 
+  private static final String LOADED_ATTRIBUTE =
+      WhoSessionSecurityContextRepository.class.getName() + ".LOADED";
+
   private final WhoService whoService;
   private final Clock clock;
 
@@ -82,7 +85,8 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       UUID identityId = token.getPrincipal().identity().id();
       UUID credentialId = token.credentialId().get();
       Optional<WhoSession> existing = currentSession(request);
-      if (existing.isPresent()
+      if (authentication == request.getAttribute(LOADED_ATTRIBUTE)
+          && existing.isPresent()
           && existing.get().identityId().equals(identityId)
           && existing.get().credentialId().equals(credentialId)) {
         return;
@@ -130,11 +134,24 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
     UUID credentialId = whoSession.credentialId();
     Optional<WhoPrincipal> principal = whoService.resolve(() -> credentialId);
     if (principal.isPresent() && principal.get().identity().id().equals(whoSession.identityId())) {
-      context.setAuthentication(new WhoAuthenticationToken(principal.get(), credentialId));
+      WhoAuthenticationToken token = new WhoAuthenticationToken(principal.get(), credentialId);
+      context.setAuthentication(token);
+      request.setAttribute(LOADED_ATTRIBUTE, token);
     } else {
-      request.getSession(false).invalidate();
+      invalidate(request);
     }
     return context;
+  }
+
+  private static void invalidate(HttpServletRequest request) {
+    HttpSession session = request.getSession(false);
+    if (session != null) {
+      try {
+        session.invalidate();
+      } catch (IllegalStateException alreadyInvalidated) {
+        // a concurrent request ended it first; carry on unauthenticated
+      }
+    }
   }
 
   private static final class LazyContext implements DeferredSecurityContext {
@@ -156,7 +173,7 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
 
     @Override
     public boolean isGenerated() {
-      return false;
+      return get().getAuthentication() == null;
     }
   }
 }
