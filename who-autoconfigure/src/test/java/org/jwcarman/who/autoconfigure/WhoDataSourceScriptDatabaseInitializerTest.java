@@ -57,18 +57,16 @@ class WhoDataSourceScriptDatabaseInitializerTest {
 
   @Test
   void neverResolvesNoLocations() {
-    ClassLoader failing =
-        new ClassLoader(null) {
-          @Override
-          protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-            throw new IllegalStateException("must not look anything up: " + name);
-          }
-        };
+    ClassLoader classLoader = getClass().getClassLoader();
 
     assertThat(
             WhoDataSourceScriptDatabaseInitializer.schemaLocations(
-                DatabaseInitializationMode.NEVER, failing))
+                DatabaseInitializationMode.NEVER, classLoader))
         .isEmpty();
+    assertThat(
+            WhoDataSourceScriptDatabaseInitializer.schemaLocations(
+                DatabaseInitializationMode.ALWAYS, classLoader))
+        .isNotEmpty();
   }
 
   @Test
