@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
@@ -56,14 +55,9 @@ class WhoAutoConfigurationTest {
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
     }
-
-    @Bean
-    EmailLinkSender emailLinkSender() {
-      return (address, link) -> {};
-    }
   }
 
-  /** who-email-link is on this module's test classpath, and it requires a link base URL. */
+  /** Opts in to email-link sign-in. */
   private static final String LINK_BASE_URL =
       "who.email-link.link-base-url=https://app.example.com/signin";
 
@@ -72,7 +66,6 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -80,9 +73,22 @@ class WhoAutoConfigurationTest {
               assertThat(context).hasSingleBean(RbacPermissionsResolver.class);
               assertThat(context).hasSingleBean(WhoJwtAuthenticationConverter.class);
               assertThat(context).hasSingleBean(WhoSessionSecurityContextRepository.class);
-              assertThat(context).hasSingleBean(EmailLinkLoginMethod.class);
-              assertThat(context).hasBean("whoEmailLinkExecutor");
+              assertThat(context).doesNotHaveBean(EmailLinkLoginMethod.class);
+            });
+  }
+
+  @Test
+  void appWithItsOwnMailButNoEmailLinksIsAskedForNothing() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
+        .withUserConfiguration(MailDataSourceConfig.class)
+        .withPropertyValues("spring.mail.host=localhost")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
               assertThat(context).doesNotHaveBean(MailEmailLinkSender.class);
+              assertThat(context).doesNotHaveBean(EmailLinkLoginMethod.class);
             });
   }
 
@@ -121,7 +127,6 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
         .run(context -> assertThat(context).hasSingleBean(WhoMeController.class));
   }
 
@@ -130,7 +135,6 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
         .run(context -> assertThat(context).doesNotHaveBean(WhoMeController.class));
   }
 
@@ -152,7 +156,6 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
         .withClassLoader(
             new FilteredClassLoader(
                 RbacPermissionsResolver.class, WhoJwtAuthenticationConverter.class))
@@ -170,7 +173,6 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -189,7 +191,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL, "who.initialize-schema=never")
+        .withPropertyValues("who.initialize-schema=never")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -207,7 +209,6 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
         .run(
             context -> {
               assertThat(context).hasNotFailed();

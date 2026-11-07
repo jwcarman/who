@@ -340,13 +340,16 @@ public class WhoAutoConfiguration {
   }
 
   /**
-   * Registers email sign-in link beans when {@code who-email-link} is on the classpath.
+   * Registers email sign-in link beans when {@code who-email-link} is on the classpath and the
+   * application opts in by setting {@code who.email-link.link-base-url}.
    *
-   * <p>{@code who.email-link.link-base-url} is required, and {@code who.email-link.resend-interval}
-   * must not exceed {@code who.email-link.token-ttl}; startup fails otherwise.
+   * <p>Once opted in, {@code who.email-link.resend-interval} must not exceed {@code
+   * who.email-link.token-ttl}, and an {@link EmailLinkSender} must be available; startup fails
+   * otherwise.
    */
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnClass(name = "org.jwcarman.who.emaillink.EmailLinkLoginMethod")
+  @ConditionalOnProperty(prefix = "who.email-link", name = "link-base-url")
   static class EmailLinkConfiguration {
 
     static final String EXECUTOR_BEAN_NAME = "whoEmailLinkExecutor";
@@ -428,16 +431,17 @@ public class WhoAutoConfiguration {
         EmailCredentialService emailCredentialService,
         WhoService whoService,
         EmailLinkTokenRepository emailLinkTokenRepository,
-        EmailLinkSender emailLinkSender,
+        ObjectProvider<EmailLinkSender> emailLinkSender,
         EmailLinkSettings settings,
         Clock clock) {
+      EmailLinkSender sender = emailLinkSender.getIfAvailable();
+      if (sender == null) {
+        throw new IllegalStateException(
+            "who.email-link.link-base-url is set but sign-in links cannot be sent: register an"
+                + " EmailLinkSender bean, or set spring.mail.host and who.email-link.from");
+      }
       return new EmailLinkIssuer(
-          emailCredentialService,
-          whoService,
-          emailLinkTokenRepository,
-          emailLinkSender,
-          settings,
-          clock);
+          emailCredentialService, whoService, emailLinkTokenRepository, sender, settings, clock);
     }
 
     /**
@@ -495,6 +499,7 @@ public class WhoAutoConfiguration {
         "org.jwcarman.who.emaillink.MailEmailLinkSender",
         "org.springframework.mail.javamail.JavaMailSender"
       })
+  @ConditionalOnProperty(prefix = "who.email-link", name = "link-base-url")
   static class MailEmailLinkSenderConfiguration {
 
     @Bean

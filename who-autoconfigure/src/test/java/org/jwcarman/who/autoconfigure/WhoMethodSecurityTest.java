@@ -23,7 +23,6 @@ import javax.sql.DataSource;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.RequiresPermission;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -62,11 +61,6 @@ class WhoMethodSecurityTest {
     Guarded guarded() {
       return new Guarded();
     }
-
-    @Bean
-    EmailLinkSender emailLinkSender() {
-      return (address, link) -> {};
-    }
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -76,8 +70,7 @@ class WhoMethodSecurityTest {
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
-          .withUserConfiguration(AppConfig.class)
-          .withPropertyValues("who.email-link.link-base-url=https://app.example.com/signin");
+          .withUserConfiguration(AppConfig.class);
 
   @AfterEach
   void clear() {

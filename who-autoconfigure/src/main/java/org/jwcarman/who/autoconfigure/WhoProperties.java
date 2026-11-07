@@ -130,7 +130,8 @@ public class WhoProperties {
 
     /**
      * Page of the application that receives sign-in links; the token is appended as a {@code
-     * #token=...} fragment. Required when {@code who-email-link} is on the classpath.
+     * #token=...} fragment. Setting it turns email-link sign-in on; when unset, no email-link beans
+     * are registered.
      */
     private String linkBaseUrl;
 
@@ -142,7 +143,10 @@ public class WhoProperties {
      */
     private Duration resendInterval = Duration.ofSeconds(60);
 
-    /** Sender address of sign-in emails; required when a {@code JavaMailSender} is present. */
+    /**
+     * Sender address of sign-in emails; required when email-link sign-in is on and links are sent
+     * through Spring Boot's {@code JavaMailSender}.
+     */
     private String from;
 
     /** Subject of sign-in emails. */

@@ -52,6 +52,8 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.EmailLinkIssuer;
+import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -546,13 +548,59 @@ class EmailLinkSignInTest {
           .withUserConfiguration(StartupConfig.class);
 
   @Test
-  void missingLinkBaseUrlFailsStartup() {
-    startupRunner.run(
-        ctx ->
-            assertThat(ctx.getStartupFailure())
-                .isNotNull()
-                .rootCause()
-                .hasMessageContaining("who.email-link.link-base-url"));
+  void absentLinkBaseUrlMeansNoEmailLinkSignIn() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(NoSenderConfig.class)
+        .run(
+            ctx -> {
+              assertThat(ctx).hasNotFailed();
+              assertThat(ctx).doesNotHaveBean(EmailLinkLoginMethod.class);
+              assertThat(ctx).doesNotHaveBean(EmailLinkIssuer.class);
+              assertThat(ctx).doesNotHaveBean("whoEmailLinkExecutor");
+            });
+  }
+
+  @Test
+  void linkBaseUrlWithoutASenderFailsStartup() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(NoSenderConfig.class)
+        .withPropertyValues("who.email-link.link-base-url=" + LINK_BASE_URL)
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("EmailLinkSender")
+                    .hasMessageContaining("spring.mail.host")
+                    .hasMessageContaining("who.email-link.from"));
+  }
+
+  @Test
+  void blankLinkBaseUrlFailsStartup() {
+    startupRunner
+        .withPropertyValues("who.email-link.link-base-url=")
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.link-base-url"));
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class NoSenderConfig {
+    @Bean
+    DataSource dataSource() {
+      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+    }
+
+    @Bean
+    JdbcClient jdbcClient(DataSource dataSource) {
+      return JdbcClient.create(dataSource);
+    }
   }
 
   @Test
