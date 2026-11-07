@@ -48,23 +48,29 @@ public class EmailCredentialService {
   }
 
   /**
-   * Registers an email address for the identity and links the new credential to it.
+   * Registers an email address for the identity and links the credential to it.
    *
    * <p>Call this only with an address the caller has verified; who does not verify ownership here.
    *
+   * <p>If the address is already registered but linked to no identity (its identity was deleted
+   * without {@code WhoService.deleteIdentity}), that credential is linked to this identity and
+   * returned. If it is already linked to this identity, it is returned unchanged.
+   *
    * @param identity the identity to link the credential to
    * @param address the address; normalized before use
-   * @return the new credential
-   * @throws EmailAddressTakenException if the address is already registered
+   * @return the identity's credential for the address
+   * @throws EmailAddressTakenException if the address is registered to another identity
    */
   @Transactional
   public EmailCredential register(Identity identity, String address) {
     requireNonNull(identity, "identity must not be null");
     EmailCredential credential = EmailCredential.create(address);
-    // Check first so the common case does not abort a caller's PostgreSQL transaction; the catch
-    // below covers a concurrent registration.
-    if (emailCredentialRepository.findByAddress(credential.address()).isPresent()) {
-      throw new EmailAddressTakenException();
+    // Check first so the common case does not abort a caller's PostgreSQL transaction; the catches
+    // below cover a concurrent registration.
+    Optional<EmailCredential> existing =
+        emailCredentialRepository.findByAddress(credential.address());
+    if (existing.isPresent()) {
+      return claim(existing.get(), identity);
     }
     try {
       emailCredentialRepository.save(credential);
@@ -73,6 +79,22 @@ public class EmailCredentialService {
     }
     credentialIdentityRepository.link(credential.id(), identity.id());
     return credential;
+  }
+
+  private EmailCredential claim(EmailCredential existing, Identity identity) {
+    Optional<UUID> owner = credentialIdentityRepository.findIdentityIdByCredentialId(existing.id());
+    if (owner.isPresent()) {
+      if (owner.get().equals(identity.id())) {
+        return existing;
+      }
+      throw new EmailAddressTakenException();
+    }
+    try {
+      credentialIdentityRepository.link(existing.id(), identity.id());
+    } catch (DuplicateKeyException _) {
+      throw new EmailAddressTakenException();
+    }
+    return existing;
   }
 
   /**

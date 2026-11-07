@@ -17,7 +17,9 @@ package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -32,6 +34,8 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 class EmailCredentialServiceTest extends AbstractEmailLinkTest {
 
@@ -93,8 +97,7 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
     // the real insert then hits the unique constraint.
     EmailCredentialRepository blind = mock(EmailCredentialRepository.class);
     when(blind.findByAddress(anyString())).thenReturn(Optional.empty());
-    when(blind.save(org.mockito.ArgumentMatchers.any()))
-        .thenAnswer(call -> emailCredentialRepository.save(call.getArgument(0)));
+    when(blind.save(any())).thenAnswer(call -> emailCredentialRepository.save(call.getArgument(0)));
     EmailCredentialService racing = new EmailCredentialService(blind, credentialIdentityRepository);
     Identity other = identityRepository.save(Identity.create());
 
@@ -151,5 +154,57 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
     Identity identity = identityRepository.save(Identity.create());
 
     assertThat(service.findOldestFor(identity.id())).isEmpty();
+  }
+
+  @Autowired private JdbcClient jdbcClient;
+
+  @Test
+  void registerReusesAnOrphanedAddress() {
+    Identity deleted = identityRepository.save(Identity.create());
+    EmailCredential orphan = service.register(deleted, "orphan@example.com");
+    // A raw delete leaves the credential row behind; only its link cascades.
+    jdbcClient.sql("DELETE FROM who_identity WHERE id = :id").param("id", deleted.id()).update();
+    Identity identity = identityRepository.save(Identity.create());
+
+    EmailCredential credential = service.register(identity, "Orphan@Example.com");
+
+    assertThat(credential).isEqualTo(orphan);
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(orphan.id()))
+        .contains(identity.id());
+  }
+
+  @Test
+  void registerOfAnAddressLinkedElsewhereStillThrows() {
+    Identity owner = identityRepository.save(Identity.create());
+    EmailCredential owned = service.register(owner, "owned@example.com");
+    Identity other = identityRepository.save(Identity.create());
+
+    assertThatThrownBy(() -> service.register(other, "owned@example.com"))
+        .isInstanceOf(EmailAddressTakenException.class);
+    assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(owned.id()))
+        .contains(owner.id());
+  }
+
+  @Test
+  void registerOfAnAddressTheIdentityAlreadyHasReturnsIt() {
+    Identity identity = identityRepository.save(Identity.create());
+    EmailCredential registered = service.register(identity, "again@example.com");
+
+    assertThat(service.register(identity, "again@example.com")).isEqualTo(registered);
+  }
+
+  @Test
+  void aConcurrentClaimOfAnOrphanLosingTheRaceIsReportedAsTaken() {
+    EmailCredential orphan =
+        emailCredentialRepository.save(EmailCredential.create("claim@example.com"));
+    // The link check sees no owner, as it would if the winner linked it a moment later.
+    CredentialIdentityRepository links = mock(CredentialIdentityRepository.class);
+    when(links.findIdentityIdByCredentialId(orphan.id())).thenReturn(Optional.empty());
+    Identity identity = Identity.create();
+    doThrow(new DuplicateKeyException("taken")).when(links).link(orphan.id(), identity.id());
+    EmailCredentialService racing = new EmailCredentialService(emailCredentialRepository, links);
+
+    assertThatThrownBy(() -> racing.register(identity, "claim@example.com"))
+        .isInstanceOf(EmailAddressTakenException.class);
   }
 }
