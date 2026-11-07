@@ -14,6 +14,8 @@
 
 A reusable Spring Boot library that maps external JWT credentials to a stable internal identity UUID and enforces role-based access control.
 
+**Requirements:** Java 25+, Spring Boot 4.1+, PostgreSQL 14+ (the production database Who is tested against).
+
 ## Quick Start — Run the Example App
 
 Clone the repo and be making authenticated API calls in under two minutes:
@@ -32,7 +34,7 @@ Then:
 
 1. Open `http://localhost:8080` in a browser
 2. Click **Login** and log in as `alice` / `password`
-3. Copy the access token shown on the page
+3. Copy the access token shown on the page (the demo shows it for convenience; real apps never display tokens)
 4. Use it:
 
 ```bash
@@ -71,9 +73,34 @@ HttpRequest → CredentialExtractor → Credential → Identity → Set<String> 
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-spring-boot-starter</artifactId>
-    <version>0.5.0</version>
+    <version>0.10.0</version>
 </dependency>
 ```
+
+---
+
+## Upgrading to 0.10.0
+
+0.10.0 is a security release. Some changes break existing code or data.
+
+- **API key filter wiring.** `ApiKeyAuthenticationFilter` is no longer registered globally with the servlet container. Add it to each chain that should accept API keys: `http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults())`. The filter skips requests that are already authenticated. See [Wiring the filter](#wiring-the-filter).
+- **Method security is on by default.** `@RequiresPermission` is now enforced without any setup. Set `who.method-security.enabled=false` to turn it off. An `@EnableMethodSecurity` in your own configuration is respected.
+- **`ApiKeyCredentialRepository.deleteById` returns `boolean`.** It returns `true` if a key was deleted. Update custom implementations. To revoke a key, call `ApiKeyService.revoke(UUID)`.
+- **New key and token format.** New API keys are `who_` plus 43 URL-safe characters (256 random bits). Enrollment tokens use the same random source. Existing keys and tokens keep working.
+- **Enrollment exceptions.** `enroll` throws `EnrollmentIdentityInactiveException` for an identity that is not active, and `CredentialAlreadyLinkedException` for a credential that is already linked. A token is single use, even under concurrent requests. `EnrollmentTokenNotFoundException` no longer contains the token value, and `EnrollmentToken.toString()` masks the value.
+- **JWT claims.** A token with no `iss` or no `sub` claim now gets 401 instead of 500. Validate the issuer too. See [Configure JWT](#configure-jwt).
+- **Foreign key on `who_identity_role`.** `who_identity_role.identity_id` now references `who_identity(id)` with `ON DELETE CASCADE`. Deleting an identity removes its role assignments, and assigning a role to an identity that is not in `who_identity` now fails. The `CREATE TABLE IF NOT EXISTS` schema does not change existing tables, so on an existing database run this yourself. Delete orphan rows first, or the constraint fails:
+
+```sql
+DELETE FROM who_identity_role
+WHERE identity_id NOT IN (SELECT id FROM who_identity);
+
+ALTER TABLE who_identity_role
+    ADD CONSTRAINT fk_identity_role_identity
+    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE;
+```
+
+- **Build.** Who is built against Spring Boot 4.1.2.
 
 ---
 
@@ -91,6 +118,8 @@ who:
 ```
 
 For production, set `who.initialize-schema: never` and manage the schema with Flyway or Liquibase instead.
+
+The `who-rbac` schema requires the `who_identity` table from `who-jdbc` (`who_identity_role.identity_id` references it). Run the `who-jdbc` schema first. The Flyway and Liquibase copies below are already in that order.
 
 ### Option A: Flyway
 
@@ -126,6 +155,7 @@ CREATE TABLE IF NOT EXISTS who_identity_role (
     identity_id UUID NOT NULL,
     role_id     UUID NOT NULL,
     PRIMARY KEY (identity_id, role_id),
+    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE,
     FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
 );
 
@@ -149,6 +179,7 @@ CREATE TABLE IF NOT EXISTS who_enrollment_token (
     status      VARCHAR(20)  NOT NULL,
     created_at  TIMESTAMP(9) NOT NULL,
     expires_at  TIMESTAMP(9) NOT NULL,
+    redeemed_at TIMESTAMP(9),
     FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
 );
 ```
@@ -263,6 +294,9 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     nullable: false
+                    foreignKeyName: fk_identity_role_identity
+                    references: who_identity(id)
+                    deleteCascade: true
               - column:
                   name: role_id
                   type: uuid
@@ -366,6 +400,9 @@ databaseChangeLog:
                   type: timestamp
                   constraints:
                     nullable: false
+              - column:
+                  name: redeemed_at
+                  type: timestamp
 ```
 
 ---
@@ -383,6 +420,21 @@ spring:
           jwk-set-uri: https://your-auth-provider.com/.well-known/jwks.json
           # or: issuer-uri: https://your-auth-provider.com
 ```
+
+Validate the issuer. With `issuer-uri`, Spring Security checks the `iss` claim for you. With `jwk-set-uri`, nothing checks it, so add a `JwtIssuerValidator` to your `JwtDecoder`:
+
+```java
+@Bean
+JwtDecoder jwtDecoder() {
+    NimbusJwtDecoder decoder = NimbusJwtDecoder
+        .withJwkSetUri("https://your-auth-provider.com/.well-known/jwks.json")
+        .build();
+    decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer("https://your-auth-provider.com"));
+    return decoder;
+}
+```
+
+A token with no `iss` or no `sub` claim gets 401.
 
 Wire `WhoJwtAuthenticationConverter` into your resource server security filter chain:
 
@@ -414,13 +466,13 @@ Who supports API key authentication via `who-apikey`. API keys are hashed before
 
 ### Wiring the filter
 
-Add `ApiKeyAuthenticationFilter` to your security filter chain:
+The filter is not registered globally. It only runs in chains that add it. Add it with `WhoApiKeySecurity`:
 
 ```java
-http.addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());
 ```
 
-`ApiKeyAuthenticationFilter` is auto-configured by `who-autoconfigure` — inject it as a bean.
+`WhoApiKeySecurity.apiKey()` takes the `ApiKeyAuthenticationFilter` bean that `who-autoconfigure` provides. To use your own instance, call `WhoApiKeySecurity.apiKey(filter)`. The filter goes before `AuthorizationFilter` and skips requests that are already authenticated.
 
 ### Configuring the header name
 
@@ -440,7 +492,7 @@ String rawKey = apiKeyService.create(identity, "Production server");
 // Show rawKey to the user once — it cannot be retrieved again
 ```
 
-The returned key is prefixed with `who_`. Store it securely — the library stores only the hash.
+The returned key is `who_` followed by 43 URL-safe characters (256 random bits). Store it securely — the library stores only the hash.
 
 ### Using the key
 
@@ -451,11 +503,13 @@ curl https://api.example.com/endpoint \
 
 ### Revoking a key
 
-Delete the `who_api_key_credential` row by `id`:
+Call `ApiKeyService.revoke` with the credential id:
 
-```sql
-DELETE FROM who_api_key_credential WHERE id = '<key-id>';
+```java
+apiKeyService.revoke(credentialId);
 ```
+
+This deletes the key and its identity link.
 
 Revocation takes effect immediately — the next request using that key will be denied.
 
@@ -481,6 +535,8 @@ All other operations — enrolling credentials, assigning roles, issuing API key
 
 Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer, subject)` pair and must be linked to an active `Identity`. Who does not auto-provision — access is denied for unknown credentials.
 
+Take the `issuer` and `subject` from the authenticated redeemer's own validated JWT. Never take them from the request body.
+
 **Using `WhoEnrollmentService` (recommended):**
 
 ```java
@@ -491,13 +547,22 @@ Identity identity = whoService.createIdentity();
 EnrollmentToken token = enrollmentService.createToken(identity);
 notifyUser(token.value()); // email, admin console, etc.
 
-// 3. User redeems the token with their JwtCredential
-JwtCredential credential = JwtCredential.create(issuer, subject);
-enrollmentService.enroll(token.value(), credential);
+// 3. The user logs in, then redeems the token. Persist the JwtCredential, then enroll.
+//    issuer and subject come from the redeemer's validated JWT.
+JwtCredential credential = jwtCredentialRepository.save(JwtCredential.create(issuer, subject));
+Identity enrolled = enrollmentService.enroll(token.value(), credential);
 
 // To cancel a token before it is redeemed:
 enrollmentService.revokeToken(token);
 ```
+
+A token can be redeemed once, even if two requests race. `enroll` throws:
+
+- `EnrollmentTokenNotFoundException` if the token does not exist,
+- `EnrollmentTokenExpiredException` if it has expired,
+- `EnrollmentTokenNotPendingException` if it was already redeemed or revoked,
+- `EnrollmentIdentityInactiveException` if the identity is not active,
+- `CredentialAlreadyLinkedException` if the credential is already linked to an identity.
 
 **Manual SQL insert (for bootstrapping / testing):**
 
@@ -554,7 +619,9 @@ rbacService.assignRoleByName(identity, AppRole.EDITOR);
 Role found = rbacService.findRequiredRole(AppRole.EDITOR);
 ```
 
-Permissions resolve transitively through all roles assigned to an identity. Use `@RequiresPermission` from `who-spring-security` to authorize methods:
+Roles can only be assigned to identities that exist in `who_identity`. Deleting an identity removes its role assignments.
+
+Permissions resolve transitively through all roles assigned to an identity. Method security is on by default, so `@RequiresPermission` is enforced with no extra setup. Set `who.method-security.enabled=false` to turn it off. If your application has its own `@EnableMethodSecurity`, Who respects it. Use `@RequiresPermission` from `who-spring-security` to authorize methods:
 
 ```java
 @GetMapping("/tasks")
@@ -593,6 +660,7 @@ public List<Task> getTasks(...) { ... }
 |----------|---------|-------------|
 | `who.initialize-schema` | `embedded` | When to run Who's bundled DDL scripts: `always`, `embedded` (H2/HSQLDB/Derby only), or `never` |
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
+| `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off |
 | `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |
 
 ---
