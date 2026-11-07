@@ -17,15 +17,11 @@ package org.jwcarman.who.enrollment;
 
 import org.jwcarman.who.core.exception.WhoException;
 
-/** Thrown when an enrollment token cannot be found by the given value. */
+/** Thrown when an enrollment token cannot be found. The message never carries the token. */
 public class EnrollmentTokenNotFoundException extends WhoException {
 
-  /**
-   * Creates a new exception for the given token value.
-   *
-   * @param tokenValue the token value that was not found
-   */
-  public EnrollmentTokenNotFoundException(String tokenValue) {
-    super("Enrollment token not found: %s", tokenValue);
+  /** Creates a new exception. */
+  public EnrollmentTokenNotFoundException() {
+    super("Enrollment token not found");
   }
 }

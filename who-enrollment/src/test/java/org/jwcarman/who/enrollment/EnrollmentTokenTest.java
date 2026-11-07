@@ -16,8 +16,10 @@
 package org.jwcarman.who.enrollment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -54,5 +56,47 @@ class EnrollmentTokenTest {
         EnrollmentToken.create(Identity.create(), Duration.ofHours(24)).revoke();
 
     assertThat(token.isPending()).isFalse();
+  }
+
+  @Test
+  void valueIsASecretNotAUuid() {
+    var token = EnrollmentToken.create(identity(), Duration.ofHours(1));
+
+    assertThat(token.value()).matches("[A-Za-z0-9_-]{43}");
+    assertThatThrownBy(() -> UUID.fromString(token.value()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void valueIsUnrelatedToTheId() {
+    for (int i = 0; i < 1_000; i++) {
+      var token = EnrollmentToken.create(identity(), Duration.ofHours(1));
+
+      assertThat(token.value()).doesNotContain(token.id().toString());
+    }
+  }
+
+  @Test
+  void toStringMasksTheValue() {
+    var token = EnrollmentToken.create(identity(), Duration.ofHours(1));
+
+    assertThat(token.toString()).doesNotContain(token.value()).contains("value=***");
+  }
+
+  @Test
+  void revokeKeepsRedeemedAt() {
+    var redeemed = EnrollmentToken.create(identity(), Duration.ofHours(1)).redeem();
+
+    assertThat(redeemed.revoke().redeemedAt()).isEqualTo(redeemed.redeemedAt());
+  }
+
+  @Test
+  void notFoundMessageCarriesNoToken() {
+    assertThat(new EnrollmentTokenNotFoundException().getMessage())
+        .isEqualTo("Enrollment token not found");
+  }
+
+  private static Identity identity() {
+    return Identity.create();
   }
 }

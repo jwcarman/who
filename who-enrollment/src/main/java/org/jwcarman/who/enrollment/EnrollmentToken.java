@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.jwcarman.who.core.crypto.Secrets;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.id.Identifiers;
 
@@ -27,8 +28,9 @@ import org.jwcarman.who.core.id.Identifiers;
  * An immutable enrollment token that links a {@link org.jwcarman.who.core.spi.Credential} to a
  * pre-existing {@link org.jwcarman.who.core.domain.Identity}.
  *
- * <p>The token value (a random UUID string) is what gets shared with the end user. Expiry is
- * determined at runtime — {@code EXPIRED} is not stored as a status.
+ * <p>The token value is a secret random string, distinct from the {@code id}, and is what gets
+ * shared with the end user. {@link #toString()} never prints it. Expiry is determined at runtime —
+ * {@code EXPIRED} is not stored as a status.
  *
  * @param id stable UUID identifying this token record
  * @param identityId the identity this token is associated with
@@ -69,11 +71,34 @@ public record EnrollmentToken(
     return new EnrollmentToken(
         Identifiers.uuid(),
         identity.id(),
-        Identifiers.uuid().toString(),
+        Secrets.token(),
         EnrollmentTokenStatus.PENDING,
         now,
         now.plus(expiration),
         null);
+  }
+
+  /**
+   * Returns a description of this token with the {@code value} masked, so that logging a token
+   * never leaks the secret.
+   *
+   * @return a string with {@code value=***} in place of the token value
+   */
+  @Override
+  public String toString() {
+    return "EnrollmentToken[id="
+        + id
+        + ", identityId="
+        + identityId
+        + ", value=***, status="
+        + status
+        + ", createdAt="
+        + createdAt
+        + ", expiresAt="
+        + expiresAt
+        + ", redeemedAt="
+        + redeemedAt
+        + "]";
   }
 
   /**
@@ -111,6 +136,6 @@ public record EnrollmentToken(
    */
   public EnrollmentToken revoke() {
     return new EnrollmentToken(
-        id, identityId, value, EnrollmentTokenStatus.REVOKED, createdAt, expiresAt, null);
+        id, identityId, value, EnrollmentTokenStatus.REVOKED, createdAt, expiresAt, redeemedAt);
   }
 }

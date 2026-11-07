@@ -96,7 +96,7 @@ public class WhoEnrollmentService {
     EnrollmentToken token =
         enrollmentTokenRepository
             .findByValue(MessageDigests.sha256Hex(tokenValue))
-            .orElseThrow(() -> new EnrollmentTokenNotFoundException(tokenValue));
+            .orElseThrow(EnrollmentTokenNotFoundException::new);
 
     if (token.isExpired()) {
       throw new EnrollmentTokenExpiredException(token.id());
@@ -125,7 +125,7 @@ public class WhoEnrollmentService {
   public void revokeToken(EnrollmentToken token) {
     enrollmentTokenRepository
         .findById(token.id())
-        .orElseThrow(() -> new EnrollmentTokenNotFoundException(token.id().toString()));
+        .orElseThrow(EnrollmentTokenNotFoundException::new);
     enrollmentTokenRepository.save(token.revoke());
   }
 
