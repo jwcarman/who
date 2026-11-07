@@ -1,0 +1,5 @@
+{
+  "resources": [
+    {"glob": "org/jwcarman/who/db/who-changelog.xml"}
+  ]
+}

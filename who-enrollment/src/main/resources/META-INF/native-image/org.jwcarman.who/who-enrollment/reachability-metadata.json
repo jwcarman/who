@@ -1,0 +1,6 @@
+{
+  "resources": [
+    {"glob": "org/jwcarman/who/enrollment/db/*.xml"},
+    {"glob": "org/jwcarman/who/enrollment/who-*-schema.sql"}
+  ]
+}

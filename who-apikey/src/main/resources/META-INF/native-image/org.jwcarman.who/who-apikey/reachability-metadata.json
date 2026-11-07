@@ -1,0 +1,6 @@
+{
+  "resources": [
+    {"glob": "org/jwcarman/who/apikey/db/*.xml"},
+    {"glob": "org/jwcarman/who/apikey/who-*-schema.sql"}
+  ]
+}

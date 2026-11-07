@@ -1,0 +1,6 @@
+{
+  "resources": [
+    {"glob": "org/jwcarman/who/passkey/db/*.xml"},
+    {"glob": "org/jwcarman/who/passkey/who-*-schema.sql"}
+  ]
+}
