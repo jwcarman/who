@@ -1,4 +1,36 @@
-# Upgrading to 0.10.0
+# Upgrading
+
+## Upgrading to 0.11.0
+
+0.11.0 adds email-link sign-in and sessions. It also changes every timestamp column to `TIMESTAMP WITH TIME ZONE`.
+
+### Convert the timestamp columns first
+
+Existing databases created by 0.10.0 or earlier must run these statements before the upgrade. Who 0.11.0 reads and writes timestamps as UTC values, and reading the old `TIMESTAMP` columns may fail. The `CREATE TABLE IF NOT EXISTS` schema does not change existing tables.
+
+The old columns hold local time without a zone. Use the time zone the JVM ran in, here `UTC`:
+
+```sql
+ALTER TABLE who_identity
+    ALTER COLUMN created_at TYPE timestamptz USING created_at AT TIME ZONE 'UTC',
+    ALTER COLUMN updated_at TYPE timestamptz USING updated_at AT TIME ZONE 'UTC';
+
+ALTER TABLE who_enrollment_token
+    ALTER COLUMN created_at  TYPE timestamptz USING created_at  AT TIME ZONE 'UTC',
+    ALTER COLUMN expires_at  TYPE timestamptz USING expires_at  AT TIME ZONE 'UTC',
+    ALTER COLUMN redeemed_at TYPE timestamptz USING redeemed_at AT TIME ZONE 'UTC';
+```
+
+Replace `UTC` with the zone of the JVM (for example `Europe/Berlin`) if it was not UTC. These statements are for PostgreSQL. New schemas spell the type `TIMESTAMP WITH TIME ZONE`, which H2 and PostgreSQL both accept.
+
+### Other changes
+
+- **New tables.** Email-link sign-in adds `who_email_credential` and `who_email_link_token`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md#flyway).
+- **Liquibase.** The long YAML changelog in the old guide is gone. Include `classpath:org/jwcarman/who/db/changelog-all.xml` instead. See [Liquibase](database.md#liquibase). Do not run it over tables that were created by hand without `changelog-sync` first.
+- **Email links are opt-in.** Nothing changes for an application that uses only JWT or API keys. To turn them on, see [Email Links](email-links.md).
+- **Sessions.** `WhoWebSecurity.passwordless()` is new and applies only to chains that call it. Other chains are unchanged.
+
+## Upgrading to 0.10.0
 
 0.10.0 is a security release. Some changes break existing code or data.
 

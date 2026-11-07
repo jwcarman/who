@@ -81,10 +81,11 @@ nav:
       - Database Setup: guides/database.md
       - JWT: guides/jwt.md
       - API Keys: guides/api-keys.md
+      - Email Links: guides/email-links.md
       - Enrollment: guides/enrollment.md
       - RBAC and Method Security: guides/rbac.md
       - Configuration Reference: guides/configuration.md
-      - Upgrading to 0.10.0: guides/upgrading.md
+      - Upgrading: guides/upgrading.md
   - Reference:
       - API (Javadoc): https://jwcarman.github.io/who/api/latest/
       - Changelog: https://github.com/jwcarman/who/blob/main/CHANGELOG.md

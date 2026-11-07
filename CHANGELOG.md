@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Read [Upgrading](https://jwcarman.github.io/who/guides/upgrading/) before you upgrade. Existing
+databases must convert their timestamp columns first.
+
+### Breaking changes
+
+- Every timestamp column is `TIMESTAMP WITH TIME ZONE`, and repositories bind `OffsetDateTime` in
+  UTC. Databases created by 0.10.0 or earlier need `ALTER TABLE` statements (in the upgrade guide)
+  before the upgrade, or reading timestamps may fail.
+
+### Added
+
+- `who-email-link`: sign-in by an emailed link, on Spring Security's one-time-token login.
+  `EmailCredentialService` (`register`, `findByAddress`, `revoke`), the `EmailLinkSender` SPI, and
+  `MailEmailLinkSender` for `JavaMailSender`. It is opt-in: set `who.email-link.link-base-url`.
+- `who.email-link.token-ttl`, `resend-interval`, `from` and `subject` properties.
+- `WhoWebSecurity.passwordless()`: session sign-in for a browser chain, with `csrf.spa()`, a plain
+  401 for unauthenticated requests, and `/logout` answering 204. It fails at startup if the chain
+  disables CSRF or is stateless.
+- `GET /who/me` returns `{"identityId", "permissions"}` for the signed-in caller.
+- Liquibase changelogs for every module, and `changelog-all.xml` in `who-autoconfigure`.
+- The [Email Links](https://jwcarman.github.io/who/guides/email-links/) guide.
+
+### Changed
+
+- The session keeps only the identity and credential ids. Who re-resolves the principal on every
+  request, so role changes and deactivation take effect on the next request.
+- The Liquibase guide now includes `changelog-all.xml` instead of a copied changelog.
+
 ## [0.10.0] - 2026-11-07
 
 A security release. Read [Upgrading to 0.10.0](https://jwcarman.github.io/who/guides/upgrading/)

@@ -87,7 +87,8 @@ foreign key and revoked pending enrollment tokens. See
 | `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` |
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
-| `who-spring-security` | `@RequiresPermission` |
+| `who-email-link` | Email-link sign-in: `EmailCredentialService`, `EmailLinkSender`, and the hooks for Spring's one-time-token login |
+| `who-spring-security` | `@RequiresPermission`, `WhoWebSecurity.passwordless()` and `GET /who/me` |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
 | `who-spring-boot-starter` | Starter that pulls in all of the above |
 

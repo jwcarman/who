@@ -23,8 +23,8 @@ Copy the following file to `src/main/resources/db/migration/V1__who.sql` in your
 CREATE TABLE IF NOT EXISTS who_identity (
     id         UUID PRIMARY KEY,
     status     VARCHAR(20)  NOT NULL,
-    created_at TIMESTAMP(9) NOT NULL,
-    updated_at TIMESTAMP(9) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS who_credential_identity (
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS who_credential_identity (
 );
 
 CREATE TABLE IF NOT EXISTS who_role (
-    id   UUID         PRIMARY KEY,
+    id   UUID        PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE
 );
 
@@ -60,241 +60,48 @@ CREATE TABLE IF NOT EXISTS who_jwt_credential (
     UNIQUE (issuer, subject)
 );
 
+CREATE TABLE IF NOT EXISTS who_enrollment_token (
+    id          UUID         PRIMARY KEY,
+    identity_id UUID         NOT NULL,
+    token_value VARCHAR(255) NOT NULL UNIQUE,
+    status      VARCHAR(20)  NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
+    expires_at  TIMESTAMP WITH TIME ZONE NOT NULL,
+    redeemed_at TIMESTAMP WITH TIME ZONE,
+    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS who_api_key_credential (
     id       UUID         PRIMARY KEY,
     name     VARCHAR(255) NOT NULL,
     key_hash VARCHAR(64)  NOT NULL UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS who_enrollment_token (
-    id          UUID         PRIMARY KEY,
-    identity_id UUID         NOT NULL,
-    token_value VARCHAR(255) NOT NULL UNIQUE,
-    status      VARCHAR(20)  NOT NULL,
-    created_at  TIMESTAMP(9) NOT NULL,
-    expires_at  TIMESTAMP(9) NOT NULL,
-    redeemed_at TIMESTAMP(9),
-    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS who_email_credential (
+    id      UUID         PRIMARY KEY,
+    address VARCHAR(320) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS who_email_link_token (
+    credential_id UUID                     PRIMARY KEY REFERENCES who_email_credential (id) ON DELETE CASCADE,
+    token_hash    VARCHAR(64)              NOT NULL UNIQUE,
+    created_at    TIMESTAMP WITH TIME ZONE NOT NULL,
+    expires_at    TIMESTAMP WITH TIME ZONE NOT NULL
 );
 ```
 
 ## Liquibase
 
-Copy the following file to `src/main/resources/db/changelog/001-who.yaml` in your application:
+Every module ships a changelog that matches its `schema.sql`. `who-autoconfigure` ships `org/jwcarman/who/db/changelog-all.xml`, which includes the changelog of each module on the classpath, `who-jdbc` first. Include that one file from your master changelog:
 
 ```yaml
 databaseChangeLog:
-  - changeSet:
-      id: who-identity
-      author: who
-      changes:
-        - createTable:
-            tableName: who_identity
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: status
-                  type: varchar(20)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: created_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: updated_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-
-  - changeSet:
-      id: who-credential-identity
-      author: who
-      changes:
-        - createTable:
-            tableName: who_credential_identity
-            columns:
-              - column:
-                  name: credential_id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: identity_id
-                  type: uuid
-                  constraints:
-                    nullable: false
-                    foreignKeyName: fk_credential_identity_identity
-                    references: who_identity(id)
-                    deleteCascade: true
-
-  - changeSet:
-      id: who-role
-      author: who
-      changes:
-        - createTable:
-            tableName: who_role
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: name
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-                    unique: true
-
-  - changeSet:
-      id: who-role-permission
-      author: who
-      changes:
-        - createTable:
-            tableName: who_role_permission
-            columns:
-              - column:
-                  name: role_id
-                  type: uuid
-                  constraints:
-                    nullable: false
-                    foreignKeyName: fk_role_permission_role
-                    references: who_role(id)
-                    deleteCascade: true
-              - column:
-                  name: permission
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-        - addPrimaryKey:
-            tableName: who_role_permission
-            columnNames: role_id, permission
-
-  - changeSet:
-      id: who-identity-role
-      author: who
-      changes:
-        - createTable:
-            tableName: who_identity_role
-            columns:
-              - column:
-                  name: identity_id
-                  type: uuid
-                  constraints:
-                    nullable: false
-                    foreignKeyName: fk_identity_role_identity
-                    references: who_identity(id)
-                    deleteCascade: true
-              - column:
-                  name: role_id
-                  type: uuid
-                  constraints:
-                    nullable: false
-                    foreignKeyName: fk_identity_role_role
-                    references: who_role(id)
-                    deleteCascade: true
-        - addPrimaryKey:
-            tableName: who_identity_role
-            columnNames: identity_id, role_id
-
-  - changeSet:
-      id: who-jwt-credential
-      author: who
-      changes:
-        - createTable:
-            tableName: who_jwt_credential
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: issuer
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: subject
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-        - addUniqueConstraint:
-            tableName: who_jwt_credential
-            columnNames: issuer, subject
-
-  - changeSet:
-      id: who-api-key-credential
-      author: who
-      changes:
-        - createTable:
-            tableName: who_api_key_credential
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: name
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: key_hash
-                  type: varchar(64)
-                  constraints:
-                    nullable: false
-                    unique: true
-
-  - changeSet:
-      id: who-enrollment-token
-      author: who
-      changes:
-        - createTable:
-            tableName: who_enrollment_token
-            columns:
-              - column:
-                  name: id
-                  type: uuid
-                  constraints:
-                    primaryKey: true
-              - column:
-                  name: identity_id
-                  type: uuid
-                  constraints:
-                    nullable: false
-                    foreignKeyName: fk_enrollment_token_identity
-                    references: who_identity(id)
-                    deleteCascade: true
-              - column:
-                  name: token_value
-                  type: varchar(255)
-                  constraints:
-                    nullable: false
-                    unique: true
-              - column:
-                  name: status
-                  type: varchar(20)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: created_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: expires_at
-                  type: timestamp
-                  constraints:
-                    nullable: false
-              - column:
-                  name: redeemed_at
-                  type: timestamp
+  - include:
+      file: classpath:org/jwcarman/who/db/changelog-all.xml
 ```
+
+Then set `who.initialize-schema: never`. Modules that are not on the classpath are skipped.
+
+The `classpath:` includes inside `changelog-all.xml` need Spring Boot's Liquibase integration. The Liquibase CLI and the Liquibase Maven plugin may skip them without a warning, so run the changelog through Spring Boot.
+
+The changelogs have no preconditions. Use them on a fresh schema. If the tables already exist because `schema.sql` created them, run Liquibase `changelog-sync` once before the first update, so Liquibase records the change sets as applied and does not try to create the tables again.
