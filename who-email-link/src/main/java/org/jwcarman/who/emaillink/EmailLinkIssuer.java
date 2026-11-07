@@ -94,6 +94,7 @@ public class EmailLinkIssuer {
   }
 
   private void issueTo(EmailCredential credential, String tokenValue) {
+    String tokenHash = MessageDigests.sha256Hex(tokenValue);
     try {
       if (whoService.resolve(credential).isEmpty()) {
         return;
@@ -102,7 +103,7 @@ public class EmailLinkIssuer {
       boolean issued =
           repository.issue(
               credential.id(),
-              MessageDigests.sha256Hex(tokenValue),
+              tokenHash,
               now,
               now.plus(settings.tokenTtl()),
               settings.resendInterval());
@@ -118,10 +119,10 @@ public class EmailLinkIssuer {
           e.getClass().getName());
       return;
     }
-    send(credential, tokenValue);
+    send(credential, tokenValue, tokenHash);
   }
 
-  private void send(EmailCredential credential, String tokenValue) {
+  private void send(EmailCredential credential, String tokenValue, String tokenHash) {
     try {
       sender.send(credential.address(), settings.linkBaseUrl() + "#token=" + tokenValue);
     } catch (RuntimeException e) {
@@ -129,13 +130,13 @@ public class EmailLinkIssuer {
           "Failed to send sign-in link for credential {}: {}",
           credential.id(),
           e.getClass().getName());
-      deleteQuietly(credential);
+      deleteQuietly(credential, tokenHash);
     }
   }
 
-  private void deleteQuietly(EmailCredential credential) {
+  private void deleteQuietly(EmailCredential credential, String tokenHash) {
     try {
-      repository.delete(credential.id());
+      repository.delete(credential.id(), tokenHash);
     } catch (RuntimeException e) {
       log.warn(
           "Failed to remove unsent sign-in link for credential {}: {}",

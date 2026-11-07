@@ -45,6 +45,7 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
+import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
@@ -160,7 +161,7 @@ class EmailLinkIssuerTest {
     issuer.issue(ADDRESS, TOKEN);
 
     verifyNoInteractions(sender);
-    verify(repository, never()).delete(any());
+    verify(repository, never()).delete(any(), anyString());
   }
 
   @Test
@@ -171,7 +172,9 @@ class EmailLinkIssuerTest {
 
     issuer.issue(ADDRESS, TOKEN);
 
-    verify(repository).delete(credential.id());
+    ArgumentCaptor<String> issuedHash = ArgumentCaptor.forClass(String.class);
+    verify(repository).issue(any(), issuedHash.capture(), any(), any(), any());
+    verify(repository).delete(credential.id(), issuedHash.getValue());
   }
 
   @Test
@@ -210,7 +213,7 @@ class EmailLinkIssuerTest {
     issuer.issue(ADDRESS, TOKEN);
 
     verifyNoInteractions(sender);
-    verify(repository, never()).delete(any());
+    verify(repository, never()).delete(any(), anyString());
     assertOneSafeWarning(IllegalStateException.class.getName(), !step.equals("findByAddress"));
   }
 }

@@ -19,6 +19,8 @@ import static org.springframework.security.web.header.writers.ReferrerPolicyHead
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +44,11 @@ import org.springframework.security.web.context.SecurityContextRepository;
 public class PasswordlessConfigurer
     extends AbstractHttpConfigurer<PasswordlessConfigurer, HttpSecurity> {
 
+  private static final Logger log = LoggerFactory.getLogger(PasswordlessConfigurer.class);
+
+  static final String NO_METHODS =
+      "WhoWebSecurity.passwordless() found no sign-in methods; set who.email-link.link-base-url"
+          + " to enable email-link sign-in";
   static final String CSRF_REQUIRED =
       "WhoWebSecurity.passwordless() requires CSRF protection; remove csrf.disable() from this chain";
   static final String SESSIONS_REQUIRED =
@@ -82,6 +89,9 @@ public class PasswordlessConfigurer
 
     List<PasswordlessLoginMethod> methods =
         context.getBeanProvider(PasswordlessLoginMethod.class).orderedStream().toList();
+    if (methods.isEmpty()) {
+      log.warn(NO_METHODS);
+    }
     for (PasswordlessLoginMethod method : methods) {
       method.configure(http);
     }

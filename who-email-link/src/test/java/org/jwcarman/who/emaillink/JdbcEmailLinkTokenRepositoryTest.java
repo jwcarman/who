@@ -94,13 +94,25 @@ class JdbcEmailLinkTokenRepositoryTest extends AbstractEmailLinkTest {
   }
 
   @Test
-  void deleteRemovesTheToken() {
+  void deleteRemovesTheMatchingToken() {
     EmailCredential c = credential();
     tokens.issue(c.id(), "h1", now, now.plusSeconds(300), INTERVAL);
 
-    tokens.delete(c.id());
+    tokens.delete(c.id(), "h1");
 
     assertThat(tokens.consume("h1", now)).isEmpty();
+  }
+
+  @Test
+  void deleteWithAStaleHashLeavesTheNewerToken() {
+    EmailCredential c = credential();
+    tokens.issue(c.id(), "h1", now, now.plusSeconds(300), INTERVAL);
+    Instant later = now.plus(INTERVAL).plusSeconds(1);
+    tokens.issue(c.id(), "h2", later, later.plusSeconds(300), INTERVAL);
+
+    tokens.delete(c.id(), "h1");
+
+    assertThat(tokens.consume("h2", later)).contains(c.id());
   }
 
   @Test

@@ -49,6 +49,7 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.web.WhoMeController;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -67,6 +68,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 @SpringBootTest(classes = PasswordlessConfigurerTest.TestApp.class)
 class PasswordlessConfigurerTest {
@@ -283,5 +289,46 @@ class PasswordlessConfigurerTest {
     assertStartupFailsWith(
         StatelessApp.class,
         "WhoWebSecurity.passwordless() needs sessions; this chain is STATELESS");
+  }
+
+  @Configuration
+  static class NoLoginMethodsApp {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) throws Exception {
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .with(WhoWebSecurity.passwordless(), withDefaults());
+      return http.build();
+    }
+  }
+
+  @Test
+  void noLoginMethodsStartsWithAWarningAndAnswers401() {
+    Logger logger = (Logger) LoggerFactory.getLogger(PasswordlessConfigurer.class);
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    logger.addAppender(logs);
+    try {
+      new WebApplicationContextRunner()
+          .withUserConfiguration(BaseBadApp.class, NoLoginMethodsApp.class)
+          .run(
+              ctx -> {
+                assertThat(ctx).hasNotFailed();
+                MockMvc noMethods =
+                    MockMvcBuilders.webAppContextSetup((WebApplicationContext) ctx)
+                        .apply(springSecurity())
+                        .build();
+                noMethods.perform(get("/anything")).andExpect(status().isUnauthorized());
+              });
+    } finally {
+      logger.detachAppender(logs);
+    }
+
+    assertThat(logs.list)
+        .filteredOn(e -> e.getLevel() == Level.WARN)
+        .singleElement()
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .asString()
+        .contains("found no sign-in methods")
+        .contains("who.email-link.link-base-url");
   }
 }

@@ -86,10 +86,13 @@ public class JdbcEmailLinkTokenRepository implements EmailLinkTokenRepository {
   }
 
   @Override
-  public void delete(UUID credentialId) {
+  public void delete(UUID credentialId, String tokenHash) {
     jdbcClient
-        .sql("DELETE FROM who_email_link_token WHERE credential_id = :credentialId")
+        .sql(
+            "DELETE FROM who_email_link_token"
+                + " WHERE credential_id = :credentialId AND token_hash = :hash")
         .param(PARAM_CREDENTIAL_ID, credentialId)
+        .param(PARAM_HASH, tokenHash)
         .update();
   }
 }

@@ -47,9 +47,11 @@ public interface EmailLinkTokenRepository {
   Optional<UUID> consume(String tokenHash, Instant now);
 
   /**
-   * Deletes the credential's token, if any.
+   * Deletes the credential's token only if it is still the one with this hash, so a failed send
+   * never removes a newer link.
    *
    * @param credentialId the email credential
+   * @param tokenHash the SHA-256 hash of the token to delete
    */
-  void delete(UUID credentialId);
+  void delete(UUID credentialId, String tokenHash);
 }
