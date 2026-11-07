@@ -44,12 +44,14 @@ import org.jwcarman.who.rbac.RoleRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 /**
  * Spring Boot autoconfiguration that wires all Who modules together.
@@ -59,8 +61,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  * {@link ConditionalOnClass} so they are only registered when the relevant module is present on the
  * classpath.
  *
- * <p>This class does NOT enable {@code @EnableMethodSecurity} — that is the application's
- * responsibility.
+ * <p>When {@code who-spring-security} is on the classpath, method security is enabled by default so
+ * that {@code @RequiresPermission} is enforced; set {@code who.method-security.enabled=false} to
+ * opt out. An application that declares its own {@code @EnableMethodSecurity} is left alone.
  */
 @AutoConfiguration
 @EnableConfigurationProperties(WhoProperties.class)
@@ -257,4 +260,17 @@ public class WhoAutoConfiguration {
       return registration;
     }
   }
+
+  /**
+   * Turns on method security so {@code @RequiresPermission} is enforced rather than silently
+   * ignored.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @EnableMethodSecurity
+  @ConditionalOnClass(name = "org.jwcarman.who.spring.security.RequiresPermission")
+  @ConditionalOnProperty(prefix = "who.method-security", name = "enabled", matchIfMissing = true)
+  @ConditionalOnMissingBean(
+      type =
+          "org.springframework.security.config.annotation.method.configuration.PrePostMethodSecurityConfiguration")
+  static class MethodSecurityConfiguration {}
 }

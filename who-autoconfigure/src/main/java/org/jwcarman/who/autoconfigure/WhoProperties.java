@@ -32,6 +32,7 @@ public class WhoProperties {
 
   private Enrollment enrollment = new Enrollment();
   private ApiKey apiKey = new ApiKey();
+  private MethodSecurity methodSecurity = new MethodSecurity();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -85,6 +86,49 @@ public class WhoProperties {
    */
   public void setApiKey(ApiKey apiKey) {
     this.apiKey = apiKey;
+  }
+
+  /**
+   * Returns the method security properties.
+   *
+   * @return method security properties
+   */
+  public MethodSecurity getMethodSecurity() {
+    return methodSecurity;
+  }
+
+  /**
+   * Sets the method security properties.
+   *
+   * @param methodSecurity method security properties
+   */
+  public void setMethodSecurity(MethodSecurity methodSecurity) {
+    this.methodSecurity = methodSecurity;
+  }
+
+  /** Properties for method security. */
+  public static class MethodSecurity {
+
+    /** Whether Who enables method security so {@code @RequiresPermission} is enforced. */
+    private boolean enabled = true;
+
+    /**
+     * Returns whether Who enables method security.
+     *
+     * @return true if enabled
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Sets whether Who enables method security.
+     *
+     * @param enabled true to enable
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
   }
 
   /** Properties for the {@code who-enrollment} module. */
