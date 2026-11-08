@@ -7,8 +7,12 @@ org.jwcarman.who.core.id
 org.jwcarman.who.core.repository
 org.jwcarman.who.core.service
 org.jwcarman.who.core.spi
+org.jwcarman.who.emaillink
 org.jwcarman.who.enrollment
 org.jwcarman.who.jdbc
 org.jwcarman.who.jwt
+org.jwcarman.who.passkey
+org.jwcarman.who.passkey.aot
 org.jwcarman.who.rbac
 org.jwcarman.who.spring.security
+org.jwcarman.who.spring.security.web
