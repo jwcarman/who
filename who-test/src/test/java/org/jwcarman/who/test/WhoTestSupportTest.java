@@ -17,24 +17,30 @@ package org.jwcarman.who.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +68,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.servlet.DispatcherServlet;
 
 @SpringBootTest(classes = WhoTestSupportTest.TestApp.class)
 class WhoTestSupportTest {
@@ -103,6 +110,38 @@ class WhoTestSupportTest {
     @GetMapping("/crumb/clear")
     void clear(HttpServletResponse response) {
       response.addCookie(new Cookie("crumb", null));
+    }
+
+    @GetMapping("/crumb/empty")
+    void empty(HttpServletResponse response) {
+      response.addCookie(new Cookie("crumb", ""));
+    }
+
+    @GetMapping("/crumb/expire")
+    void expire(HttpServletResponse response) {
+      Cookie cookie = new Cookie("crumb", "stale");
+      cookie.setMaxAge(0);
+      response.addCookie(cookie);
+    }
+
+    @GetMapping("/crumb/echo")
+    String echo(HttpServletRequest request) {
+      return Arrays.stream(request.getCookies())
+          .filter(c -> !"XSRF-TOKEN".equals(c.getName()))
+          .map(c -> c.getName() + "=" + c.getValue())
+          .sorted()
+          .collect(Collectors.joining(","));
+    }
+
+    @GetMapping("/session/rotate")
+    void rotate(HttpServletRequest request) {
+      request.getSession().invalidate();
+      request.getSession(true);
+    }
+
+    @GetMapping("/session/drop")
+    void drop(HttpServletRequest request) {
+      request.getSession().invalidate();
     }
   }
 
@@ -230,5 +269,100 @@ class WhoTestSupportTest {
 
     assertThat(session.getAttribute(WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE))
         .isEqualTo(identity.id().toString());
+  }
+
+  @Test
+  void browserCookieWinsAClashAndOtherCallerCookiesAreKept() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.perform(get("/crumb/set")).andExpect(status().isOk());
+
+    browser
+        .perform(get("/crumb/echo").cookie(new Cookie("crumb", "raw"), new Cookie("extra", "1")))
+        .andExpect(status().isOk())
+        .andExpect(content().string("crumb=chocolate,extra=1"));
+  }
+
+  @Test
+  void browserDropsAnEmptyValuedCookie() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.perform(get("/crumb/set")).andExpect(status().isOk());
+
+    browser.perform(get("/crumb/empty")).andExpect(status().isOk());
+
+    assertThat(browser.cookie("crumb")).isEmpty();
+  }
+
+  @Test
+  void browserDropsAnExpiredCookieWithAValue() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.perform(get("/crumb/set")).andExpect(status().isOk());
+
+    browser.perform(get("/crumb/expire")).andExpect(status().isOk());
+
+    assertThat(browser.cookie("crumb")).isEmpty();
+  }
+
+  @Test
+  void browserAdoptsASessionTheApplicationCreatesInPlaceOfTheOldOne() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    MockHttpSession before = browser.session();
+
+    browser.perform(get("/session/rotate")).andExpect(status().isOk());
+
+    assertThat(browser.session()).isNotSameAs(before);
+    assertThat(browser.session().isInvalid()).isFalse();
+  }
+
+  @Test
+  void browserStartsAFreshSessionAfterTheApplicationInvalidatesItWithoutReplacement()
+      throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    MockHttpSession before = browser.session();
+
+    browser.perform(get("/session/drop")).andExpect(status().isOk());
+
+    assertThat(browser.session()).isNotSameAs(before);
+    assertThat(browser.session().isInvalid()).isFalse();
+  }
+
+  @Test
+  void unsafeMethodsOtherThanPostAndDeleteGetTheCsrfHeaderToo() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+
+    int status = browser.perform(put("/who/me")).andReturn().getResponse().getStatus();
+
+    assertThat(status).isNotEqualTo(403);
+  }
+
+  @Test
+  void aRequestWithoutAMethodIsSentWithoutTheCsrfHeader() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.perform(get("/who/me")).andExpect(status().isOk());
+    var request =
+        get("/who/me")
+            .with(
+                r -> {
+                  r.setMethod(null);
+                  return r;
+                });
+
+    int status = browser.perform(request).andReturn().getResponse().getStatus();
+
+    assertThat(status).isNotEqualTo(403);
+    assertThat(browser.cookie("XSRF-TOKEN")).isPresent();
+  }
+
+  @Test
+  void aMockMvcWithoutAWebContextFallsBackToAMockHttpSession() {
+    MockMvc detached = mock(MockMvc.class);
+    when(detached.getDispatcherServlet()).thenReturn(new DispatcherServlet());
+
+    WhoMockMvcBrowser browser =
+        new WhoMockMvcBrowser(detached).signedInAs(identity.id(), credentialId);
+
+    assertThat(
+            browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+        .isNotNull();
+    assertThat(browser.cookie("SESSION")).isEmpty();
   }
 }

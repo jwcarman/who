@@ -206,7 +206,7 @@ public class WhoMockMvcBrowser {
   }
 
   private void adoptSession(HttpSession current) {
-    if (current instanceof MockHttpSession created && created != session && !created.isInvalid()) {
+    if (current instanceof MockHttpSession created && created != session) {
       session = created;
     } else if (session.isInvalid()) {
       session = new MockHttpSession();

@@ -16,16 +16,19 @@
 package org.jwcarman.who.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.spring.security.WhoSession;
@@ -35,6 +38,7 @@ import org.springframework.mock.web.MockServletContext;
 import org.springframework.session.MapSession;
 import org.springframework.session.MapSessionRepository;
 import org.springframework.session.Session;
+import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 
 class SpringSessionSignInTest {
@@ -79,6 +83,33 @@ class SpringSessionSignInTest {
             saved.<String>getAttribute(
                 WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE))
         .isEqualTo(identityId.toString());
+  }
+
+  @Test
+  void aCookieSerializerThatWritesNoCookieIsRejected() {
+    GenericWebApplicationContext context = context(new MockEnvironment());
+    context.registerBean(
+        MapSessionRepository.class, () -> new MapSessionRepository(new HashMap<>()));
+    context.registerBean(CookieSerializer.class, SilentCookieSerializer::new);
+    context.refresh();
+
+    assertThatThrownBy(
+            () -> SpringSessionSignIn.signIn(context, identityId, credentialId, SIGNED_IN_AT))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Expected the session CookieSerializer to write one cookie, but it wrote 0");
+  }
+
+  private static final class SilentCookieSerializer implements CookieSerializer {
+
+    @Override
+    public void writeCookieValue(CookieValue cookieValue) {
+      // writes nothing
+    }
+
+    @Override
+    public List<String> readCookieValues(HttpServletRequest request) {
+      return List.of();
+    }
   }
 
   private static GenericWebApplicationContext context(MockEnvironment environment) {
