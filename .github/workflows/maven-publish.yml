@@ -21,8 +21,15 @@ jobs:
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_SIGNING_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      # processAllModules is required: who-bom is deliberately parentless, and versions:set walks
+      # parent references, so without it the BOM keeps its -SNAPSHOT version and publishes that way.
+      # Maven Central artifacts are immutable, so this cannot be corrected after the fact.
+      # The tag name is passed through env rather than interpolated into the run: script, so that a
+      # tag containing shell metacharacters cannot inject commands.
       - name: Set version
-        run: mvn versions:set -DnewVersion=${{ github.event.release.tag_name }}
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: mvn versions:set -DnewVersion="$RELEASE_TAG" -DprocessAllModules=true
       - name: Publish package
         run: mvn -P release --batch-mode deploy -DskipTests -pl '!who-example'
         env:

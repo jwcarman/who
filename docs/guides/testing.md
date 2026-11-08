@@ -2,13 +2,24 @@
 
 The `who-test` module helps you test an app built on who with `MockMvc`. It signs a user in without an email link, and it behaves like a single-page app in a browser: it keeps the session and cookies and sends the CSRF header.
 
-Add it with test scope:
+Import `who-bom` (see [Getting Started](getting-started.md)), then add `who-test` with test scope and no version:
 
 ```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-bom</artifactId>
+            <version>0.11.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-test</artifactId>
-    <version>${who.version}</version>
     <scope>test</scope>
 </dependency>
 ```

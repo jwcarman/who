@@ -43,15 +43,37 @@ Pre-configured users:
 
 ## Add the dependency
 
+Import the BOM so that every who module uses the same version:
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-bom</artifactId>
+            <version>0.11.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+Then add the starter, and `who-test` for your tests, with no versions:
+
 ```xml
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-spring-boot-starter</artifactId>
-    <version>0.11.0</version>
+</dependency>
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-test</artifactId>
+    <scope>test</scope>
 </dependency>
 ```
 
-The starter brings every module and the autoconfiguration.
+The starter brings every module and the autoconfiguration. The BOM manages only who's own artifacts, not Spring Boot's versions.
 
 ## Create an identity
 

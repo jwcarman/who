@@ -98,6 +98,7 @@
     </scm>
 
     <modules>
+        <module>who-bom</module>
         <module>who-core</module>
         <module>who-jdbc</module>
         <module>who-rbac</module>

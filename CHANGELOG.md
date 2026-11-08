@@ -16,6 +16,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `who-bom`: a bill of materials that aligns the versions of every published who module. Import it,
+  then declare `who-spring-boot-starter` and `who-test` without versions. It manages only who's own
+  artifacts, not Spring Boot's.
 - The session holds the identity id under Spring Session's principal-name index attribute, so
   `FindByIndexNameSessionRepository.findByPrincipalName(identityId.toString())` finds every session of
   an identity ("sign out everywhere"). who needs no Spring Session dependency.

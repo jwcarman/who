@@ -171,7 +171,7 @@ Call `register` only with an address you have verified, for example one that rec
 | `UNKNOWN_ADDRESS` | The text is not an address, or no email credential has it. |
 | `INACTIVE_IDENTITY` | The address is known, but its identity is not active. |
 | `RESEND_SUPPRESSED` | A link was sent within the [resend interval](#the-resend-interval). |
-| `SEND_FAILED` | A step failed. The failure is logged and the stored token is removed. |
+| `SEND_FAILED` | A step failed. The failure is logged, and a token already stored for that send is removed. |
 
 `issue` never throws. The `/ott/generate` endpoint ignores the outcome, so it still reveals nothing about an address. Show the outcome only to a caller you trust, such as the owner who sent an invitation.
 
