@@ -77,13 +77,12 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
     MemberCategory.ACCESS_DECLARED_FIELDS
   };
 
-  private static final String SERIALIZABLE_FAMILY =
-      "org/springframework/security/web/webauthn/api/";
-
   /** JDK types held by the ceremony options. */
   private static final List<TypeReference> JDK_SERIALIZABLE =
       List.of(
           TypeReference.of(Duration.class),
+          // Duration (and Instant) serialize through the package-private java.time.Ser.
+          TypeReference.of("java.time.Ser"),
           TypeReference.of(Boolean.class),
           TypeReference.of(HashSet.class),
           TypeReference.of("java.util.Arrays$ArrayList"),
@@ -111,7 +110,7 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
    */
   private static void registerSerialization(
       RuntimeHints hints, ResourcePatternResolver resolver, ClassLoader classLoader) {
-    for (String name : classesIn(resolver, SERIALIZABLE_FAMILY)) {
+    for (String name : classesIn(resolver, FAMILIES.get(0))) {
       if (isSerializable(name, classLoader)) {
         hints.serialization().registerType(TypeReference.of(name));
       }

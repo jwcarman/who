@@ -217,20 +217,30 @@ class PasskeyRuntimeHintsTest {
           .as(type.getName())
           .accepts(hints);
     }
-    assertThat(
-            RuntimeHintsPredicates.serialization()
-                .onType(TypeReference.of("java.util.Arrays$ArrayList")))
-        .accepts(hints);
+    for (String name : List.of("java.util.Arrays$ArrayList", "java.time.Ser")) {
+      assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
+          .as(name)
+          .accepts(hints);
+    }
   }
 
   @Test
-  void nonSerializableTypesGetNoSerializationHint() {
-    assertThat(
-            RuntimeHintsPredicates.serialization()
-                .onType(
-                    TypeReference.of(
-                        "org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter")))
-        .rejects(hints());
+  void nonSerializableTypesGetNoSerializationHint() throws ClassNotFoundException {
+    RuntimeHints hints = hints();
+    ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(classLoader);
+    List<String> notSerializable = new ArrayList<>();
+    for (String name :
+        PasskeyRuntimeHints.classesIn(resolver, PasskeyRuntimeHints.FAMILIES.get(0))) {
+      if (!java.io.Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
+        notSerializable.add(name);
+      }
+    }
+    assertThat(notSerializable).isNotEmpty();
+    for (String name : notSerializable) {
+      assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
+          .as(name)
+          .rejects(hints);
+    }
   }
 
   @Test
