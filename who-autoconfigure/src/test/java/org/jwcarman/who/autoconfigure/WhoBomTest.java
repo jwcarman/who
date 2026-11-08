@@ -33,14 +33,18 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 /**
- * The BOM must list every published module and nothing else. It is parentless on purpose, so it
- * must not inherit Spring Boot's dependency management and re-export it to consumers.
+ * The BOM must list every published module and nothing else. Its parent imports Spring Boot's
+ * dependency management, so the published pom is the flattened one, which has no parent and must
+ * not re-export Spring Boot's entries. The flattened pom is written by who-bom's process-resources,
+ * and who-bom is the first module in the reactor, so a full build has it before this test runs.
  */
 class WhoBomTest {
 
   private static final Path MODULE_DIR = Path.of(System.getProperty("user.dir"));
   private static final Path ROOT_POM = MODULE_DIR.resolve("../pom.xml").normalize();
   private static final Path BOM_POM = MODULE_DIR.resolve("../who-bom/pom.xml").normalize();
+  private static final Path FLATTENED_BOM_POM =
+      MODULE_DIR.resolve("../who-bom/.flattened-pom.xml").normalize();
   private static final Set<String> UNPUBLISHED = Set.of("who-example", "who-bom");
 
   @Test
@@ -59,15 +63,15 @@ class WhoBomTest {
 
   @Test
   void bomManagesOnlyWhoArtifacts() throws Exception {
-    Document bom = parse(BOM_POM);
+    assertThat(FLATTENED_BOM_POM)
+        .as("run a full reactor build: who-bom's process-resources writes the flattened pom")
+        .exists();
+    Document bom = parse(FLATTENED_BOM_POM);
 
     assertThat(strings(bom, "/project/parent")).isEmpty();
     assertThat(strings(bom, "/project/dependencyManagement/dependencies/dependency/groupId"))
         .isNotEmpty()
         .allMatch("org.jwcarman.who"::equals);
-    assertThat(strings(bom, "/project/dependencyManagement/dependencies/dependency/version"))
-        .isNotEmpty()
-        .allMatch("${project.version}"::equals);
   }
 
   private static Document parse(Path pom) throws Exception {

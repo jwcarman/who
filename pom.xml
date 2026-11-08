@@ -58,6 +58,8 @@
         <license.plugin.version>5.0.0</license.plugin.version>
         <spotless.plugin.version>3.11.0</spotless.plugin.version>
         <google-java-format.version>1.35.0</google-java-format.version>
+        <!-- who-bom only; see its pom for why. -->
+        <flatten.plugin.version>1.8.0</flatten.plugin.version>
 
         <!-- SonarCloud Configuration -->
         <sonar.organization>jwcarman</sonar.organization>
@@ -148,6 +150,16 @@
     </dependencyManagement>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Version only. who-bom is the one module that binds it; see its pom for why. -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>${flatten.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <artifactId>maven-enforcer-plugin</artifactId>

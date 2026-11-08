@@ -21,75 +21,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-        This module deliberately has NO <parent>.
+    <parent>
+        <groupId>org.jwcarman.who</groupId>
+        <artifactId>who-parent</artifactId>
+        <version>0.12.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
 
-        A child inherits its parent's dependencyManagement, and importing a BOM pulls in that BOM's
-        *effective* dependencyManagement, after inheritance. Because who-parent imports
-        spring-boot-dependencies for its own build, inheriting from it would make who-bom re-export all
-        ~1900 of Spring Boot's managed versions to every consumer, silently overriding their own
-        pins for JUnit, AssertJ, Jackson, Guava and the rest. A published BOM must not inherit
-        dependencyManagement; junit-bom, spring-boot-dependencies, testcontainers-bom and
-        micrometer-bom are all parentless for the same reason.
-
-        The consequence is that everything this module needs must be declared here: coordinates,
-        Maven Central metadata, and the release profile. That duplication is the price of the
-        guarantee. Build configuration is NOT duplicated — a BOM has no sources, so the compiler,
-        surefire and jacoco setup in who-parent is irrelevant here.
-
-        Two further consequences, both verified:
-          - `mvn versions:set` walks parent references and therefore skips this module. The publish
-            workflow passes -DprocessAllModules=true so the BOM does not deploy still carrying
-            -SNAPSHOT. Do not remove that flag.
-          - The `license` profile lives in who-parent, so the header check no longer covers this
-            file. The header above is correct; keep it when editing.
-    -->
-    <groupId>org.jwcarman.who</groupId>
     <artifactId>who-bom</artifactId>
-    <version>0.12.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Who - BOM</name>
     <description>Bill of Materials for Who: version alignment for consumers</description>
-    <url>https://github.com/jwcarman/who</url>
-    <inceptionYear>2026</inceptionYear>
-
-    <developers>
-        <developer>
-            <id>jwcarman</id>
-            <name>James Carman</name>
-        </developer>
-    </developers>
-
-    <licenses>
-        <license>
-            <name>Apache 2</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-            <distribution>repo</distribution>
-            <comments>A business-friendly OSS license</comments>
-        </license>
-    </licenses>
-
-    <scm>
-        <url>https://github.com/jwcarman/who</url>
-        <connection>scm:git:git@github.com:jwcarman/who.git</connection>
-        <developerConnection>scm:git:git@github.com:jwcarman/who.git</developerConnection>
-    </scm>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-
-        <!-- Nothing to analyze: this module has no sources. -->
-        <sonar.skip>true</sonar.skip>
-
-        <!-- Plugin versions. Duplicated from who-parent because there is no parent to inherit
-             them from; keep them in sync when bumping there. -->
-        <spotless.plugin.version>3.11.0</spotless.plugin.version>
-        <sonar.plugin.version>5.8.0.7211</sonar.plugin.version>
-        <gpg.plugin.version>3.2.8</gpg.plugin.version>
-        <sonatype.plugin.version>0.10.0</sonatype.plugin.version>
-    </properties>
 
     <dependencyManagement>
         <dependencies>
@@ -156,69 +99,44 @@
         </dependencies>
     </dependencyManagement>
 
+    <!--
+        Flattened on the way out, and only this module is.
+
+        Importing a BOM pulls in its *effective* dependencyManagement, after inheritance, and
+        who-parent imports spring-boot-dependencies for its own build. Published as-is, this BOM
+        would re-export all of Spring Boot's managed versions, so a consumer importing it to align
+        who's artifacts would have its Spring Boot, Jackson and JUnit versions decided for it too.
+
+        bom mode writes the pom that is installed and deployed without the parent and with only
+        the dependencyManagement declared here. The build still inherits normally, so
+        versions:set, the sonar: prefix and the formatting and license checks all reach this
+        module like any other.
+    -->
     <build>
         <plugins>
-            <!--
-                Declared solely so that `mvn spotless:apply` and `mvn sonar:sonar` resolve their
-                prefixes on this module. Maven resolves a plugin prefix from the project's own build
-                plugins or from the default plugin groups; a parentless module inherits neither, so
-                a third-party prefix fails here and takes the whole reactor down with it. Both are
-                no-ops on a module with no sources.
-            -->
             <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>${spotless.plugin.version}</version>
-            </plugin>
-            <plugin>
-                <groupId>org.sonarsource.scanner.maven</groupId>
-                <artifactId>sonar-maven-plugin</artifactId>
-                <version>${sonar.plugin.version}</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <configuration>
+                    <flattenMode>bom</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten-clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!-- Release profile for Maven Central publishing. Mirrors who-parent's, minus the source
-             and javadoc plugins: a pom-packaged module has neither to attach. Keep the plugin
-             versions in sync with who-parent. -->
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>${sonatype.plugin.version}</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <tokenAuth>true</tokenAuth>
-                            <autoPublish>true</autoPublish>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${gpg.plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <gpgArguments>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
