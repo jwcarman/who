@@ -107,6 +107,7 @@
         <module>who-apikey</module>
         <module>who-email-link</module>
         <module>who-passkey</module>
+        <module>who-test</module>
         <module>who-autoconfigure</module>
         <module>who-spring-boot-starter</module>
         <module>who-example</module>

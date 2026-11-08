@@ -20,6 +20,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `who-test` (test scope) helps apps test against who: `WhoTestSessions.signedIn(identityId,
+  credentialId)` returns a `MockHttpSession` that who resolves from the database on the next
+  request, and `WhoMockMvcBrowser` wraps a `MockMvc` with one session and its cookies, echoing the
+  `XSRF-TOKEN` cookie into `X-XSRF-TOKEN` on unsafe requests as an SPA does with `csrf.spa()`.
 - `EmailLinkOutcome` (`SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,
   `SEND_FAILED`) tells a caller of `EmailLinkIssuer.issue` whether the email went out.
 - `RbacService.findRole(String)` and `findRole(Enum)` return an `Optional<Role>`;
