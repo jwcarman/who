@@ -36,11 +36,13 @@ class WhoSessionRuntimeHintsTest {
     new WhoSessionRuntimeHints().registerHints(hints, getClass().getClassLoader());
 
     for (Class<?> type : new Class<?>[] {WhoSession.class, UUID.class, Instant.class}) {
-      assertThat(RuntimeHintsPredicates.serialization().onType(type))
+      assertThat(RuntimeHintsPredicates.reflection().onJavaSerialization(type, true))
           .as(type.getName())
           .accepts(hints);
     }
-    assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of("java.time.Ser")))
+    assertThat(
+            RuntimeHintsPredicates.reflection()
+                .onJavaSerialization(TypeReference.of("java.time.Ser"), true))
         .accepts(hints);
   }
 

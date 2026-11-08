@@ -186,7 +186,9 @@ class PasskeyRuntimeHintsTest {
             "ImmutablePublicKeyCredentialUserEntity",
             "Bytes",
             "ImmutableAuthenticationExtensionsClientInputs")) {
-      assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(API + name)))
+      assertThat(
+              RuntimeHintsPredicates.reflection()
+                  .onJavaSerialization(TypeReference.of(API + name), true))
           .as(name)
           .accepts(hints);
     }
@@ -201,7 +203,9 @@ class PasskeyRuntimeHintsTest {
         PasskeyRuntimeHints.classesIn(resolver, "org/springframework/security/web/webauthn/api/")) {
       if (Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
         serializable++;
-        assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
+        assertThat(
+                RuntimeHintsPredicates.reflection()
+                    .onJavaSerialization(TypeReference.of(name), true))
             .as(name)
             .accepts(hints);
       }
@@ -214,12 +218,13 @@ class PasskeyRuntimeHintsTest {
     RuntimeHints hints = hints();
     for (Class<?> type :
         new Class<?>[] {Duration.class, Boolean.class, HashSet.class, byte[].class}) {
-      assertThat(RuntimeHintsPredicates.serialization().onType(type))
+      assertThat(RuntimeHintsPredicates.reflection().onJavaSerialization(type, true))
           .as(type.getName())
           .accepts(hints);
     }
     for (String name : List.of("java.util.Arrays$ArrayList", "java.time.Ser")) {
-      assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
+      assertThat(
+              RuntimeHintsPredicates.reflection().onJavaSerialization(TypeReference.of(name), true))
           .as(name)
           .accepts(hints);
     }
@@ -238,7 +243,8 @@ class PasskeyRuntimeHintsTest {
     }
     assertThat(notSerializable).isNotEmpty();
     for (String name : notSerializable) {
-      assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
+      assertThat(
+              RuntimeHintsPredicates.reflection().onJavaSerialization(TypeReference.of(name), true))
           .as(name)
           .rejects(hints);
     }
@@ -259,7 +265,9 @@ class PasskeyRuntimeHintsTest {
     RuntimeHints hints = new RuntimeHints();
     new PasskeyRuntimeHints().registerHints(hints, failing);
 
-    assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(API + "Bytes")))
+    assertThat(
+            RuntimeHintsPredicates.reflection()
+                .onJavaSerialization(TypeReference.of(API + "Bytes"), true))
         .rejects(hints);
   }
 

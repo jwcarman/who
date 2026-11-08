@@ -31,10 +31,13 @@ public class WhoSessionRuntimeHints implements RuntimeHintsRegistrar {
 
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-    hints.serialization().registerType(WhoSession.class);
-    hints.serialization().registerType(UUID.class);
-    hints.serialization().registerType(Instant.class);
+    hints.reflection().registerJavaSerialization(WhoSession.class);
+    hints.reflection().registerJavaSerialization(UUID.class);
+    hints.reflection().registerJavaSerialization(Instant.class);
     // java.time.Ser is package-private, and Instant serializes through it.
-    hints.serialization().registerType(TypeReference.of("java.time.Ser"));
+    hints
+        .reflection()
+        .registerType(
+            TypeReference.of("java.time.Ser"), builder -> builder.withJavaSerialization(true));
   }
 }

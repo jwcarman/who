@@ -112,10 +112,14 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
       RuntimeHints hints, ResourcePatternResolver resolver, ClassLoader classLoader) {
     for (String name : classesIn(resolver, FAMILIES.get(0))) {
       if (isSerializable(name, classLoader)) {
-        hints.serialization().registerType(TypeReference.of(name));
+        hints
+            .reflection()
+            .registerType(TypeReference.of(name), builder -> builder.withJavaSerialization(true));
       }
     }
-    JDK_SERIALIZABLE.forEach(type -> hints.serialization().registerType(type));
+    JDK_SERIALIZABLE.forEach(
+        type ->
+            hints.reflection().registerType(type, builder -> builder.withJavaSerialization(true)));
   }
 
   private static boolean isSerializable(String className, ClassLoader classLoader) {
