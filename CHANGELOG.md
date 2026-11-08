@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `WhoMockMvcBrowser.performWithoutCsrf(request)` in `who-test` sends a request as a forged
+  cross-site request would look: the browser's session and cookies, but no `X-XSRF-TOKEN` header and
+  no token pre-fetch. Use it to prove an endpoint rejects unsafe requests that lack the CSRF header.
+
 ## [0.12.0] - 2026-11-07
 
 ### Breaking changes

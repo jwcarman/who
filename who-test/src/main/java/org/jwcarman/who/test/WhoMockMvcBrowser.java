@@ -149,9 +149,24 @@ public class WhoMockMvcBrowser {
    */
   public ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
     if (!cookies.containsKey(XSRF_COOKIE)) {
-      send(MockMvcRequestBuilders.get(TOKEN_URL));
+      send(MockMvcRequestBuilders.get(TOKEN_URL), true);
     }
-    return send(request);
+    return send(request, true);
+  }
+
+  /**
+   * Sends a request as a forged cross-site request would look: the browser's session and cookies
+   * are applied as in {@link #perform(MockHttpServletRequestBuilder)} (its cookie wins on a name
+   * clash) and the cookies and session the response leaves are remembered, but {@code X-XSRF-TOKEN}
+   * is never set, even on an unsafe method, and no token is fetched first. Use it to prove that an
+   * endpoint rejects unsafe requests that lack the CSRF header.
+   *
+   * @param request the request to send
+   * @return the result, to assert on
+   * @throws Exception if the request fails
+   */
+  public ResultActions performWithoutCsrf(MockHttpServletRequestBuilder request) throws Exception {
+    return send(request, false);
   }
 
   /**
@@ -176,8 +191,9 @@ public class WhoMockMvcBrowser {
     return session;
   }
 
-  private ResultActions send(MockHttpServletRequestBuilder request) throws Exception {
-    request.with(this::apply);
+  private ResultActions send(MockHttpServletRequestBuilder request, boolean withCsrf)
+      throws Exception {
+    request.with(r -> apply(r, withCsrf));
     ResultActions actions = mvc.perform(request);
     MvcResult result = actions.andReturn();
     remember(result.getResponse().getCookies());
@@ -185,7 +201,7 @@ public class WhoMockMvcBrowser {
     return actions;
   }
 
-  private MockHttpServletRequest apply(MockHttpServletRequest request) {
+  private MockHttpServletRequest apply(MockHttpServletRequest request, boolean withCsrf) {
     request.setSession(session);
     // as a servlet container does when the browser presents its session cookie
     request.setRequestedSessionId(session.getId());
@@ -198,7 +214,10 @@ public class WhoMockMvcBrowser {
     request.setCookies(merged.values().toArray(new Cookie[0]));
     Cookie token = cookies.get(XSRF_COOKIE);
     String method = request.getMethod();
-    if (token != null && method != null && UNSAFE.contains(HttpMethod.valueOf(method))) {
+    if (withCsrf
+        && token != null
+        && method != null
+        && UNSAFE.contains(HttpMethod.valueOf(method))) {
       request.removeHeader(XSRF_HEADER);
       request.addHeader(XSRF_HEADER, token.getValue());
     }

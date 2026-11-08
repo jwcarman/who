@@ -66,6 +66,8 @@ On every request the browser owns:
 
 The CSRF cookie comes from `GET /who/me`. When the browser holds no such cookie, on its first request and after logout, it sends that `GET` first. This assumes a chain built with `WhoWebSecurity.passwordless()`.
 
+To prove an endpoint rejects a forged cross-site request, send it with `browser.performWithoutCsrf(post("/api/notes"))`. It applies the session and cookies as `perform` does, but sets no `X-XSRF-TOKEN` header and fetches no token first, so a CSRF-protected endpoint should answer `403`.
+
 `browser.cookie(name)` returns a held cookie, and `browser.session()` returns the current session. Without `signedInAs`, the browser starts signed out.
 
 Build the `MockMvc` with Spring Security applied, for example with `@AutoConfigureMockMvc` or `MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())`. An instance is not thread-safe, so use one per test.

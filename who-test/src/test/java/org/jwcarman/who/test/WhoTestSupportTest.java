@@ -365,4 +365,47 @@ class WhoTestSupportTest {
         .isNotNull();
     assertThat(browser.cookie("SESSION")).isEmpty();
   }
+
+  @Test
+  void performWithoutCsrfIsRejectedOnAnUnsafeMethod() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.perform(get("/who/me")).andExpect(status().isOk());
+
+    browser.performWithoutCsrf(post("/who/me")).andExpect(status().isForbidden());
+  }
+
+  @Test
+  void performPassesCsrfWhereTheForgedRequestIsRejected() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+
+    browser.perform(post("/who/me")).andExpect(status().isMethodNotAllowed());
+  }
+
+  @Test
+  void performWithoutCsrfDoesNotPrefetchAToken() throws Exception {
+    AtomicInteger requests = new AtomicInteger();
+    MockMvc counting =
+        MockMvcBuilders.webAppContextSetup(context)
+            .addFilters(
+                (request, response, chain) -> {
+                  requests.incrementAndGet();
+                  chain.doFilter(request, response);
+                })
+            .apply(springSecurity())
+            .build();
+    WhoMockMvcBrowser browser =
+        new WhoMockMvcBrowser(counting).signedInAs(identity.id(), credentialId);
+
+    browser.performWithoutCsrf(post("/who/me")).andExpect(status().isForbidden());
+
+    assertThat(requests).hasValue(1);
+  }
+
+  @Test
+  void performWithoutCsrfStillAppliesAndUpdatesTheCookieJar() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.performWithoutCsrf(get("/crumb/set")).andExpect(status().isOk());
+
+    browser.performWithoutCsrf(get("/crumb/echo")).andExpect(content().string("crumb=chocolate"));
+  }
 }
