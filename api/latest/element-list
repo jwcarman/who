@@ -15,4 +15,6 @@ org.jwcarman.who.passkey
 org.jwcarman.who.passkey.aot
 org.jwcarman.who.rbac
 org.jwcarman.who.spring.security
+org.jwcarman.who.spring.security.aot
 org.jwcarman.who.spring.security.web
+org.jwcarman.who.test
