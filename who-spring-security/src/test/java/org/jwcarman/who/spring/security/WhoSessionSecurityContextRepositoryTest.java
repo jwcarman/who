@@ -374,4 +374,40 @@ class WhoSessionSecurityContextRepositoryTest {
     assertThat(loaded.getAuthentication()).isNull();
     verify(session, never()).invalidate();
   }
+
+  private static final String PRINCIPAL_INDEX =
+      "org.springframework.session.FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME";
+
+  @Test
+  void savingAWhoTokenSetsThePrincipalIndex() {
+    repository.saveContext(contextFor(new WhoPrincipal(identity, Set.of("a"))), request, response);
+
+    assertThat(request.getSession(false).getAttribute(PRINCIPAL_INDEX))
+        .isEqualTo(identity.id().toString());
+  }
+
+  @Test
+  void signOutClearsThePrincipalIndex() {
+    repository.saveContext(contextFor(new WhoPrincipal(identity, Set.of("a"))), request, response);
+
+    repository.saveContext(new SecurityContextImpl(), request, response);
+
+    assertThat(request.getSession(false).getAttribute(PRINCIPAL_INDEX)).isNull();
+    assertThat(repository.currentSession(request)).isEmpty();
+  }
+
+  @Test
+  void suspendedIdentitySessionIsNotIndexed() {
+    MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
+    session.setAttribute(PRINCIPAL_INDEX, identity.id().toString());
+    request.setSession(session);
+    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+
+    SecurityContext loaded = repository.loadDeferredContext(request).get();
+    repository.saveContext(loaded, request, response);
+
+    assertThat(loaded.getAuthentication()).isNull();
+    assertThat(session.isInvalid()).isTrue();
+    assertThat(request.getSession(false)).isNull();
+  }
 }

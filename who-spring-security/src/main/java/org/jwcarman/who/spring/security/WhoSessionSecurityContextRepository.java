@@ -43,6 +43,14 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   /** Name of the HTTP session attribute holding the {@link WhoSession}. */
   public static final String SESSION_ATTRIBUTE = "org.jwcarman.who.session";
 
+  /**
+   * Name of the session attribute Spring Session indexes by principal name. who sets it to the
+   * identity id, so {@code FindByIndexNameSessionRepository.findByPrincipalName(identityId)} finds
+   * every session of an identity. The literal avoids a dependency on Spring Session.
+   */
+  public static final String PRINCIPAL_INDEX_ATTRIBUTE =
+      "org.springframework.session.FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME";
+
   private static final String LOADED_ATTRIBUTE =
       WhoSessionSecurityContextRepository.class.getName() + ".LOADED";
 
@@ -91,14 +99,15 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
           && existing.get().credentialId().equals(credentialId)) {
         return;
       }
-      request
-          .getSession(true)
-          .setAttribute(
-              SESSION_ATTRIBUTE, new WhoSession(identityId, credentialId, clock.instant()));
+      HttpSession session = request.getSession(true);
+      session.setAttribute(
+          SESSION_ATTRIBUTE, new WhoSession(identityId, credentialId, clock.instant()));
+      session.setAttribute(PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
     } else {
       HttpSession session = request.getSession(false);
       if (session != null) {
         session.removeAttribute(SESSION_ATTRIBUTE);
+        session.removeAttribute(PRINCIPAL_INDEX_ATTRIBUTE);
       }
     }
   }

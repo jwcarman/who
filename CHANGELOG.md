@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `WhoWebSecurity.passwordless()` uses `NullRequestCache`: a request denied with `401` is no longer
+  saved in the session, so there is no post-login redirect to the saved request.
+
+### Added
+
+- The session holds the identity id under Spring Session's principal-name index attribute, so
+  `FindByIndexNameSessionRepository.findByPrincipalName(identityId)` finds every session of an
+  identity. who needs no Spring Session dependency.
+
 ## [0.11.0] - 2026-11-07
 
 Read [Upgrading](https://jwcarman.github.io/who/guides/upgrading/) before you upgrade. Existing

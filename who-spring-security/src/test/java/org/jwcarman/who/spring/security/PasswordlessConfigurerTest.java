@@ -199,6 +199,15 @@ class PasswordlessConfigurerTest {
   }
 
   @Test
+  void passwordlessUsesNoRequestCache() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+
+    mvc.perform(get("/protected").session(session)).andExpect(status().isUnauthorized());
+
+    assertThat(session.getAttribute("SPRING_SECURITY_SAVED_REQUEST")).isNull();
+  }
+
+  @Test
   void csrfCookieIsReadableByScripts() throws Exception {
     mvc.perform(get("/who/me"))
         .andExpect(cookie().exists("XSRF-TOKEN"))

@@ -30,13 +30,14 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 
 /**
  * Makes a browser chain safe for session sign-in, using only Spring Security's own types: Spring's
  * SPA CSRF setup ({@link CsrfConfigurer#spa()}), {@code 401} instead of login redirects, a logout
- * that answers {@code 204}, a {@code no-referrer} policy, and who's session-backed {@link
- * WhoSessionSecurityContextRepository}. Every {@link PasswordlessLoginMethod} bean is then applied
- * in {@code @Order} order.
+ * that answers {@code 204}, no saved requests, a {@code no-referrer} policy, and who's
+ * session-backed {@link WhoSessionSecurityContextRepository}. Every {@link PasswordlessLoginMethod}
+ * bean is then applied in {@code @Order} order.
  *
  * <p>Obtain one with {@link WhoWebSecurity#passwordless()}.
  */
@@ -77,6 +78,9 @@ public class PasswordlessConfigurer
     // BREACH-safe rendered tokens and plain header values accepted
     http.csrf(CsrfConfigurer::spa)
         .securityContext(c -> c.securityContextRepository(repository))
+        // an SPA gets a plain 401; a saved request would only copy headers and cookies into the
+        // session
+        .requestCache(c -> c.requestCache(new NullRequestCache()))
         .exceptionHandling(
             e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
         .logout(
