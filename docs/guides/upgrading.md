@@ -2,11 +2,12 @@
 
 ## Upgrading to 0.12.0
 
-0.12.0 makes sessions ready for Spring Session, adds RBAC lookups and a test module, and has four changes that can affect existing code. There are no schema changes.
+0.12.0 makes sessions ready for Spring Session, adds RBAC lookups and a test module, and has five changes that can affect existing code. There are no schema changes.
 
 - **No saved requests.** `WhoWebSecurity.passwordless()` now uses a `NullRequestCache`. A request denied with `401` is no longer saved in the session, so sign-in no longer leads to a redirect to a saved request. An SPA never relied on it, because it receives a plain `401`. If your chain redirected to the saved request, keep the target in your app instead. See [Sessions](sessions.md#no-saved-requests).
 - **`EmailLinkIssuer.issue` returns a value.** It returns an `EmailLinkOutcome` instead of `void`. Source that calls it still compiles, but code built against 0.11 must be recompiled, because the method's signature in the class file changed. A subclass or a mock that overrides `issue` must change its return type. See [Sending a link from your own code](email-links.md#sending-a-link-from-your-own-code).
 - **`RoleAlreadyExistsException`.** Creating a role whose name is taken now throws `RoleAlreadyExistsException` instead of a plain `IllegalArgumentException`, with a message that does not name the role. It extends `IllegalArgumentException`, so existing `catch` blocks keep working.
+- **New RBAC repository methods.** `RoleRepository` gains `findAll()` and `IdentityRoleRepository` gains `findIdentityIdsByRoleId(UUID)`. An app with its own implementation of either interface must implement them, or it will not compile. The JDBC repositories who ships already do.
 - **A new session attribute.** The session now also holds the identity id (as a string) under Spring Session's principal-name index attribute. With Spring Session, `FindByIndexNameSessionRepository.findByPrincipalName(identityId.toString())` finds the sessions of an identity. A test that asserts the exact attributes of a session must expect it. Sessions created before the upgrade have no such attribute until the user signs in again. See [Sessions](sessions.md#sign-out-everywhere).
 - **New.** `RbacService.findRole`, `listRoles` and `findIdentityIdsWithRole`; the `who-test` module ([Testing](testing.md)); native serialization hints for sessions, so apps that added their own can drop them ([Native Images](native.md)).
 

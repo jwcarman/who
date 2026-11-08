@@ -13,6 +13,8 @@ All notable changes to this project are documented here. The format follows
 - `EmailLinkIssuer.issue` returns an `EmailLinkOutcome` instead of `void`. Source still compiles, but
   code built against 0.11 must be recompiled, and an override must change its return type.
   `/ott/generate` still answers `202` at once and ignores the outcome.
+- `RoleRepository.findAll()` and `IdentityRoleRepository.findIdentityIdsByRoleId(UUID)` are new
+  abstract methods, so an app with its own implementation of either interface must implement them.
 
 ### Added
 
@@ -30,7 +32,9 @@ All notable changes to this project are documented here. The format follows
 - `who-test` (test scope): `WhoTestSessions.signedIn(identityId, credentialId)` returns a
   `MockHttpSession` that who resolves from the database on the next request, and `WhoMockMvcBrowser`
   wraps a `MockMvc` with one session and its cookies, echoing the `XSRF-TOKEN` cookie into
-  `X-XSRF-TOKEN` on unsafe requests as an SPA does with `csrf.spa()`.
+  `X-XSRF-TOKEN` on unsafe requests as an SPA does with `csrf.spa()`. With Spring Session,
+  `signedInAs` saves the session in the app's `SessionRepository` and holds its cookie. Overloads
+  take the sign-in `Instant`, for apps with a fixed `Clock`.
 - Native serialization hints for sessions (Spring Session JDBC: `WhoSession` and what it holds) and
   for passkey ceremony options, so apps need no native configuration of their own.
 

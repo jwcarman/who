@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -198,7 +199,7 @@ class PasskeyRuntimeHintsTest {
     int serializable = 0;
     for (String name :
         PasskeyRuntimeHints.classesIn(resolver, "org/springframework/security/web/webauthn/api/")) {
-      if (java.io.Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
+      if (Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
         serializable++;
         assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
             .as(name)
@@ -231,7 +232,7 @@ class PasskeyRuntimeHintsTest {
     List<String> notSerializable = new ArrayList<>();
     for (String name :
         PasskeyRuntimeHints.classesIn(resolver, PasskeyRuntimeHints.FAMILIES.get(0))) {
-      if (!java.io.Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
+      if (!Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
         notSerializable.add(name);
       }
     }

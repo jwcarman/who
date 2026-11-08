@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.test;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +33,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.util.ClassUtils;
+import org.springframework.web.context.WebApplicationContext;
 
 /**
  * A {@link MockMvc} client that behaves like a single-page app in a browser against a chain built
@@ -41,7 +44,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
  *
  * <ul>
  *   <li>the HTTP session: one session is kept across requests, replaced by the one the application
- *       creates, or by a fresh one after the application invalidates it (for example on logout);
+ *       creates, or by a fresh one after the application invalidates it (for example on logout).
+ *       Under Spring Session the session is the application's own, found by the session cookie the
+ *       browser holds (see {@link #signedInAs(UUID, UUID)});
  *   <li>the cookies it holds, which it keeps from every response, deleting those the application
  *       expires. On a name clash the browser's cookie wins over one set on the builder; other
  *       builder cookies are kept;
@@ -66,6 +71,11 @@ public class WhoMockMvcBrowser {
   private static final Set<HttpMethod> UNSAFE =
       Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE);
 
+  private static final boolean SPRING_SESSION_PRESENT =
+      ClassUtils.isPresent(
+          "org.springframework.session.SessionRepository",
+          WhoMockMvcBrowser.class.getClassLoader());
+
   private final MockMvc mvc;
   private final Map<String, Cookie> cookies = new LinkedHashMap<>();
   private MockHttpSession session = new MockHttpSession();
@@ -80,15 +90,49 @@ public class WhoMockMvcBrowser {
   }
 
   /**
-   * Starts a new session signed in as the given identity and credential, replacing the current
-   * session. Cookies are kept. See {@link WhoTestSessions#signedIn(UUID, UUID)}.
+   * Starts a new session signed in now ({@link Instant#now()}) as the given identity and
+   * credential, replacing the current session. Other cookies are kept. When the application's
+   * {@code Clock} is fixed, use {@link #signedInAs(UUID, UUID, Instant)} with the clock's instant
+   * instead.
+   *
+   * <p>If Spring Session is on the classpath and the application has a {@code SessionRepository}
+   * bean, the session is saved in that repository and the browser holds its session cookie, written
+   * by the application's {@code CookieSerializer} (or, without one, named by {@code
+   * server.servlet.session.cookie.name}, default {@code SESSION}). Spring Session's filter ignores
+   * a {@code MockHttpSession}, so this is the only way to sign in under it. Otherwise the browser
+   * holds a {@code MockHttpSession} like {@link WhoTestSessions#signedIn(UUID, UUID)}.
    *
    * @param identityId the signed-in identity
    * @param credentialId the credential it signed in with
    * @return this browser
    */
   public WhoMockMvcBrowser signedInAs(UUID identityId, UUID credentialId) {
-    session = WhoTestSessions.signedIn(identityId, credentialId);
+    return signedInAs(identityId, credentialId, Instant.now());
+  }
+
+  /**
+   * Starts a new session signed in as the given identity and credential at the given instant,
+   * replacing the current session, as {@link #signedInAs(UUID, UUID)} does (with Spring Session
+   * too). Use this overload when the application's {@code Clock} is fixed, so the sign-in time
+   * follows that clock. Other cookies are kept.
+   *
+   * @param identityId the signed-in identity
+   * @param credentialId the credential it signed in with
+   * @param signedInAt when the identity signed in
+   * @return this browser
+   */
+  public WhoMockMvcBrowser signedInAs(UUID identityId, UUID credentialId, Instant signedInAt) {
+    Optional<Cookie> sessionCookie = Optional.empty();
+    WebApplicationContext context = mvc.getDispatcherServlet().getWebApplicationContext();
+    if (SPRING_SESSION_PRESENT && context != null) {
+      sessionCookie = SpringSessionSignIn.signIn(context, identityId, credentialId, signedInAt);
+    }
+    if (sessionCookie.isPresent()) {
+      session = new MockHttpSession();
+      cookies.put(sessionCookie.get().getName(), sessionCookie.get());
+    } else {
+      session = WhoTestSessions.signedIn(identityId, credentialId, signedInAt);
+    }
     return this;
   }
 
@@ -122,7 +166,9 @@ public class WhoMockMvcBrowser {
 
   /**
    * Returns the browser's current HTTP session: the one the application last created for it, or a
-   * fresh one after the application invalidated the previous session, for example on logout.
+   * fresh one after the application invalidated the previous session, for example on logout. Under
+   * Spring Session the application's session lives in its {@code SessionRepository}, found by the
+   * session cookie, and this one is unused.
    *
    * @return the session
    */
@@ -168,7 +214,7 @@ public class WhoMockMvcBrowser {
 
   private void remember(Cookie[] set) {
     for (Cookie cookie : set) {
-      if (cookie.getMaxAge() == 0 || cookie.getValue().isEmpty()) {
+      if (cookie.getMaxAge() == 0 || cookie.getValue() == null || cookie.getValue().isEmpty()) {
         cookies.remove(cookie.getName());
       } else {
         cookies.put(cookie.getName(), cookie);

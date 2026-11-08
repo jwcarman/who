@@ -20,6 +20,8 @@ import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -28,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 
@@ -46,10 +49,12 @@ import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
+import org.jwcarman.who.test.WhoMockMvcBrowser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -82,6 +87,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
       "who.email-link.link-base-url=https://app.example.com/signin",
       "spring.session.jdbc.initialize-schema=never"
     })
+@AutoConfigureMockMvc
 @Testcontainers
 class SpringSessionJdbcTest {
 
@@ -164,7 +170,7 @@ class SpringSessionJdbcTest {
       }
       MvcResult result = mvc.perform(request).andReturn();
       for (Cookie set : result.getResponse().getCookies()) {
-        if (set.getMaxAge() == 0 || set.getValue().isEmpty()) {
+        if (set.getMaxAge() == 0 || set.getValue() == null || set.getValue().isEmpty()) {
           cookies.remove(set.getName());
         } else {
           cookies.put(set.getName(), set.getValue());
@@ -187,8 +193,12 @@ class SpringSessionJdbcTest {
 
   @Autowired private FindByIndexNameSessionRepository<? extends Session> sessions;
 
+  /** The MockMvc Boot builds, with every filter bean (Spring Session's included) in the chain. */
+  @Autowired private MockMvc bootMvc;
+
   private MockMvc mvc;
   private Identity identity;
+  private UUID credentialId;
 
   @BeforeEach
   void setUp() {
@@ -203,7 +213,7 @@ class SpringSessionJdbcTest {
     sender.tokens.clear();
 
     identity = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
-    emailCredentialService.register(identity, ADDRESS);
+    credentialId = emailCredentialService.register(identity, ADDRESS).id();
     mvc =
         MockMvcBuilders.webAppContextSetup(context)
             .addFilters(sessionFilter)
@@ -238,5 +248,22 @@ class SpringSessionJdbcTest {
             WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
             FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME);
     assertThat(browser.cookies).containsKey(SESSION_COOKIE);
+  }
+
+  @Test
+  void browserSignsInUnderSpringSessionJdbc() throws Exception {
+    WhoMockMvcBrowser browser =
+        new WhoMockMvcBrowser(bootMvc).signedInAs(identity.id(), credentialId, NOW);
+
+    browser
+        .perform(get("/who/me"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.identityId").value(identity.id().toString()));
+    assertThat(sessions.findByPrincipalName(identity.id().toString())).hasSize(1);
+
+    browser.perform(post("/logout")).andExpect(status().isNoContent());
+
+    browser.perform(get("/who/me")).andExpect(status().isUnauthorized());
+    assertThat(sessions.findByPrincipalName(identity.id().toString())).isEmpty();
   }
 }

@@ -34,12 +34,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
+import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.WhoMeController;
@@ -55,6 +59,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest(classes = WhoTestSupportTest.TestApp.class)
@@ -64,7 +70,7 @@ class WhoTestSupportTest {
 
   @Configuration
   @EnableAutoConfiguration
-  @Import(WhoMeController.class)
+  @Import({WhoMeController.class, WhoTestSupportTest.CrumbController.class})
   static class TestApp {
 
     @Bean
@@ -83,6 +89,20 @@ class WhoTestSupportTest {
       http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
+    }
+  }
+
+  @RestController
+  static class CrumbController {
+
+    @GetMapping("/crumb/set")
+    void set(HttpServletResponse response) {
+      response.addCookie(new Cookie("crumb", "chocolate"));
+    }
+
+    @GetMapping("/crumb/clear")
+    void clear(HttpServletResponse response) {
+      response.addCookie(new Cookie("crumb", null));
     }
   }
 
@@ -170,5 +190,45 @@ class WhoTestSupportTest {
         .andExpect(status().isOk());
 
     assertThat(runs).hasValue(1);
+  }
+
+  @Test
+  void browserDropsACookieTheAppAnswersWithANullValue() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+    browser.perform(get("/crumb/set")).andExpect(status().isOk());
+    assertThat(browser.cookie("crumb")).isPresent();
+
+    browser.perform(get("/crumb/clear")).andExpect(status().isOk());
+
+    assertThat(browser.cookie("crumb")).isEmpty();
+  }
+
+  @Test
+  void signedInAtFollowsTheGivenInstant() throws Exception {
+    Instant earlier = NOW.minusSeconds(60);
+    MockHttpSession session = WhoTestSessions.signedIn(identity.id(), credentialId, earlier);
+
+    assertThat(session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+        .isEqualTo(new WhoSession(identity.id(), credentialId, earlier));
+    mvc.perform(get("/who/me").session(session)).andExpect(status().isOk());
+  }
+
+  @Test
+  void browserSignedInAtFollowsTheGivenInstant() throws Exception {
+    WhoMockMvcBrowser browser =
+        new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId, NOW);
+
+    assertThat(
+            browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+        .isEqualTo(new WhoSession(identity.id(), credentialId, NOW));
+    browser.perform(get("/who/me")).andExpect(status().isOk());
+  }
+
+  @Test
+  void signedInSessionCarriesThePrincipalIndexAsProductionDoes() {
+    MockHttpSession session = WhoTestSessions.signedIn(identity.id(), credentialId);
+
+    assertThat(session.getAttribute(WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE))
+        .isEqualTo(identity.id().toString());
   }
 }
