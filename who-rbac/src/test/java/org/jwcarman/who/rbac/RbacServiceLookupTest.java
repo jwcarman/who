@@ -18,13 +18,17 @@ package org.jwcarman.who.rbac;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 
 class RbacServiceLookupTest extends AbstractRbacTest {
 
@@ -72,17 +76,22 @@ class RbacServiceLookupTest extends AbstractRbacTest {
   void findIdentityIdsWithRole() {
     Role role = rbacService.createRole("HOLDERS");
     Role other = rbacService.createRole("NOT_HELD");
-    Identity first = identityRepository.save(Identity.create());
-    Identity second = identityRepository.save(Identity.create());
+    List<Identity> holders = new ArrayList<>();
+    for (int i = 0; i < 8; i++) {
+      holders.add(identityRepository.save(Identity.create()));
+    }
+    // Assign in descending order so that unsorted storage order differs from the expected order.
+    holders.sort(Comparator.comparing((Identity i) -> i.id().toString()).reversed());
+    for (Identity holder : holders) {
+      rbacService.assignRoleToIdentity(holder, role);
+    }
     Identity bystander = identityRepository.save(Identity.create());
-    rbacService.assignRoleToIdentity(first, role);
-    rbacService.assignRoleToIdentity(second, role);
     rbacService.assignRoleToIdentity(bystander, other);
 
-    List<UUID> holders = rbacService.findIdentityIdsWithRole(role);
+    List<UUID> expected =
+        holders.stream().map(Identity::id).sorted(Comparator.comparing(UUID::toString)).toList();
 
-    assertThat(holders).containsExactlyInAnyOrder(first.id(), second.id());
-    assertThat(holders.stream().map(UUID::toString).toList()).isSorted();
+    assertThat(rbacService.findIdentityIdsWithRole(role)).containsExactlyElementsOf(expected);
     assertThat(rbacService.findIdentityIdsWithRole(Role.create("UNSAVED"))).isEmpty();
   }
 
@@ -101,5 +110,50 @@ class RbacServiceLookupTest extends AbstractRbacTest {
 
     assertThatThrownBy(() -> rbacService.createRole(Tier.GOLD))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void concurrentDuplicateIsReportedAsRoleAlreadyExists(
+      @Autowired JdbcRoleRepository roleRepository,
+      @Autowired RolePermissionRepository permissions,
+      @Autowired IdentityRoleRepository identityRoles) {
+    roleRepository.save(Role.create("RACED"));
+    RoleRepository missesTheCheck =
+        new RoleRepository() {
+          @Override
+          public Optional<Role> findById(UUID id) {
+            return roleRepository.findById(id);
+          }
+
+          @Override
+          public Optional<Role> findByName(String name) {
+            return Optional.empty();
+          }
+
+          @Override
+          public List<Role> findAll() {
+            return roleRepository.findAll();
+          }
+
+          @Override
+          public Role save(Role role) {
+            return roleRepository.save(role);
+          }
+
+          @Override
+          public boolean existsById(UUID id) {
+            return roleRepository.existsById(id);
+          }
+
+          @Override
+          public void deleteById(UUID id) {
+            roleRepository.deleteById(id);
+          }
+        };
+    RbacService racing = new RbacService(missesTheCheck, permissions, identityRoles);
+
+    assertThatThrownBy(() -> racing.createRole("RACED"))
+        .isInstanceOf(RoleAlreadyExistsException.class)
+        .hasCauseInstanceOf(DuplicateKeyException.class);
   }
 }

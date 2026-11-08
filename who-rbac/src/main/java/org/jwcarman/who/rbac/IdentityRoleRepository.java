@@ -36,7 +36,8 @@ public interface IdentityRoleRepository {
   List<UUID> findRoleIdsByIdentityId(UUID identityId);
 
   /**
-   * Returns the ids of the identities that hold the given role, sorted by identity id.
+   * Returns the ids of the identities that hold the given role, ascending by the identity id's
+   * canonical string form (unsigned byte order), which is not {@link UUID#compareTo} order.
    *
    * @param roleId the role UUID
    * @return list of identity UUIDs (never null; empty if none)

@@ -26,4 +26,13 @@ public class RoleAlreadyExistsException extends IllegalArgumentException {
   public RoleAlreadyExistsException() {
     super("A role with that name already exists");
   }
+
+  /**
+   * Creates a new exception that keeps the underlying failure.
+   *
+   * @param cause the constraint violation that revealed the duplicate
+   */
+  public RoleAlreadyExistsException(Throwable cause) {
+    super("A role with that name already exists", cause);
+  }
 }

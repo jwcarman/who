@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,7 +88,8 @@ public class RbacService {
   }
 
   /**
-   * Returns the ids of the identities that hold the given role, sorted by identity id.
+   * Returns the ids of the identities that hold the given role, ascending by the identity id's
+   * canonical string form (unsigned byte order), which is not {@link UUID#compareTo} order.
    *
    * @param role the role whose holders are wanted
    * @return the identity ids (never null; empty if none)
@@ -138,7 +140,12 @@ public class RbacService {
     if (roleRepository.findByName(name).isPresent()) {
       throw new RoleAlreadyExistsException();
     }
-    return roleRepository.save(Role.create(name));
+    try {
+      return roleRepository.save(Role.create(name));
+    } catch (DuplicateKeyException e) {
+      // A concurrent create won the race between the check above and this insert.
+      throw new RoleAlreadyExistsException(e);
+    }
   }
 
   /**
