@@ -10,7 +10,7 @@ Import `who-bom` (see [Getting Started](getting-started.md)), then add `who-test
         <dependency>
             <groupId>org.jwcarman.who</groupId>
             <artifactId>who-bom</artifactId>
-            <version>0.11.0</version>
+            <version>0.12.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>

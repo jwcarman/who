@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-07
+
 ### Breaking changes
 
 - `WhoWebSecurity.passwordless()` uses `NullRequestCache`: a request denied with `401` is no longer
@@ -184,6 +186,7 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.11.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.12.0...HEAD
+[0.12.0]: https://github.com/jwcarman/who/releases/tag/0.12.0
 [0.11.0]: https://github.com/jwcarman/who/releases/tag/0.11.0
 [0.10.0]: https://github.com/jwcarman/who/releases/tag/0.10.0
