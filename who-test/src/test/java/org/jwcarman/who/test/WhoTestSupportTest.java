@@ -32,6 +32,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -141,5 +142,33 @@ class WhoTestSupportTest {
     browser.signedInAs(identity.id(), credentialId);
     browser.perform(get("/who/me")).andExpect(status().isOk());
     assertThat(browser.cookie("XSRF-TOKEN").orElseThrow().getValue()).isNotEqualTo(before);
+  }
+
+  @Test
+  void unsafeRequestWithoutSessionFetchesATokenFirst() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc);
+
+    int status = browser.perform(post("/who/me")).andReturn().getResponse().getStatus();
+
+    assertThat(status).isNotEqualTo(403);
+    assertThat(browser.cookie("XSRF-TOKEN")).isPresent();
+  }
+
+  @Test
+  void callerPostProcessorRunsOncePerPerform() throws Exception {
+    AtomicInteger runs = new AtomicInteger();
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+
+    browser
+        .perform(
+            get("/who/me")
+                .with(
+                    r -> {
+                      runs.incrementAndGet();
+                      return r;
+                    }))
+        .andExpect(status().isOk());
+
+    assertThat(runs).hasValue(1);
   }
 }

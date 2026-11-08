@@ -22,11 +22,13 @@ import java.util.Set;
 import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpSession;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
-import org.springframework.mock.web.MockServletContext;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -35,11 +37,24 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
  * A {@link MockMvc} client that behaves like a single-page app in a browser against a chain built
  * with {@code WhoWebSecurity.passwordless()}.
  *
- * <p>It keeps one HTTP session and every cookie the application sets, including deletions such as
- * the one on logout. On {@code POST}, {@code PUT}, {@code PATCH} and {@code DELETE} it echoes the
- * {@code XSRF-TOKEN} cookie into the {@code X-XSRF-TOKEN} header, as an SPA does with {@code
- * csrf.spa()}; if it holds no token yet, it first fetches one with a {@code GET}. (Spring Security
- * Test's {@code csrf().asHeader()} sends a masked token, which {@code csrf.spa()} rejects.)
+ * <p>The browser owns three things on every request it sends, whatever the caller's builder says:
+ *
+ * <ul>
+ *   <li>the HTTP session: one session is kept across requests, replaced by the one the application
+ *       creates, or by a fresh one after the application invalidates it (for example on logout);
+ *   <li>the cookies it holds, which it keeps from every response, deleting those the application
+ *       expires. On a name clash the browser's cookie wins over one set on the builder; other
+ *       builder cookies are kept;
+ *   <li>the {@code X-XSRF-TOKEN} header on {@code POST}, {@code PUT}, {@code PATCH} and {@code
+ *       DELETE}: it is set to the held {@code XSRF-TOKEN} cookie, as an SPA does with {@code
+ *       csrf.spa()}. (Spring Security Test's {@code csrf().asHeader()} sends a masked token, which
+ *       {@code csrf.spa()} rejects.)
+ * </ul>
+ *
+ * <p>The token comes from {@code GET /who/me}, so this assumes a {@code
+ * WhoWebSecurity.passwordless()} chain: whenever the browser holds no {@code XSRF-TOKEN} cookie (on
+ * its first request, and after logout deleted it), it first sends that {@code GET}, whatever the
+ * method of the request. If no token arrives, an unsafe request is sent without the header.
  *
  * <p>An instance is not thread-safe.
  */
@@ -78,20 +93,19 @@ public class WhoMockMvcBrowser {
   }
 
   /**
-   * Sends a request with this browser's session and cookies, then remembers the cookies the
-   * response sets. On an unsafe method, the CSRF token is echoed in {@code X-XSRF-TOKEN}.
+   * Sends a request with this browser's session, cookies and, on an unsafe method, CSRF header (see
+   * the class description for what the browser owns), then remembers the cookies and session the
+   * response leaves. If the browser holds no {@code XSRF-TOKEN} cookie, it first sends {@code GET
+   * /who/me} to obtain one, so the first request and the first one after logout cost an extra
+   * request. A post-processor on the builder runs once, on the request itself.
    *
    * @param request the request to send
    * @return the result, to assert on
    * @throws Exception if the request fails
    */
   public ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
-    if (isUnsafe(request) && !cookies.containsKey(XSRF_COOKIE)) {
+    if (!cookies.containsKey(XSRF_COOKIE)) {
       send(MockMvcRequestBuilders.get(TOKEN_URL));
-    }
-    Cookie token = cookies.get(XSRF_COOKIE);
-    if (isUnsafe(request) && token != null) {
-      request.header(XSRF_HEADER, token.getValue());
     }
     return send(request);
   }
@@ -107,8 +121,8 @@ public class WhoMockMvcBrowser {
   }
 
   /**
-   * Returns the browser's current HTTP session; a new one replaces it after the application
-   * invalidates it, for example on logout.
+   * Returns the browser's current HTTP session: the one the application last created for it, or a
+   * fresh one after the application invalidated the previous session, for example on logout.
    *
    * @return the session
    */
@@ -117,22 +131,39 @@ public class WhoMockMvcBrowser {
   }
 
   private ResultActions send(MockHttpServletRequestBuilder request) throws Exception {
-    request
-        .session(session)
-        .with(
-            r -> {
-              // as a servlet container does when the browser presents its session cookie
-              r.setRequestedSessionId(session.getId());
-              r.setRequestedSessionIdValid(true);
-              return r;
-            });
-    cookies.values().forEach(request::cookie);
+    request.with(this::apply);
     ResultActions actions = mvc.perform(request);
-    remember(actions.andReturn().getResponse().getCookies());
-    if (session.isInvalid()) {
+    MvcResult result = actions.andReturn();
+    remember(result.getResponse().getCookies());
+    adoptSession(result.getRequest().getSession(false));
+    return actions;
+  }
+
+  private MockHttpServletRequest apply(MockHttpServletRequest request) {
+    request.setSession(session);
+    // as a servlet container does when the browser presents its session cookie
+    request.setRequestedSessionId(session.getId());
+    request.setRequestedSessionIdValid(true);
+    Map<String, Cookie> merged = new LinkedHashMap<>();
+    for (Cookie own : Optional.ofNullable(request.getCookies()).orElse(new Cookie[0])) {
+      merged.put(own.getName(), own);
+    }
+    merged.putAll(cookies);
+    request.setCookies(merged.values().toArray(new Cookie[0]));
+    Cookie token = cookies.get(XSRF_COOKIE);
+    if (token != null && UNSAFE.contains(HttpMethod.valueOf(request.getMethod()))) {
+      request.removeHeader(XSRF_HEADER);
+      request.addHeader(XSRF_HEADER, token.getValue());
+    }
+    return request;
+  }
+
+  private void adoptSession(HttpSession current) {
+    if (current instanceof MockHttpSession created && created != session && !created.isInvalid()) {
+      session = created;
+    } else if (session.isInvalid()) {
       session = new MockHttpSession();
     }
-    return actions;
   }
 
   private void remember(Cookie[] set) {
@@ -143,10 +174,5 @@ public class WhoMockMvcBrowser {
         cookies.put(cookie.getName(), cookie);
       }
     }
-  }
-
-  private static boolean isUnsafe(MockHttpServletRequestBuilder request) {
-    String method = request.buildRequest(new MockServletContext()).getMethod();
-    return UNSAFE.contains(HttpMethod.valueOf(method));
   }
 }
