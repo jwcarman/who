@@ -15,9 +15,13 @@ All notable changes to this project are documented here. The format follows
 
 - Creating a role whose name is taken throws `RoleAlreadyExistsException` (still an
   `IllegalArgumentException`) with a message that does not name the role.
+- `EmailLinkIssuer.issue` returns an `EmailLinkOutcome` instead of `void`. `/ott/generate` still
+  answers `202` at once and ignores it.
 
 ### Added
 
+- `EmailLinkOutcome` (`SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,
+  `SEND_FAILED`) tells a caller of `EmailLinkIssuer.issue` whether the email went out.
 - `RbacService.findRole(String)` and `findRole(Enum)` return an `Optional<Role>`;
   `listRoles()` returns every role sorted by name; `findIdentityIdsWithRole(Role)` returns the
   ids of the identities that hold a role.

@@ -19,12 +19,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.ott.DefaultOneTimeToken;
@@ -52,5 +55,31 @@ class EmailLinkGenerationSuccessHandlerTest {
     tasks.getFirst().run();
 
     verify(issuer).issue("owner@example.com", "value");
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = EmailLinkOutcome.class,
+      names = {"SEND_FAILED", "UNKNOWN_ADDRESS"})
+  void generateStillAnswers202BeforeIssuing(EmailLinkOutcome outcome) {
+    EmailLinkIssuer issuer = mock(EmailLinkIssuer.class);
+    when(issuer.issue("owner@example.com", "value")).thenReturn(outcome);
+    List<Runnable> tasks = new ArrayList<>();
+    EmailLinkGenerationSuccessHandler handler =
+        new EmailLinkGenerationSuccessHandler(issuer, tasks::add);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    handler.handle(
+        new MockHttpServletRequest(),
+        response,
+        new DefaultOneTimeToken("value", "owner@example.com", Instant.now()));
+
+    assertThat(response.getStatus()).isEqualTo(202);
+    verifyNoInteractions(issuer);
+
+    tasks.getFirst().run();
+
+    verify(issuer).issue("owner@example.com", "value");
+    assertThat(response.getStatus()).isEqualTo(202);
   }
 }

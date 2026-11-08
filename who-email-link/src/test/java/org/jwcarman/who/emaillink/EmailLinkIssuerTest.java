@@ -18,6 +18,7 @@ package org.jwcarman.who.emaillink;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -252,5 +253,75 @@ class EmailLinkIssuerTest {
           .doesNotContain("secret-detail");
       assertThat(event.getThrowableProxy()).isNull();
     }
+  }
+
+  @Test
+  void knownActiveAddressIsSent() {
+    known(true);
+    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
+  }
+
+  @Test
+  void unknownAddressIsUnknown() {
+    when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.empty());
+
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "   ", "not-an-address"})
+  void textThatIsNotAnAddressIsUnknown(String address) {
+    assertThat(issuer.issue(address, TOKEN)).isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);
+  }
+
+  @Test
+  void nullAddressIsUnknown() {
+    assertThat(issuer.issue(null, TOKEN)).isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);
+  }
+
+  @Test
+  void inactiveIdentityIsInactive() {
+    known(false);
+
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.INACTIVE_IDENTITY);
+  }
+
+  @Test
+  void withinResendIntervalIsSuppressed() {
+    known(true);
+    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(false);
+
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.RESEND_SUPPRESSED);
+  }
+
+  @Test
+  void failedSendIsSendFailed() {
+    known(true);
+    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
+
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
+    verify(repository).delete(eq(credential.id()), anyString());
+  }
+
+  @ParameterizedTest
+  @MethodSource("failingSteps")
+  void aFailedLookupOrStoreIsSendFailedNotThrown(String step) {
+    RuntimeException failure = new IllegalStateException("boom");
+    switch (step) {
+      case "findByAddress" -> when(credentials.findByAddress(ADDRESS)).thenThrow(failure);
+      case "resolve" -> {
+        when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
+        when(whoService.resolve(any(Credential.class))).thenThrow(failure);
+      }
+      default -> {
+        known(true);
+        when(repository.issue(any(), anyString(), any(), any(), any())).thenThrow(failure);
+      }
+    }
+
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
   }
 }
