@@ -10,30 +10,40 @@ All notable changes to this project are documented here. The format follows
 
 - `WhoWebSecurity.passwordless()` uses `NullRequestCache`: a request denied with `401` is no longer
   saved in the session, so there is no post-login redirect to the saved request.
+- `EmailLinkIssuer.issue` returns an `EmailLinkOutcome` instead of `void`. Source still compiles, but
+  code built against 0.11 must be recompiled, and an override must change its return type.
+  `/ott/generate` still answers `202` at once and ignores the outcome.
+
+### Added
+
+- The session holds the identity id under Spring Session's principal-name index attribute, so
+  `FindByIndexNameSessionRepository.findByPrincipalName(identityId.toString())` finds every session of
+  an identity ("sign out everywhere"). who needs no Spring Session dependency.
+- `RbacService.findRole(String)` and `findRole(Enum)` return an `Optional<Role>`; `listRoles()`
+  returns every role sorted by name; `findIdentityIdsWithRole(Role)` returns the ids of the
+  identities that hold a role.
+- `EmailLinkOutcome` (`SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,
+  `SEND_FAILED`) tells a caller of `EmailLinkIssuer.issue` whether the email went out.
+- `who-test` (test scope): `WhoTestSessions.signedIn(identityId, credentialId)` returns a
+  `MockHttpSession` that who resolves from the database on the next request, and `WhoMockMvcBrowser`
+  wraps a `MockMvc` with one session and its cookies, echoing the `XSRF-TOKEN` cookie into
+  `X-XSRF-TOKEN` on unsafe requests as an SPA does with `csrf.spa()`.
+- Native serialization hints for sessions (Spring Session JDBC: `WhoSession` and what it holds) and
+  for passkey ceremony options, so apps need no native configuration of their own.
 
 ### Changed
 
 - Creating a role whose name is taken throws `RoleAlreadyExistsException` (still an
   `IllegalArgumentException`) with a message that does not name the role.
-- `EmailLinkIssuer.issue` returns an `EmailLinkOutcome` instead of `void`. `/ott/generate` still
-  answers `202` at once and ignores it.
 
-### Added
+### Documentation
 
-- Native serialization hints for sessions (Spring Session JDBC: `WhoSession` and what it holds) and
-  for passkey ceremony options, so apps need no native configuration of their own.
-- `who-test` (test scope) helps apps test against who: `WhoTestSessions.signedIn(identityId,
-  credentialId)` returns a `MockHttpSession` that who resolves from the database on the next
-  request, and `WhoMockMvcBrowser` wraps a `MockMvc` with one session and its cookies, echoing the
-  `XSRF-TOKEN` cookie into `X-XSRF-TOKEN` on unsafe requests as an SPA does with `csrf.spa()`.
-- `EmailLinkOutcome` (`SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,
-  `SEND_FAILED`) tells a caller of `EmailLinkIssuer.issue` whether the email went out.
-- `RbacService.findRole(String)` and `findRole(Enum)` return an `Optional<Role>`;
-  `listRoles()` returns every role sorted by name; `findIdentityIdsWithRole(Role)` returns the
-  ids of the identities that hold a role.
-- The session holds the identity id under Spring Session's principal-name index attribute, so
-  `FindByIndexNameSessionRepository.findByPrincipalName(identityId)` finds every session of an
-  identity. who needs no Spring Session dependency.
+- New [Sessions](https://jwcarman.github.io/who/guides/sessions/) and
+  [Testing](https://jwcarman.github.io/who/guides/testing/) guides; the Upgrading, Native Images,
+  RBAC and Email Links guides cover the 0.12 changes.
+- The Passkeys guide no longer says `anyRequest().authenticated()` protects
+  `POST /webauthn/register/options`: Spring runs that filter before the authorization filter, and
+  who's `PasskeyRegistrationGuardFilter` protects it.
 
 ## [0.11.0] - 2026-11-07
 

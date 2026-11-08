@@ -37,6 +37,22 @@ rbacService.assignRoleByName(identity, AppRole.EDITOR);
 Role found = rbacService.findRequiredRole(AppRole.EDITOR);
 ```
 
+Creating a role whose name is taken throws `RoleAlreadyExistsException`, which extends `IllegalArgumentException`. Its message does not name the role.
+
+To ask whether a role exists, without catching an exception, use `findRole`. It returns an `Optional<Role>` and takes a name or an enum constant:
+
+```java
+Optional<Role> editor = rbacService.findRole("editor");
+Optional<Role> owner = rbacService.findRole(AppRole.ADMIN);
+```
+
+`listRoles()` returns every role, sorted by name. `findIdentityIdsWithRole(Role)` returns the ids of the identities that hold a role, sorted by id:
+
+```java
+List<Role> roles = rbacService.listRoles();
+List<UUID> editors = rbacService.findIdentityIdsWithRole(editorRole);
+```
+
 Roles can only be assigned to identities that exist in `who_identity`. Deleting an identity removes its role assignments.
 
 An identity's permissions are the union of the permissions of all its roles.

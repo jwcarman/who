@@ -13,6 +13,8 @@ Every module that has database files ships GraalVM reachability metadata at `MET
 - every class in `org.springframework.security.web.webauthn.api` and `org.springframework.security.web.webauthn.jackson`;
 - every class in webauthn4j's `com.webauthn4j.data.attestation`, `.attestation.authenticator`, `.attestation.statement` and `com.webauthn4j.data.client` (all COSE key types, all attestation statements, client data).
 
+Sessions are covered too, including Spring Session JDBC, which stores session attributes with Java serialization. A native image needs a serialization hint for each class that is serialized, and who ships them. `who-spring-security` registers `WhoSession`, `UUID`, `Instant` and `java.time.Ser`. `who-passkey` registers every `Serializable` class in `org.springframework.security.web.webauthn.api`, because the session holds the creation or request options during a passkey ceremony, plus `Duration`, `Boolean`, `HashSet`, `Arrays$ArrayList` and `byte[]`. Your app needs no hints for sessions. See [Sessions](sessions.md).
+
 Who's own types need nothing: Spring AOT covers its configuration, beans, properties and `@Transactional` proxies.
 
 Two code choices keep who native-friendly:

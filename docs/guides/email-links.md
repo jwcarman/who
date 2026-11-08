@@ -85,7 +85,9 @@ SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
 }
 ```
 
-The session holds only the identity id and the credential id. On every request who loads the identity and its permissions again. If the identity is no longer active, or the credential is no longer linked to it, the session is invalidated and the request gets `401`. Role and permission changes apply on the next request.
+The session holds only the identity id and the credential id. On every request who loads the identity and its permissions again. If the identity is no longer active, or the credential is no longer linked to it, the session is invalidated and the request gets `401`. Role and permission changes apply on the next request. To keep sessions in your database, see [Sessions](sessions.md).
+
+A denied request is not saved: `passwordless()` uses a `NullRequestCache`, so there is no redirect to the original request after sign-in.
 
 ## The sign-in flow
 
@@ -156,6 +158,40 @@ emailCredentialService.register(identity, "user@example.com");
 Call `register` only with an address you have verified, for example one that received an invitation. Who does not verify ownership here. `register` throws `EmailAddressTakenException` if the address is registered to another identity. If the address is already the identity's own, `register` returns that credential. If it is registered but linked to no identity (its identity was deleted directly, not with [`WhoService.deleteIdentity`](getting-started.md#deleting-an-identity)), `register` deletes that old credential, along with any sign-in link sent before, and registers a new one for the identity. Addresses are trimmed and lower-cased.
 
 `EmailCredentialService` also has `findByAddress(String)` and `revoke(UUID credentialId)`. `revoke` deletes the credential and its link to the identity.
+
+## Sending a link from your own code
+
+`POST /ott/generate` answers `202` at once and does the work in the background. To send a link yourself, for example in an invitation, call `EmailLinkIssuer.issue(address, tokenValue)`. The `EmailLinkIssuer` is a bean. `tokenValue` is a random, URL-safe value that you generate.
+
+`issue` returns an `EmailLinkOutcome`:
+
+| Outcome | Meaning |
+|---|---|
+| `SENT` | The link was stored and handed to the `EmailLinkSender`. |
+| `UNKNOWN_ADDRESS` | The text is not an address, or no email credential has it. |
+| `INACTIVE_IDENTITY` | The address is known, but its identity is not active. |
+| `RESEND_SUPPRESSED` | A link was sent within the [resend interval](#the-resend-interval). |
+| `SEND_FAILED` | A step failed. The failure is logged and the stored token is removed. |
+
+`issue` never throws. The `/ott/generate` endpoint ignores the outcome, so it still reveals nothing about an address. Show the outcome only to a caller you trust, such as the owner who sent an invitation.
+
+`issue` is synchronous and uses its own transactions. If you call it while a transaction of yours is open, call it after that transaction commits, with a new transaction of its own. Otherwise the send happens before your data is committed, and a failure in your transaction cannot take back the email:
+
+```java
+TransactionTemplate afterCommit = new TransactionTemplate(transactionManager);
+afterCommit.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+TransactionSynchronizationManager.registerSynchronization(
+    new TransactionSynchronization() {
+        @Override
+        public void afterCommit() {
+            afterCommit.executeWithoutResult(
+                status -> linkIssuer.issue(address, tokenValue));
+        }
+    });
+```
+
+The new transaction is needed because the finished transaction's connection is still bound while `afterCommit` runs, so the issuer's writes would not be committed.
 
 ## The resend interval
 
