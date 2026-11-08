@@ -20,6 +20,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Native serialization hints for sessions (Spring Session JDBC: `WhoSession` and what it holds) and
+  for passkey ceremony options, so apps need no native configuration of their own.
 - `who-test` (test scope) helps apps test against who: `WhoTestSessions.signedIn(identityId,
   credentialId)` returns a `MockHttpSession` that who resolves from the database on the next
   request, and `WhoMockMvcBrowser` wraps a `MockMvc` with one session and its cookies, echoing the

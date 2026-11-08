@@ -16,8 +16,11 @@
 package org.jwcarman.who.passkey.aot;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import org.springframework.aot.hint.MemberCategory;
@@ -27,6 +30,7 @@ import org.springframework.aot.hint.TypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.util.ClassUtils;
 
 /**
  * Native-image reflection for passkeys: Spring Security WebAuthn's JSON model and webauthn4j's CBOR
@@ -73,6 +77,18 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
     MemberCategory.ACCESS_DECLARED_FIELDS
   };
 
+  private static final String SERIALIZABLE_FAMILY =
+      "org/springframework/security/web/webauthn/api/";
+
+  /** JDK types held by the ceremony options. */
+  private static final List<TypeReference> JDK_SERIALIZABLE =
+      List.of(
+          TypeReference.of(Duration.class),
+          TypeReference.of(Boolean.class),
+          TypeReference.of(HashSet.class),
+          TypeReference.of("java.util.Arrays$ArrayList"),
+          TypeReference.of(byte[].class));
+
   private static final String CLASS_SUFFIX = ".class";
 
   @Override
@@ -83,8 +99,32 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
         register(hints, name);
       }
     }
+    registerSerialization(hints, resolver, classLoader);
     NAMED_TYPES.forEach(name -> register(hints, name));
     ARRAY_TYPES.forEach(name -> hints.reflection().registerType(TypeReference.of(name)));
+  }
+
+  /**
+   * Ceremony options are Java-serialized into the session by Spring Session, so each {@link
+   * Serializable} class in the API family needs a serialization hint, plus the JDK types the
+   * options hold.
+   */
+  private static void registerSerialization(
+      RuntimeHints hints, ResourcePatternResolver resolver, ClassLoader classLoader) {
+    for (String name : classesIn(resolver, SERIALIZABLE_FAMILY)) {
+      if (isSerializable(name, classLoader)) {
+        hints.serialization().registerType(TypeReference.of(name));
+      }
+    }
+    JDK_SERIALIZABLE.forEach(type -> hints.serialization().registerType(type));
+  }
+
+  private static boolean isSerializable(String className, ClassLoader classLoader) {
+    try {
+      return Serializable.class.isAssignableFrom(ClassUtils.forName(className, classLoader));
+    } catch (ClassNotFoundException | LinkageError _) {
+      return false;
+    }
   }
 
   private static void register(RuntimeHints hints, String className) {

@@ -25,7 +25,9 @@ import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -169,6 +171,85 @@ class PasskeyRuntimeHintsTest {
                     TypeReference.of(
                         "org.springframework.security.web.webauthn.api.PublicKeyCredentialParameters[]")))
         .accepts(hints());
+  }
+
+  private static final String API = "org.springframework.security.web.webauthn.api.";
+
+  @Test
+  void creationAndRequestOptionsAreSerializable() {
+    RuntimeHints hints = hints();
+    for (String name :
+        List.of(
+            "PublicKeyCredentialCreationOptions",
+            "PublicKeyCredentialRequestOptions",
+            "ImmutablePublicKeyCredentialUserEntity",
+            "Bytes",
+            "ImmutableAuthenticationExtensionsClientInputs")) {
+      assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(API + name)))
+          .as(name)
+          .accepts(hints);
+    }
+  }
+
+  @Test
+  void everySerializableWebAuthnApiTypeIsSerializable() throws ClassNotFoundException {
+    RuntimeHints hints = hints();
+    ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(classLoader);
+    int serializable = 0;
+    for (String name :
+        PasskeyRuntimeHints.classesIn(resolver, "org/springframework/security/web/webauthn/api/")) {
+      if (java.io.Serializable.class.isAssignableFrom(Class.forName(name, false, classLoader))) {
+        serializable++;
+        assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(name)))
+            .as(name)
+            .accepts(hints);
+      }
+    }
+    assertThat(serializable).isPositive();
+  }
+
+  @Test
+  void jdkTypesForOptionsAreSerializable() {
+    RuntimeHints hints = hints();
+    for (Class<?> type :
+        new Class<?>[] {Duration.class, Boolean.class, HashSet.class, byte[].class}) {
+      assertThat(RuntimeHintsPredicates.serialization().onType(type))
+          .as(type.getName())
+          .accepts(hints);
+    }
+    assertThat(
+            RuntimeHintsPredicates.serialization()
+                .onType(TypeReference.of("java.util.Arrays$ArrayList")))
+        .accepts(hints);
+  }
+
+  @Test
+  void nonSerializableTypesGetNoSerializationHint() {
+    assertThat(
+            RuntimeHintsPredicates.serialization()
+                .onType(
+                    TypeReference.of(
+                        "org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter")))
+        .rejects(hints());
+  }
+
+  @Test
+  void aTypeThatFailsToLoadIsSkipped() {
+    ClassLoader failing =
+        new ClassLoader(classLoader) {
+          @Override
+          protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (name.endsWith(".Bytes")) {
+              throw new NoClassDefFoundError(name);
+            }
+            return super.loadClass(name, resolve);
+          }
+        };
+    RuntimeHints hints = new RuntimeHints();
+    new PasskeyRuntimeHints().registerHints(hints, failing);
+
+    assertThat(RuntimeHintsPredicates.serialization().onType(TypeReference.of(API + "Bytes")))
+        .rejects(hints);
   }
 
   @Test
