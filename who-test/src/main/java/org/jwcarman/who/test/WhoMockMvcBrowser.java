@@ -197,9 +197,8 @@ public class WhoMockMvcBrowser {
     merged.putAll(cookies);
     request.setCookies(merged.values().toArray(new Cookie[0]));
     Cookie token = cookies.get(XSRF_COOKIE);
-    if (token != null
-        && request.getMethod() != null
-        && UNSAFE.contains(HttpMethod.valueOf(request.getMethod()))) {
+    String method = request.getMethod();
+    if (token != null && method != null && UNSAFE.contains(HttpMethod.valueOf(method))) {
       request.removeHeader(XSRF_HEADER);
       request.addHeader(XSRF_HEADER, token.getValue());
     }
