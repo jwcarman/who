@@ -59,7 +59,7 @@
         <spotless.plugin.version>3.11.0</spotless.plugin.version>
         <google-java-format.version>1.35.0</google-java-format.version>
         <!-- who-bom only; see its pom for why. -->
-        <flatten.plugin.version>1.8.0</flatten.plugin.version>
+        <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
 
         <!-- SonarCloud Configuration -->
         <sonar.organization>jwcarman</sonar.organization>
@@ -100,6 +100,7 @@
     </scm>
 
     <modules>
+        <!-- Must stay first: WhoBomTest reads who-bom's flattened pom, written by its process-resources. -->
         <module>who-bom</module>
         <module>who-core</module>
         <module>who-jdbc</module>
@@ -156,7 +157,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>flatten-maven-plugin</artifactId>
-                    <version>${flatten.plugin.version}</version>
+                    <version>${flatten-maven-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -403,6 +404,11 @@ limitations under the License.]]></inlineHeader>
                                         <exclude>**/*.md</exclude>
                                         <exclude>specs/**</exclude>
                                         <exclude>docs/**</exclude>
+                                        <!-- Local, git-ignored directories: the plugin walks the filesystem,
+                                             not the index, so it would scan them anyway. -->
+                                        <exclude>.superpowers/**</exclude>
+                                        <exclude>.worktrees/**</exclude>
+                                        <exclude>.claude/**</exclude>
                                     </excludes>
                                 </licenseSet>
                             </licenseSets>
