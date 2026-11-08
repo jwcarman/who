@@ -45,6 +45,16 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
   }
 
   @Override
+  public List<UUID> findIdentityIdsByRoleId(UUID roleId) {
+    return jdbcClient
+        .sql(
+            "SELECT identity_id FROM who_identity_role WHERE role_id = :roleId ORDER BY identity_id")
+        .param(PARAM_ROLE_ID, roleId)
+        .query(UUID.class)
+        .list();
+  }
+
+  @Override
   public void assignRole(UUID identityId, UUID roleId) {
     jdbcClient
         .sql(

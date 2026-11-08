@@ -11,8 +11,16 @@ All notable changes to this project are documented here. The format follows
 - `WhoWebSecurity.passwordless()` uses `NullRequestCache`: a request denied with `401` is no longer
   saved in the session, so there is no post-login redirect to the saved request.
 
+### Changed
+
+- Creating a role whose name is taken throws `RoleAlreadyExistsException` (still an
+  `IllegalArgumentException`) with a message that does not name the role.
+
 ### Added
 
+- `RbacService.findRole(String)` and `findRole(Enum)` return an `Optional<Role>`;
+  `listRoles()` returns every role sorted by name; `findIdentityIdsWithRole(Role)` returns the
+  ids of the identities that hold a role.
 - The session holds the identity id under Spring Session's principal-name index attribute, so
   `FindByIndexNameSessionRepository.findByPrincipalName(identityId)` finds every session of an
   identity. who needs no Spring Session dependency.

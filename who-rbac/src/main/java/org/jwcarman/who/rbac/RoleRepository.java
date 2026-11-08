@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +37,13 @@ public interface RoleRepository {
    * @return an Optional containing the role, or empty if not found
    */
   Optional<Role> findByName(String name);
+
+  /**
+   * Returns every role, sorted by name.
+   *
+   * @return the roles (never null; empty if none)
+   */
+  List<Role> findAll();
 
   /**
    * Saves (upserts) a role. Inserts if the role does not exist; updates the name if it does.

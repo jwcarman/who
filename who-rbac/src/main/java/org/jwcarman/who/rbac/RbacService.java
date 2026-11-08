@@ -15,7 +15,10 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.springframework.stereotype.Service;
@@ -54,6 +57,46 @@ public class RbacService {
   }
 
   /**
+   * Returns the role with the given name, if there is one.
+   *
+   * @param name the role name to look up
+   * @return the role, or empty if no role has that name
+   */
+  public Optional<Role> findRole(String name) {
+    return roleRepository.findByName(name);
+  }
+
+  /**
+   * Returns the role whose name matches the enum constant, if there is one.
+   *
+   * @param <R> the enum type serving as the role name registry
+   * @param role the enum constant whose {@link Enum#name()} is looked up
+   * @return the role, or empty if no role has that name
+   */
+  public <R extends Enum<R>> Optional<Role> findRole(R role) {
+    return findRole(role.name());
+  }
+
+  /**
+   * Returns every role, sorted by name.
+   *
+   * @return the roles (never null; empty if none)
+   */
+  public List<Role> listRoles() {
+    return roleRepository.findAll();
+  }
+
+  /**
+   * Returns the ids of the identities that hold the given role, sorted by identity id.
+   *
+   * @param role the role whose holders are wanted
+   * @return the identity ids (never null; empty if none)
+   */
+  public List<UUID> findIdentityIdsWithRole(Role role) {
+    return identityRoleRepository.findIdentityIdsByRoleId(role.id());
+  }
+
+  /**
    * Returns the role with the given name.
    *
    * @param name the role name to look up
@@ -70,7 +113,8 @@ public class RbacService {
    * @param <R> the enum type serving as the role name registry
    * @param role the enum constant whose {@link Enum#name()} becomes the role name
    * @return the newly created role
-   * @throws IllegalArgumentException if a role with that name already exists
+   * @throws RoleAlreadyExistsException if a role with that name already exists (an {@link
+   *     IllegalArgumentException})
    */
   @Transactional
   public <R extends Enum<R>> Role createRole(R role) {
@@ -82,7 +126,8 @@ public class RbacService {
    *
    * @param name the role name (must be unique)
    * @return the newly created role
-   * @throws IllegalArgumentException if a role with that name already exists
+   * @throws RoleAlreadyExistsException if a role with that name already exists (an {@link
+   *     IllegalArgumentException})
    */
   @Transactional
   public Role createRole(String name) {
@@ -91,7 +136,7 @@ public class RbacService {
 
   private Role createRoleByName(String name) {
     if (roleRepository.findByName(name).isPresent()) {
-      throw new IllegalArgumentException("Role already exists with name: " + name);
+      throw new RoleAlreadyExistsException();
     }
     return roleRepository.save(Role.create(name));
   }

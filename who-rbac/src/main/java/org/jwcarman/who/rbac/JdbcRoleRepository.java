@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,6 +53,14 @@ public class JdbcRoleRepository implements RoleRepository {
         .param(COL_NAME, name)
         .query(ROLE_ROW_MAPPER)
         .optional();
+  }
+
+  @Override
+  public List<Role> findAll() {
+    return jdbcClient
+        .sql("SELECT id, name FROM who_role ORDER BY name")
+        .query(ROLE_ROW_MAPPER)
+        .list();
   }
 
   @Override
