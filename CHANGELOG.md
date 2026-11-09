@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `WhoService.deactivate(identityId)` and `reactivate(identityId)` take an identity out of service
+  and put it back. A deactivated identity keeps its credentials, roles and history, but no credential
+  resolves to it: its next request is unauthenticated, its sign-in links are refused
+  (`INACTIVE_IDENTITY`) and its passkeys no longer sign in. Both return `false` for an unknown
+  identity and change nothing when the identity is already in that state.
 - `WhoMockMvcBrowser.performWithoutCsrf(request)` in `who-test` sends a request as a forged
   cross-site request would look: the browser's session and cookies, but no `X-XSRF-TOKEN` header and
   no token pre-fetch. Use it to prove an endpoint rejects unsafe requests that lack the CSRF header.

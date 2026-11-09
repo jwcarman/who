@@ -122,6 +122,40 @@ public class WhoService {
   }
 
   /**
+   * Deactivates an identity: sets it {@link IdentityStatus#DISABLED}. It keeps its credentials,
+   * roles and history, but no credential resolves to it ({@link #resolve(Credential)}), so its next
+   * request is unauthenticated, and its sign-in links and passkeys are refused, until it is
+   * {@linkplain #reactivate(UUID) reactivated}. Deactivating an inactive identity changes nothing.
+   *
+   * @param identityId the identity to deactivate
+   * @return {@code true} if the identity exists, {@code false} if there is no such identity
+   */
+  @Transactional
+  public boolean deactivate(UUID identityId) {
+    return setStatus(identityId, IdentityStatus.DISABLED);
+  }
+
+  /**
+   * Reactivates an identity: sets it {@link IdentityStatus#ACTIVE}, so its credentials resolve to
+   * it again. Reactivating an active identity changes nothing.
+   *
+   * @param identityId the identity to reactivate
+   * @return {@code true} if the identity exists, {@code false} if there is no such identity
+   */
+  @Transactional
+  public boolean reactivate(UUID identityId) {
+    return setStatus(identityId, IdentityStatus.ACTIVE);
+  }
+
+  private boolean setStatus(UUID identityId, IdentityStatus status) {
+    requireNonNull(identityId, "identityId must not be null");
+    return identityRepository
+        .findById(identityId)
+        .map(identity -> identityRepository.save(identity.withStatus(status)))
+        .isPresent();
+  }
+
+  /**
    * Deletes an identity together with its credentials. Each credential linked to the identity is
    * offered to the credential removers until one deletes it, then unlinked. Deleting the identity
    * then removes, by cascade, its role assignments, enrollment tokens and passkeys.
