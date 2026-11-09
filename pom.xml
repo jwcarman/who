@@ -55,7 +55,7 @@
         <sonatype.plugin.version>0.10.0</sonatype.plugin.version>
         <source.plugin.version>3.4.0</source.plugin.version>
         <surefire.plugin.version>3.6.1</surefire.plugin.version>
-        <license.plugin.version>5.0.0</license.plugin.version>
+        <license.plugin.version>5.1.2</license.plugin.version>
         <spotless.plugin.version>3.11.0</spotless.plugin.version>
         <google-java-format.version>1.35.0</google-java-format.version>
         <!-- who-bom only; see its pom for why. -->
