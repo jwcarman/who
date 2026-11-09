@@ -1,5 +1,11 @@
 # Upgrading
 
+## Upgrading to 0.13.0
+
+0.13.0 is additive: `WhoService.deactivate(identityId)` and `reactivate(identityId)` take an identity
+out of service and put it back, and `who-test` gains `WhoMockMvcBrowser.performWithoutCsrf`. Nothing
+needs to change, and there are no schema changes.
+
 ## Upgrading to 0.12.0
 
 0.12.0 makes sessions ready for Spring Session, adds RBAC lookups and a test module, and has five changes that can affect existing code. There are no schema changes.

@@ -33,7 +33,7 @@ knowing which credential the caller used.
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-spring-boot-starter</artifactId>
-    <version>0.12.0</version>
+    <version>0.13.0</version>
 </dependency>
 ```
 
