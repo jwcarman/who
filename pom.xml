@@ -59,7 +59,7 @@
         <spotless.plugin.version>3.11.0</spotless.plugin.version>
         <google-java-format.version>1.35.0</google-java-format.version>
         <!-- who-bom only; see its pom for why. -->
-        <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
+        <flatten-maven-plugin.version>1.9.0</flatten-maven-plugin.version>
 
         <!-- SonarCloud Configuration -->
         <sonar.organization>jwcarman</sonar.organization>
