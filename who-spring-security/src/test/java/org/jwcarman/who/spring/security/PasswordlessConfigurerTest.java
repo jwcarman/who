@@ -23,6 +23,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,9 +33,11 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -48,6 +51,8 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
+import org.jwcarman.who.spring.security.web.NotSignedInException;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +63,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -80,6 +86,9 @@ class PasswordlessConfigurerTest {
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
   private static final String MARKER_HEADER = "X-Test-Login-Method";
 
+  /** What who handed to the application, in order. */
+  static final List<Exception> HANDED_OFF = new CopyOnWriteArrayList<>();
+
   @Configuration
   @EnableAutoConfiguration
   @Import(WhoMeController.class)
@@ -97,13 +106,19 @@ class PasswordlessConfigurerTest {
     }
 
     @Bean
+    WhoExceptionHandoff whoExceptionHandoff() {
+      return new WhoExceptionHandoff((request, response, exception) -> !HANDED_OFF.add(exception));
+    }
+
+    @Bean
     PasswordlessLoginMethod markerLoginMethod() {
       return http -> http.addFilterBefore(new MarkerFilter(), CsrfFilter.class);
     }
 
     @Bean
     SecurityFilterChain browserChain(HttpSecurity http) {
-      http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
+      http.authorizeHttpRequests(
+              a -> a.requestMatchers("/admin").hasAuthority("admin").anyRequest().authenticated())
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
     }
@@ -130,6 +145,7 @@ class PasswordlessConfigurerTest {
 
   @BeforeEach
   void setUp() {
+    HANDED_OFF.clear();
     mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
   }
 
@@ -340,5 +356,22 @@ class PasswordlessConfigurerTest {
         .contains("found no sign-in methods")
         .contains("who.email-link.link-base-url")
         .contains("who.passkey.rp-id");
+  }
+
+  @Test
+  void signedOutRequestHandsOffNotSignedIn() throws Exception {
+    mvc.perform(get("/protected"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(content().string(""));
+    assertThat(HANDED_OFF).singleElement().isInstanceOf(NotSignedInException.class);
+  }
+
+  @Test
+  void deniedRequestHandsOffAccessDenied() throws Exception {
+    resolvesTo(Set.of("task.read"));
+    mvc.perform(get("/admin").session(signedIn()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(""));
+    assertThat(HANDED_OFF).singleElement().isInstanceOf(AccessDeniedException.class);
   }
 }

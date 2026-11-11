@@ -19,6 +19,8 @@ import static org.springframework.security.web.header.writers.ReferrerPolicyHead
 
 import java.util.List;
 
+import org.jwcarman.who.spring.security.web.NotSignedInException;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -26,7 +28,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -73,16 +74,31 @@ public class PasswordlessConfigurer
     ApplicationContext context = http.getSharedObject(ApplicationContext.class);
     WhoSessionSecurityContextRepository repository =
         context.getBean(WhoSessionSecurityContextRepository.class);
+    WhoExceptionHandoff handoff =
+        context
+            .getBeanProvider(WhoExceptionHandoff.class)
+            .getIfAvailable(() -> new WhoExceptionHandoff(null));
 
     // Spring's SPA setup: script-readable XSRF-TOKEN cookie, token loaded on every request,
     // BREACH-safe rendered tokens and plain header values accepted
     http.csrf(CsrfConfigurer::spa)
         .securityContext(c -> c.securityContextRepository(repository))
-        // an SPA gets a plain 401; a saved request would only copy headers and cookies into the
-        // session
+        // a saved request would only copy headers and cookies into the session
         .requestCache(c -> c.requestCache(new NullRequestCache()))
+        // who formats no errors: a signed-out request and a denied one are handed to the
+        // application's exception handling, so its own advice answers them
         .exceptionHandling(
-            e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            e ->
+                e.authenticationEntryPoint(
+                        (request, response, authException) ->
+                            handoff.handOff(
+                                request,
+                                response,
+                                new NotSignedInException(authException),
+                                HttpStatus.UNAUTHORIZED))
+                    .accessDeniedHandler(
+                        (request, response, denied) ->
+                            handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)))
         .logout(
             l ->
                 l.logoutSuccessHandler(
