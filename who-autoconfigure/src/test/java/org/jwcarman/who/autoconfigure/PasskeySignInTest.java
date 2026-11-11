@@ -94,7 +94,6 @@ class PasskeySignInTest {
   static final String OTHER = "other@example.com";
   static final String XSRF_COOKIE = "XSRF-TOKEN";
   static final String XSRF_HEADER = "X-XSRF-TOKEN";
-  static final String INVALID_CREDENTIAL = "{\"error\":\"invalid_credential\"}";
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
@@ -347,7 +346,8 @@ class PasskeySignInTest {
 
   private static void assertInvalidCredential(MvcResult result) throws Exception {
     assertThat(result.getResponse().getStatus()).isEqualTo(401);
-    assertThat(result.getResponse().getContentAsString()).isEqualTo(INVALID_CREDENTIAL);
+    // who writes no error body: with no advice, the status is all there is
+    assertThat(result.getResponse().getContentAsString()).isEmpty();
   }
 
   private static String identityIdOf(Browser browser) throws Exception {
