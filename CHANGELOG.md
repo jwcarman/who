@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-10
+
 ### Breaking changes
 
 - who no longer writes error responses. It throws exceptions and hands those raised in Spring Security's filters to the application's Spring MVC exception resolvers, so the application's `@RestControllerAdvice` formats every error. New exceptions in `org.jwcarman.who.spring.security.web`:
@@ -24,6 +26,10 @@ All notable changes to this project are documented here. The format follows
 
 - `WhoExceptionHandoff`, with its `Resolver` interface. who's autoconfiguration builds one over the application's `handlerExceptionResolver` bean.
 - The [Errors](docs/guides/errors.md) guide.
+
+### Changed
+
+- The release build uses central-publishing-maven-plugin 0.12.0, which Maven 3.10 needs; earlier versions produce bundles Maven Central rejects.
 
 ## [0.13.0] - 2026-11-08
 
@@ -219,6 +225,7 @@ before you upgrade.
 - Java 25+ and PostgreSQL 14+, unchanged.
 
 [Unreleased]: https://github.com/jwcarman/who/compare/0.13.0...HEAD
+[0.14.0]: https://github.com/jwcarman/who/releases/tag/0.14.0
 [0.13.0]: https://github.com/jwcarman/who/releases/tag/0.13.0
 [0.12.0]: https://github.com/jwcarman/who/releases/tag/0.12.0
 [0.11.0]: https://github.com/jwcarman/who/releases/tag/0.11.0
