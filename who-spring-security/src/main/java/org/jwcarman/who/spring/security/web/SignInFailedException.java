@@ -22,7 +22,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 /**
  * A sign-in attempt failed: a bad, expired or used token, an unknown or invalid passkey, or an
  * inactive identity. The message is always {@value #MESSAGE}, so the reason never reaches a
- * response; the cause keeps it for logging.
+ * response. The reason is kept as a suppressed exception, for logging, and not as the cause: Spring
+ * matches {@code @ExceptionHandler} types against the cause chain, so a cause could be answered by
+ * an advice for its own type, with its own message.
  */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
 public class SignInFailedException extends AuthenticationException {
@@ -32,9 +34,10 @@ public class SignInFailedException extends AuthenticationException {
   /**
    * Creates the exception.
    *
-   * @param cause why the sign-in failed
+   * @param reason why the sign-in failed
    */
-  public SignInFailedException(Throwable cause) {
-    super(MESSAGE, cause);
+  public SignInFailedException(Throwable reason) {
+    super(MESSAGE);
+    addSuppressed(reason);
   }
 }

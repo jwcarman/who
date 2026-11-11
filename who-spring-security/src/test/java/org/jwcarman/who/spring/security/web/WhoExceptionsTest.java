@@ -26,11 +26,14 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 class WhoExceptionsTest {
 
   @Test
-  void signInFailedHidesItsCause() {
+  void signInFailedKeepsItsCauseOutOfTheCauseChain() {
+    // Spring matches @ExceptionHandler types against the cause chain too: a cause there could be
+    // answered by an advice for its own type, with its own message
     BadCredentialsException cause = new BadCredentialsException("token expired");
     SignInFailedException exception = new SignInFailedException(cause);
     assertThat(exception).hasMessage("Sign-in failed");
-    assertThat(exception.getCause()).isSameAs(cause);
+    assertThat(exception.getCause()).isNull();
+    assertThat(exception.getSuppressed()).containsExactly(cause);
   }
 
   @Test
@@ -47,13 +50,6 @@ class WhoExceptionsTest {
     assertThat(new ReauthenticationRequiredException()).hasMessage("Reauthentication required");
     assertThat(new InvalidPasskeyRegistrationException())
         .hasMessage("Invalid passkey registration");
-  }
-
-  @Test
-  void notSignedInKeepsItsCause() {
-    BadCredentialsException cause = new BadCredentialsException("x");
-    assertThat(new NotSignedInException(cause).getCause()).isSameAs(cause);
-    assertThat(new NotSignedInException(cause)).hasMessage("Not signed in");
   }
 
   @Test

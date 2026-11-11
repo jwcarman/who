@@ -18,6 +18,7 @@ All notable changes to this project are documented here. The format follows
 - `PasskeyRegistrationGuardFilter` takes a `WhoExceptionHandoff` instead of a `JsonMapper`.
 - `GET /who/me` throws `NotSignedInException` when signed out.
 - `WhoWebSecurity.passwordless()` installs an entry point and an access-denied handler that hand the exception off, instead of a bare 401 and Spring's empty 403.
+- Errors raised in the filters now reach the application's advice. A catch-all `@ExceptionHandler(Exception.class)` would answer them with its own status (often 500): map who's exceptions before upgrading. Only a global advice sees them, not one limited by `basePackages`, `assignableTypes` or `annotations`.
 
 ### Added
 

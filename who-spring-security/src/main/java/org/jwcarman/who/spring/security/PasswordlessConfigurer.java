@@ -94,7 +94,7 @@ public class PasswordlessConfigurer
                             handoff.handOff(
                                 request,
                                 response,
-                                new NotSignedInException(authException),
+                                new NotSignedInException(),
                                 HttpStatus.UNAUTHORIZED))
                     .accessDeniedHandler(
                         (request, response, denied) ->

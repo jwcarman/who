@@ -19,7 +19,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-/** A request needs a signed-in caller and has none. */
+/**
+ * A request needs a signed-in caller and has none. It carries no cause: Spring's {@code
+ * InsufficientAuthenticationException} holds an {@code AccessDeniedException}, which an advice for
+ * that type would answer with {@code 403} if it were in the cause chain.
+ */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
 public class NotSignedInException extends AuthenticationException {
 
@@ -28,14 +32,5 @@ public class NotSignedInException extends AuthenticationException {
   /** Creates the exception. */
   public NotSignedInException() {
     super(MESSAGE);
-  }
-
-  /**
-   * Creates the exception.
-   *
-   * @param cause what Spring Security reported
-   */
-  public NotSignedInException(Throwable cause) {
-    super(MESSAGE, cause);
   }
 }

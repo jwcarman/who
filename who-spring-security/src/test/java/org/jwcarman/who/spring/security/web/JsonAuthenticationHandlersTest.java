@@ -67,7 +67,8 @@ class JsonAuthenticationHandlersTest {
     handlers.failure().onAuthenticationFailure(new MockHttpServletRequest(), response, cause);
 
     assertThat(handedOff).singleElement().isInstanceOf(SignInFailedException.class);
-    assertThat(handedOff.getFirst().getCause()).isSameAs(cause);
+    assertThat(handedOff.getFirst().getCause()).isNull();
+    assertThat(handedOff.getFirst().getSuppressed()).containsExactly(cause);
     assertThat(response.getContentAsString()).isEmpty();
     assertThat(response.getContentType()).isNull();
   }

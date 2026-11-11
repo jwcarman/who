@@ -367,6 +367,14 @@ class PasswordlessConfigurerTest {
   }
 
   @Test
+  void signedOutHandsOffNoCauseChain() throws Exception {
+    // Spring's InsufficientAuthenticationException carries an AccessDeniedException: in the cause
+    // chain, an advice for AccessDeniedException would answer a signed-out caller with 403
+    mvc.perform(get("/protected")).andExpect(status().isUnauthorized());
+    assertThat(HANDED_OFF).singleElement().extracting(Throwable::getCause).isNull();
+  }
+
+  @Test
   void deniedRequestHandsOffAccessDenied() throws Exception {
     resolvesTo(Set.of("task.read"));
     mvc.perform(get("/admin").session(signedIn()))

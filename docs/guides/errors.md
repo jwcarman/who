@@ -18,6 +18,8 @@ All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `Acce
 
 Most of these errors happen inside Spring Security's filters, before Spring MVC runs, and an exception thrown there never reaches a `@RestControllerAdvice`. who therefore hands each one to your application's Spring MVC exception resolvers, the `handlerExceptionResolver` bean, through `WhoExceptionHandoff`. A controller exception travels the same path, so one advice covers both. This needs Spring MVC, which every Spring Boot servlet application has.
 
+The advice must be global: one limited by `basePackages`, `assignableTypes` or `annotations` never sees who's errors, because they are not raised by a controller. A catch-all `@ExceptionHandler(Exception.class)` sees them too, so map who's exceptions explicitly or it answers them instead.
+
 When nothing in your application handles an exception, who calls `response.sendError(status)` with the status in the table. Spring Boot's own error handling then answers with your application's default error body.
 
 ## Example: Problem Details
