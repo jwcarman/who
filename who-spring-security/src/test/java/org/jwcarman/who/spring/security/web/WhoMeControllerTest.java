@@ -17,6 +17,7 @@
 package org.jwcarman.who.spring.security.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Set;
 
@@ -43,10 +44,7 @@ class WhoMeControllerTest {
   }
 
   @Test
-  void noPrincipalIsUnauthorized() {
-    ResponseEntity<WhoMeController.WhoMeResponse> response = controller.me(null);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-    assertThat(response.getBody()).isNull();
+  void signedOutThrowsNotSignedIn() {
+    assertThatThrownBy(() -> controller.me(null)).isInstanceOf(NotSignedInException.class);
   }
 }

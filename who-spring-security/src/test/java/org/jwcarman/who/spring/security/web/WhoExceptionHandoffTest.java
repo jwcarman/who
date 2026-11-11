@@ -25,8 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.servlet.HandlerExceptionResolver;
-import org.springframework.web.servlet.ModelAndView;
 
 class WhoExceptionHandoffTest {
 
@@ -34,18 +32,18 @@ class WhoExceptionHandoffTest {
   private final MockHttpServletResponse response = new MockHttpServletResponse();
   private final List<Exception> resolved = new ArrayList<>();
 
-  private HandlerExceptionResolver resolving(int status) {
-    return (req, res, handler, ex) -> {
+  private WhoExceptionHandoff.Resolver resolving(int status) {
+    return (req, res, ex) -> {
       resolved.add(ex);
       res.setStatus(status);
-      return new ModelAndView();
+      return true;
     };
   }
 
-  private HandlerExceptionResolver unresolving() {
-    return (req, res, handler, ex) -> {
+  private WhoExceptionHandoff.Resolver unresolving() {
+    return (req, res, ex) -> {
       resolved.add(ex);
-      return null;
+      return false;
     };
   }
 
@@ -97,8 +95,8 @@ class WhoExceptionHandoffTest {
 
   @Test
   void aResolverThatThrowsFallsBackToSendError() throws Exception {
-    HandlerExceptionResolver throwing =
-        (req, res, handler, ex) -> {
+    WhoExceptionHandoff.Resolver throwing =
+        (req, res, ex) -> {
           throw new IllegalStateException("broken advice");
         };
     new WhoExceptionHandoff(throwing)

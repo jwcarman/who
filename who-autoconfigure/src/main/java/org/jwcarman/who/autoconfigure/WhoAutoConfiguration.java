@@ -75,6 +75,7 @@ import org.jwcarman.who.rbac.RolePermissionRepository;
 import org.jwcarman.who.rbac.RoleRepository;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +100,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -379,6 +381,33 @@ public class WhoAutoConfiguration {
   }
 
   /**
+   * Hands errors raised in who's security filters to the application's Spring MVC exception
+   * resolvers, so the application's {@code @RestControllerAdvice} formats them. {@code
+   * DefaultErrorAttributes} is a resolver too, so the composite is picked by its bean name.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+  @ConditionalOnClass(
+      name = {
+        "org.jwcarman.who.spring.security.web.WhoExceptionHandoff",
+        "org.springframework.web.servlet.DispatcherServlet"
+      })
+  static class ExceptionHandoffConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WhoExceptionHandoff whoExceptionHandoff(
+        @Qualifier("handlerExceptionResolver") ObjectProvider<HandlerExceptionResolver> resolver) {
+      HandlerExceptionResolver mvc = resolver.getIfAvailable();
+      return new WhoExceptionHandoff(
+          mvc == null
+              ? null
+              : (request, response, exception) ->
+                  mvc.resolveException(request, response, null, exception) != null);
+    }
+  }
+
+  /**
    * Registers email sign-in link beans when {@code who-email-link} is on the classpath and the
    * application opts in by setting {@code who.email-link.link-base-url}.
    *
@@ -467,8 +496,9 @@ public class WhoAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public JsonAuthenticationHandlers jsonAuthenticationHandlers(
-        ObjectProvider<JsonMapper> jsonMapper) {
-      return new JsonAuthenticationHandlers(jsonMapper(jsonMapper));
+        ObjectProvider<JsonMapper> jsonMapper, ObjectProvider<WhoExceptionHandoff> handoff) {
+      return new JsonAuthenticationHandlers(
+          jsonMapper(jsonMapper), handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)));
     }
 
     @Bean

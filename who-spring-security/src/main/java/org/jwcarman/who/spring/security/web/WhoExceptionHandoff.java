@@ -26,28 +26,43 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
  * Hands an exception raised outside Spring MVC (in a security filter, failure handler or entry
- * point) to the application's {@link HandlerExceptionResolver}, so the application's own
- * {@code @RestControllerAdvice} answers it like any controller exception. who writes no error body:
- * when nothing resolves the exception, it calls {@code response.sendError} with the exception's
- * {@link ResponseStatus}, or the fallback, and lets the application's error handling answer.
+ * point) to the application's exception resolvers, so the application's own
+ * {@code @RestControllerAdvice} answers it like any controller exception. who's autoconfiguration
+ * adapts Spring MVC's {@code handlerExceptionResolver} bean to a {@link Resolver}. who writes no
+ * error body: when nothing resolves the exception, it calls {@code response.sendError} with the
+ * exception's {@link ResponseStatus}, or the fallback, and lets the application's error handling
+ * answer.
  */
 public final class WhoExceptionHandoff {
 
   private static final Logger log = LoggerFactory.getLogger(WhoExceptionHandoff.class);
 
-  private final @Nullable HandlerExceptionResolver resolver;
+  /** Resolves an exception the way the application resolves its controllers' exceptions. */
+  @FunctionalInterface
+  public interface Resolver {
+
+    /**
+     * Answers {@code exception} on {@code response}.
+     *
+     * @param request the request
+     * @param response the response
+     * @param exception what went wrong
+     * @return whether the exception was handled
+     */
+    boolean resolve(HttpServletRequest request, HttpServletResponse response, Exception exception);
+  }
+
+  private final @Nullable Resolver resolver;
 
   /**
    * Creates the handoff.
    *
-   * @param resolver the application's resolver, usually Spring MVC's {@code
-   *     handlerExceptionResolver} bean; null to always fall back to {@code sendError}
+   * @param resolver the application's resolver; null to always fall back to {@code sendError}
    */
-  public WhoExceptionHandoff(@Nullable HandlerExceptionResolver resolver) {
+  public WhoExceptionHandoff(@Nullable Resolver resolver) {
     this.resolver = resolver;
   }
 
@@ -78,7 +93,7 @@ public final class WhoExceptionHandoff {
   private boolean resolved(
       HttpServletRequest request, HttpServletResponse response, Exception exception) {
     try {
-      return resolver.resolveException(request, response, null, exception) != null;
+      return resolver.resolve(request, response, exception);
     } catch (RuntimeException e) {
       log.debug("Resolving {} failed: {}", exception.getClass().getName(), e.getClass().getName());
       return false;

@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,12 +45,13 @@ public class WhoMeController {
    * Returns the current principal, freshly resolved for this request.
    *
    * @param principal the signed-in principal, or {@code null} if there is none
-   * @return {@code 200} with the identity, or {@code 401}
+   * @return {@code 200} with the identity
+   * @throws NotSignedInException when no one is signed in; the application formats it
    */
   @GetMapping("/who/me")
   public ResponseEntity<WhoMeResponse> me(@AuthenticationPrincipal WhoPrincipal principal) {
     if (principal == null) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+      throw new NotSignedInException();
     }
     return ResponseEntity.ok(new WhoMeResponse(principal.identity().id(), principal.permissions()));
   }

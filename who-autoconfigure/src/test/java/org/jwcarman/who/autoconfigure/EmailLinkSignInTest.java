@@ -306,8 +306,8 @@ class EmailLinkSignInTest {
 
   private static void assertInvalidToken(MvcResult result) throws Exception {
     assertThat(result.getResponse().getStatus()).isEqualTo(401);
-    assertThat(result.getResponse().getContentAsString())
-        .isEqualTo("{\"error\":\"invalid_token\"}");
+    // who writes no error body: with no advice, the status is all there is
+    assertThat(result.getResponse().getContentAsString()).isEmpty();
   }
 
   // ---------------------------------------------------------------- the flow

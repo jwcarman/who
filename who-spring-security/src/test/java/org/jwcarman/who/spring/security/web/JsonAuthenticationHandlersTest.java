@@ -17,6 +17,8 @@ package org.jwcarman.who.spring.security.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +35,11 @@ import tools.jackson.databind.json.JsonMapper;
 class JsonAuthenticationHandlersTest {
 
   private final JsonMapper mapper = JsonMapper.builder().build();
-  private final JsonAuthenticationHandlers handlers = new JsonAuthenticationHandlers(mapper);
+  private final List<Exception> handedOff = new ArrayList<>();
+  private final WhoExceptionHandoff.Resolver recording =
+      (request, response, exception) -> handedOff.add(exception);
+  private final JsonAuthenticationHandlers handlers =
+      new JsonAuthenticationHandlers(mapper, new WhoExceptionHandoff(recording));
   private final MockHttpServletResponse response = new MockHttpServletResponse();
 
   @Test
@@ -55,33 +61,14 @@ class JsonAuthenticationHandlersTest {
   }
 
   @Test
-  void failureBody() throws Exception {
-    handlers
-        .failure()
-        .onAuthenticationFailure(
-            new MockHttpServletRequest(),
-            response,
-            new InvalidOneTimeTokenException("invalid_token"));
+  void failureHandsOffSignInFailed() throws Exception {
+    InvalidOneTimeTokenException cause = new InvalidOneTimeTokenException("invalid_token");
 
-    assertThat(response.getStatus()).isEqualTo(401);
-    assertThat(response.getContentType()).startsWith("application/json");
-    JsonNode body = mapper.readTree(response.getContentAsString());
-    assertThat(body.size()).isEqualTo(1);
-    assertThat(body.get("error").asString()).isEqualTo("invalid_token");
-  }
+    handlers.failure().onAuthenticationFailure(new MockHttpServletRequest(), response, cause);
 
-  @Test
-  void failureCarriesTheGivenErrorCode() throws Exception {
-    handlers
-        .failure("invalid_credential")
-        .onAuthenticationFailure(
-            new MockHttpServletRequest(),
-            response,
-            new InvalidOneTimeTokenException("invalid_credential"));
-
-    assertThat(response.getStatus()).isEqualTo(401);
-    JsonNode body = mapper.readTree(response.getContentAsString());
-    assertThat(body.size()).isEqualTo(1);
-    assertThat(body.get("error").asString()).isEqualTo("invalid_credential");
+    assertThat(handedOff).singleElement().isInstanceOf(SignInFailedException.class);
+    assertThat(handedOff.getFirst().getCause()).isSameAs(cause);
+    assertThat(response.getContentAsString()).isEmpty();
+    assertThat(response.getContentType()).isNull();
   }
 }

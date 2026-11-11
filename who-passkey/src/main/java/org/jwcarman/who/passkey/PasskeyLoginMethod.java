@@ -23,6 +23,7 @@ import java.time.Duration;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -62,8 +63,6 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class PasskeyLoginMethod implements PasswordlessLoginMethod {
 
-  static final String INVALID_CREDENTIAL = "invalid_credential";
-
   /** Satisfies Spring's {@code UserDetailsService} requirement; who's sign-in never calls it. */
   static final UserDetailsService NO_USERS =
       username -> {
@@ -74,7 +73,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   private final JdbcWhoPasskeyCredentialRepository credentialRepository;
   private final AuthenticationProvider authenticationProvider;
   private final WhoSessionSecurityContextRepository sessionRepository;
-  private final JsonAuthenticationHandlers handlers;
+  private final JsonMapper jsonMapper;
   private final PasskeyRegistrationGuardFilter guard;
 
   /**
@@ -103,7 +102,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         requireNonNull(authenticationProvider, "authenticationProvider must not be null");
     this.sessionRepository =
         requireNonNull(sessionRepository, "sessionRepository must not be null");
-    this.handlers = new JsonAuthenticationHandlers(jsonMapper);
+    this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
     this.guard =
         new PasskeyRegistrationGuardFilter(
             sessionRepository, clock, registrationWindow, jsonMapper);
@@ -112,6 +111,11 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   @Override
   public void configure(HttpSecurity http) {
     ApplicationContext context = http.getSharedObject(ApplicationContext.class);
+    WhoExceptionHandoff handoff =
+        context
+            .getBeanProvider(WhoExceptionHandoff.class)
+            .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    JsonAuthenticationHandlers handlers = new JsonAuthenticationHandlers(jsonMapper, handoff);
     http.setSharedObject(PublicKeyCredentialUserEntityRepository.class, userRepository);
     http.setSharedObject(UserCredentialRepository.class, credentialRepository);
     // Spring finds a UserDetailsService as a shared object, then as a unique bean
@@ -123,7 +127,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         webAuthn ->
             webAuthn
                 .disableDefaultRegistrationPage(true)
-                .withObjectPostProcessor(signInPostProcessor(http, context)));
+                .withObjectPostProcessor(signInPostProcessor(http, context, handlers)));
     // WebAuthn's own filters are added later, so anchor to a filter that is already there; this
     // sorts before all of them
     http.addFilterAfter(guard, ExceptionTranslationFilter.class);
@@ -131,7 +135,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
 
   // An anonymous class, not a lambda, so Spring can tell which type it post-processes.
   private ObjectPostProcessor<WebAuthnAuthenticationFilter> signInPostProcessor(
-      HttpSecurity http, ApplicationContext context) {
+      HttpSecurity http, ApplicationContext context, JsonAuthenticationHandlers handlers) {
     return new ObjectPostProcessor<>() {
       @Override
       public <O extends WebAuthnAuthenticationFilter> O postProcess(O filter) {
@@ -151,7 +155,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         }
         filter.setSessionAuthenticationStrategy(sessionStrategy);
         filter.setAuthenticationSuccessHandler(handlers.success());
-        filter.setAuthenticationFailureHandler(handlers.failure(INVALID_CREDENTIAL));
+        filter.setAuthenticationFailureHandler(handlers.failure());
         return filter;
       }
     };

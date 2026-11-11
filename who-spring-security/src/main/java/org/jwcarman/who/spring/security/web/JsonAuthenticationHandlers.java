@@ -23,24 +23,31 @@ import java.util.Map;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 import tools.jackson.databind.json.JsonMapper;
 
-/** JSON answers for sign-in endpoints that do not redirect. */
+/**
+ * Handlers for sign-in endpoints that do not redirect: a JSON answer on success, and on failure a
+ * {@link SignInFailedException} handed to the application, which formats it.
+ */
 public class JsonAuthenticationHandlers {
 
   private final JsonMapper jsonMapper;
+  private final WhoExceptionHandoff handoff;
 
   /**
    * Creates new handlers.
    *
-   * @param jsonMapper the JSON mapper
+   * @param jsonMapper writes the success body
+   * @param handoff hands sign-in failures to the application
    */
-  public JsonAuthenticationHandlers(JsonMapper jsonMapper) {
+  public JsonAuthenticationHandlers(JsonMapper jsonMapper, WhoExceptionHandoff handoff) {
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
+    this.handoff = requireNonNull(handoff, "handoff must not be null");
   }
 
   /**
@@ -59,24 +66,15 @@ public class JsonAuthenticationHandlers {
   }
 
   /**
-   * Returns the failure handler: {@code 401} with {@code {"error": "invalid_token"}}.
+   * Returns the failure handler: it hands a {@link SignInFailedException}, wrapping Spring's
+   * exception, to the application (falling back to {@code 401}).
    *
    * @return the failure handler
    */
   public AuthenticationFailureHandler failure() {
-    return failure("invalid_token");
-  }
-
-  /**
-   * Returns a failure handler: {@code 401} with {@code {"error": errorCode}}.
-   *
-   * @param errorCode the error code to report
-   * @return the failure handler
-   */
-  public AuthenticationFailureHandler failure(String errorCode) {
-    requireNonNull(errorCode, "errorCode must not be null");
     return (request, response, exception) ->
-        write(response, HttpServletResponse.SC_UNAUTHORIZED, Map.of("error", errorCode));
+        handoff.handOff(
+            request, response, new SignInFailedException(exception), HttpStatus.UNAUTHORIZED);
   }
 
   private void write(HttpServletResponse response, int status, Map<String, String> body)
