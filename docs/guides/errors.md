@@ -20,7 +20,9 @@ Most of these errors happen inside Spring Security's filters, before Spring MVC 
 
 The advice must be global: one limited by `basePackages`, `assignableTypes` or `annotations` never sees who's errors, because they are not raised by a controller. A catch-all `@ExceptionHandler(Exception.class)` sees them too, so map who's exceptions explicitly or it answers them instead.
 
-When nothing in your application handles an exception, who calls `response.sendError(status)` with the status in the table. Spring Boot's own error handling then answers with your application's default error body.
+When nothing in your application handles an exception, who calls `response.sendError(status)` with the status in the table, and Spring Boot forwards the request to its error page, `/error`. What the client receives then depends on your chain. If `/error` needs a signed-in caller, as it does under `anyRequest().authenticated()`, a signed-out client gets the bare status with an empty body. Permit it (`requestMatchers("/error").permitAll()`) to get Spring Boot's default error body instead.
+
+who's autoconfiguration connects the handoff to your exception resolvers. An application that builds who's beans itself, without the autoconfiguration, gets a handoff with no resolver: it only calls `sendError`, and your advice never sees who's errors. Build one with `new WhoExceptionHandoff((request, response, e) -> resolver.resolveException(request, response, null, e) != null)` over your `handlerExceptionResolver` bean.
 
 ## Example: Problem Details
 
@@ -52,6 +54,11 @@ class WhoProblems {
 
   @ExceptionHandler(AccessDeniedException.class)
   ProblemDetail denied() {
+    // a signed-out caller can reach a method-security check when the URL rules let it through
+    Authentication caller = SecurityContextHolder.getContext().getAuthentication();
+    if (caller == null || caller instanceof AnonymousAuthenticationToken) {
+      return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Sign in to continue");
+    }
     return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "You do not have permission");
   }
 }

@@ -84,7 +84,8 @@ public final class WhoExceptionHandoff {
     if (response.isCommitted()) {
       return;
     }
-    if (resolver != null && resolved(request, response, exception)) {
+    // a resolver that answered and then failed has still answered
+    if (resolver != null && resolved(request, response, exception) || response.isCommitted()) {
       return;
     }
     response.sendError(statusOf(exception, fallback).value());

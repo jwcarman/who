@@ -106,6 +106,20 @@ class WhoExceptionHandoffTest {
     assertNoBody();
   }
 
+  @Test
+  void aResolverThatCommitsAndThenThrowsIsLeftAlone() throws Exception {
+    WhoExceptionHandoff.Resolver commitsThenThrows =
+        (req, res, ex) -> {
+          res.setStatus(401);
+          ((MockHttpServletResponse) res).setCommitted(true);
+          throw new IllegalStateException("failed after answering");
+        };
+    new WhoExceptionHandoff(commitsThenThrows)
+        .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getErrorMessage()).isNull();
+  }
+
   private void assertNoBody() throws Exception {
     assertThat(response.getContentAsString()).isEmpty();
     assertThat(response.getContentType()).isNull();
