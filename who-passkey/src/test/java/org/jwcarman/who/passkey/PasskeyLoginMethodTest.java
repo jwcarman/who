@@ -46,6 +46,7 @@ import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -246,8 +247,9 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     ((AuthenticationFailureHandler) ReflectionTestUtils.getField(signIn, "failureHandler"))
         .onAuthenticationFailure(
             new MockHttpServletRequest(), failure, new BadCredentialsException("invalid"));
+    // a failed sign-in is handed to the application; with nothing to format it, a bare 401
     assertThat(failure.getStatus()).isEqualTo(401);
-    assertThat(failure.getContentAsString()).isEqualTo("{\"error\":\"invalid_credential\"}");
+    assertThat(failure.getContentAsString()).isEmpty();
   }
 
   @Test
@@ -310,6 +312,9 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     HttpSecurity http = mock(HttpSecurity.class);
     ApplicationContext context = mock(ApplicationContext.class);
     ObjectProvider<UserDetailsService> beans = mock(ObjectProvider.class);
+    ObjectProvider<WhoExceptionHandoff> handoffs = mock(ObjectProvider.class);
+    when(context.getBeanProvider(WhoExceptionHandoff.class)).thenReturn(handoffs);
+    when(handoffs.getIfAvailable(any())).thenReturn(new WhoExceptionHandoff(null));
     when(http.getSharedObject(ApplicationContext.class)).thenReturn(context);
     when(http.getSharedObject(UserDetailsService.class)).thenReturn(shared);
     when(context.getBeanProvider(UserDetailsService.class)).thenReturn(beans);
