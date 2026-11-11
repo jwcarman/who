@@ -147,14 +147,14 @@ async function registerPasskey(label) {
 
 The `label` is required (the `label` column is `NOT NULL`). It is the name the user sees in your passkey list, such as "Laptop".
 
-The answers:
+The answers. An error's body is whatever your application writes for its exception (see [Errors](errors.md)):
 
 | Status | Body | Meaning |
 |--------|------|---------|
 | `200` | `{"success":true}` | The passkey is registered. |
-| `401` | empty | The caller is signed out. |
-| `401` | `{"error":"reauthentication_required"}` | The sign-in is older than `registration-window`. Send the user through an email link again, then retry. |
-| `400` | `{"error":"invalid_registration"}` | The response failed verification: a wrong origin or challenge, or a device that did not verify the user. Also when the options in the session were requested by a different identity than the one signed in now (someone else signed in on the same browser before the registration finished). |
+| `401` | yours | `NotSignedInException`: the caller is signed out. |
+| `401` | yours | `ReauthenticationRequiredException`: the sign-in is older than `registration-window`. Send the user through an email link again, then retry. |
+| `400` | yours | `InvalidPasskeyRegistrationException`: the response failed verification: a wrong origin or challenge, or a device that did not verify the user. Also when the options in the session were requested by a different identity than the one signed in now (someone else signed in on the same browser before the registration finished). |
 | `400` | empty | Spring's own answer to a malformed registration body, or to a request with no options in the session (post to `/webauthn/register/options` first). |
 
 ### Sign in with a passkey
@@ -192,7 +192,7 @@ async function signInWithPasskey() {
 }
 ```
 
-On success the answer is `200` with `{"identityId": "..."}` and a session cookie. Every failure is `401` with `{"error":"invalid_credential"}`: an unknown passkey, a bad signature, a missing user verification, or an identity that is not active.
+On success the answer is `200` with `{"identityId": "..."}` and a session cookie. Every failure is a `SignInFailedException` (`401` unless your application maps it otherwise; see [Errors](errors.md)): an unknown passkey, a bad signature, a missing user verification, or an identity that is not active.
 
 The session id changes at sign-in and the CSRF token rotates. With `csrf.spa()` the page must read the `XSRF-TOKEN` cookie again after signing in and after signing out, before the next POST. A page that cached the old value gets `403`.
 

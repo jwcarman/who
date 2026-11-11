@@ -133,7 +133,7 @@ The cookie exists after the first response from the server, so make any GET firs
     }
     ```
 
-    On success the answer is `200` with `{"identityId": "..."}` and a session cookie. Every failure is `401` with `{"error":"invalid_token"}`: an unknown, used or expired token, an identity that is not active, or a malformed body.
+    On success the answer is `200` with `{"identityId": "..."}` and a session cookie. Every failure is a `SignInFailedException` (`401` unless your application maps it otherwise; see [Errors](errors.md)): an unknown, used or expired token, an identity that is not active, or a malformed body.
 
 4. **Use the session.** `GET /who/me` answers `{"identityId": "...", "permissions": ["..."]}` for a signed-in caller and `401` otherwise.
 

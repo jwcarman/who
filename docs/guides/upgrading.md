@@ -1,5 +1,14 @@
 # Upgrading
 
+## Upgrading to 0.14.0
+
+0.14.0 stops who from writing error responses. who now throws exceptions and your application formats them (see [Errors](errors.md)). There are no schema changes.
+
+- **No more `{"error": …}` bodies.** Sign-in failures, passkey registration errors, signed-out requests and denied requests no longer answer with `{"error":"invalid_token"}`, `{"error":"invalid_credential"}`, `{"error":"reauthentication_required"}` or `{"error":"invalid_registration"}`. Each becomes an exception that reaches your `@RestControllerAdvice`. Without an advice, the status stays the same (401, 400 or 403) and the body is your application's default error body. A client that read `error` should switch to your application's format.
+- **`JsonAuthenticationHandlers`.** The constructor is now `(JsonMapper, WhoExceptionHandoff)`, and `failure(String)` is gone; `failure()` hands off a `SignInFailedException`.
+- **`PasskeyRegistrationGuardFilter`.** Its constructor takes a `WhoExceptionHandoff` instead of a `JsonMapper`.
+- **`WhoMeController`.** `GET /who/me` throws `NotSignedInException` when no one is signed in, instead of answering a bare `401`.
+
 ## Upgrading to 0.13.0
 
 0.13.0 is additive: `WhoService.deactivate(identityId)` and `reactivate(identityId)` take an identity

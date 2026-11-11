@@ -87,6 +87,7 @@ nav:
       - Native Images: guides/native.md
       - Enrollment: guides/enrollment.md
       - RBAC and Method Security: guides/rbac.md
+      - Errors: guides/errors.md
       - Testing: guides/testing.md
       - Configuration Reference: guides/configuration.md
       - Upgrading: guides/upgrading.md

@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- who no longer writes error responses. It throws exceptions and hands those raised in Spring Security's filters to the application's Spring MVC exception resolvers, so the application's `@RestControllerAdvice` formats every error. New exceptions in `org.jwcarman.who.spring.security.web`:
+  - `SignInFailedException` (401), with the fixed message `"Sign-in failed"`;
+  - `NotSignedInException` (401);
+  - `ReauthenticationRequiredException` (401);
+  - `InvalidPasskeyRegistrationException` (400).
+- The `{"error":"invalid_token"}`, `{"error":"invalid_credential"}`, `{"error":"reauthentication_required"}` and `{"error":"invalid_registration"}` bodies are gone. Without an application mapping, who calls `sendError` with the status above.
+- `JsonAuthenticationHandlers` takes `(JsonMapper, WhoExceptionHandoff)`, and `failure(String)` is removed.
+- `PasskeyRegistrationGuardFilter` takes a `WhoExceptionHandoff` instead of a `JsonMapper`.
+- `GET /who/me` throws `NotSignedInException` when signed out.
+- `WhoWebSecurity.passwordless()` installs an entry point and an access-denied handler that hand the exception off, instead of a bare 401 and Spring's empty 403.
+
+### Added
+
+- `WhoExceptionHandoff`, with its `Resolver` interface. who's autoconfiguration builds one over the application's `handlerExceptionResolver` bean.
+- The [Errors](docs/guides/errors.md) guide.
+
 ## [0.13.0] - 2026-11-08
 
 ### Added
