@@ -74,7 +74,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   private final AuthenticationProvider authenticationProvider;
   private final WhoSessionSecurityContextRepository sessionRepository;
   private final JsonMapper jsonMapper;
-  private final PasskeyRegistrationGuardFilter guard;
+  private final Clock clock;
+  private final Duration registrationWindow;
 
   /**
    * Creates the login method.
@@ -83,7 +84,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
    * @param credentialRepository who's credential records
    * @param authenticationProvider signs in with a verified passkey
    * @param sessionRepository stores the who session at sign-in
-   * @param jsonMapper writes the JSON answers
+   * @param jsonMapper writes the sign-in success answer
    * @param clock the current time, for the registration window
    * @param registrationWindow how long after signing in a passkey may be registered
    */
@@ -103,9 +104,9 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     this.sessionRepository =
         requireNonNull(sessionRepository, "sessionRepository must not be null");
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
-    this.guard =
-        new PasskeyRegistrationGuardFilter(
-            sessionRepository, clock, registrationWindow, jsonMapper);
+    this.clock = requireNonNull(clock, "clock must not be null");
+    this.registrationWindow =
+        requireNonNull(registrationWindow, "registrationWindow must not be null");
   }
 
   @Override
@@ -130,7 +131,9 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
                 .withObjectPostProcessor(signInPostProcessor(http, context, handlers)));
     // WebAuthn's own filters are added later, so anchor to a filter that is already there; this
     // sorts before all of them
-    http.addFilterAfter(guard, ExceptionTranslationFilter.class);
+    http.addFilterAfter(
+        new PasskeyRegistrationGuardFilter(sessionRepository, clock, registrationWindow, handoff),
+        ExceptionTranslationFilter.class);
   }
 
   // An anonymous class, not a lambda, so Spring can tell which type it post-processes.

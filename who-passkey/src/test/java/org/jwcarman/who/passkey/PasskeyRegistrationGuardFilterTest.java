@@ -24,6 +24,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,12 +39,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
+import org.jwcarman.who.spring.security.web.NotSignedInException;
+import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.access.AccessDeniedException;
-
-import tools.jackson.databind.json.JsonMapper;
 
 class PasskeyRegistrationGuardFilterTest {
 
@@ -54,8 +58,10 @@ class PasskeyRegistrationGuardFilterTest {
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
   private final WhoSessionSecurityContextRepository sessions =
       new WhoSessionSecurityContextRepository(mock(WhoService.class), clock);
+  private final List<Exception> handedOff = new ArrayList<>();
   private final PasskeyRegistrationGuardFilter guard =
-      new PasskeyRegistrationGuardFilter(sessions, clock, WINDOW, JsonMapper.builder().build());
+      new PasskeyRegistrationGuardFilter(
+          sessions, clock, WINDOW, new WhoExceptionHandoff((req, res, e) -> !handedOff.add(e)));
 
   private final MockHttpServletResponse response = new MockHttpServletResponse();
   private final AtomicBoolean reachedChain = new AtomicBoolean();
@@ -82,9 +88,10 @@ class PasskeyRegistrationGuardFilterTest {
 
   @ParameterizedTest
   @ValueSource(strings = {OPTIONS, REGISTER})
-  void guardAnswers401WhenSignedOut(String path) throws ServletException, IOException {
+  void guardHandsOffNotSignedInWhenSignedOut(String path) throws ServletException, IOException {
     guard.doFilter(post(path), response, passing);
 
+    assertThat(handedOff).singleElement().isInstanceOf(NotSignedInException.class);
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.getContentAsString()).isEmpty();
     assertThat(reachedChain).isFalse();
@@ -92,16 +99,15 @@ class PasskeyRegistrationGuardFilterTest {
 
   @ParameterizedTest
   @ValueSource(strings = {OPTIONS, REGISTER})
-  void guardAnswersReauthenticationRequiredOutsideTheWindow(String path)
+  void guardHandsOffReauthenticationRequiredOutsideTheWindow(String path)
       throws ServletException, IOException {
     MockHttpServletRequest request = signedInAt(post(path), NOW.minus(WINDOW).minusSeconds(1));
 
     guard.doFilter(request, response, passing);
 
+    assertThat(handedOff).singleElement().isInstanceOf(ReauthenticationRequiredException.class);
     assertThat(response.getStatus()).isEqualTo(401);
-    assertThat(response.getContentType()).startsWith("application/json");
-    assertThat(response.getContentAsString())
-        .isEqualTo("{\"error\":\"reauthentication_required\"}");
+    assertThat(response.getContentAsString()).isEmpty();
     assertThat(reachedChain).isFalse();
   }
 
@@ -124,7 +130,7 @@ class PasskeyRegistrationGuardFilterTest {
   }
 
   @Test
-  void guardTurnsRegistrationErrorsInto400() throws ServletException, IOException {
+  void guardHandsOffInvalidPasskeyRegistration() throws ServletException, IOException {
     MockHttpServletRequest request = signedInAt(post(REGISTER), NOW);
 
     guard.doFilter(
@@ -134,13 +140,17 @@ class PasskeyRegistrationGuardFilterTest {
           throw new IllegalArgumentException("verification failed");
         });
 
+    assertThat(handedOff)
+        .singleElement()
+        .isInstanceOf(InvalidPasskeyRegistrationException.class)
+        .extracting(Throwable::getCause)
+        .isNull();
     assertThat(response.getStatus()).isEqualTo(400);
-    assertThat(response.getContentType()).startsWith("application/json");
-    assertThat(response.getContentAsString()).isEqualTo("{\"error\":\"invalid_registration\"}");
+    assertThat(response.getContentAsString()).isEmpty();
   }
 
   @Test
-  void guardTurnsServletExceptionsFromRegistrationInto400() throws ServletException, IOException {
+  void guardHandsOffServletExceptionsFromRegistration() throws ServletException, IOException {
     MockHttpServletRequest request = signedInAt(post(REGISTER), NOW);
 
     guard.doFilter(
@@ -150,8 +160,9 @@ class PasskeyRegistrationGuardFilterTest {
           throw new ServletException("wrapped verification failure");
         });
 
+    assertThat(handedOff).singleElement().isInstanceOf(InvalidPasskeyRegistrationException.class);
     assertThat(response.getStatus()).isEqualTo(400);
-    assertThat(response.getContentAsString()).isEqualTo("{\"error\":\"invalid_registration\"}");
+    assertThat(response.getContentAsString()).isEmpty();
   }
 
   @Test

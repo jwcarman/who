@@ -426,13 +426,11 @@ class PasskeySignInTest {
 
     MvcResult registered = register(browser, device.register(options, "Laptop"));
     assertThat(registered.getResponse().getStatus()).isEqualTo(401);
-    assertThat(registered.getResponse().getContentAsString())
-        .isEqualTo("{\"error\":\"reauthentication_required\"}");
+    assertThat(registered.getResponse().getContentAsString()).isEmpty();
 
     MvcResult again = creationOptions(browser);
     assertThat(again.getResponse().getStatus()).isEqualTo(401);
-    assertThat(again.getResponse().getContentAsString())
-        .isEqualTo("{\"error\":\"reauthentication_required\"}");
+    assertThat(again.getResponse().getContentAsString()).isEmpty();
     assertThat(
             jdbcClient
                 .sql("SELECT count(*) FROM who_passkey_credential")
@@ -452,8 +450,7 @@ class PasskeySignInTest {
     MvcResult registered = register(browser, phishing.register(creationOptionsJson(browser), "x"));
 
     assertThat(registered.getResponse().getStatus()).isEqualTo(400);
-    assertThat(registered.getResponse().getContentAsString())
-        .isEqualTo("{\"error\":\"invalid_registration\"}");
+    assertThat(registered.getResponse().getContentAsString()).isEmpty();
     assertThat(
             jdbcClient
                 .sql("SELECT count(*) FROM who_passkey_credential")
@@ -475,8 +472,7 @@ class PasskeySignInTest {
         register(browser, new PasskeyDevice(ORIGIN).register(ownersOptions, "Planted"));
 
     assertThat(registered.getResponse().getStatus()).isEqualTo(400);
-    assertThat(registered.getResponse().getContentAsString())
-        .isEqualTo("{\"error\":\"invalid_registration\"}");
+    assertThat(registered.getResponse().getContentAsString()).isEmpty();
     assertThat(
             jdbcClient
                 .sql("SELECT count(*) FROM who_passkey_credential")

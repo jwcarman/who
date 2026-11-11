@@ -20,7 +20,6 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
 
 import jakarta.servlet.FilterChain;
@@ -30,30 +29,33 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
+import org.jwcarman.who.spring.security.web.NotSignedInException;
+import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import tools.jackson.databind.json.JsonMapper;
-
 /**
  * The answers Spring's passkey registration has no hook for. It applies only to {@code POST
  * /webauthn/register/options} and {@code POST /webauthn/register}:
  *
  * <ul>
- *   <li>signed out: {@code 401} with an empty body (Spring alone answers {@code 400});
- *   <li>signed in longer ago than the registration window: {@code 401} with {@code
- *       {"error":"reauthentication_required"}};
- *   <li>a registration that fails verification: {@code 400} with {@code
- *       {"error":"invalid_registration"}} (Spring alone lets the exception escape, so a {@code
- *       500}).
+ *   <li>signed out: {@link NotSignedInException} (Spring alone answers {@code 400});
+ *   <li>signed in longer ago than the registration window: {@link
+ *       ReauthenticationRequiredException};
+ *   <li>a registration that fails verification: {@link InvalidPasskeyRegistrationException} (Spring
+ *       alone lets the exception escape, so a {@code 500}).
  * </ul>
+ *
+ * <p>Each is handed to the application through {@link WhoExceptionHandoff}; who writes no body.
  *
  * <p>It belongs in the security chain, after {@code ExceptionTranslationFilter}; it is not a
  * servlet filter of its own, so it must not be exposed as a bean.
@@ -64,8 +66,6 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
 
   static final String REGISTRATION_OPTIONS_URL = "/webauthn/register/options";
   static final String REGISTRATION_URL = "/webauthn/register";
-  static final String REAUTHENTICATION_REQUIRED = "reauthentication_required";
-  static final String INVALID_REGISTRATION = "invalid_registration";
 
   private static final RequestMatcher OPTIONS =
       PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, REGISTRATION_OPTIONS_URL);
@@ -75,7 +75,7 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
   private final WhoSessionSecurityContextRepository sessionRepository;
   private final Clock clock;
   private final Duration registrationWindow;
-  private final JsonMapper jsonMapper;
+  private final WhoExceptionHandoff handoff;
 
   /**
    * Creates the guard.
@@ -83,19 +83,19 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
    * @param sessionRepository where the current {@link WhoSession} is read from
    * @param clock the current time
    * @param registrationWindow how long after signing in a passkey may be registered
-   * @param jsonMapper writes the error bodies
+   * @param handoff hands the guard's errors to the application
    */
   public PasskeyRegistrationGuardFilter(
       WhoSessionSecurityContextRepository sessionRepository,
       Clock clock,
       Duration registrationWindow,
-      JsonMapper jsonMapper) {
+      WhoExceptionHandoff handoff) {
     this.sessionRepository =
         requireNonNull(sessionRepository, "sessionRepository must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.registrationWindow =
         requireNonNull(registrationWindow, "registrationWindow must not be null");
-    this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
+    this.handoff = requireNonNull(handoff, "handoff must not be null");
   }
 
   @Override
@@ -109,11 +109,12 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       throws ServletException, IOException {
     Optional<WhoSession> session = sessionRepository.currentSession(request);
     if (session.isEmpty()) {
-      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
       return;
     }
     if (session.get().signedInAt().plus(registrationWindow).isBefore(clock.instant())) {
-      writeError(response, HttpServletResponse.SC_UNAUTHORIZED, REAUTHENTICATION_REQUIRED);
+      handoff.handOff(
+          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
     }
     if (!REGISTRATION.matches(request)) {
@@ -132,15 +133,8 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       // the exception type only: messages can carry WebAuthn payload details
       log.debug("Passkey registration failed: {}", e.getClass().getName());
       response.resetBuffer();
-      writeError(response, HttpServletResponse.SC_BAD_REQUEST, INVALID_REGISTRATION);
+      handoff.handOff(
+          request, response, new InvalidPasskeyRegistrationException(), HttpStatus.BAD_REQUEST);
     }
-  }
-
-  private void writeError(HttpServletResponse response, int status, String error)
-      throws IOException {
-    response.setStatus(status);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding("UTF-8");
-    jsonMapper.writeValue(response.getOutputStream(), Map.of("error", error));
   }
 }
