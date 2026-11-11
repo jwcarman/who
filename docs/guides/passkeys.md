@@ -63,7 +63,7 @@ SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
 
 `passwordless()` configures Spring's `webAuthn()` itself, with Spring's default registration page turned off. Do not also call `webAuthn()` on the chain. It also makes the session id change at sign-in and rotates the CSRF token, which Spring's WebAuthn filter does not do by default. Everything `passwordless()` does for email links applies here too (see [Email Links](email-links.md#wire-the-chain)).
 
-The three registration endpoints need a signed-in caller, but `anyRequest().authenticated()` protects only two of them. Spring runs the filter for `POST /webauthn/register/options` before the authorization filter, so your rules never see it. Who's `PasskeyRegistrationGuardFilter` covers it, and `POST /webauthn/register`, with a `401` for a caller who is signed out or signed in too long ago. Each endpoint is protected like this:
+The three registration endpoints need a signed-in caller, but `anyRequest().authenticated()` protects only two of them. Spring runs the filter for `POST /webauthn/register/options` before the authorization filter, so your rules never see it. Who's `PasskeyRegistrationGuardFilter` covers it, and `POST /webauthn/register`, with a `401` for a caller who is signed out (`NotSignedInException`) or signed in too long ago (`ReauthenticationRequiredException`); your application formats both (see [Errors](errors.md)). Each endpoint is protected like this:
 
 - `POST /webauthn/register/options`: by who's guard only. Your `authorizeHttpRequests` rules do not apply.
 - `POST /webauthn/register`: by your rules (leave it behind `authenticated()`) and by who's guard.

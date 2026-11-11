@@ -65,7 +65,7 @@ SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
 It also:
 
 - turns on CSRF protection with Spring's `csrf.spa()`;
-- answers a plain `401`, with no body and no redirect, to unauthenticated requests;
+- hands unauthenticated requests to your application as a `NotSignedInException` (`401` unless you map it; see [Errors](errors.md)), with no redirect;
 - makes `/logout` answer `204` and clear the `XSRF-TOKEN` cookie;
 - changes the session id at sign-in;
 - adds `Referrer-Policy: no-referrer`.
@@ -135,7 +135,7 @@ The cookie exists after the first response from the server, so make any GET firs
 
     On success the answer is `200` with `{"identityId": "..."}` and a session cookie. Every failure is a `SignInFailedException` (`401` unless your application maps it otherwise; see [Errors](errors.md)): an unknown, used or expired token, an identity that is not active, or a malformed body.
 
-4. **Use the session.** `GET /who/me` answers `{"identityId": "...", "permissions": ["..."]}` for a signed-in caller and `401` otherwise.
+4. **Use the session.** `GET /who/me` answers `{"identityId": "...", "permissions": ["..."]}` for a signed-in caller and throws `NotSignedInException` otherwise (`401`, in your application's error format).
 
 5. **Sign out.** `POST /logout` answers `204` and clears the `XSRF-TOKEN` cookie. Fetch the cookie again with any GET (for example `GET /who/me`) before the next POST.
 

@@ -16,7 +16,7 @@ During a passkey ceremony the session also holds the ceremony's options until th
 
 ## No saved requests
 
-`passwordless()` uses a `NullRequestCache`. Spring Security's default request cache saves a request that was denied, so it can redirect there after sign-in. For a single-page app that does no good: the app receives a plain `401` and navigates by itself. The saved request is also a copy of the whole request, headers and cookies included, which would end up in the session and, with Spring Session JDBC, in your database.
+`passwordless()` uses a `NullRequestCache`. Spring Security's default request cache saves a request that was denied, so it can redirect there after sign-in. For a single-page app that does no good: the app receives a `401` and navigates by itself. The saved request is also a copy of the whole request, headers and cookies included, which would end up in the session and, with Spring Session JDBC, in your database.
 
 If you want a redirect after sign-in, keep the target in your app, for example in the URL of your sign-in page.
 

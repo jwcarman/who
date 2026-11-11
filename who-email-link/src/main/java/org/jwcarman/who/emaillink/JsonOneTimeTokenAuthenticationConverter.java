@@ -35,8 +35,8 @@ public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationCo
   /**
    * The token value used for malformed requests. Returning {@code null} would make Spring skip the
    * failure handler, so this stands in for "no token"; {@link EmailLinkAuthenticationProvider}
-   * rejects it as {@code invalid_token} without consuming anything. Real tokens are 43 characters,
-   * so this can never be one.
+   * rejects it as a failed sign-in without consuming anything. Real tokens are 43 characters, so
+   * this can never be one.
    */
   public static final String NO_TOKEN = "-";
 
