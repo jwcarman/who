@@ -12,10 +12,12 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=coverage)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 
-Identity and permissions for Spring Boot applications. Who maps the credentials a
-caller presents (a JWT, an API key) to one stable internal identity, resolves that
-identity's permissions, and lets your controllers check permission strings without
-knowing which credential the caller used.
+Identity, sign-in and permissions for Spring Boot applications. Who signs people in
+without passwords (email links and passkeys, with a session), and maps every credential a
+caller presents (a session, a JWT, an API key) to one stable internal identity. It resolves
+that identity's permissions and lets your controllers check permission strings without
+knowing which credential the caller used. Who formats no errors of its own: it throws, and
+your application answers in its own format.
 
 **📖 Documentation: [jwcarman.github.io/who](https://jwcarman.github.io/who/) · API reference: [jwcarman.github.io/who/api](https://jwcarman.github.io/who/api/)**
 
