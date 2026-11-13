@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,5 +106,26 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
     assertThat(repository.removeUnlinked()).isOne();
     assertThat(repository.findByIssuerAndSubject(ISSUER, "orphan")).isEmpty();
     assertThat(repository.findByIssuerAndSubject(ISSUER, "linked")).contains(linked);
+  }
+
+  @Test
+  void findByIdFindsTheCredential() {
+    JwtCredential credential = repository.save(JwtCredential.create(ISSUER, "by-id"));
+
+    assertThat(repository.findById(credential.id())).contains(credential);
+    assertThat(repository.findById(UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
+  void findDescribesTheCredentialItOwns() {
+    JwtCredential credential = repository.save(JwtCredential.create(ISSUER, "described"));
+
+    assertThat(repository.find(credential.id()))
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.kind()).isEqualTo(CredentialKind.JWT);
+              assertThat(found.label()).contains(ISSUER);
+            });
+    assertThat(repository.find(UUID.randomUUID())).isEmpty();
   }
 }

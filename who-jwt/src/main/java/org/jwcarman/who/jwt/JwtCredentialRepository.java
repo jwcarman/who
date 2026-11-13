@@ -31,12 +31,15 @@ public interface JwtCredentialRepository {
   Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject);
 
   /**
-   * Finds a credential by its id.
+   * Finds a credential by its id, so that unlinking it can report its issuer. A repository that
+   * cannot find by id keeps this default, and unlinks it serves report no issuer.
    *
    * @param id the credential UUID
-   * @return the credential, or empty if not found
+   * @return the matching credential, or empty if not found
    */
-  Optional<JwtCredential> findById(UUID id);
+  default Optional<JwtCredential> findById(UUID id) {
+    return Optional.empty();
+  }
 
   /**
    * Persists a credential. If a record with the same id already exists it is left unchanged (JWT

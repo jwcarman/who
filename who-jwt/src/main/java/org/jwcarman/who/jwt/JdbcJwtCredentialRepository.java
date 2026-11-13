@@ -57,6 +57,7 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository, Cre
         .optional();
   }
 
+  /** Finds the JWT credential with the given id. */
   @Override
   public Optional<JwtCredential> findById(UUID id) {
     return jdbcClient

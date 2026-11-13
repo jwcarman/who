@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
@@ -120,15 +119,28 @@ class JwtEventsTest {
     }
 
     @Test
-    void unlinking_an_unknown_credential_publishes_nothing() {
+    void unlinking_an_id_that_is_linked_to_nothing_publishes_nothing() {
       UUID unknown = UUID.randomUUID();
-      when(repository.findById(unknown)).thenReturn(Optional.empty());
+      when(links.findIdentityIdByCredentialId(unknown)).thenReturn(Optional.empty());
 
       service.unlink(unknown);
 
-      verify(repository).findById(unknown);
-      verifyNoInteractions(links);
       assertThat(events).isEmpty();
+    }
+
+    @Test
+    void a_repository_that_cannot_find_by_id_still_publishes_revoked_with_no_label() {
+      UUID identityId = UUID.randomUUID();
+      UUID credentialId = UUID.randomUUID();
+      JwtCredentialRepository defaulting = mock(JwtCredentialRepository.class);
+      when(defaulting.findById(credentialId)).thenCallRealMethod();
+      when(links.findIdentityIdByCredentialId(credentialId)).thenReturn(Optional.of(identityId));
+
+      new JwtCredentialService(defaulting, links, events::add, CLOCK).unlink(credentialId);
+
+      assertThat(events)
+          .containsExactly(
+              new CredentialRevoked(NOW, identityId, credentialId, CredentialKind.JWT, null));
     }
   }
 

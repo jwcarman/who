@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialAdded;
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
@@ -88,7 +89,9 @@ public class JwtCredentialService {
 
   /**
    * Deletes the credential and its identity link, so the pair stops signing in, then publishes
-   * {@link CredentialRevoked} if it was linked to an identity. Does nothing for an unknown id.
+   * {@link CredentialRevoked} if it was linked to an identity. The label is the issuer, or {@code
+   * null} when the repository cannot find the credential by id. Does nothing visible for an id that
+   * is not linked.
    *
    * @param credentialId the id of the JWT credential
    */
@@ -96,10 +99,8 @@ public class JwtCredentialService {
   public void unlink(UUID credentialId) {
     requireNonNull(credentialId, "credentialId must not be null");
     // looked up before deleting and unlinking, which remove the only record of issuer and owner
-    Optional<JwtCredential> credential = jwtCredentialRepository.findById(credentialId);
-    if (credential.isEmpty()) {
-      return;
-    }
+    Optional<String> issuer =
+        jwtCredentialRepository.findById(credentialId).map(JwtCredential::issuer);
     Optional<UUID> owner = credentialIdentityRepository.findIdentityIdByCredentialId(credentialId);
     jwtCredentialRepository.deleteById(credentialId);
     credentialIdentityRepository.unlink(credentialId);
@@ -110,7 +111,7 @@ public class JwtCredentialService {
                     clock.instant(),
                     identityId,
                     credentialId,
-                    credential.get().kind(),
-                    credential.get().issuer())));
+                    CredentialKind.JWT,
+                    issuer.orElse(null))));
   }
 }
