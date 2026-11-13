@@ -15,7 +15,10 @@
  */
 package org.jwcarman.who.core.spi;
 
+import java.util.Optional;
 import java.util.UUID;
+
+import org.jwcarman.who.core.event.CredentialKind;
 
 /**
  * Marker interface for credential types. Each credential implementation (e.g. JWT, API key)
@@ -29,4 +32,22 @@ public interface Credential {
    * @return the credential UUID
    */
   UUID id();
+
+  /**
+   * Returns the kind of this credential, reported in security events.
+   *
+   * @return the credential kind; {@link CredentialKind#OTHER} by default
+   */
+  default CredentialKind kind() {
+    return CredentialKind.OTHER;
+  }
+
+  /**
+   * Returns a human-readable label for this credential, reported in security events.
+   *
+   * @return the label, or empty if none
+   */
+  default Optional<String> label() {
+    return Optional.empty();
+  }
 }
