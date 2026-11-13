@@ -33,6 +33,10 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>25</java.version>
+        <!-- A fixed timestamp for the entries in every jar, so rebuilding the same source gives
+             byte-for-byte the same jars (https://maven.apache.org/guides/mini/guide-reproducible-builds.html).
+             It is not a release date and never needs to change. -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <required.maven.version>3.8</required.maven.version>
 
         <!-- Suppress Maven 4.0.0 future compatibility warnings -->
