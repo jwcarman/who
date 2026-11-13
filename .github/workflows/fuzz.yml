@@ -33,7 +33,7 @@ jobs:
           - module: who-email-link
             test: SignInRequestFuzzTest#generate_body_becomes_an_address_or_the_no_address_marker
           - module: who-apikey
-            test: ApiKeyHeaderFuzzTest#any_header_is_looked_up_by_its_hash_and_never_breaks_the_chain
+            test: ApiKeyHeaderFuzzTest#any_header_is_looked_up_by_its_hash_and_never_throws
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
