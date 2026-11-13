@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -173,7 +174,17 @@ class SpringWhoEventPublisherTest {
             listener.events.clear();
             listener.failing = true;
 
-            assertThat(whoService.deactivate(id)).isTrue();
+            TransactionTemplate tx =
+                new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
+
+            assertThatCode(
+                    () ->
+                        tx.executeWithoutResult(
+                            status -> {
+                              assertThat(whoService.deactivate(id)).isTrue();
+                              assertThat(listener.events).isEmpty();
+                            }))
+                .doesNotThrowAnyException();
 
             assertThat(listener.events).singleElement().isInstanceOf(IdentityDeactivated.class);
             assertThat(
