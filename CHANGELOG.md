@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows
 - Every artifact on Maven Central ships a CycloneDX SBOM (`-cyclonedx.json` and `-cyclonedx.xml`).
 - Release jars carry a GitHub build provenance attestation: `gh attestation verify <jar> --repo jwcarman/who`.
 
+### Fixed
+
+- A typed sign-in code containing non-ASCII letters is rejected. Some upper-cased to ASCII before the check (the dotless `ı` to `I`, the long `ſ` to `S`) and one turned into two letters (the ligature `ﬀ` to `FF`), so `Kjı2Kj` was read as `KJ12KJ`. Each such attempt still counted against the attempt limit, so guessing got no easier. Found by fuzzing.
+
 ### Documentation
 
 - A [Security Model](https://jwcarman.github.io/who/guides/security-model/) guide: what who protects, what the application must do, and what who assumes.

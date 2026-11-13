@@ -35,10 +35,11 @@ final class EmailCodes {
    * @param raw the typed code, possibly {@code null}
    * @param length the expected code length
    * @return the normalized code, or empty if {@code raw} is {@code null}, longer than 64
-   *     characters, has the wrong length, or contains a character outside the code alphabet
+   *     characters, contains a character outside ASCII, has the wrong length, or contains a
+   *     character outside the code alphabet
    */
   static Optional<String> normalize(String raw, int length) {
-    if (raw == null || raw.length() > MAX_RAW_LENGTH) {
+    if (raw == null || raw.length() > MAX_RAW_LENGTH || !isAscii(raw)) {
       return Optional.empty();
     }
     var normalized = new StringBuilder(raw.length());
@@ -69,6 +70,12 @@ final class EmailCodes {
   static String format(String code) {
     int split = (code.length() + 1) / 2;
     return code.substring(0, split) + "-" + code.substring(split);
+  }
+
+  // Checked before upper-casing: Java upper-cases some non-ASCII letters to ASCII ones (dotless
+  // 'ı' to 'I', long 's' to 'S') and some to two letters (the ligature 'ﬀ' to "FF").
+  private static boolean isAscii(String s) {
+    return s.chars().allMatch(c -> c <= 0x7F);
   }
 
   private static boolean allInAlphabet(CharSequence s) {

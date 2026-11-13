@@ -46,6 +46,14 @@ class EmailCodesTest {
     }
 
     @Test
+    void non_ascii_letters_that_upper_case_to_ascii_are_rejected() {
+      // dotless i upper-cases to 'I' (then '1'), long s to 'S', the ligature ff to "FF"
+      assertThat(EmailCodes.normalize("Kj\u01312Kj", 6)).isEmpty();
+      assertThat(EmailCodes.normalize("K7F2Q\u017F", 6)).isEmpty();
+      assertThat(EmailCodes.normalize("K7F2\uFB00", 6)).isEmpty();
+    }
+
+    @Test
     void the_wrong_length_is_rejected() {
       assertThat(EmailCodes.normalize("K7F2Q", 6)).isEmpty();
       assertThat(EmailCodes.normalize("K7F2QMM", 6)).isEmpty();
