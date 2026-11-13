@@ -19,6 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.SimpleMailMessage;
@@ -26,20 +31,40 @@ import org.springframework.mail.javamail.JavaMailSender;
 
 class MailEmailLinkSenderTest {
 
-  @Test
-  void sendsPlainTextFromAndSubject() {
-    JavaMailSender mailSender = mock(JavaMailSender.class);
+  private static final Instant EXPIRES_AT = Instant.parse("2026-11-07T10:15:00Z");
+  private static final String LINK = "https://app.test/signin#token=abc";
+
+  private final JavaMailSender mailSender = mock(JavaMailSender.class);
+
+  private SimpleMailMessage sendWithTimeLeft(Duration left) {
+    Clock clock = Clock.fixed(EXPIRES_AT.minus(left), ZoneOffset.UTC);
     MailEmailLinkSender sender =
-        new MailEmailLinkSender(mailSender, "noreply@app.test", "Your sign-in link");
-
-    sender.send("owner@example.com", "https://app.test/signin#token=abc");
-
+        new MailEmailLinkSender(mailSender, "noreply@app.test", "Your sign-in link", clock);
+    sender.send(new EmailLinkMessage("owner@example.com", LINK, "K7F2QM", EXPIRES_AT));
     ArgumentCaptor<SimpleMailMessage> message = ArgumentCaptor.forClass(SimpleMailMessage.class);
     verify(mailSender).send(message.capture());
-    assertThat(message.getValue().getFrom()).isEqualTo("noreply@app.test");
-    assertThat(message.getValue().getTo()).containsExactly("owner@example.com");
-    assertThat(message.getValue().getSubject()).isEqualTo("Your sign-in link");
-    assertThat(message.getValue().getText())
-        .isEqualTo("Sign in: https://app.test/signin#token=abc");
+    return message.getValue();
+  }
+
+  @Test
+  void sendsPlainTextFromSubjectLinkAndCode() {
+    SimpleMailMessage message = sendWithTimeLeft(Duration.ofMinutes(5));
+
+    assertThat(message.getFrom()).isEqualTo("noreply@app.test");
+    assertThat(message.getTo()).containsExactly("owner@example.com");
+    assertThat(message.getSubject()).isEqualTo("Your sign-in link");
+    assertThat(message.getText())
+        .isEqualTo(
+            "Sign in: "
+                + LINK
+                + "\n\nOr enter this code: K7F-2QM\n\nThe link and the code expire in 5 minutes"
+                + " and work once.");
+  }
+
+  @Test
+  void lessThanAMinuteLeftReadsOneMinute() {
+    SimpleMailMessage message = sendWithTimeLeft(Duration.ofSeconds(30));
+
+    assertThat(message.getText()).contains("expire in 1 minute and work once.");
   }
 }

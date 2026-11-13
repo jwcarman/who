@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
+import org.jwcarman.who.core.crypto.Secrets;
 import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class EmailLinkIssuer {
   private final EmailLinkSender sender;
   private final EmailLinkSettings settings;
   private final Clock clock;
+  private final EmailCodeHasher codeHasher;
 
   /**
    * Creates a new issuer.
@@ -70,6 +72,7 @@ public class EmailLinkIssuer {
     this.sender = requireNonNull(sender, "sender must not be null");
     this.settings = requireNonNull(settings, "settings must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
+    this.codeHasher = new EmailCodeHasher(settings.codeSecret());
   }
 
   /**
@@ -106,18 +109,20 @@ public class EmailLinkIssuer {
 
   private EmailLinkOutcome issueTo(EmailCredential credential, String tokenValue) {
     String tokenHash = MessageDigests.sha256Hex(tokenValue);
+    String code = Secrets.code(settings.codeLength());
+    Instant now = clock.instant();
+    Instant expiresAt = now.plus(settings.tokenTtl());
     try {
       if (whoService.resolve(credential).isEmpty()) {
         return EmailLinkOutcome.INACTIVE_IDENTITY;
       }
-      Instant now = clock.instant();
       boolean issued =
           repository.issue(
               credential.id(),
               tokenHash,
-              tokenHash,
+              codeHasher.hash(credential.id(), code),
               now,
-              now.plus(settings.tokenTtl()),
+              expiresAt,
               settings.resendInterval());
       if (!issued) {
         log.debug(
@@ -131,12 +136,22 @@ public class EmailLinkIssuer {
           e.getClass().getName());
       return EmailLinkOutcome.SEND_FAILED;
     }
-    return send(credential, tokenValue, tokenHash);
+    return send(credential, tokenValue, code, expiresAt, tokenHash);
   }
 
-  private EmailLinkOutcome send(EmailCredential credential, String tokenValue, String tokenHash) {
+  private EmailLinkOutcome send(
+      EmailCredential credential,
+      String tokenValue,
+      String code,
+      Instant expiresAt,
+      String tokenHash) {
     try {
-      sender.send(credential.address(), settings.linkBaseUrl() + "#token=" + tokenValue);
+      sender.send(
+          new EmailLinkMessage(
+              credential.address(),
+              settings.linkBaseUrl() + "#token=" + tokenValue,
+              code,
+              expiresAt));
       return EmailLinkOutcome.SENT;
     } catch (RuntimeException e) {
       log.warn(

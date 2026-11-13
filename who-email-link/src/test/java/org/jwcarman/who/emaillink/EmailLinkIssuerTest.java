@@ -61,6 +61,8 @@ class EmailLinkIssuerTest {
   private static final Duration RESEND = Duration.ofSeconds(60);
   private static final String ADDRESS = "owner@example.com";
   private static final String TOKEN = "token-value";
+  private static final int CODE_LENGTH = 6;
+  private static final String SECRET = "0123456789abcdef0123456789abcdef";
 
   private final EmailCredentialService credentials = mock(EmailCredentialService.class);
   private final WhoService whoService = mock(WhoService.class);
@@ -72,7 +74,7 @@ class EmailLinkIssuerTest {
           whoService,
           repository,
           sender,
-          new EmailLinkSettings("https://app.test/signin", TTL, RESEND),
+          new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
           Clock.fixed(NOW, ZoneOffset.UTC));
 
   private final EmailCredential credential = new EmailCredential(UUID.randomUUID(), ADDRESS);
@@ -123,15 +125,21 @@ class EmailLinkIssuerTest {
 
     issuer.issue(ADDRESS, TOKEN);
 
+    ArgumentCaptor<EmailLinkMessage> message = ArgumentCaptor.forClass(EmailLinkMessage.class);
+    verify(sender).send(message.capture());
+    String code = message.getValue().code();
+    assertThat(message.getValue().address()).isEqualTo(ADDRESS);
+    assertThat(message.getValue().link()).isEqualTo("https://app.test/signin#token=" + TOKEN);
+    assertThat(message.getValue().expiresAt()).isEqualTo(NOW.plus(TTL));
+    assertThat(code).hasSize(CODE_LENGTH).matches("[0-9A-HJKMNP-TV-Z]+");
     verify(repository)
         .issue(
             credential.id(),
             MessageDigests.sha256Hex(TOKEN),
-            MessageDigests.sha256Hex(TOKEN),
+            new EmailCodeHasher(SECRET).hash(credential.id(), code),
             NOW,
             NOW.plus(TTL),
             RESEND);
-    verify(sender).send(ADDRESS, "https://app.test/signin#token=" + TOKEN);
   }
 
   @Test
@@ -175,7 +183,7 @@ class EmailLinkIssuerTest {
   void failedSendRemovesTheTokenSoTheUserCanRetry() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
+    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
 
     issuer.issue(ADDRESS, TOKEN);
 
@@ -190,7 +198,7 @@ class EmailLinkIssuerTest {
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
     doThrow(new IllegalStateException("secret-detail " + ADDRESS))
         .when(sender)
-        .send(anyString(), anyString());
+        .send(any(EmailLinkMessage.class));
 
     issuer.issue(ADDRESS, TOKEN);
 
@@ -237,7 +245,7 @@ class EmailLinkIssuerTest {
   void failedCleanupAfterAFailedSendIsLoggedWithoutTheAddressOrToken() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
+    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
     doThrow(new IllegalArgumentException("secret-detail " + ADDRESS))
         .when(repository)
         .delete(any(), anyString());
@@ -307,7 +315,7 @@ class EmailLinkIssuerTest {
   void failedSendIsSendFailed() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
+    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
     verify(repository).delete(eq(credential.id()), anyString());

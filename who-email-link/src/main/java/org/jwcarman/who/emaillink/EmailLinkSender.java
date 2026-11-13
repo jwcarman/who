@@ -15,15 +15,14 @@
  */
 package org.jwcarman.who.emaillink;
 
-/** Delivers a sign-in link to an email address. */
+/** Delivers a sign-in link and code to an email address. */
 @FunctionalInterface
 public interface EmailLinkSender {
 
   /**
-   * Sends the link.
+   * Sends the link and the code.
    *
-   * @param address the recipient address
-   * @param link the sign-in link, carrying the token in its fragment
+   * @param message the address, link, code and expiry
    */
-  void send(String address, String link);
+  void send(EmailLinkMessage message);
 }

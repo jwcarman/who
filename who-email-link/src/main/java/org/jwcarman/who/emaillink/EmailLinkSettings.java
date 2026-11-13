@@ -25,13 +25,38 @@ import java.time.Duration;
  * @param linkBaseUrl the page that receives the link; the token is appended as {@code #token=...}
  * @param tokenTtl how long a link stays valid
  * @param resendInterval the minimum time between two links for the same address
+ * @param codeLength the number of characters in the typed sign-in code
+ * @param codeMaxAttempts how many wrong guesses a code survives
+ * @param codeSecret the secret keying the code hash
  */
-public record EmailLinkSettings(String linkBaseUrl, Duration tokenTtl, Duration resendInterval) {
+public record EmailLinkSettings(
+    String linkBaseUrl,
+    Duration tokenTtl,
+    Duration resendInterval,
+    int codeLength,
+    int codeMaxAttempts,
+    String codeSecret) {
 
   /** Compact constructor: validates that no field is {@code null}. */
   public EmailLinkSettings {
     requireNonNull(linkBaseUrl, "linkBaseUrl must not be null");
     requireNonNull(tokenTtl, "tokenTtl must not be null");
     requireNonNull(resendInterval, "resendInterval must not be null");
+    requireNonNull(codeSecret, "codeSecret must not be null");
+  }
+
+  @Override
+  public String toString() {
+    return "EmailLinkSettings[linkBaseUrl="
+        + linkBaseUrl
+        + ", tokenTtl="
+        + tokenTtl
+        + ", resendInterval="
+        + resendInterval
+        + ", codeLength="
+        + codeLength
+        + ", codeMaxAttempts="
+        + codeMaxAttempts
+        + ", codeSecret=****]";
   }
 }

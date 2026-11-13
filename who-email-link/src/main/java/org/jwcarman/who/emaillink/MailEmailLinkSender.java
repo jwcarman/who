@@ -17,6 +17,9 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Clock;
+import java.time.Duration;
+
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
@@ -26,6 +29,7 @@ public class MailEmailLinkSender implements EmailLinkSender {
   private final JavaMailSender mailSender;
   private final String from;
   private final String subject;
+  private final Clock clock;
 
   /**
    * Creates a new sender.
@@ -33,20 +37,41 @@ public class MailEmailLinkSender implements EmailLinkSender {
    * @param mailSender the mail sender
    * @param from the sender address
    * @param subject the subject line
+   * @param clock the clock used to tell how long the link and code remain valid
    */
-  public MailEmailLinkSender(JavaMailSender mailSender, String from, String subject) {
+  public MailEmailLinkSender(JavaMailSender mailSender, String from, String subject, Clock clock) {
     this.mailSender = requireNonNull(mailSender, "mailSender must not be null");
     this.from = requireNonNull(from, "from must not be null");
     this.subject = requireNonNull(subject, "subject must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
   }
 
   @Override
-  public void send(String address, String link) {
+  public void send(EmailLinkMessage emailMessage) {
     SimpleMailMessage message = new SimpleMailMessage();
     message.setFrom(from);
-    message.setTo(address);
+    message.setTo(emailMessage.address());
     message.setSubject(subject);
-    message.setText("Sign in: " + link);
+    message.setText(body(emailMessage));
     mailSender.send(message);
+  }
+
+  private String body(EmailLinkMessage message) {
+    long minutes = minutesLeft(message);
+    return "Sign in: "
+        + message.link()
+        + "\n\nOr enter this code: "
+        + message.formattedCode()
+        + "\n\nThe link and the code expire in "
+        + minutes
+        + (minutes == 1 ? " minute" : " minutes")
+        + " and work once.";
+  }
+
+  private long minutesLeft(EmailLinkMessage message) {
+    Duration left = Duration.between(clock.instant(), message.expiresAt());
+    long wholeMinutes = left.toMinutes();
+    long minutes = left.minusMinutes(wholeMinutes).isPositive() ? wholeMinutes + 1 : wholeMinutes;
+    return Math.max(1, minutes);
   }
 }
