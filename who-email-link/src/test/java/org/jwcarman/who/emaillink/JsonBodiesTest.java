@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -87,5 +88,36 @@ class JsonBodiesTest {
     HttpServletRequest failing = mock(HttpServletRequest.class);
     when(failing.getInputStream()).thenThrow(new IllegalStateException("boom"));
     assertThat(JsonBodies.readString(mapper, failing, "email")).isNull();
+  }
+
+  @Test
+  void readStringsKeepsOnlyRequestedStringFields() {
+    assertThat(
+            JsonBodies.readStrings(
+                mapper,
+                post("{\"email\":\"a@b.c\",\"code\":123456,\"token\":null,\"x\":\"y\"}"),
+                "email",
+                "code",
+                "token"))
+        .isEqualTo(Map.of("email", "a@b.c"));
+  }
+
+  @Test
+  void readStringsOfANonObjectBodyIsEmpty() {
+    assertThat(JsonBodies.readStrings(mapper, post("[\"email\"]"), "email")).isEmpty();
+    assertThat(JsonBodies.readStrings(mapper, post("\"email\""), "email")).isEmpty();
+  }
+
+  @Test
+  void readStringsOfAnInvalidBodyIsEmpty() throws IOException {
+    assertThat(JsonBodies.readStrings(mapper, post("{"), "email")).isEmpty();
+
+    HttpServletRequest noBody = mock(HttpServletRequest.class);
+    when(noBody.getInputStream()).thenReturn(null);
+    assertThat(JsonBodies.readStrings(mapper, noBody, "email")).isEmpty();
+
+    HttpServletRequest broken = mock(HttpServletRequest.class);
+    when(broken.getInputStream()).thenThrow(new IOException("boom"));
+    assertThat(JsonBodies.readStrings(mapper, broken, "email")).isEmpty();
   }
 }

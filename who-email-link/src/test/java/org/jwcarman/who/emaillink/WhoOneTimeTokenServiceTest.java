@@ -16,22 +16,14 @@
 package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Optional;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import org.jwcarman.who.core.crypto.MessageDigests;
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest;
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
@@ -41,9 +33,8 @@ class WhoOneTimeTokenServiceTest {
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
   private static final Duration TTL = Duration.ofMinutes(15);
 
-  private final EmailLinkTokenRepository repository = mock(EmailLinkTokenRepository.class);
   private final WhoOneTimeTokenService service =
-      new WhoOneTimeTokenService(repository, Clock.fixed(NOW, ZoneOffset.UTC), TTL);
+      new WhoOneTimeTokenService(Clock.fixed(NOW, ZoneOffset.UTC), TTL);
 
   @Test
   void generateTouchesNoTable() {
@@ -52,34 +43,14 @@ class WhoOneTimeTokenServiceTest {
     assertThat(token.getTokenValue()).hasSize(43);
     assertThat(token.getUsername()).isEqualTo("owner@example.com");
     assertThat(token.getExpiresAt()).isEqualTo(NOW.plus(TTL));
-    verifyNoInteractions(repository);
   }
 
   @Test
-  void consumeReturnsTheCredentialIdAsUsername() {
-    UUID credentialId = UUID.randomUUID();
-    when(repository.consume(anyString(), any())).thenReturn(Optional.of(credentialId));
+  void consumeIsUnsupported() {
+    OneTimeTokenAuthenticationToken token = new OneTimeTokenAuthenticationToken("value");
 
-    OneTimeToken token = service.consume(new OneTimeTokenAuthenticationToken("value"));
-
-    assertThat(token).isNotNull();
-    assertThat(token.getUsername()).isEqualTo(credentialId.toString());
-    assertThat(token.getTokenValue()).isEqualTo("value");
-  }
-
-  @Test
-  void consumeOfUnknownIsNull() {
-    when(repository.consume(anyString(), any())).thenReturn(Optional.empty());
-
-    assertThat(service.consume(new OneTimeTokenAuthenticationToken("value"))).isNull();
-  }
-
-  @Test
-  void onlyTheHashReachesTheRepository() {
-    when(repository.consume(anyString(), any())).thenReturn(Optional.empty());
-
-    service.consume(new OneTimeTokenAuthenticationToken("raw-value"));
-
-    verify(repository).consume(MessageDigests.sha256Hex("raw-value"), NOW);
+    assertThatThrownBy(() -> service.consume(token))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("who's EmailLinkAuthenticationProvider redeems sign-ins");
   }
 }

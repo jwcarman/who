@@ -17,28 +17,30 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Map;
+
 import jakarta.servlet.http.HttpServletRequest;
 
-import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
+import org.jwcarman.who.emaillink.EmailSignInProof.EmailCode;
+import org.jwcarman.who.emaillink.EmailSignInProof.LinkToken;
+import org.jwcarman.who.emaillink.EmailSignInProof.Malformed;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Reads {@code {"token": "..."}} from the body of {@code POST /login/ott}. Malformed input of any
- * kind yields a token for {@link #NO_TOKEN}, never {@code null} or an exception, so every sign-in
- * failure reaches the failure handler and gets the same answer.
+ * Reads the body of {@code POST /login/ott}: either {@code {"token": "..."}} from the emailed link,
+ * or {@code {"email": "...", "code": "..."}} typed by hand. Anything else, including a body with
+ * both, yields {@link Malformed}, never {@code null} or an exception, so every sign-in failure
+ * reaches the failure handler and gets the same answer. The code is passed on exactly as typed;
+ * {@link EmailLinkAuthenticationProvider} normalizes it.
  */
 public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationConverter {
 
-  /**
-   * The token value used for malformed requests. Returning {@code null} would make Spring skip the
-   * failure handler, so this stands in for "no token"; {@link EmailLinkAuthenticationProvider}
-   * rejects it as a failed sign-in without consuming anything. Real tokens are 43 characters, so
-   * this can never be one.
-   */
-  public static final String NO_TOKEN = "-";
+  private static final String TOKEN = "token";
+  private static final String EMAIL = "email";
+  private static final String CODE = "code";
 
   private final JsonMapper jsonMapper;
 
@@ -53,10 +55,28 @@ public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationCo
 
   @Override
   public Authentication convert(HttpServletRequest request) {
-    String token = JsonBodies.readString(jsonMapper, request, "token");
-    if (token == null || token.isBlank()) {
-      return new OneTimeTokenAuthenticationToken(NO_TOKEN);
+    return new EmailSignInAuthenticationToken(
+        proof(JsonBodies.readStrings(jsonMapper, request, TOKEN, EMAIL, CODE)));
+  }
+
+  private static EmailSignInProof proof(Map<String, String> fields) {
+    // A field counts only if it is a non-blank string.
+    String token = fields.get(TOKEN);
+    String email = fields.get(EMAIL);
+    String code = fields.get(CODE);
+    boolean hasToken = isPresent(token);
+    boolean hasEmail = isPresent(email);
+    boolean hasCode = isPresent(code);
+    if (hasToken && !hasEmail && !hasCode) {
+      return new LinkToken(token);
     }
-    return new OneTimeTokenAuthenticationToken(token);
+    if (!hasToken && hasEmail && hasCode) {
+      return new EmailCode(email, code);
+    }
+    return new Malformed();
+  }
+
+  private static boolean isPresent(String value) {
+    return value != null && !value.isBlank();
   }
 }

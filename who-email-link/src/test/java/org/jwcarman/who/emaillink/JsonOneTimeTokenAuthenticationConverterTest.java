@@ -21,8 +21,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.jwcarman.who.emaillink.EmailSignInProof.EmailCode;
+import org.jwcarman.who.emaillink.EmailSignInProof.LinkToken;
+import org.jwcarman.who.emaillink.EmailSignInProof.Malformed;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -39,18 +41,35 @@ class JsonOneTimeTokenAuthenticationConverterTest {
     return request;
   }
 
+  private static EmailSignInProof proofOf(Authentication result) {
+    assertThat(result).isInstanceOf(EmailSignInAuthenticationToken.class);
+    assertThat(result.isAuthenticated()).isFalse();
+    return ((EmailSignInAuthenticationToken) result).proof();
+  }
+
   @Test
   void readsToken() {
-    Authentication result = converter.convert(post("{\"token\": \"abc\"}"));
+    assertThat(proofOf(converter.convert(post("{\"token\":\"t\"}")))).isEqualTo(new LinkToken("t"));
+  }
 
-    assertThat(result).isInstanceOf(OneTimeTokenAuthenticationToken.class);
-    assertThat(((OneTimeTokenAuthenticationToken) result).getTokenValue()).isEqualTo("abc");
-    assertThat(result.isAuthenticated()).isFalse();
+  @Test
+  void readsEmailAndCodeAsTyped() {
+    assertThat(proofOf(converter.convert(post("{\"email\":\"a@b.c\",\"code\":\"k7f-2qm\"}"))))
+        .isEqualTo(new EmailCode("a@b.c", "k7f-2qm"));
   }
 
   @ParameterizedTest
   @ValueSource(
       strings = {
+        "{\"token\":\"t\",\"email\":\"a@b.c\",\"code\":\"x\"}",
+        "{\"token\":\"t\",\"email\":\"a@b.c\"}",
+        "{\"token\":\"t\",\"code\":\"x\"}",
+        "{\"email\":\"a@b.c\",\"code\":123456}",
+        "{\"email\":null,\"code\":\"K7F2QM\"}",
+        "{\"email\":\"a@b.c\"}",
+        "{\"code\":\"K7F2QM\"}",
+        "{\"email\":\" \",\"code\":\"K7F2QM\"}",
+        "{\"email\":\"a@b.c\",\"code\":\"\"}",
         "{",
         "{}",
         "{\"token\": 5}",
@@ -62,19 +81,12 @@ class JsonOneTimeTokenAuthenticationConverterTest {
         "token=abc"
       })
   void malformedNeverGivesNull(String body) {
-    Authentication result = converter.convert(post(body));
-
-    assertThat(result).isInstanceOf(OneTimeTokenAuthenticationToken.class);
-    assertThat(((OneTimeTokenAuthenticationToken) result).getTokenValue())
-        .isEqualTo(JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
-    assertThat(result.isAuthenticated()).isFalse();
+    assertThat(proofOf(converter.convert(post(body)))).isEqualTo(new Malformed());
   }
 
   @Test
   void requestWithNoBodyNeverGivesNull() {
-    Authentication result = converter.convert(new MockHttpServletRequest("POST", "/login/ott"));
-
-    assertThat(((OneTimeTokenAuthenticationToken) result).getTokenValue())
-        .isEqualTo(JsonOneTimeTokenAuthenticationConverter.NO_TOKEN);
+    assertThat(proofOf(converter.convert(new MockHttpServletRequest("POST", "/login/ott"))))
+        .isEqualTo(new Malformed());
   }
 }

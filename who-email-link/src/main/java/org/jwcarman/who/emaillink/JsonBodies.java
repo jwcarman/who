@@ -17,13 +17,15 @@ package org.jwcarman.who.emaillink;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Reads a single string field from a JSON request body without ever throwing. */
+/** Reads string fields from a JSON request body without ever throwing. */
 final class JsonBodies {
 
   private JsonBodies() {
@@ -40,20 +42,40 @@ final class JsonBodies {
    *     a string
    */
   static String readString(JsonMapper jsonMapper, HttpServletRequest request, String field) {
+    return readStrings(jsonMapper, request, field).get(field);
+  }
+
+  /**
+   * Reads several string fields from the request's JSON object body in one pass.
+   *
+   * @param jsonMapper the JSON mapper
+   * @param request the request; its body is read once
+   * @param fields the field names
+   * @return the requested fields whose values are JSON strings; empty if the body is not a JSON
+   *     object
+   */
+  static Map<String, String> readStrings(
+      JsonMapper jsonMapper, HttpServletRequest request, String... fields) {
     // The servlet container owns the request stream and closes it; who must not.
     try {
       InputStream body = request.getInputStream();
       if (body == null) {
-        return null;
+        return Map.of();
       }
       JsonNode node = jsonMapper.readTree(body);
       if (node == null || !node.isObject()) {
-        return null;
+        return Map.of();
       }
-      JsonNode value = node.get(field);
-      return value != null && value.isString() ? value.asString() : null;
+      Map<String, String> values = new HashMap<>();
+      for (String field : fields) {
+        JsonNode value = node.get(field);
+        if (value != null && value.isString()) {
+          values.put(field, value.asString());
+        }
+      }
+      return Map.copyOf(values);
     } catch (IOException | RuntimeException _) {
-      return null;
+      return Map.of();
     }
   }
 }

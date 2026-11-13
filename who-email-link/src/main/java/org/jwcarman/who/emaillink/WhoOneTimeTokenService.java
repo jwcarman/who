@@ -19,9 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 
-import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.crypto.Secrets;
 import org.springframework.security.authentication.ott.DefaultOneTimeToken;
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest;
@@ -34,25 +32,21 @@ import org.springframework.security.authentication.ott.OneTimeTokenService;
  *
  * <p>{@link #generate} only creates a random value and touches no table, so it takes the same time
  * whether or not the address is known; {@link EmailLinkIssuer} stores the token later, on another
- * thread. {@link #consume} atomically consumes the stored token by its hash. Only the SHA-256 hash
- * of a token value ever reaches the repository.
+ * thread. {@link #consume} is never used: {@link EmailLinkAuthenticationProvider} redeems sign-ins
+ * itself, by link token or by code.
  */
 public class WhoOneTimeTokenService implements OneTimeTokenService {
 
-  private final EmailLinkTokenRepository repository;
   private final Clock clock;
   private final Duration tokenTtl;
 
   /**
    * Creates a new service.
    *
-   * @param repository the token repository
    * @param clock the clock
    * @param tokenTtl how long a token stays valid
    */
-  public WhoOneTimeTokenService(
-      EmailLinkTokenRepository repository, Clock clock, Duration tokenTtl) {
-    this.repository = requireNonNull(repository, "repository must not be null");
+  public WhoOneTimeTokenService(Clock clock, Duration tokenTtl) {
     this.clock = requireNonNull(clock, "clock must not be null");
     this.tokenTtl = requireNonNull(tokenTtl, "tokenTtl must not be null");
   }
@@ -70,21 +64,15 @@ public class WhoOneTimeTokenService implements OneTimeTokenService {
   }
 
   /**
-   * Consumes the token.
+   * Not supported; {@link EmailLinkAuthenticationProvider} redeems sign-ins.
    *
-   * @param authenticationToken the presented token
-   * @return a token whose username is the email credential id, or {@code null} if the token is
-   *     unknown, used, or expired
+   * @param authenticationToken ignored
+   * @return never
+   * @throws UnsupportedOperationException always
    */
   @Override
   public OneTimeToken consume(OneTimeTokenAuthenticationToken authenticationToken) {
-    String value = authenticationToken.getTokenValue();
-    Instant now = clock.instant();
-    return repository
-        .consume(MessageDigests.sha256Hex(value), now)
-        .map(
-            credentialId ->
-                (OneTimeToken) new DefaultOneTimeToken(value, credentialId.toString(), now))
-        .orElse(null);
+    throw new UnsupportedOperationException(
+        "who's EmailLinkAuthenticationProvider redeems sign-ins");
   }
 }
