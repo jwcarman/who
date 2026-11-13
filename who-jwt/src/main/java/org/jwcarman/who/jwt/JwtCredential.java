@@ -17,8 +17,10 @@ package org.jwcarman.who.jwt;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.spi.Credential;
 
@@ -49,5 +51,25 @@ public record JwtCredential(UUID id, String issuer, String subject) implements C
    */
   public static JwtCredential create(String issuer, String subject) {
     return new JwtCredential(Identifiers.uuid(), issuer, subject);
+  }
+
+  /**
+   * Returns {@link CredentialKind#JWT}.
+   *
+   * @return {@link CredentialKind#JWT}
+   */
+  @Override
+  public CredentialKind kind() {
+    return CredentialKind.JWT;
+  }
+
+  /**
+   * Returns the {@link #issuer()}. The subject is not part of the label.
+   *
+   * @return the issuer
+   */
+  @Override
+  public Optional<String> label() {
+    return Optional.of(issuer);
   }
 }

@@ -54,3 +54,16 @@ public SecurityFilterChain apiSecurityFilterChain(
 ```
 
 `WhoJwtAuthenticationConverter` is auto-configured by `who-autoconfigure` — inject it as a bean.
+
+## Link a token to an identity
+
+Who does not create identities from tokens. Link an issuer/subject pair to an existing identity with `JwtCredentialService`, which saves the credential, links it, and publishes a `CredentialAdded` event labelled with the issuer:
+
+```java
+JwtCredential credential = jwtCredentialService.link(identity, "https://your-auth-provider.com", "user-123");
+
+// later
+jwtCredentialService.unlink(credential.id());   // publishes CredentialRevoked
+```
+
+`JwtCredentialService` is auto-configured by `who-autoconfigure`. Each request with a valid token publishes `SignInSucceeded` or `SignInFailed` (method `JWT`; reasons `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`). The token itself is never published or logged. A token Spring rejects before Who sees it (bad signature, expired) publishes nothing.

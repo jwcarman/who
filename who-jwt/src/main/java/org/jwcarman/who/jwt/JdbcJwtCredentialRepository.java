@@ -18,6 +18,7 @@ package org.jwcarman.who.jwt;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -54,6 +55,21 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository, Cre
         .param(COL_SUBJECT, subject)
         .query(ROW_MAPPER)
         .optional();
+  }
+
+  @Override
+  public Optional<JwtCredential> findById(UUID id) {
+    return jdbcClient
+        .sql("SELECT id, issuer, subject FROM who_jwt_credential WHERE id = :id")
+        .param(COL_ID, id)
+        .query(ROW_MAPPER)
+        .optional();
+  }
+
+  /** Finds the JWT credential with the given id, labelled with its issuer. */
+  @Override
+  public Optional<Credential> find(UUID credentialId) {
+    return findById(credentialId).map(Credential.class::cast);
   }
 
   @Override

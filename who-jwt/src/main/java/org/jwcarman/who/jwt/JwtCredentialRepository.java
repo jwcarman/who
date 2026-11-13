@@ -31,6 +31,14 @@ public interface JwtCredentialRepository {
   Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject);
 
   /**
+   * Finds a credential by its id.
+   *
+   * @param id the credential UUID
+   * @return the credential, or empty if not found
+   */
+  Optional<JwtCredential> findById(UUID id);
+
+  /**
    * Persists a credential. If a record with the same id already exists it is left unchanged (JWT
    * credentials are immutable — issuer and subject never change after creation).
    *

@@ -57,6 +57,7 @@ import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
 import org.jwcarman.who.jwt.JwtCredentialRepository;
+import org.jwcarman.who.jwt.JwtCredentialService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
@@ -317,11 +318,44 @@ public class WhoAutoConfiguration {
       return new JdbcJwtCredentialRepository(jdbcClient);
     }
 
+    /**
+     * The converter that signs JWTs in, publishing the sign-in events.
+     *
+     * @param jwtCredentialRepository looks credentials up by issuer and subject
+     * @param whoService resolves a credential to its identity
+     * @param whoEventPublisher where the sign-in events are published
+     * @param clock stamps the events
+     * @return the converter
+     */
     @Bean
     @ConditionalOnMissingBean
     public WhoJwtAuthenticationConverter whoJwtAuthenticationConverter(
-        JwtCredentialRepository jwtCredentialRepository, WhoService whoService) {
-      return new WhoJwtAuthenticationConverter(jwtCredentialRepository, whoService);
+        JwtCredentialRepository jwtCredentialRepository,
+        WhoService whoService,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
+      return new WhoJwtAuthenticationConverter(
+          jwtCredentialRepository, whoService, whoEventPublisher, clock);
+    }
+
+    /**
+     * Links JWT issuer/subject pairs to identities, publishing the credential events.
+     *
+     * @param jwtCredentialRepository stores the credentials
+     * @param credentialIdentityRepository links credentials to identities
+     * @param whoEventPublisher where the credential events are published
+     * @param clock stamps the events
+     * @return the service
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtCredentialService jwtCredentialService(
+        JwtCredentialRepository jwtCredentialRepository,
+        CredentialIdentityRepository credentialIdentityRepository,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
+      return new JwtCredentialService(
+          jwtCredentialRepository, credentialIdentityRepository, whoEventPublisher, clock);
     }
   }
 

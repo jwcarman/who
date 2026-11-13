@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.Resolution.NotLinked;
+import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.mockito.Mock;
@@ -71,7 +73,7 @@ class WhoJwtAuthenticationConverterTest {
 
     when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
-    when(whoService.resolve(credential)).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(credential)).thenReturn(new NotLinked());
 
     assertThatExceptionOfType(BadCredentialsException.class)
         .isThrownBy(() -> converter.convert(jwt));
@@ -85,7 +87,7 @@ class WhoJwtAuthenticationConverterTest {
 
     when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
-    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
     AbstractAuthenticationToken token = converter.convert(jwt);
 
@@ -101,7 +103,7 @@ class WhoJwtAuthenticationConverterTest {
 
     when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
-    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
     AbstractAuthenticationToken token = converter.convert(jwt);
 
@@ -119,7 +121,7 @@ class WhoJwtAuthenticationConverterTest {
 
     when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
-    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
     WhoAuthenticationToken token = (WhoAuthenticationToken) converter.convert(jwt);
 
@@ -171,7 +173,7 @@ class WhoJwtAuthenticationConverterTest {
 
     when(jwtCredentialRepository.findByIssuerAndSubject("noir", SUBJECT))
         .thenReturn(Optional.of(credential));
-    when(whoService.resolve(credential)).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
     assertThat(converter.convert(jwt).getPrincipal()).isSameAs(principal);
   }
