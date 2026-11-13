@@ -34,6 +34,11 @@
     <name>Who - Example Application</name>
     <description>Self-contained Spring Boot example application demonstrating the Who library end-to-end</description>
 
+    <properties>
+        <!-- A sample app, not library code: leave it out of mutation testing (-Ppit). -->
+        <skipPitest>true</skipPitest>
+    </properties>
+
     <dependencies>
         <!-- Who -->
         <dependency>

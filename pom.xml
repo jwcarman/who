@@ -453,6 +453,7 @@ limitations under the License.]]></inlineHeader>
                                 <value>-Xshare:off</value>
                             </jvmArgs>
                             <threads>2</threads>
+                            <failWhenNoMutations>false</failWhenNoMutations>
                             <timestampedReports>false</timestampedReports>
                             <outputFormats>
                                 <param>HTML</param>

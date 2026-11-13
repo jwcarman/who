@@ -104,6 +104,10 @@ foreign key and revoked pending enrollment tokens. See
 # Tests with code coverage
 ./mvnw clean verify -Pci
 
+# Mutation testing (not part of CI; run it now and then to check test quality).
+# Reports: <module>/target/pit-reports/index.html
+./mvnw clean verify -Ppit
+
 # Apply code formatting
 ./mvnw spotless:apply
 
