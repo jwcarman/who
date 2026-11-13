@@ -48,7 +48,6 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
 
   private static final String INVALID_TOKEN = "invalid_token";
   private static final UUID DUMMY_ID = new UUID(0, 0);
-  private static final int MAX_ADDRESS_LENGTH = 320;
 
   private final EmailLinkTokenRepository repository;
   private final WhoService whoService;
@@ -105,7 +104,7 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
 
   private Optional<UUID> redeemCode(String address, String typedCode, Instant now) {
     Optional<String> normalized = EmailCodes.normalize(typedCode, codeLength);
-    if (normalized.isEmpty() || !isSafeAddress(address)) {
+    if (normalized.isEmpty() || !EmailAddresses.isSafe(address)) {
       return Optional.empty();
     }
     String code = normalized.get();
@@ -122,16 +121,6 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
       return Optional.empty();
     }
     return repository.consumeCode(credentialId, presented, now);
-  }
-
-  /**
-   * Rejects an address by its shape alone, before it reaches the database: blank, longer than an
-   * email address can be, or carrying a control character such as NUL.
-   */
-  private static boolean isSafeAddress(String address) {
-    return !address.isBlank()
-        && address.length() <= MAX_ADDRESS_LENGTH
-        && address.chars().noneMatch(Character::isISOControl);
   }
 
   private static InvalidOneTimeTokenException invalid() {

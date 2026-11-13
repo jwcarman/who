@@ -25,7 +25,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
-- Stricter input handling: a code sign-in whose address is longer than 320 characters or contains a control character fails with a 401 instead of a 500, a typed code longer than 64 characters is rejected, and `/ott/generate` and `/login/ott` ignore a JSON body larger than 8192 bytes.
+- Stricter input handling: a code sign-in whose address is longer than 320 characters or contains a control character fails with a 401 without reaching the database, `/ott/generate` treats such an address as unknown, a typed code longer than 64 characters is rejected, and `/ott/generate` and `/login/ott` ignore a JSON body larger than 8192 bytes.
 - `EmailLinkSettings` itself rejects a `codeSecret` shorter than 32 characters.
 
 ## [0.14.0] - 2026-11-10

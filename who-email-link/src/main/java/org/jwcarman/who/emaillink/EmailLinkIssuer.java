@@ -175,6 +175,6 @@ public class EmailLinkIssuer {
   }
 
   private static boolean looksLikeAnAddress(String address) {
-    return address != null && !address.isBlank() && address.indexOf('@') >= 0;
+    return EmailAddresses.isSafe(address) && address.indexOf('@') >= 0;
   }
 }

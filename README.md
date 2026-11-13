@@ -13,7 +13,7 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=coverage)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 
 Identity, sign-in and permissions for Spring Boot applications. Who signs people in
-without passwords (email links and passkeys, with a session), and maps every credential a
+without passwords (by email, with a link or a typed code, and by passkey, with a session), and maps every credential a
 caller presents (a session, a JWT, an API key) to one stable internal identity. It resolves
 that identity's permissions and lets your controllers check permission strings without
 knowing which credential the caller used. Who formats no errors of its own: it throws, and
@@ -89,7 +89,7 @@ foreign key and revoked pending enrollment tokens. See
 | `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` |
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
-| `who-email-link` | Email-link sign-in: `EmailCredentialService`, `EmailLinkSender`, and the hooks for Spring's one-time-token login |
+| `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |
 | `who-passkey` | Passkey sign-in: `PasskeyService`, `PasskeyAddedNotifier`, and the hooks for Spring's WebAuthn login |
 | `who-spring-security` | `@RequiresPermission`, `WhoWebSecurity.passwordless()` and `GET /who/me` |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |

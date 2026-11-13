@@ -545,7 +545,15 @@ class EmailLinkSignInTest {
   void malformedGenerateRequestsAnswer202AndSendNothing() throws Exception {
     Browser browser = new Browser(mvc);
 
-    for (String body : List.of("not json", "{}", "{\"email\":42}", "{\"email\":\"\"}", "[]", "")) {
+    for (String body :
+        List.of(
+            "not json",
+            "{}",
+            "{\"email\":42}",
+            "{\"email\":\"\"}",
+            "[]",
+            "",
+            "{\"email\":\"owner\\u0000@example.com\"}")) {
       assertThat(browser.performWithCsrf(generate(body)).getResponse().getStatus())
           .as(body)
           .isEqualTo(202);

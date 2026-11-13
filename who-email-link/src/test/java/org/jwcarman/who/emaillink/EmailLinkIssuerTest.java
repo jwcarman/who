@@ -234,6 +234,16 @@ class EmailLinkIssuerTest {
   }
 
   @Test
+  void anAddressWithAControlCharacterOrTooLongStopsBeforeTheLookup() {
+    assertThat(issuer.issue("owner\u0000@example.com", TOKEN))
+        .isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);
+    assertThat(issuer.issue("a".repeat(310) + "@example.com", TOKEN))
+        .isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);
+
+    verifyNoInteractions(credentials, repository, sender, whoService);
+  }
+
+  @Test
   void aTextWithoutAnAtSignOrNullAddressStopsBeforeTheLookup() {
     issuer.issue("not-an-address", TOKEN);
     issuer.issue(null, TOKEN);
