@@ -33,7 +33,7 @@ Startup fails, and the message names the fix, if:
 - `link-base-url` is blank;
 - `who.email-link.code-length` is below 6;
 - `who.email-link.code-max-attempts` is below 1;
-- `who.email-link.code-secret` is missing or shorter than 32 characters;
+- `who.email-link.code-secret` is missing, shorter than 32 characters, or an unresolved placeholder such as `${CODE_SECRET}` (Spring binds an unset variable as that literal text);
 - there is no `EmailLinkSender` and no `JavaMailSender` with `who.email-link.from`;
 - `who.email-link.resend-interval` is longer than `who.email-link.token-ttl`.
 

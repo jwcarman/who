@@ -441,6 +441,12 @@ public class WhoAutoConfiguration {
                 + "), or an expired link would block a new one");
       }
       String codeSecret = emailLink.getCodeSecret();
+      // Spring binds an unresolvable ${VAR} as literal text; a long enough name would otherwise
+      // pass the length check and key every code with a value printed in the app's own config.
+      if (codeSecret != null && codeSecret.contains("${")) {
+        throw new IllegalStateException(
+            "who.email-link.code-secret is an unresolved placeholder; set the variable it names");
+      }
       if (codeSecret == null || codeSecret.isBlank() || codeSecret.length() < 32) {
         throw new IllegalStateException(
             "who.email-link.code-secret must be set to at least 32 characters");

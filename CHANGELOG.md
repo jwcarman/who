@@ -27,6 +27,7 @@ All notable changes to this project are documented here. The format follows
 
 - Stricter input handling: a code sign-in whose address is longer than 320 characters or contains a control character fails with a 401 without reaching the database, `/ott/generate` treats such an address as unknown, a typed code longer than 64 characters is rejected, and `/ott/generate` and `/login/ott` ignore a JSON body larger than 8192 bytes.
 - `EmailLinkSettings` itself rejects a `codeSecret` shorter than 32 characters.
+- Startup fails when `who.email-link.code-secret` is an unresolved placeholder (`${...}`), which Spring would otherwise bind as literal text and use as the key.
 
 ## [0.14.0] - 2026-11-10
 
@@ -246,7 +247,7 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.13.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.14.0...HEAD
 [0.14.0]: https://github.com/jwcarman/who/releases/tag/0.14.0
 [0.13.0]: https://github.com/jwcarman/who/releases/tag/0.13.0
 [0.12.0]: https://github.com/jwcarman/who/releases/tag/0.12.0

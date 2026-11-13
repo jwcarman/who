@@ -774,6 +774,23 @@ class EmailLinkSignInTest {
   }
 
   @Test
+  void unresolvedPlaceholderCodeSecretFailsStartup() {
+    // Spring leaves an unset variable as literal text, here 37 characters: long enough to pass
+    // the length check on its own
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=${MYAPP_EMAIL_LINK_CODE_SECRET_VALUE}")
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.code-secret")
+                    .hasMessageContaining("unresolved placeholder"));
+  }
+
+  @Test
   void codeLengthBelowSixFailsStartup() {
     startupRunner
         .withPropertyValues(
