@@ -160,6 +160,7 @@ class EmailSignInEventsTest {
 
     final List<WhoEvent> events = new CopyOnWriteArrayList<>();
     final List<Optional<UUID>> sessionIdentityAtSuccess = new CopyOnWriteArrayList<>();
+    final List<SignInFailed> thrownOn = new CopyOnWriteArrayList<>();
     volatile boolean throwOnFailure;
 
     @EventListener
@@ -173,6 +174,7 @@ class EmailSignInEventsTest {
     @EventListener
     void explode(SignInFailed event) {
       if (throwOnFailure) {
+        thrownOn.add(event);
         throw new IllegalStateException("listener failed");
       }
     }
@@ -240,6 +242,7 @@ class EmailSignInEventsTest {
     clock.set(EmailLinkSignInTest.NOW);
     sender.sent.clear();
     listener.throwOnFailure = false;
+    listener.thrownOn.clear();
     tokenRepository.loseTheRace = false;
 
     identity = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
@@ -529,6 +532,11 @@ class EmailSignInEventsTest {
 
       assertUniform401(browser.performWithCsrf(confirmCode(ADDRESS, wrongCode(sent.code()))));
 
+      // the listener did receive the failure and threw on it
+      assertThat(listener.thrownOn)
+          .singleElement()
+          .extracting(SignInFailed::reason)
+          .isEqualTo(SignInFailureReason.WRONG_CODE);
       assertThat(codeAttempts()).isEqualTo(1);
     }
   }
