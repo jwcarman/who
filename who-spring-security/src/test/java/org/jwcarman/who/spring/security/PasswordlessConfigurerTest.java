@@ -358,6 +358,40 @@ class PasswordlessConfigurerTest {
         .contains("who.passkey.rp-id");
   }
 
+  @Configuration
+  static class MarkerLoginMethodApp {
+    @Bean
+    PasswordlessLoginMethod markerLoginMethod() {
+      return http -> http.addFilterBefore(new MarkerFilter(), CsrfFilter.class);
+    }
+
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) {
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .with(WhoWebSecurity.passwordless(), withDefaults());
+      return http.build();
+    }
+  }
+
+  @Test
+  void aFreshChainAppliesTheLoginMethodBeans() {
+    // built in its own context, so the chain is assembled by this test rather than reused
+    new WebApplicationContextRunner()
+        .withUserConfiguration(BaseBadApp.class, MarkerLoginMethodApp.class)
+        .run(
+            ctx -> {
+              assertThat(ctx).hasNotFailed();
+              MockMvc fresh =
+                  MockMvcBuilders.webAppContextSetup((WebApplicationContext) ctx)
+                      .apply(springSecurity())
+                      .build();
+              fresh
+                  .perform(get("/anything"))
+                  .andExpect(status().isUnauthorized())
+                  .andExpect(header().string(MARKER_HEADER, "applied"));
+            });
+  }
+
   @Test
   void signedOutRequestHandsOffNotSignedIn() throws Exception {
     mvc.perform(get("/protected"))

@@ -55,6 +55,7 @@ class JsonAuthenticationHandlersTest {
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.getContentType()).startsWith("application/json");
+    assertThat(response.getHeader("Content-Type")).contains("charset=UTF-8");
     JsonNode body = mapper.readTree(response.getContentAsString());
     assertThat(body.size()).isEqualTo(1);
     assertThat(body.get("identityId").asString()).isEqualTo(identity.id().toString());

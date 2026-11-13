@@ -210,6 +210,17 @@ class WhoSessionSecurityContextRepositoryTest {
     assertThat(repository.containsContext(request)).isFalse();
   }
 
+  @Test
+  void containsContextOnlyWhenTheSessionHoldsAWhoSession() {
+    assertThat(repository.containsContext(request)).isFalse();
+
+    request.setSession(new MockHttpSession());
+    assertThat(repository.containsContext(request)).isFalse();
+
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    assertThat(repository.containsContext(request)).isTrue();
+  }
+
   private static MockHttpSession sessionWith(WhoSession whoSession) {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE, whoSession);
