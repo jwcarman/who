@@ -455,8 +455,8 @@ public class WhoAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
-        WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+        WhoService whoService, Clock clock, WhoEventPublisher whoEventPublisher) {
+      return new WhoSessionSecurityContextRepository(whoService, clock, whoEventPublisher);
     }
   }
 

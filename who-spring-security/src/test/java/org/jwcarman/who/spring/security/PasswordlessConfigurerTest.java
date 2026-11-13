@@ -34,7 +34,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -49,6 +48,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
@@ -158,8 +158,8 @@ class PasswordlessConfigurerTest {
   }
 
   private void resolvesTo(Set<String> permissions) {
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, permissions)));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, permissions)));
   }
 
   @Test
@@ -186,7 +186,7 @@ class PasswordlessConfigurerTest {
     resolvesTo(Set.of("task.read"));
     mvc.perform(get("/who/me").session(session)).andExpect(status().isOk());
 
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     mvc.perform(get("/who/me").session(session)).andExpect(status().isUnauthorized());
   }

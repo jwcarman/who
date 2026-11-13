@@ -27,7 +27,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,6 +35,7 @@ import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -81,8 +81,8 @@ class WhoSessionSecurityContextRepositoryTest {
   @Test
   void loadingResolvesAFreshPrincipal() {
     request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
 
     SecurityContext loaded = repository.loadDeferredContext(request).get();
 
@@ -96,7 +96,7 @@ class WhoSessionSecurityContextRepositoryTest {
   void inactiveOrUnlinkedEndsTheSession() {
     MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
     request.setSession(session);
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     SecurityContext loaded = repository.loadDeferredContext(request).get();
 
@@ -108,8 +108,8 @@ class WhoSessionSecurityContextRepositoryTest {
   void relinkedCredentialEndsTheSession() {
     MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
     request.setSession(session);
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(Identity.create(), Set.of("b"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(Identity.create(), Set.of("b"))));
 
     SecurityContext loaded = repository.loadDeferredContext(request).get();
 
@@ -132,8 +132,8 @@ class WhoSessionSecurityContextRepositoryTest {
   void resavingTheLoadedAuthenticationKeepsSignedInAt() {
     Instant earlier = NOW.minusSeconds(3600);
     request.setSession(sessionWith(new WhoSession(identity.id(), credId, earlier)));
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
 
     SecurityContext loaded = repository.loadDeferredContext(request).get();
     repository.saveContext(loaded, request, response);
@@ -179,13 +179,13 @@ class WhoSessionSecurityContextRepositoryTest {
     assertThat(repository.loadDeferredContext(request).isGenerated()).isTrue();
 
     request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
     assertThat(repository.loadDeferredContext(request).isGenerated()).isTrue();
 
     MockHttpServletRequest valid = new MockHttpServletRequest();
     valid.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
     assertThat(repository.loadDeferredContext(valid).isGenerated()).isFalse();
   }
 
@@ -194,7 +194,7 @@ class WhoSessionSecurityContextRepositoryTest {
     MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
     request.setSession(session);
     session.invalidate();
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     SecurityContext loaded = repository.loadDeferredContext(request).get();
 
@@ -257,8 +257,8 @@ class WhoSessionSecurityContextRepositoryTest {
   @Test
   void deprecatedLoadContextReturnsWhatTheDeferredLoadDoes() {
     request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("b"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
 
     SecurityContext viaHolder =
         repository.loadContext(new HttpRequestResponseHolder(request, response));
@@ -281,7 +281,7 @@ class WhoSessionSecurityContextRepositoryTest {
             return session;
           }
         };
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     SecurityContext loaded = repository.loadDeferredContext(sessionRequest).get();
 
@@ -309,8 +309,8 @@ class WhoSessionSecurityContextRepositoryTest {
   private MockHttpSession loadedSession() {
     MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
     request.setSession(session);
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("a"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("a"))));
     return session;
   }
 
@@ -360,13 +360,13 @@ class WhoSessionSecurityContextRepositoryTest {
   @Test
   void theCredentialPassedToTheResolverCarriesTheSessionsCredentialId() {
     request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     repository.loadDeferredContext(request).get();
 
     org.mockito.ArgumentCaptor<Credential> credential =
         org.mockito.ArgumentCaptor.forClass(Credential.class);
-    verify(whoService).resolve(credential.capture());
+    verify(whoService).resolveDetailed(credential.capture());
     assertThat(credential.getValue().id()).isEqualTo(credId);
   }
 
@@ -378,7 +378,7 @@ class WhoSessionSecurityContextRepositoryTest {
     jakarta.servlet.http.HttpServletRequest vanishing =
         mock(jakarta.servlet.http.HttpServletRequest.class);
     when(vanishing.getSession(false)).thenReturn(session, (HttpSession) null);
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     SecurityContext loaded = repository.loadDeferredContext(vanishing).get();
 
@@ -412,7 +412,7 @@ class WhoSessionSecurityContextRepositoryTest {
     MockHttpSession session = sessionWith(new WhoSession(identity.id(), credId, NOW));
     session.setAttribute(PRINCIPAL_INDEX, identity.id().toString());
     request.setSession(session);
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
 
     SecurityContext loaded = repository.loadDeferredContext(request).get();
     repository.saveContext(loaded, request, response);

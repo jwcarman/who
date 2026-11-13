@@ -36,9 +36,9 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
 /**
  * Makes a browser chain safe for session sign-in, using only Spring Security's own types: Spring's
  * SPA CSRF setup ({@link CsrfConfigurer#spa()}), {@code 401} instead of login redirects, a logout
- * that answers {@code 204}, no saved requests, a {@code no-referrer} policy, and who's
- * session-backed {@link WhoSessionSecurityContextRepository}. Every {@link PasswordlessLoginMethod}
- * bean is then applied in {@code @Order} order.
+ * that answers {@code 204} and reports {@code SignedOut}, no saved requests, a {@code no-referrer}
+ * policy, and who's session-backed {@link WhoSessionSecurityContextRepository}. Every {@link
+ * PasswordlessLoginMethod} bean is then applied in {@code @Order} order.
  *
  * <p>Obtain one with {@link WhoWebSecurity#passwordless()}.
  */
@@ -101,7 +101,10 @@ public class PasswordlessConfigurer
                             handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)))
         .logout(
             l ->
-                l.logoutSuccessHandler(
+                l.addLogoutHandler(
+                        (request, response, authentication) ->
+                            repository.onLogout(request, authentication))
+                    .logoutSuccessHandler(
                         new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
                     .deleteCookies(CSRF_COOKIE))
         .headers(h -> h.referrerPolicy(r -> r.policy(NO_REFERRER)));

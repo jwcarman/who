@@ -25,6 +25,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SessionEndReason;
+import org.jwcarman.who.core.event.SessionEnded;
+import org.jwcarman.who.core.event.SignedOut;
+import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.DeferredSecurityContext;
@@ -56,16 +61,30 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
 
   private final WhoService whoService;
   private final Clock clock;
+  private final WhoEventPublisher eventPublisher;
 
   /**
-   * Creates the repository.
+   * Creates the repository without publishing events.
    *
    * @param whoService used to re-resolve the principal on every request
    * @param clock source of the sign-in time
    */
   public WhoSessionSecurityContextRepository(WhoService whoService, Clock clock) {
+    this(whoService, clock, WhoEventPublisher.NOOP);
+  }
+
+  /**
+   * Creates the repository.
+   *
+   * @param whoService used to re-resolve the principal on every request
+   * @param clock source of the sign-in time and of event timestamps
+   * @param eventPublisher receives {@link SessionEnded} when a stored session stops resolving
+   */
+  public WhoSessionSecurityContextRepository(
+      WhoService whoService, Clock clock, WhoEventPublisher eventPublisher) {
     this.whoService = whoService;
     this.clock = clock;
+    this.eventPublisher = eventPublisher;
   }
 
   @Override
@@ -141,15 +160,42 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
     }
     WhoSession whoSession = stored.get();
     UUID credentialId = whoSession.credentialId();
-    Optional<WhoPrincipal> principal = whoService.resolve(() -> credentialId);
-    if (principal.isPresent() && principal.get().identity().id().equals(whoSession.identityId())) {
-      WhoAuthenticationToken token = new WhoAuthenticationToken(principal.get(), credentialId);
+    Resolution resolution = whoService.resolveDetailed(() -> credentialId);
+    if (resolution instanceof Resolution.Resolved(WhoPrincipal principal)
+        && principal.identity().id().equals(whoSession.identityId())) {
+      WhoAuthenticationToken token = new WhoAuthenticationToken(principal, credentialId);
       context.setAuthentication(token);
       request.setAttribute(LOADED_ATTRIBUTE, token);
     } else {
+      eventPublisher.publish(
+          new SessionEnded(
+              clock.instant(), whoSession.identityId(), credentialId, endReason(resolution)));
       invalidate(request);
     }
     return context;
+  }
+
+  /** A credential that still resolves, to someone else or to no one active, ended the identity. */
+  private static SessionEndReason endReason(Resolution resolution) {
+    return switch (resolution) {
+      case Resolution.Resolved _, Resolution.Inactive _ -> SessionEndReason.IDENTITY_INACTIVE;
+      case Resolution.NotLinked _, Resolution.NoIdentity _ -> SessionEndReason.CREDENTIAL_REVOKED;
+    };
+  }
+
+  /**
+   * Publishes {@link SignedOut} for a logout of a who session; wired in as a logout handler by
+   * {@link PasswordlessConfigurer}. Anything else, an anonymous request or another kind of
+   * authentication, is ignored.
+   */
+  void onLogout(HttpServletRequest request, Authentication authentication) {
+    if (authentication instanceof WhoAuthenticationToken token
+        && token.credentialId().isPresent()
+        && currentSession(request).isPresent()) {
+      eventPublisher.publish(
+          new SignedOut(
+              clock.instant(), token.getPrincipal().identity().id(), token.credentialId().get()));
+    }
   }
 
   private static void invalidate(HttpServletRequest request) {

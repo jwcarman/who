@@ -33,7 +33,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,6 +46,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.WhoSession;
@@ -162,8 +162,8 @@ class WhoTestSupportTest {
   @BeforeEach
   void setUp() {
     mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
-    when(whoService.resolve(any(Credential.class)))
-        .thenReturn(Optional.of(new WhoPrincipal(identity, Set.of("task.read"))));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("task.read"))));
   }
 
   @Test
