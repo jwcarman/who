@@ -54,7 +54,8 @@ anything the identity's resolved permissions do not grant ([RBAC](rbac.md)).
 
 **Input is bounded.** JSON bodies on the sign-in endpoints are capped at 8192 bytes, addresses
 at 320 characters with no control characters, and typed codes at 64 characters, all before any
-database call.
+database call. The code that parses these inputs is fuzzed with Jazzer every week, and every
+input that ever broke it is replayed as a test in every build.
 
 **Misconfiguration fails at startup.** Missing or weak settings stop the application instead of
 running insecurely: a code secret shorter than 32 characters or left as an unresolved

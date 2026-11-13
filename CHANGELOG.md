@@ -21,6 +21,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Documentation
 
+- Fuzz tests for the sign-in request bodies, typed codes and the API-key header, replayed in every build and fuzzed weekly by a new workflow. CONTRIBUTING explains how to run them.
 - A [Security Model](https://jwcarman.github.io/who/guides/security-model/) guide: what who protects, what the application must do, and what who assumes.
 - `SECURITY.md` (private vulnerability reporting), `CONTRIBUTING.md` and a code of conduct.
 

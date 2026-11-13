@@ -24,6 +24,27 @@ You need Java 25 and Docker (the tests start PostgreSQL with Testcontainers).
 ./mvnw clean verify -Ppit    # mutation testing, now and then (not part of CI)
 ```
 
+### Fuzzing
+
+The code that reads untrusted input (sign-in request bodies, typed codes, the API-key header) has
+[Jazzer](https://github.com/CodeIntelligenceTesting/jazzer) fuzz tests, the `*FuzzTest` classes.
+In a normal build each one replays its saved inputs as a regular test, which takes seconds. To
+generate new inputs, run one fuzz test at a time with `JAZZER_FUZZ=1`:
+
+```bash
+./mvnw -q install -DskipTests
+JAZZER_FUZZ=1 ./mvnw test -pl who-email-link -Dtest='SignInRequestFuzzTest#login_body_becomes_one_well_formed_proof'
+```
+
+It runs for the test's `maxDuration` (set `JAZZER_MAX_DURATION=10m` to change it) or until a
+check fails. A failure writes the input to `src/test/resources/<package>/<Class>Inputs/<method>/`
+as `crash-<hash>`: fix the bug and commit that file, so the input stays a regression test. The
+generated corpus in `.cifuzz-corpus/` is not committed. The [Fuzz workflow](.github/workflows/fuzz.yml)
+fuzzes every target for ten minutes each week.
+
+A new fuzz test belongs with any new code that parses input from an unauthenticated caller. Keep
+it fast and free of I/O, and assert what must hold for every input, not only that nothing throws.
+
 To work on the docs site, run `pip install --require-hashes -r docs/requirements.txt`, then
 `mkdocs serve`. CI builds it with `mkdocs build --strict`, so broken links fail the build.
 
@@ -53,7 +74,8 @@ Sonar and CodeQL run on every pull request; please address what they find.
 ## Releases
 
 Releases are cut by the maintainer from `main`. The version in the poms stays at the next
-`-SNAPSHOT`; publishing a GitHub Release builds, signs and publishes to Maven Central.
+`-SNAPSHOT`; publishing a GitHub Release builds, signs and publishes to Maven Central. Before a
+release, the latest Fuzz workflow run should be green; start one by hand if the last is old.
 
 ## Conduct
 

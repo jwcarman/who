@@ -73,14 +73,16 @@ reason belongs in metrics at all.
 
 - A semantic-versioning promise and a deprecation policy, enforced in CI with an API
   compatibility check (japicmp or revapi).
-- Fuzz testing of the inputs who parses from untrusted callers (JSON bodies, typed codes,
-  addresses, API-key headers), with Jazzer through ClusterFuzzLite.
+- Fuzzing through ClusterFuzzLite, if the weekly Jazzer workflow below isn't enough: fuzzing on
+  pull requests and a shared corpus.
 - The OpenSSF Best Practices badge.
 - Javadoc for every public type (the build reports 77 gaps today, most in `who-example`).
 
 Already in place: a security policy with private reporting, a security model guide, a CycloneDX
 SBOM and build provenance for every release, CodeQL, an OpenSSF Scorecard, hash-pinned
-workflow dependencies, and contributing guidelines.
+workflow dependencies, contributing guidelines, and Jazzer fuzz tests of the inputs who parses from
+untrusted callers (sign-in bodies, typed codes, addresses, the API-key header), replayed in every
+build and fuzzed weekly.
 
 ## Under consideration
 

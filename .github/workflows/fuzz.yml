@@ -1,0 +1,68 @@
+name: Fuzz
+
+# Every build replays the saved inputs of each @FuzzTest as a regression test. This workflow does
+# the slow part: it generates new inputs, one fuzz test per job, because Jazzer fuzzes only the
+# first @FuzzTest a JVM runs. A failure leaves the crashing input as an artifact; commit it under
+# the test's *Inputs directory (see CONTRIBUTING.md) so it becomes a regression test.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'How long to fuzz each test (Jazzer duration, e.g. 10m, 1h)'
+        required: false
+        default: '10m'
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: who-email-link
+            test: EmailCodesFuzzTest#normalize_accepts_only_plain_codes_and_never_throws
+          - module: who-email-link
+            test: SignInRequestFuzzTest#login_body_becomes_one_well_formed_proof
+          - module: who-email-link
+            test: SignInRequestFuzzTest#generate_body_becomes_an_address_or_the_no_address_marker
+          - module: who-apikey
+            test: ApiKeyHeaderFuzzTest#any_header_is_looked_up_by_its_hash_and_never_breaks_the_chain
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '25'
+          distribution: 'liberica'
+          cache: maven
+      # The corpus Jazzer grows between runs, so each week starts where the last one stopped.
+      - name: Restore corpus
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ matrix.module }}/.cifuzz-corpus
+          key: fuzz-corpus-${{ matrix.test }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.test }}-
+      - name: Fuzz
+        env:
+          JAZZER_FUZZ: '1'
+          JAZZER_MAX_DURATION: ${{ inputs.duration || '10m' }}
+          FUZZ_MODULE: ${{ matrix.module }}
+          FUZZ_TEST: ${{ matrix.test }}
+        run: >-
+          mvn -B test -pl "$FUZZ_MODULE" -am
+          -Dtest="$FUZZ_TEST" -Dsurefire.failIfNoSpecifiedTests=false
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: crash-${{ strategy.job-index }}
+          path: ${{ matrix.module }}/src/test/resources/**/crash-*
+          if-no-files-found: ignore
