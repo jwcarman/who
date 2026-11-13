@@ -17,7 +17,14 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
 import java.time.Clock;
+
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
@@ -31,6 +38,7 @@ import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.ObjectPostProcessor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
@@ -45,7 +53,8 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
  *       anonymously): the request goes on as it is.
  *   <li>A key that signs in: the request is authenticated as the key's identity, for this request
  *       only (no session is created to hold it), and goes on. As with every Spring {@link
- *       AuthenticationFilter}, a session the request already has gets a new id.
+ *       AuthenticationFilter}, a session the request already has gets a new id. An error page the
+ *       request is forwarded to sees the same sign-in; the key is not checked again.
  *   <li>A key that does not sign in (unknown, revoked, or of an inactive identity): the request is
  *       refused at once with {@code 401}, even where anonymous access is permitted. The refusal is
  *       handed to the application as a {@link SignInFailedException}, the same answer every who
@@ -59,6 +68,10 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
 public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
 
   private final ApiKeyAuthenticationProvider provider;
+
+  /** Holds a key's sign-in for the rest of the request, its error and async dispatches included. */
+  private final RequestAttributeSecurityContextRepository signedIn =
+      new RequestAttributeSecurityContextRepository();
 
   /**
    * Creates a new filter that publishes no who events.
@@ -91,8 +104,46 @@ public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
     // the provider publishes the sign-in; the request just goes on
     setSuccessHandler((request, response, authentication) -> {});
     setFailureHandler(handOffTo(new WhoExceptionHandoff(null)));
-    // the default already, but this filter depends on it: the sign-in lasts for the request only
-    setSecurityContextRepository(new RequestAttributeSecurityContextRepository());
+    // the sign-in lasts for the request only
+    setSecurityContextRepository(signedIn);
+  }
+
+  /**
+   * Returns {@code false}: error dispatches reach {@link #doFilterInternal}, which restores the
+   * request's sign-in there without signing in again.
+   */
+  @Override
+  protected boolean shouldNotFilterErrorDispatch() {
+    return false;
+  }
+
+  /**
+   * Returns {@code false}: async dispatches reach {@link #doFilterInternal}, which restores the
+   * request's sign-in there without signing in again.
+   */
+  @Override
+  protected boolean shouldNotFilterAsyncDispatch() {
+    return false;
+  }
+
+  /**
+   * Signs the request in on its first dispatch. A later dispatch of the same request (an error
+   * page, or async processing) carries the same header, but signs in no one: it restores the
+   * sign-in the first dispatch made, if any, since the chain's own repository may not hold it (a
+   * session-backed one never does). So a key is checked, and its event published, once per request.
+   */
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
+    if (request.getDispatcherType() == DispatcherType.REQUEST) {
+      super.doFilterInternal(request, response, filterChain);
+      return;
+    }
+    if (signedIn.containsContext(request)) {
+      SecurityContextHolder.setContext(signedIn.loadDeferredContext(request).get());
+    }
+    filterChain.doFilter(request, response);
   }
 
   /**
