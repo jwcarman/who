@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Every artifact on Maven Central ships a CycloneDX SBOM (`-cyclonedx.json` and `-cyclonedx.xml`).
+- Release jars carry a GitHub build provenance attestation: `gh attestation verify <jar> --repo jwcarman/who`.
+
+### Documentation
+
+- A [Security Model](https://jwcarman.github.io/who/guides/security-model/) guide: what who protects, what the application must do, and what who assumes.
+- `SECURITY.md` (private vulnerability reporting), `CONTRIBUTING.md` and a code of conduct.
+
 ## [0.15.0] - 2026-11-13
 
 ### Breaking changes
