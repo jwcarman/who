@@ -136,7 +136,12 @@ class WhoTestSupportTest {
     @GetMapping("/session/rotate")
     void rotate(HttpServletRequest request) {
       request.getSession().invalidate();
-      request.getSession(true);
+      request.getSession(true).setAttribute("crumb", "rotated");
+    }
+
+    @GetMapping("/session/requested")
+    String requested(HttpServletRequest request) {
+      return request.getRequestedSessionId() + "," + request.isRequestedSessionIdValid();
     }
 
     @GetMapping("/session/drop")
@@ -311,6 +316,32 @@ class WhoTestSupportTest {
 
     assertThat(browser.session()).isNotSameAs(before);
     assertThat(browser.session().isInvalid()).isFalse();
+    // the very session the application created, not a fresh one of the browser's own
+    assertThat(browser.session().getAttribute("crumb")).isEqualTo("rotated");
+  }
+
+  @Test
+  void theApplicationSeesTheSessionIdTheBrowserPresentsAsValid() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+
+    String requested =
+        browser
+            .perform(get("/session/requested"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(requested).isEqualTo(browser.session().getId() + ",true");
+  }
+
+  @Test
+  void theBrowsersCsrfHeaderReplacesOneSetOnTheBuilder() throws Exception {
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId);
+
+    browser
+        .perform(post("/who/me").header("X-XSRF-TOKEN", "stale-token"))
+        .andExpect(status().isMethodNotAllowed());
   }
 
   @Test
