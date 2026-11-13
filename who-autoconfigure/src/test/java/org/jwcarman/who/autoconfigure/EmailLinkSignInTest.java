@@ -54,6 +54,7 @@ import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
+import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,13 +92,15 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
     classes = EmailLinkSignInTest.App.class,
     properties = {
       "who.initialize-schema=always",
-      "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL
+      "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
+      "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET
     })
 @Testcontainers
 class EmailLinkSignInTest {
 
   static final String LINK_BASE_URL = "https://app.example.com/signin";
   static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
+  static final String CODE_SECRET = "test-code-secret-0123456789-abcdefghij";
   static final String ADDRESS = "owner@example.com";
   static final String XSRF_COOKIE = "XSRF-TOKEN";
   static final String XSRF_HEADER = "X-XSRF-TOKEN";
@@ -183,7 +186,7 @@ class EmailLinkSignInTest {
     }
   }
 
-  record SentLink(String address, String link) {
+  record SentLink(String address, String link, String code) {
     String token() {
       return link.substring(link.indexOf("#token=") + "#token=".length());
     }
@@ -194,8 +197,8 @@ class EmailLinkSignInTest {
     final List<SentLink> sent = new CopyOnWriteArrayList<>();
 
     @Override
-    public void send(String address, String link) {
-      sent.add(new SentLink(address, link));
+    public void send(EmailLinkMessage message) {
+      sent.add(new SentLink(message.address(), message.link(), message.code()));
     }
   }
 
@@ -288,6 +291,10 @@ class EmailLinkSignInTest {
     return post("/login/ott").contentType(MediaType.APPLICATION_JSON).content(body);
   }
 
+  private static MockHttpServletRequestBuilder confirmCode(String email, String code) {
+    return confirmBody("{\"email\":\"" + email + "\",\"code\":\"" + code + "\"}");
+  }
+
   private String requestLink(Browser browser) throws Exception {
     int before = sender.sent.size();
     MvcResult result = browser.performWithCsrf(generate("{\"email\":\"" + ADDRESS + "\"}"));
@@ -339,6 +346,91 @@ class EmailLinkSignInTest {
         .andExpect(jsonPath("$.identityId").value(identity.id().toString()))
         .andExpect(jsonPath("$.permissions.length()").value(1))
         .andExpect(jsonPath("$.permissions[0]").value("task.read"));
+  }
+
+  @Test
+  void codeSignInEndToEnd() throws Exception {
+    Browser browser = new Browser(mvc);
+    requestLink(browser);
+    SentLink sent = sender.sent.getFirst();
+
+    MvcResult signedIn = browser.performWithCsrf(confirmCode(ADDRESS, sent.code()));
+
+    assertThat(signedIn.getResponse().getStatus()).isEqualTo(200);
+    mvc.perform(get("/who/me").session(browser.session))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.identityId").value(identity.id().toString()));
+  }
+
+  @Test
+  void codeIsAcceptedLowerCaseAndDashed() throws Exception {
+    Browser browser = new Browser(mvc);
+    requestLink(browser);
+    String code = sender.sent.getFirst().code();
+    String typed = (code.substring(0, 3) + "-" + code.substring(3)).toLowerCase();
+
+    assertThat(browser.performWithCsrf(confirmCode(ADDRESS, typed)).getResponse().getStatus())
+        .isEqualTo(200);
+  }
+
+  @Test
+  void codeAddressIsMatchedAfterNormalizing() throws Exception {
+    Browser browser = new Browser(mvc);
+    requestLink(browser);
+
+    MvcResult result =
+        browser.performWithCsrf(
+            confirmCode(" " + ADDRESS.toUpperCase() + " ", sender.sent.getFirst().code()));
+
+    assertThat(result.getResponse().getStatus()).isEqualTo(200);
+  }
+
+  @Test
+  void wrongCodeUnknownAddressAndBurntCodeAllGetTheSame401() throws Exception {
+    Browser browser = new Browser(mvc);
+    requestLink(browser);
+    String code = sender.sent.getFirst().code();
+    String wrong = code.startsWith("0") ? "111111" : "000000";
+
+    assertInvalidToken(browser.performWithCsrf(confirmCode(ADDRESS, wrong)));
+    assertInvalidToken(browser.performWithCsrf(confirmCode("stranger@example.com", code)));
+    for (int i = 0; i < 4; i++) {
+      assertInvalidToken(browser.performWithCsrf(confirmCode(ADDRESS, wrong)));
+    }
+    // the code is burnt now, even though it is the right one
+    assertInvalidToken(browser.performWithCsrf(confirmCode(ADDRESS, code)));
+  }
+
+  @Test
+  void linkStillWorksAfterTheCodeIsBurnt() throws Exception {
+    Browser browser = new Browser(mvc);
+    String token = requestLink(browser);
+    String code = sender.sent.getFirst().code();
+    String wrong = code.startsWith("0") ? "111111" : "000000";
+    for (int i = 0; i < 5; i++) {
+      assertInvalidToken(browser.performWithCsrf(confirmCode(ADDRESS, wrong)));
+    }
+    assertInvalidToken(browser.performWithCsrf(confirmCode(ADDRESS, code)));
+
+    assertThat(browser.performWithCsrf(confirm(token)).getResponse().getStatus()).isEqualTo(200);
+  }
+
+  @Test
+  void bothFormsAtOnceIs401() throws Exception {
+    Browser browser = new Browser(mvc);
+    String token = requestLink(browser);
+    String code = sender.sent.getFirst().code();
+
+    assertInvalidToken(
+        browser.performWithCsrf(
+            confirmBody(
+                "{\"token\":\""
+                    + token
+                    + "\",\"email\":\""
+                    + ADDRESS
+                    + "\",\"code\":\""
+                    + code
+                    + "\"}")));
   }
 
   @Test
@@ -477,6 +569,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.initialize-schema=always",
             "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET,
             "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
             "spring.datasource.username=" + POSTGRES.getUsername(),
             "spring.datasource.password=" + POSTGRES.getPassword())
@@ -538,7 +631,7 @@ class EmailLinkSignInTest {
 
     @Bean
     EmailLinkSender emailLinkSender() {
-      return (address, link) -> {};
+      return message -> {};
     }
   }
 
@@ -566,7 +659,9 @@ class EmailLinkSignInTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(NoSenderConfig.class)
-        .withPropertyValues("who.email-link.link-base-url=" + LINK_BASE_URL)
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET)
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -581,7 +676,8 @@ class EmailLinkSignInTest {
   @Test
   void blankLinkBaseUrlFailsStartup() {
     startupRunner
-        .withPropertyValues("who.email-link.link-base-url=")
+        .withPropertyValues(
+            "who.email-link.link-base-url=", "who.email-link.code-secret=" + CODE_SECRET)
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -608,6 +704,7 @@ class EmailLinkSignInTest {
     startupRunner
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET,
             "who.email-link.token-ttl=1m",
             "who.email-link.resend-interval=2m")
         .run(
@@ -620,9 +717,67 @@ class EmailLinkSignInTest {
   }
 
   @Test
-  void validSettingsStartWithTheDefaults() {
+  void missingCodeSecretFailsStartup() {
     startupRunner
         .withPropertyValues("who.email-link.link-base-url=" + LINK_BASE_URL)
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.code-secret"));
+  }
+
+  @Test
+  void shortCodeSecretFailsStartup() {
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET.substring(0, 31))
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.code-secret"));
+  }
+
+  @Test
+  void codeLengthBelowSixFailsStartup() {
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET,
+            "who.email-link.code-length=5")
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.code-length"));
+  }
+
+  @Test
+  void codeMaxAttemptsBelowOneFailsStartup() {
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET,
+            "who.email-link.code-max-attempts=0")
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.code-max-attempts"));
+  }
+
+  @Test
+  void validSettingsStartWithTheDefaults() {
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET)
         .run(ctx -> assertThat(ctx).hasNotFailed());
   }
 }

@@ -75,6 +75,9 @@ class WhoAutoConfigurationTest {
   private static final String LINK_BASE_URL =
       "who.email-link.link-base-url=https://app.example.com/signin";
 
+  private static final String CODE_SECRET =
+      "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij";
+
   @Test
   void allModulesOnClasspathCreatesWhoServiceAndOptionalBeans() {
     new ApplicationContextRunner()
@@ -113,7 +116,10 @@ class WhoAutoConfigurationTest {
             AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues(
-            LINK_BASE_URL, "spring.mail.host=localhost", "who.email-link.from=who@example.com")
+            LINK_BASE_URL,
+            CODE_SECRET,
+            "spring.mail.host=localhost",
+            "who.email-link.from=who@example.com")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -127,7 +133,7 @@ class WhoAutoConfigurationTest {
         .withConfiguration(
             AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL, "spring.mail.host=localhost")
+        .withPropertyValues(LINK_BASE_URL, CODE_SECRET, "spring.mail.host=localhost")
         .run(
             context ->
                 assertThat(context.getStartupFailure())
@@ -244,8 +250,8 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL)
-        .withBean(EmailLinkSender.class, () -> (address, link) -> {})
+        .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
+        .withBean(EmailLinkSender.class, () -> message -> {})
         .run(
             context -> {
               assertThat(context).hasNotFailed();

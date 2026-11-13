@@ -90,6 +90,8 @@ class PasskeyAutoConfigurationTest {
 
   static final String RP_ID = "who.passkey.rp-id=app.example.com";
   static final String LINK_BASE_URL = "who.email-link.link-base-url=https://app.example.com/in";
+  static final String CODE_SECRET =
+      "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij";
 
   private static final AutoConfigurations AUTO_CONFIGURATIONS =
       AutoConfigurations.of(
@@ -289,6 +291,7 @@ class PasskeyAutoConfigurationTest {
         .withPropertyValues(
             RP_ID,
             LINK_BASE_URL,
+            CODE_SECRET,
             "spring.mail.host=localhost",
             "who.email-link.from=who@example.com",
             "who.passkey.from=security@example.com")
@@ -393,8 +396,8 @@ class PasskeyAutoConfigurationTest {
   @Test
   void withEmailLinksTheNameIsTheAddress() {
     postgresRunner()
-        .withPropertyValues(RP_ID, LINK_BASE_URL)
-        .withBean(EmailLinkSender.class, () -> (address, link) -> {})
+        .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET)
+        .withBean(EmailLinkSender.class, () -> message -> {})
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -418,6 +421,7 @@ class PasskeyAutoConfigurationTest {
         .withPropertyValues(
             RP_ID,
             LINK_BASE_URL,
+            CODE_SECRET,
             "spring.mail.host=localhost",
             "who.email-link.from=who@example.com",
             "who.passkey.from=security@example.com")
@@ -437,6 +441,7 @@ class PasskeyAutoConfigurationTest {
         .withPropertyValues(
             RP_ID,
             LINK_BASE_URL,
+            CODE_SECRET,
             "who.email-link.from=who@example.com",
             "who.passkey.from=security@example.com")
         .withBean(JavaMailSender.class, () -> mailSender)
@@ -497,7 +502,8 @@ class PasskeyAutoConfigurationTest {
         postgresRunner()
             .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
             .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
-            .withPropertyValues(RP_ID, LINK_BASE_URL, "who.passkey.from=security@example.com");
+            .withPropertyValues(
+                RP_ID, LINK_BASE_URL, CODE_SECRET, "who.passkey.from=security@example.com");
 
     assertThat(passkeyAddedEmailWarnings(runner, false))
         .singleElement()
@@ -528,6 +534,7 @@ class PasskeyAutoConfigurationTest {
                 false,
                 RP_ID,
                 LINK_BASE_URL,
+                CODE_SECRET,
                 "spring.mail.host=localhost",
                 "who.email-link.from=who@example.com"))
         .singleElement()
@@ -554,7 +561,7 @@ class PasskeyAutoConfigurationTest {
   void withoutAMailSenderNoPasskeyAddedEmails() {
     assertThat(
             passkeyAddedEmailWarnings(
-                false, RP_ID, LINK_BASE_URL, "who.passkey.from=security@example.com"))
+                false, RP_ID, LINK_BASE_URL, CODE_SECRET, "who.passkey.from=security@example.com"))
         .singleElement()
         .asString()
         .contains("spring.mail.host")
@@ -568,6 +575,7 @@ class PasskeyAutoConfigurationTest {
                 true,
                 RP_ID,
                 LINK_BASE_URL,
+                CODE_SECRET,
                 "spring.mail.host=localhost",
                 "who.email-link.from=who@example.com",
                 "who.passkey.from=security@example.com"))

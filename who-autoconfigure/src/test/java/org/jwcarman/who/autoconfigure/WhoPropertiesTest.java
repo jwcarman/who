@@ -69,10 +69,26 @@ class WhoPropertiesTest {
   @Test
   void emailLinkSubjectRoundTrips() {
     WhoProperties props = new WhoProperties();
-    assertThat(props.getEmailLink().getSubject()).isEqualTo("Your sign-in link");
+    assertThat(props.getEmailLink().getSubject()).isEqualTo("Your sign-in link and code");
 
     props.getEmailLink().setSubject("Sign in to Acme");
 
     assertThat(props.getEmailLink().getSubject()).isEqualTo("Sign in to Acme");
+  }
+
+  @Test
+  void emailLinkCodeDefaultsAndRoundTrip() {
+    WhoProperties.EmailLink emailLink = new WhoProperties().getEmailLink();
+    assertThat(emailLink.getCodeLength()).isEqualTo(6);
+    assertThat(emailLink.getCodeMaxAttempts()).isEqualTo(5);
+    assertThat(emailLink.getCodeSecret()).isNull();
+
+    emailLink.setCodeLength(8);
+    emailLink.setCodeMaxAttempts(3);
+    emailLink.setCodeSecret("s");
+
+    assertThat(emailLink.getCodeLength()).isEqualTo(8);
+    assertThat(emailLink.getCodeMaxAttempts()).isEqualTo(3);
+    assertThat(emailLink.getCodeSecret()).isEqualTo("s");
   }
 }

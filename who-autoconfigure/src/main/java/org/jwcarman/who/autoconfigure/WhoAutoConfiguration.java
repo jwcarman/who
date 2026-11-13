@@ -440,7 +440,24 @@ public class WhoAutoConfiguration {
                 + tokenTtl
                 + "), or an expired link would block a new one");
       }
-      return new EmailLinkSettings(emailLink.getLinkBaseUrl(), tokenTtl, resendInterval);
+      String codeSecret = emailLink.getCodeSecret();
+      if (codeSecret == null || codeSecret.isBlank() || codeSecret.length() < 32) {
+        throw new IllegalStateException(
+            "who.email-link.code-secret must be set to at least 32 characters");
+      }
+      if (emailLink.getCodeLength() < 6) {
+        throw new IllegalStateException("who.email-link.code-length must be at least 6");
+      }
+      if (emailLink.getCodeMaxAttempts() < 1) {
+        throw new IllegalStateException("who.email-link.code-max-attempts must be at least 1");
+      }
+      return new EmailLinkSettings(
+          emailLink.getLinkBaseUrl(),
+          tokenTtl,
+          resendInterval,
+          emailLink.getCodeLength(),
+          emailLink.getCodeMaxAttempts(),
+          codeSecret);
     }
 
     /**
@@ -472,11 +489,8 @@ public class WhoAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public WhoOneTimeTokenService whoOneTimeTokenService(
-        EmailLinkTokenRepository emailLinkTokenRepository,
-        Clock clock,
-        EmailLinkSettings settings) {
-      return new WhoOneTimeTokenService(emailLinkTokenRepository, clock, settings.tokenTtl());
+    public WhoOneTimeTokenService whoOneTimeTokenService(Clock clock, EmailLinkSettings settings) {
+      return new WhoOneTimeTokenService(clock, settings.tokenTtl());
     }
 
     @Bean
@@ -552,13 +566,17 @@ public class WhoAutoConfiguration {
         EmailLinkGenerationSuccessHandler generationSuccessHandler,
         JsonOneTimeTokenAuthenticationConverter authenticationConverter,
         JsonAuthenticationHandlers handlers,
-        WhoService whoService) {
+        WhoService whoService,
+        EmailLinkTokenRepository emailLinkTokenRepository,
+        EmailLinkSettings settings,
+        Clock clock) {
       return new EmailLinkLoginMethod(
           tokenService,
           generateRequestResolver,
           generationSuccessHandler,
           authenticationConverter,
-          new EmailLinkAuthenticationProvider(tokenService, whoService),
+          new EmailLinkAuthenticationProvider(
+              emailLinkTokenRepository, settings, whoService, clock),
           handlers.success(),
           handlers.failure());
     }
@@ -582,13 +600,14 @@ public class WhoAutoConfiguration {
     @ConditionalOnMissingBean(EmailLinkSender.class)
     @ConditionalOnBean(JavaMailSender.class)
     public MailEmailLinkSender mailEmailLinkSender(
-        JavaMailSender javaMailSender, WhoProperties properties) {
+        JavaMailSender javaMailSender, WhoProperties properties, Clock clock) {
       WhoProperties.EmailLink emailLink = properties.getEmailLink();
       if (!StringUtils.hasText(emailLink.getFrom())) {
         throw new IllegalStateException(
             "who.email-link.from must be set to the sender address of sign-in emails");
       }
-      return new MailEmailLinkSender(javaMailSender, emailLink.getFrom(), emailLink.getSubject());
+      return new MailEmailLinkSender(
+          javaMailSender, emailLink.getFrom(), emailLink.getSubject(), clock);
     }
   }
 

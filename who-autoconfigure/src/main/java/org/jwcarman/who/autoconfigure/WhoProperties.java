@@ -291,7 +291,19 @@ public class WhoProperties {
     private String from;
 
     /** Subject of sign-in emails. */
-    private String subject = "Your sign-in link";
+    private String subject = "Your sign-in link and code";
+
+    /** Number of characters in the typed sign-in code; at least 6. */
+    private int codeLength = 6;
+
+    /** How many wrong guesses a sign-in code survives before it is burnt; at least 1. */
+    private int codeMaxAttempts = 5;
+
+    /**
+     * Secret keying the sign-in code hash; required when email-link sign-in is on, at least 32
+     * characters.
+     */
+    private String codeSecret;
 
     /**
      * Returns the page that receives sign-in links.
@@ -381,6 +393,60 @@ public class WhoProperties {
      */
     public void setSubject(String subject) {
       this.subject = subject;
+    }
+
+    /**
+     * Returns the number of characters in the typed sign-in code.
+     *
+     * @return the code length
+     */
+    public int getCodeLength() {
+      return codeLength;
+    }
+
+    /**
+     * Sets the number of characters in the typed sign-in code.
+     *
+     * @param codeLength the code length
+     */
+    public void setCodeLength(int codeLength) {
+      this.codeLength = codeLength;
+    }
+
+    /**
+     * Returns how many wrong guesses a sign-in code survives.
+     *
+     * @return the maximum number of attempts
+     */
+    public int getCodeMaxAttempts() {
+      return codeMaxAttempts;
+    }
+
+    /**
+     * Sets how many wrong guesses a sign-in code survives.
+     *
+     * @param codeMaxAttempts the maximum number of attempts
+     */
+    public void setCodeMaxAttempts(int codeMaxAttempts) {
+      this.codeMaxAttempts = codeMaxAttempts;
+    }
+
+    /**
+     * Returns the secret keying the sign-in code hash.
+     *
+     * @return the code secret
+     */
+    public String getCodeSecret() {
+      return codeSecret;
+    }
+
+    /**
+     * Sets the secret keying the sign-in code hash.
+     *
+     * @param codeSecret the code secret
+     */
+    public void setCodeSecret(String codeSecret) {
+      this.codeSecret = codeSecret;
     }
   }
 

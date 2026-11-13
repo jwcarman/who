@@ -46,6 +46,7 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
@@ -85,6 +86,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
     properties = {
       "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
+      "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "spring.session.jdbc.initialize-schema=never"
     })
 @AutoConfigureMockMvc
@@ -148,7 +150,8 @@ class SpringSessionJdbcTest {
     final List<String> tokens = new CopyOnWriteArrayList<>();
 
     @Override
-    public void send(String address, String link) {
+    public void send(EmailLinkMessage message) {
+      String link = message.link();
       tokens.add(link.substring(link.indexOf("#token=") + "#token=".length()));
     }
   }
