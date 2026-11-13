@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.core.spi;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -44,4 +45,15 @@ public interface CredentialRemover {
    * @return the number of credentials deleted
    */
   int removeUnlinked();
+
+  /**
+   * Finds this module's credential with the given id, so its kind and label can be reported when it
+   * is revoked. Modules that can describe their credentials override this.
+   *
+   * @param credentialId the credential id
+   * @return the credential, or empty if this module has none with that id or cannot describe it
+   */
+  default Optional<Credential> find(UUID credentialId) {
+    return Optional.empty();
+  }
 }

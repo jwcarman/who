@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.jdbc;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -88,5 +89,17 @@ public class JdbcIdentityRepository implements IdentityRepository {
   @Override
   public void deleteById(UUID id) {
     jdbcClient.sql("DELETE FROM who_identity WHERE id = :id").param(COL_ID, id).update();
+  }
+
+  @Override
+  public boolean changeStatus(UUID id, IdentityStatus status) {
+    return jdbcClient
+            .sql(
+                "UPDATE who_identity SET status = :status, updated_at = :updatedAt WHERE id = :id AND status <> :status")
+            .param(COL_ID, id)
+            .param(COL_STATUS, status.name())
+            .param("updatedAt", Instant.now().atOffset(ZoneOffset.UTC))
+            .update()
+        > 0;
   }
 }

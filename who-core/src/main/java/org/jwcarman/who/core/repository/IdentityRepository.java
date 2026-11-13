@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 
 /** Repository interface for {@link Identity} persistence. */
 public interface IdentityRepository {
@@ -53,4 +54,20 @@ public interface IdentityRepository {
    * @param id the identity UUID
    */
   void deleteById(UUID id);
+
+  /**
+   * Sets the status of the identity with the given UUID, reporting whether anything changed. The
+   * default finds then saves; implementations backed by a database should override it with one
+   * conditional update, so that concurrent callers cannot both see a change.
+   *
+   * @param id the identity UUID
+   * @param status the new status
+   * @return {@code true} only if the identity exists and its status was different
+   */
+  default boolean changeStatus(UUID id, IdentityStatus status) {
+    return findById(id)
+        .filter(identity -> identity.status() != status)
+        .map(identity -> save(identity.withStatus(status)))
+        .isPresent();
+  }
 }

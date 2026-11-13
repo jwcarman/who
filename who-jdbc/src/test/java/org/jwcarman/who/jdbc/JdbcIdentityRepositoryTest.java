@@ -18,16 +18,25 @@ package org.jwcarman.who.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
@@ -111,5 +120,34 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
     repository.deleteById(identity.id());
 
     assertThat(repository.findById(identity.id())).isEmpty();
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  void change_status_is_atomic_under_concurrency() throws Exception {
+    Identity identity = Identity.create();
+    repository.save(identity);
+    CyclicBarrier barrier = new CyclicBarrier(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      Callable<Boolean> change =
+          () -> {
+            barrier.await(10, TimeUnit.SECONDS);
+            return repository.changeStatus(identity.id(), IdentityStatus.DISABLED);
+          };
+
+      List<Future<Boolean>> results = executor.invokeAll(List.of(change, change));
+
+      List<Boolean> outcomes = new ArrayList<>();
+      for (Future<Boolean> result : results) {
+        outcomes.add(result.get());
+      }
+      assertThat(outcomes).containsExactlyInAnyOrder(true, false);
+      assertThat(repository.findById(identity.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.DISABLED);
+    } finally {
+      executor.shutdownNow();
+      repository.deleteById(identity.id());
+    }
   }
 }

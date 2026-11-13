@@ -17,6 +17,7 @@ package org.jwcarman.who.core.service;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +25,14 @@ import java.util.UUID;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.CredentialKind;
+import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.IdentityCreated;
+import org.jwcarman.who.core.event.IdentityDeactivated;
+import org.jwcarman.who.core.event.IdentityDeleted;
+import org.jwcarman.who.core.event.IdentityReactivated;
+import org.jwcarman.who.core.event.OrphanedCredentialsPurged;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
@@ -58,6 +67,8 @@ public class WhoService {
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final PermissionsResolver permissionsResolver;
   private final List<CredentialRemover> credentialRemovers;
+  private final WhoEventPublisher events;
+  private final Clock clock;
 
   /**
    * Constructs a {@code WhoService} without credential removers: {@link #deleteIdentity(UUID)} then
@@ -87,6 +98,32 @@ public class WhoService {
       CredentialIdentityRepository credentialIdentityRepository,
       PermissionsResolver permissionsResolver,
       List<CredentialRemover> credentialRemovers) {
+    this(
+        identityRepository,
+        credentialIdentityRepository,
+        permissionsResolver,
+        credentialRemovers,
+        WhoEventPublisher.NOOP,
+        Clock.systemUTC());
+  }
+
+  /**
+   * Constructs a {@code WhoService} with its collaborators, publishing security events.
+   *
+   * @param identityRepository stores and retrieves identities
+   * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
+   * @param permissionsResolver resolves permissions for an active identity
+   * @param credentialRemovers one per credential module; delete that module's credential rows
+   * @param events receives the events this service publishes
+   * @param clock supplies the {@code occurredAt} of published events
+   */
+  public WhoService(
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver,
+      List<CredentialRemover> credentialRemovers,
+      WhoEventPublisher events,
+      Clock clock) {
     this.identityRepository =
         requireNonNull(identityRepository, "identityRepository must not be null");
     this.credentialIdentityRepository =
@@ -96,6 +133,8 @@ public class WhoService {
         requireNonNull(permissionsResolver, "permissionsResolver must not be null");
     this.credentialRemovers =
         List.copyOf(requireNonNull(credentialRemovers, "credentialRemovers must not be null"));
+    this.events = requireNonNull(events, "events must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
   }
 
   /**
@@ -104,7 +143,9 @@ public class WhoService {
    * @return the persisted identity
    */
   public Identity createIdentity() {
-    return identityRepository.save(Identity.create());
+    Identity identity = identityRepository.save(Identity.create());
+    events.publish(new IdentityCreated(clock.instant(), identity.id()));
+    return identity;
   }
 
   /**
@@ -114,11 +155,32 @@ public class WhoService {
    * @return the resolved principal, or empty if the credential is not linked to an active identity
    */
   public Optional<WhoPrincipal> resolve(Credential credential) {
-    return credentialIdentityRepository
-        .findIdentityIdByCredentialId(credential.id())
-        .flatMap(identityRepository::findById)
-        .filter(identity -> identity.status() == IdentityStatus.ACTIVE)
-        .map(identity -> new WhoPrincipal(identity, permissionsResolver.resolve(identity)));
+    return resolveDetailed(credential).principal();
+  }
+
+  /**
+   * Resolves the given credential, saying why when it does not resolve.
+   *
+   * @param credential the incoming credential
+   * @return {@link Resolution.Resolved} with the principal, or the reason it did not resolve
+   */
+  public Resolution resolveDetailed(Credential credential) {
+    Optional<UUID> linked =
+        credentialIdentityRepository.findIdentityIdByCredentialId(credential.id());
+    if (linked.isEmpty()) {
+      return new Resolution.NotLinked();
+    }
+    UUID identityId = linked.get();
+    Optional<Identity> found = identityRepository.findById(identityId);
+    if (found.isEmpty()) {
+      return new Resolution.NoIdentity(identityId);
+    }
+    Identity identity = found.get();
+    if (identity.status() != IdentityStatus.ACTIVE) {
+      return new Resolution.Inactive(identityId);
+    }
+    return new Resolution.Resolved(
+        new WhoPrincipal(identity, permissionsResolver.resolve(identity)));
   }
 
   /**
@@ -132,7 +194,12 @@ public class WhoService {
    */
   @Transactional
   public boolean deactivate(UUID identityId) {
-    return setStatus(identityId, IdentityStatus.DISABLED);
+    requireNonNull(identityId, "identityId must not be null");
+    if (identityRepository.changeStatus(identityId, IdentityStatus.DISABLED)) {
+      events.publish(new IdentityDeactivated(clock.instant(), identityId));
+      return true;
+    }
+    return identityRepository.existsById(identityId);
   }
 
   /**
@@ -144,15 +211,12 @@ public class WhoService {
    */
   @Transactional
   public boolean reactivate(UUID identityId) {
-    return setStatus(identityId, IdentityStatus.ACTIVE);
-  }
-
-  private boolean setStatus(UUID identityId, IdentityStatus status) {
     requireNonNull(identityId, "identityId must not be null");
-    return identityRepository
-        .findById(identityId)
-        .map(identity -> identityRepository.save(identity.withStatus(status)))
-        .isPresent();
+    if (identityRepository.changeStatus(identityId, IdentityStatus.ACTIVE)) {
+      events.publish(new IdentityReactivated(clock.instant(), identityId));
+      return true;
+    }
+    return identityRepository.existsById(identityId);
   }
 
   /**
@@ -175,10 +239,19 @@ public class WhoService {
     }
     for (UUID credentialId :
         credentialIdentityRepository.findCredentialIdsByIdentityId(identityId)) {
+      Optional<Credential> described = findCredential(credentialId);
       removeCredential(credentialId);
       credentialIdentityRepository.unlink(credentialId);
+      events.publish(
+          new CredentialRevoked(
+              clock.instant(),
+              identityId,
+              credentialId,
+              described.map(Credential::kind).orElse(CredentialKind.OTHER),
+              described.flatMap(Credential::label).orElse(null)));
     }
     identityRepository.deleteById(identityId);
+    events.publish(new IdentityDeleted(clock.instant(), identityId));
     return true;
   }
 
@@ -194,7 +267,21 @@ public class WhoService {
    */
   @Transactional
   public int purgeOrphanedCredentials() {
-    return credentialRemovers.stream().mapToInt(CredentialRemover::removeUnlinked).sum();
+    int purged = credentialRemovers.stream().mapToInt(CredentialRemover::removeUnlinked).sum();
+    if (purged > 0) {
+      events.publish(new OrphanedCredentialsPurged(clock.instant(), purged));
+    }
+    return purged;
+  }
+
+  private Optional<Credential> findCredential(UUID credentialId) {
+    for (CredentialRemover remover : credentialRemovers) {
+      Optional<Credential> found = remover.find(credentialId);
+      if (found.isPresent()) {
+        return found;
+      }
+    }
+    return Optional.empty();
   }
 
   private void removeCredential(UUID credentialId) {
