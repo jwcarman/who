@@ -33,12 +33,14 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
+import org.jwcarman.who.passkey.PasskeyCredentialRemover;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyNameResolver;
 import org.jwcarman.who.passkey.PasskeyRegistrationGuardFilter;
@@ -132,6 +134,7 @@ class PasskeyAutoConfigurationTest {
           assertThat(context).doesNotHaveBean(JdbcWhoPasskeyUserRepository.class);
           assertThat(context).doesNotHaveBean(JdbcWhoPasskeyCredentialRepository.class);
           assertThat(context).doesNotHaveBean(PasskeyService.class);
+          assertThat(context).doesNotHaveBean(PasskeyCredentialRemover.class);
           assertThat(context).doesNotHaveBean(PasskeyNameResolver.class);
           assertThat(context).doesNotHaveBean(WebAuthnRelyingPartyOperations.class);
           assertThat(context).doesNotHaveBean(PasskeyLoginMethod.class);
@@ -151,6 +154,8 @@ class PasskeyAutoConfigurationTest {
               assertThat(context).hasSingleBean(JdbcWhoPasskeyUserRepository.class);
               assertThat(context).hasSingleBean(JdbcWhoPasskeyCredentialRepository.class);
               assertThat(context).hasSingleBean(PasskeyService.class);
+              assertThat(context.getBeansOfType(CredentialRemover.class).values())
+                  .contains(context.getBean(PasskeyCredentialRemover.class));
               assertThat(context.getBean(PasskeyService.class).list(UUID.randomUUID())).isEmpty();
               assertThat(context).hasSingleBean(PasskeyNameResolver.class);
               assertThat(context).hasSingleBean(PasskeyAddedNotifier.class);

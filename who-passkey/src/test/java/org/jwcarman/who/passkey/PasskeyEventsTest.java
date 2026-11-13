@@ -156,8 +156,17 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
     @Bean
     WhoService whoService(
         IdentityRepository identityRepository,
-        CredentialIdentityRepository credentialIdentityRepository) {
-      return new WhoService(identityRepository, credentialIdentityRepository, i -> Set.of());
+        CredentialIdentityRepository credentialIdentityRepository,
+        JdbcWhoPasskeyCredentialRepository credentialRepository,
+        WhoEventPublisher events,
+        Clock clock) {
+      return new WhoService(
+          identityRepository,
+          credentialIdentityRepository,
+          i -> Set.of(),
+          List.of(new PasskeyCredentialRemover(credentialRepository)),
+          events,
+          clock);
     }
 
     @Bean
@@ -354,6 +363,24 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
   }
 
   @Nested
+  class Deleting_the_identity {
+
+    @Test
+    void publishes_one_credential_revoked_for_its_passkey_with_kind_and_label() {
+      EVENTS.clear();
+
+      whoService.deleteIdentity(identity.id());
+
+      assertThat(EVENTS)
+          .filteredOn(CredentialRevoked.class::isInstance)
+          .containsExactly(
+              new CredentialRevoked(
+                  NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
+      assertThat(credentialRepository.findByCredentialId(registered.getCredentialId())).isNull();
+    }
+  }
+
+  @Nested
   class Signing_in {
 
     @Test
@@ -420,7 +447,12 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
       MockHttpServletResponse refused = perform(post("/webauthn/register/options").with(csrf()));
 
       assertThat(refused.getStatus()).isEqualTo(401);
-      assertThat(EVENTS).containsExactly(new PasskeyRegistrationRefused(later, identity.id()));
+      assertThat(EVENTS)
+          .containsExactly(
+              new PasskeyRegistrationRefused(
+                  later,
+                  identity.id(),
+                  PasskeyRegistrationRefusedReason.REAUTHENTICATION_REQUIRED));
     }
   }
 }

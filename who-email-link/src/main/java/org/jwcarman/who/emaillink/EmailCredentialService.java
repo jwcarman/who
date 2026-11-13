@@ -24,6 +24,7 @@ import java.util.UUID;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.OrphanedCredentialsPurged;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.springframework.dao.DuplicateKeyException;
@@ -89,7 +90,9 @@ public class EmailCredentialService {
    * already this identity's, its credential is returned unchanged.
    *
    * <p>Publishes {@link CredentialAdded} for a new credential. An orphaned credential it replaces
-   * belongs to no identity, so its deletion publishes nothing.
+   * belongs to no identity, so its deletion is published first as {@link OrphanedCredentialsPurged}
+   * with a count of one. Events carry the address only if it is safe to pass on (see {@link
+   * EmailCredential#label()}).
    *
    * @param identity the identity to link the credential to
    * @param address the address; normalized before use
@@ -115,7 +118,9 @@ public class EmailCredentialService {
       }
       // Orphaned. Replace it rather than relink it: deleting the row cascades to its link token, so
       // a link sent to the deleted identity cannot sign in the new one.
-      emailCredentialRepository.deleteById(existing.get().id());
+      if (emailCredentialRepository.deleteById(existing.get().id())) {
+        eventPublisher.publish(new OrphanedCredentialsPurged(clock.instant(), 1));
+      }
     }
     try {
       emailCredentialRepository.save(credential);
@@ -129,7 +134,7 @@ public class EmailCredentialService {
             identity.id(),
             credential.id(),
             credential.kind(),
-            credential.address()));
+            credential.label().orElse(null)));
     return credential;
   }
 
@@ -191,7 +196,7 @@ public class EmailCredentialService {
                       identityId,
                       credentialId,
                       credential.get().kind(),
-                      credential.get().address())));
+                      credential.get().label().orElse(null))));
     }
   }
 }

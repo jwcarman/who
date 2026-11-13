@@ -114,6 +114,11 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
               .label(rs.getString(COL_LABEL))
               .build();
 
+  private static final RowMapper<PasskeyCredential> PASSKEY_MAPPER =
+      (rs, rowNum) ->
+          new PasskeyCredential(
+              rs.getObject(COL_CREDENTIAL_UUID, UUID.class), rs.getString(COL_LABEL));
+
   private static final RowMapper<PasskeySummary> SUMMARY_MAPPER =
       (rs, rowNum) ->
           new PasskeySummary(
@@ -214,7 +219,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   @Transactional
   public void delete(Bytes credentialId) {
     String id = credentialId.toBase64UrlString();
-    findPasskey(id)
+    findPasskeyByCredentialId(id)
         .ifPresent(
             passkey -> {
               // looked up before unlinking, which removes the only record of the owner
@@ -268,6 +273,23 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   }
 
   /**
+   * Finds the passkey with a {@code credential_uuid}, with its label.
+   *
+   * @param credentialUuid the credential UUID
+   * @return the passkey, or empty if no row has the UUID
+   */
+  public Optional<PasskeyCredential> findPasskey(UUID credentialUuid) {
+    requireNonNull(credentialUuid, "credentialUuid must not be null");
+    return jdbcClient
+        .sql(
+            "SELECT credential_uuid, label FROM who_passkey_credential"
+                + " WHERE credential_uuid = :credential_uuid")
+        .param(COL_CREDENTIAL_UUID, credentialUuid)
+        .query(PASSKEY_MAPPER)
+        .optional();
+  }
+
+  /**
    * Finds the WebAuthn credential id of a {@code credential_uuid}.
    *
    * @param credentialUuid the credential UUID
@@ -305,16 +327,13 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
         .list();
   }
 
-  private Optional<PasskeyCredential> findPasskey(String credentialId) {
+  private Optional<PasskeyCredential> findPasskeyByCredentialId(String credentialId) {
     return jdbcClient
         .sql(
             "SELECT credential_uuid, label FROM who_passkey_credential"
                 + " WHERE credential_id = :credential_id")
         .param(COL_CREDENTIAL_ID, credentialId)
-        .query(
-            (rs, rowNum) ->
-                new PasskeyCredential(
-                    rs.getObject(COL_CREDENTIAL_UUID, UUID.class), rs.getString(COL_LABEL)))
+        .query(PASSKEY_MAPPER)
         .optional();
   }
 

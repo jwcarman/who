@@ -51,13 +51,14 @@ public record EmailCredential(UUID id, String address) implements Credential {
   }
 
   /**
-   * Returns the address, which labels the credential in security events.
+   * Returns the address, which labels the credential in security events, if it is safe to pass on:
+   * bounded and free of control characters (see {@link EmailAddresses#isSafe(String)}).
    *
-   * @return the normalized address
+   * @return the normalized address, or empty if it is not safe to pass on
    */
   @Override
   public Optional<String> label() {
-    return Optional.of(address);
+    return EmailAddresses.isSafe(address) ? Optional.of(address) : Optional.empty();
   }
 
   /**

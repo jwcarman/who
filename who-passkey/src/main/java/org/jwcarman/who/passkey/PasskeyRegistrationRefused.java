@@ -28,12 +28,16 @@ import org.jwcarman.who.core.event.WhoEvent;
  *
  * @param occurredAt when it happened
  * @param identityId the identity that tried to add the passkey
+ * @param reason why the registration was refused
  */
-public record PasskeyRegistrationRefused(Instant occurredAt, UUID identityId) implements WhoEvent {
+public record PasskeyRegistrationRefused(
+    Instant occurredAt, UUID identityId, PasskeyRegistrationRefusedReason reason)
+    implements WhoEvent {
 
   /** Validates that no component is null. */
   public PasskeyRegistrationRefused {
     requireNonNull(occurredAt, "occurredAt must not be null");
     requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(reason, "reason must not be null");
   }
 }

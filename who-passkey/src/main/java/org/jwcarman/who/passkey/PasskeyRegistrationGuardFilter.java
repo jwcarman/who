@@ -140,7 +140,9 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       UUID identityId = session.get().identityId();
       log.debug(
           "Passkey registration refused: reauthentication required, identityId={}", identityId);
-      eventPublisher.publish(new PasskeyRegistrationRefused(now, identityId));
+      eventPublisher.publish(
+          new PasskeyRegistrationRefused(
+              now, identityId, PasskeyRegistrationRefusedReason.REAUTHENTICATION_REQUIRED));
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;

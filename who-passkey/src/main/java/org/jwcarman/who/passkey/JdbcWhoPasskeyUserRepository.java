@@ -44,9 +44,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Authentication.getName()}, which is the identity id. who creates the entity with {@link
  * #create(UUID, String)} before Spring looks, so the user handle is 64 random bytes.
  *
- * <p>The passkey module has no {@code CredentialRemover}: {@code who_passkey_user} references
- * {@code who_identity} with {@code ON DELETE CASCADE}, and {@code who_passkey_credential}
- * references {@code who_passkey_user} the same way, so deleting an identity deletes its passkeys.
+ * <p>{@code who_passkey_user} references {@code who_identity} with {@code ON DELETE CASCADE}, and
+ * {@code who_passkey_credential} references {@code who_passkey_user} the same way, so deleting an
+ * identity deletes its passkeys. The module's {@link PasskeyCredentialRemover} therefore deletes
+ * nothing; it only describes a passkey to {@code WhoService.deleteIdentity}.
  */
 public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEntityRepository {
 

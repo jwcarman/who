@@ -33,6 +33,7 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.OrphanedCredentialsPurged;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -87,7 +88,7 @@ class EmailCredentialEventsTest extends AbstractEmailLinkTest {
     }
 
     @Test
-    void replacing_an_orphan_publishes_only_the_new_credential() {
+    void replacing_an_orphan_publishes_its_purge_first() {
       Identity deleted = identityRepository.save(Identity.create());
       EmailCredential orphan = service.register(deleted, "orphan@example.com");
       // deleted without WhoService.deleteIdentity: the link cascades, the credential stays
@@ -97,15 +98,51 @@ class EmailCredentialEventsTest extends AbstractEmailLinkTest {
       EmailCredential replacement = service.register(identity, "orphan@example.com");
 
       assertThat(replacement.id()).isNotEqualTo(orphan.id());
-      // the orphan belongs to no identity, so there is no identity to report its revocation for
+      // the orphan belongs to no identity, so its deletion is reported as a purge of one
       assertThat(events)
           .containsExactly(
+              new OrphanedCredentialsPurged(NOW, 1),
               new CredentialAdded(
                   NOW,
                   identity.id(),
                   replacement.id(),
                   CredentialKind.EMAIL,
                   "orphan@example.com"));
+    }
+  }
+
+  @Nested
+  class With_an_unsafe_address {
+
+    private static final String UNSAFE = "bell\u0007@example.com";
+
+    @Test
+    void registering_it_publishes_credential_added_without_the_address() {
+      EmailCredential credential = service.register(identity, UNSAFE);
+
+      assertThat(credential.address()).isEqualTo(UNSAFE);
+      assertThat(events)
+          .containsExactly(
+              new CredentialAdded(NOW, identity.id(), credential.id(), CredentialKind.EMAIL, null));
+    }
+
+    @Test
+    void revoking_it_publishes_credential_revoked_without_the_address() {
+      EmailCredential credential = service.register(identity, UNSAFE);
+      events.clear();
+
+      service.revoke(credential.id());
+
+      assertThat(events)
+          .containsExactly(
+              new CredentialRevoked(
+                  NOW, identity.id(), credential.id(), CredentialKind.EMAIL, null));
+    }
+
+    @Test
+    void its_credential_has_no_label() {
+      assertThat(new EmailCredential(UUID.randomUUID(), UNSAFE).label()).isEmpty();
+      assertThat(new EmailCredential(UUID.randomUUID(), "a".repeat(321)).label()).isEmpty();
     }
   }
 

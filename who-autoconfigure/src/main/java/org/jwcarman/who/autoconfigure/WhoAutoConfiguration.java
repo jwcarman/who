@@ -61,6 +61,7 @@ import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
+import org.jwcarman.who.passkey.PasskeyCredentialRemover;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyNameResolver;
 import org.jwcarman.who.passkey.PasskeyService;
@@ -726,6 +727,20 @@ public class WhoAutoConfiguration {
         Clock clock) {
       return new JdbcWhoPasskeyCredentialRepository(
           jdbcClient, credentialIdentityRepository, whoEventPublisher, clock);
+    }
+
+    /**
+     * Describes passkeys to {@code WhoService.deleteIdentity}, so their revocations carry kind and
+     * label. It deletes nothing: an identity's passkeys go with it by cascade.
+     *
+     * @param credentialRepository who's credential records
+     * @return the remover
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PasskeyCredentialRemover passkeyCredentialRemover(
+        JdbcWhoPasskeyCredentialRepository credentialRepository) {
+      return new PasskeyCredentialRemover(credentialRepository);
     }
 
     @Bean
