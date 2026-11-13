@@ -88,6 +88,7 @@ nav:
       - Enrollment: guides/enrollment.md
       - RBAC and Method Security: guides/rbac.md
       - Errors: guides/errors.md
+      - Security Model: guides/security-model.md
       - Testing: guides/testing.md
       - Configuration Reference: guides/configuration.md
       - Upgrading: guides/upgrading.md
