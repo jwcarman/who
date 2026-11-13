@@ -36,10 +36,18 @@
                              referencedTableName="who_email_credential" referencedColumnNames="id" deleteCascade="true"/>
             </column>
             <column name="token_hash" type="varchar(64)"><constraints nullable="false" unique="true"/></column>
-            <column name="code_hash" type="varchar(64)"><constraints nullable="false"/></column>
-            <column name="code_attempts" type="integer"><constraints nullable="false"/></column>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
             <column name="expires_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
         </createTable>
+    </changeSet>
+
+    <!-- 0.15.0: sign-in codes. Outstanding links (minutes-lived) are dropped so the new columns
+         can be NOT NULL; people request a fresh link. -->
+    <changeSet id="who-email-link-token-2" author="who">
+        <delete tableName="who_email_link_token"/>
+        <addColumn tableName="who_email_link_token">
+            <column name="code_hash" type="varchar(64)"><constraints nullable="false"/></column>
+            <column name="code_attempts" type="integer"><constraints nullable="false"/></column>
+        </addColumn>
     </changeSet>
 </databaseChangeLog>

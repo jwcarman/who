@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format follows
 - Every sign-in email carries a typed code as well as the link. `POST /login/ott` accepts `{"token": "..."}` or `{"email": "...", "code": "..."}`. Using one ends the other.
 - `EmailLinkSender.send` takes an `EmailLinkMessage(address, link, code, expiresAt)` instead of `(address, link)`.
 - `who.email-link.code-secret` is required when email-link sign-in is on, at least 32 characters.
-- `who_email_link_token` gained `code_hash` and `code_attempts` (both `NOT NULL`). There is no upgrade path: recreate the database.
+- `who_email_link_token` gained `code_hash` and `code_attempts` (both `NOT NULL`). Liquibase applies it with the new changeSet `who-email-link-token-2`; other setups run the SQL in the upgrading guide. Outstanding sign-in links are dropped.
 - `EmailLinkTokenRepository`, `EmailLinkAuthenticationProvider` and `WhoOneTimeTokenService` have changed signatures.
 - The default subject is `Your sign-in link and code`.
 

@@ -25,7 +25,6 @@ person does.
 
 ## Non-goals
 
-- Upgrading existing databases in place. Recreate them instead.
 - Binding the code to the browser session that requested it (see Decisions).
 - An SMS or other delivery channel.
 - A digits-only alphabet.
@@ -110,12 +109,14 @@ code_hash     VARCHAR(64) NOT NULL,   -- not unique: lookup is by credential
 code_attempts INTEGER     NOT NULL
 ```
 
-There is no upgrade path: existing databases are dropped and recreated.
+Existing databases are upgraded: outstanding tokens are deleted (they live for minutes), then the columns are added. *(Revised after release planning: who has a user on 0.14.0.)*
 
-- **`who-email-link-schema.sql`:** add the columns to the `CREATE TABLE`.
-- **Liquibase:** add them to the existing `who_email_link_token` changeSet in
-  `who-email-link-changelog.xml`, in place.
-- **No** `ALTER` statements, new changeSet, or migration notes.
+- **`who-email-link-schema.sql`:** add the columns at the end of the `CREATE TABLE`, so fresh
+  installs get the final table.
+- **Liquibase:** `who-email-link-token-1` stays exactly as released in 0.14.0. A new changeSet,
+  `who-email-link-token-2`, deletes the rows and adds the two columns.
+- **Flyway and bundled-script users** run the equivalent `DELETE` and `ALTER TABLE` once.
+  `upgrading.md` gives the SQL.
 - **Docs:** update the schema copy in `docs/guides/database.md`.
 
 ### Generation and issue
@@ -240,7 +241,7 @@ These are added to `WhoProperties.EmailLink` and `EmailLinkSettings`, and valida
   the secret, the attempt limit, and the property count;
 - `docs/guides/configuration.md` and `docs/guides/database.md`;
 - `docs/guides/upgrading.md` (a 0.15.0 section: the new secret, the sender, the repository, and
-  "recreate the database");
+  how each schema setup upgrades the table);
 - `CHANGELOG.md`;
 - a pointer from plan 4 of the 2026-11-07 spec to this document.
 
