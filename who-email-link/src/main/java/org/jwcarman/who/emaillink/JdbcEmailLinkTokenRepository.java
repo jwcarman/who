@@ -26,6 +26,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 /** JDBC implementation of {@link EmailLinkTokenRepository} on {@code who_email_link_token}. */
 public class JdbcEmailLinkTokenRepository implements EmailLinkTokenRepository {
 
+  private static final String COLUMN_CREDENTIAL_ID = "credential_id";
   private static final String PARAM_CREDENTIAL_ID = "credentialId";
   private static final String PARAM_HASH = "hash";
   private static final String PARAM_NOW = "now";
@@ -83,7 +84,7 @@ public class JdbcEmailLinkTokenRepository implements EmailLinkTokenRepository {
             """)
         .param(PARAM_HASH, tokenHash)
         .param(PARAM_NOW, now.atOffset(ZoneOffset.UTC))
-        .query((rs, rowNum) -> rs.getObject("credential_id", UUID.class))
+        .query((rs, rowNum) -> rs.getObject(COLUMN_CREDENTIAL_ID, UUID.class))
         .optional();
   }
 
@@ -106,7 +107,7 @@ public class JdbcEmailLinkTokenRepository implements EmailLinkTokenRepository {
         .query(
             (rs, rowNum) ->
                 new EmailCodeAttempt(
-                    rs.getObject("credential_id", UUID.class), rs.getString("code_hash")))
+                    rs.getObject(COLUMN_CREDENTIAL_ID, UUID.class), rs.getString("code_hash")))
         .optional();
   }
 
@@ -122,7 +123,7 @@ public class JdbcEmailLinkTokenRepository implements EmailLinkTokenRepository {
         .param(PARAM_CREDENTIAL_ID, credentialId)
         .param(PARAM_HASH, codeHash)
         .param(PARAM_NOW, now.atOffset(ZoneOffset.UTC))
-        .query((rs, rowNum) -> rs.getObject("credential_id", UUID.class))
+        .query((rs, rowNum) -> rs.getObject(COLUMN_CREDENTIAL_ID, UUID.class))
         .optional();
   }
 

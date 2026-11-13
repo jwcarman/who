@@ -143,12 +143,11 @@ class LiquibaseChangelogTest {
       assertThat(rs.next()).isTrue();
       assertThat(rs.getLong(1)).isZero();
     }
-    List<String> upgraded = describe("who_upgrade");
-    assertThat(upgraded)
+    assertThat(describe("who_upgrade"))
         .contains(
             "who_email_link_token|column|code_hash|character varying|NO",
-            "who_email_link_token|column|code_attempts|integer|NO");
-    assertThat(upgraded).isEqualTo(describe("who_fresh"));
+            "who_email_link_token|column|code_attempts|integer|NO")
+        .isEqualTo(describe("who_fresh"));
   }
 
   private static void runChangelog(String database, ClassLoader classLoader) throws Exception {

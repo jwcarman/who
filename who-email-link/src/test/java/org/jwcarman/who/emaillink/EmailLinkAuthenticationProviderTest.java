@@ -77,7 +77,8 @@ class EmailLinkAuthenticationProviderTest {
   }
 
   private void assertInvalid(EmailSignInProof proof) {
-    assertThatThrownBy(() -> provider.authenticate(signIn(proof)))
+    EmailSignInAuthenticationToken token = signIn(proof);
+    assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(InvalidOneTimeTokenException.class)
         .hasMessage("invalid_token");
   }

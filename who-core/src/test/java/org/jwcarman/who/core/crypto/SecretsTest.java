@@ -57,7 +57,7 @@ class SecretsTest {
     for (int i = 0; i < 1_000; i++) {
       seen.add(Secrets.code(6));
     }
-    assertThat(seen.size()).isGreaterThan(990);
+    assertThat(seen).hasSizeGreaterThan(990);
   }
 
   @Test

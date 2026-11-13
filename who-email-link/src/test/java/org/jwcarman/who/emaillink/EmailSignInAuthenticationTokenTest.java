@@ -81,7 +81,7 @@ class EmailSignInAuthenticationTokenTest {
       EmailSignInAuthenticationToken restored = read(bytes.toByteArray());
 
       assertThat(restored.proof()).isNull();
-      assertThat(restored.equals(restored)).isTrue();
+      assertThat(restored).isEqualTo(read(bytes.toByteArray()));
       assertThat(restored.hashCode()).isZero();
       assertThat(restored)
           .isNotEqualTo(new EmailSignInAuthenticationToken(new EmailCode("a@b.c", "K7F2QM")));
