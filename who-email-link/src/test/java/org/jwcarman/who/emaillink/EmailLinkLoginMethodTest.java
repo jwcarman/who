@@ -66,8 +66,8 @@ class EmailLinkLoginMethodTest {
     verify(ott).tokenGenerationSuccessHandler(generationHandler);
     verify(ott).authenticationConverter(converter);
     verify(ott).authenticationProvider(provider);
-    verify(ott).authenticationSuccessHandler(success);
-    verify(ott).authenticationFailureHandler(failure);
+    verify(ott).successHandler(success);
+    verify(ott).failureHandler(failure);
     verify(ott).showDefaultSubmitPage(false);
     verify(ott, never()).tokenGeneratingUrl(anyString());
     verify(ott, never()).loginProcessingUrl(anyString());

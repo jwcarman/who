@@ -82,8 +82,8 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
                 .tokenGenerationSuccessHandler(generationSuccessHandler)
                 .authenticationConverter(authenticationConverter)
                 .authenticationProvider(authenticationProvider)
-                .authenticationSuccessHandler(successHandler)
-                .authenticationFailureHandler(failureHandler)
+                .successHandler(successHandler)
+                .failureHandler(failureHandler)
                 .showDefaultSubmitPage(false));
   }
 }
