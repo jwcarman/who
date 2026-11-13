@@ -19,3 +19,6 @@ docs/superpowers/plans/
 # MkDocs build output and local Python environments
 site/
 .venv/
+
+# Jazzer: the corpus it grows while fuzzing (crash inputs worth keeping go in src/test/resources)
+.cifuzz-corpus/

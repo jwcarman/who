@@ -39,6 +39,7 @@
         <maven.project.sourceRoots.warningsDisabled>true</maven.project.sourceRoots.warningsDisabled>
 
         <!-- Dependency Versions -->
+        <jazzer.version>0.30.0</jazzer.version>
         <java-uuid-generator.version>5.2.0</java-uuid-generator.version>
         <spring-boot.version>4.1.2</spring-boot.version>
         <webauthn4j.version>0.32.0.RELEASE</webauthn4j.version>
@@ -126,6 +127,11 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.code-intelligence</groupId>
+                <artifactId>jazzer-junit</artifactId>
+                <version>${jazzer.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.webauthn4j</groupId>
