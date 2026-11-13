@@ -375,9 +375,10 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
       throws Exception {
     signIn();
 
-    // the chain itself is observed, so the registry is in use
-    assertThat(OBSERVED).contains("spring.security.filterchains");
-    assertThat(OBSERVED).contains("spring.security.authentications");
+    assertThat(OBSERVED)
+        // the chain itself is observed, so the registry is in use
+        .contains("spring.security.filterchains")
+        .contains("spring.security.authentications");
   }
 
   private String forged() throws Exception {
