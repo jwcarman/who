@@ -75,6 +75,24 @@ running insecurely: a code secret shorter than 32 characters or left as an unres
 `${...}` placeholder, a disabled CSRF configuration, a stateless passwordless chain, and the other
 checks listed in each guide.
 
+## Audit trail
+
+who publishes a [public event](events.md) for every sign-in, with a server-side reason when it
+fails, for sign-out and ended sessions, and for every change to identities, credentials,
+enrollment tokens and roles. The client never sees the reason: every failure is still the same
+`401`. who does not store events. To meet a requirement such as OWASP ASVS chapter 7, write a
+listener that records them where your logs and alerts live.
+
+Events never carry link tokens, codes, API keys, enrollment token values or hashes. Some carry an
+email address or a user-supplied label (a passkey's); treat both as personal data and as untrusted
+text.
+
+**Logging rule.** who's own logs never contain keys, codes or tokens, at any level. Email
+addresses appear only at DEBUG, in the one line each failed sign-in writes there (method, reason,
+and the identity or credential id when known). At INFO and above there are none. Third-party
+loggers are outside who's control: at TRACE, the PostgreSQL JDBC driver and Spring JDBC can log
+query parameters, which include an API key's hash. Do not enable TRACE for them in production.
+
 ## Design principles
 
 How who applies the classic secure design principles (Saltzer and Schroeder):
@@ -128,7 +146,8 @@ that ever broke the parsers.
   have; invitations through [Enrollment](enrollment.md) are the usual way.
 - **Don't run `/login/ott` inside a transaction.** The attempt count must commit even when a
   sign-in fails.
-- **Watch for abuse.** Alert on volumes of failed sign-ins and sign-in emails.
+- **Watch for abuse.** Alert on volumes of failed sign-ins and sign-in emails, using the
+  [events](events.md).
 - **Answer errors safely.** who throws and your application formats the response
   ([Errors](errors.md)); keep failure responses as uniform as who's.
 

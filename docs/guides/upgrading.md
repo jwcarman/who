@@ -1,5 +1,45 @@
 # Upgrading
 
+## Upgrading to 0.17.0
+
+0.17.0 adds [security events](events.md). There are no schema or property changes. One behavior
+change breaks clients, and a few things affect applications that build who's services themselves.
+
+- **API keys: a bad key is a `401`, even on public endpoints.** A request whose key header is
+  unknown, revoked, or belongs to an inactive identity now gets the uniform `401` at once, even on
+  an endpoint that permits anonymous access. Before, it continued as anonymous. A client that
+  sends a stale key to a public endpoint must drop the header or use a valid key. No header, or a
+  blank header, behaves as before. See [API Keys](api-keys.md#wiring-the-filter).
+    - A database fault during the key check now surfaces as the original `RuntimeException`
+      rather than a `ServletException`. The answer is still a `500`.
+    - When a valid key signs in, an anonymous HTTP session's id is rotated.
+    - Each request that carries a key publishes `SignInSucceeded`.
+    - A filter you pass to `WhoApiKeySecurity.apiKey(filter)` has its authentication manager and
+      failure handler set by who.
+- **Link JWT credentials with `JwtCredentialService`.** `link` and `unlink` publish
+  `CredentialAdded` and `CredentialRevoked`; saving through `JwtCredentialRepository` directly
+  does not. `unlink` takes a JWT credential id. See [JWT](jwt.md#link-a-token-to-an-identity).
+- **Application tests that mock `WhoService` must stub `resolveDetailed`.** who's sign-in and
+  session code now calls `WhoService.resolveDetailed` instead of `resolve`, so a mock that stubs
+  only `resolve` answers "not linked".
+- **Apps that build who's services themselves get events by passing a publisher.** Each public
+  constructor you already use still works and publishes nothing. To get events, use the
+  constructor that takes a `WhoEventPublisher` (and a `Clock`). With the autoconfiguration, nothing
+  to do.
+    - **`JsonAuthenticationHandlers`:** an application that defines its own bean with the old
+      two-argument constructor publishes no `SignInSucceeded` for email link, email code or
+      passkey sign-ins. Use the constructor that takes the publisher and a clock.
+- **New default methods on repository SPIs.** `CredentialRemover.find`,
+  `IdentityRepository.changeStatus`, `ApiKeyCredentialRepository.findById`,
+  `JwtCredentialRepository.findById`, `EnrollmentTokenRepository.revokePendingForIdentity` and
+  the RBAC `...IfAbsent` and `...IfPresent` methods have defaults, so existing implementations
+  still compile. A custom implementation that keeps the defaults publishes less: credential
+  events carry a `null` label, and no `EnrollmentTokenRevoked` is published for a token that a
+  newer one replaced. Override them to get the full detail.
+- **Listeners and logging.** Spring's `AuthenticationSuccessEvent` also fires for API-key
+  sign-ins now. Use who's events for audit; see [Spring's own sign-in
+  events](events.md#springs-own-sign-in-events).
+
 ## Upgrading to 0.16.0
 
 0.16.0 has no schema or property changes. One small break:

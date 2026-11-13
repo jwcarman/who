@@ -8,7 +8,7 @@ change as people use who and tell us what they need. Every feature starts with a
 
 who publishes what happens, so applications can measure, alert on and audit it.
 
-- **Events.** Spring `ApplicationEvent`s for sign-in requested, succeeded and failed (with the
+- **Events.** (Done in 0.17.0: see the [Events guide](docs/guides/events.md).) Spring `ApplicationEvent`s for sign-in requested, succeeded and failed (with the
   method and a server-side reason: unknown address, wrong code, burnt code, expired, malformed),
   email sent or failed, credential added or revoked, identity deactivated or deleted, and role
   granted or revoked. The reason never reaches the client.
@@ -17,12 +17,12 @@ who publishes what happens, so applications can measure, alert on and audit it.
   addresses or identity ids.
 - **Tracing.** Micrometer `Observation`s around issuing a link, redeeming a code, the mail send
   and resolving permissions.
-- **Logging.** A DEBUG line with the reason for each failed sign-in, and a written rule that
+- **Logging.** (Done in 0.17.0.) A DEBUG line with the reason for each failed sign-in, and a written rule that
   addresses, codes and tokens never appear at INFO or above.
 - **Actuator.** An `info` contributor naming the sign-in methods that are on.
 
-Open questions: whether events are stable public API from day one, and whether the failure
-reason belongs in metrics at all.
+Events are stable public API from 0.17.0. Open question: whether the failure reason belongs in
+metrics at all.
 
 ## 0.18: sensitive actions and self-service accounts
 

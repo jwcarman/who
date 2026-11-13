@@ -85,6 +85,7 @@ nav:
       - Email Links: guides/email-links.md
       - Passkeys: guides/passkeys.md
       - Sessions: guides/sessions.md
+      - Events: guides/events.md
       - Native Images: guides/native.md
       - Enrollment: guides/enrollment.md
       - RBAC and Method Security: guides/rbac.md

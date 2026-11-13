@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- An API key that is unknown, revoked, or belongs to an inactive identity gets the uniform `401` at once, even on endpoints that permit anonymous access. Before, the request continued as anonymous. No header, or a blank header, behaves as before.
+- API keys sign in through Spring's authentication manager. A database fault during the key check surfaces as the original `RuntimeException` rather than a `ServletException` (still a `500`), an anonymous HTTP session's id is rotated when a valid key signs in, and a filter passed to `WhoApiKeySecurity.apiKey(filter)` has its manager and failure handler set by who.
+
+### Added
+
+- Public security events, published as Spring application events after the surrounding transaction commits: `SignInSucceeded`, `SignInFailed` (with a server-side reason that never reaches the client), `SignedOut`, `SessionEnded`, `SignInEmailRequested`, `PasskeyRegistrationRefused`, `IdentityCreated`, `IdentityDeactivated`, `IdentityReactivated`, `IdentityDeleted`, `OrphanedCredentialsPurged`, `CredentialAdded`, `CredentialRevoked`, `EnrollmentTokenCreated`, `EnrollmentTokenRevoked`, `RoleCreated`, `RoleDeleted`, `RolePermissionAdded`, `RolePermissionRemoved`, `RoleAssigned` and `RoleUnassigned`. A listener that throws is logged and never changes who's answer.
+- `WhoEvent` and `WhoEventPublisher` in `who-core`; services take a publisher, and their existing constructors keep publishing nothing.
+- `JwtCredentialService` with `link` and `unlink`, so linking JWT credentials publishes events.
+- `WhoService.resolveDetailed`, which says why a credential did not resolve (not linked, no such identity, inactive).
+- One DEBUG log line for each failed sign-in, with its reason.
+
+### Changed
+
+- who's sign-in and session code calls `WhoService.resolveDetailed` instead of `resolve`; application tests that mock `WhoService` must stub it.
+- New default methods keep existing SPI implementations compiling: `CredentialRemover.find`, `IdentityRepository.changeStatus`, `ApiKeyCredentialRepository.findById`, `JwtCredentialRepository.findById`, `EnrollmentTokenRepository.revokePendingForIdentity`, and the RBAC `...IfAbsent` and `...IfPresent` methods. An implementation that keeps the defaults publishes events with a `null` label, and no `EnrollmentTokenRevoked` for a replaced token.
+- `SignInSucceeded` for email link, email code and passkey sign-ins is published by who's JSON success handler; an application that defines its own `JsonAuthenticationHandlers` with the old two-argument constructor publishes none.
+- Enrollment uses a `Clock` instead of `Instant.now()`.
+
+### Documentation
+
+- An [Events](https://jwcarman.github.io/who/guides/events/) guide: every event, when listeners run, personal data, reading the actor and client, and the compatibility policy.
+- The security model guide gains an audit trail section and the logging rule.
+- An upgrading section for 0.17.0.
+
 ## [0.16.0] - 2026-11-13
 
 ### Breaking changes
