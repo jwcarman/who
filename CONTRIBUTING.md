@@ -23,7 +23,7 @@ You need Java 25 and Docker (the tests start PostgreSQL with Testcontainers).
 ./mvnw clean verify -Ppit    # mutation testing, now and then (not part of CI)
 ```
 
-To work on the docs site, install `mkdocs-material` (the version is in the README) and run
+To work on the docs site, run `pip install --require-hashes -r docs/requirements.txt`, then
 `mkdocs serve`. CI builds it with `mkdocs build --strict`, so broken links fail the build.
 
 ## What a pull request needs

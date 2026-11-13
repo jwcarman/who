@@ -31,6 +31,7 @@ validation:
 # Process artifacts (superpowers specs and plans) stay out of the site.
 exclude_docs: |
   /superpowers/
+  /requirements.*
 
 theme:
   name: material

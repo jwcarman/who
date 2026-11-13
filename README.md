@@ -113,7 +113,7 @@ foreign key and revoked pending enrollment tokens. See
 ./mvnw spotless:apply
 
 # Build the docs site locally
-pip install mkdocs-material==9.7.7
+pip install --require-hashes -r docs/requirements.txt
 mkdocs serve
 ```
 
