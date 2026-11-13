@@ -151,6 +151,7 @@ class PasskeyAutoConfigurationTest {
               assertThat(context).hasSingleBean(JdbcWhoPasskeyUserRepository.class);
               assertThat(context).hasSingleBean(JdbcWhoPasskeyCredentialRepository.class);
               assertThat(context).hasSingleBean(PasskeyService.class);
+              assertThat(context.getBean(PasskeyService.class).list(UUID.randomUUID())).isEmpty();
               assertThat(context).hasSingleBean(PasskeyNameResolver.class);
               assertThat(context).hasSingleBean(PasskeyAddedNotifier.class);
               assertThat(context).hasSingleBean(PasskeyLoginMethod.class);
@@ -412,6 +413,31 @@ class PasskeyAutoConfigurationTest {
                           .getBean(PasskeyNameResolver.class)
                           .nameFor(identity.id(), Optional.empty()))
                   .isEqualTo(address);
+            });
+  }
+
+  @Test
+  void withEmailLinksTheNameIsTheAddressTheSessionSignedInWith() {
+    postgresRunner()
+        .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET)
+        .withBean(EmailLinkSender.class, () -> message -> {})
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              Identity identity =
+                  context
+                      .getBean(IdentityRepository.class)
+                      .save(Identity.create(IdentityStatus.ACTIVE));
+              EmailCredentialService emails = context.getBean(EmailCredentialService.class);
+              String oldest = "passkey-oldest-" + identity.id() + "@example.com";
+              String current = "passkey-current-" + identity.id() + "@example.com";
+              emails.register(identity, oldest);
+              UUID signedInWith = emails.register(identity, current).id();
+              PasskeyNameResolver names = context.getBean(PasskeyNameResolver.class);
+
+              assertThat(names.nameFor(identity.id(), Optional.of(signedInWith)))
+                  .isEqualTo(current);
+              assertThat(names.nameFor(identity.id(), Optional.empty())).isEqualTo(oldest);
             });
   }
 

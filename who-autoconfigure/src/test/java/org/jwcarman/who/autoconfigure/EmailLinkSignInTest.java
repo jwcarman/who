@@ -31,6 +31,7 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executor;
@@ -56,6 +57,7 @@ import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -799,6 +801,45 @@ class EmailLinkSignInTest {
                     .isNotNull()
                     .rootCause()
                     .hasMessageContaining("who.email-link.code-max-attempts"));
+  }
+
+  @Test
+  void signInEmailsAreSentOnVirtualThreads() {
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET)
+        .run(
+            ctx -> {
+              Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
+              CompletableFuture<Thread> sender = new CompletableFuture<>();
+
+              executor.execute(() -> sender.complete(Thread.currentThread()));
+
+              Thread thread = sender.get(10, TimeUnit.SECONDS);
+              assertThat(thread.isVirtual()).isTrue();
+              assertThat(thread.getName()).startsWith("who-email-link-");
+            });
+  }
+
+  @Test
+  void settingsExactlyAtTheirLimitsStart() {
+    String shortestSecret = CODE_SECRET.substring(0, 32);
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + shortestSecret,
+            "who.email-link.token-ttl=2m",
+            "who.email-link.resend-interval=2m",
+            "who.email-link.code-max-attempts=1")
+        .run(
+            ctx -> {
+              assertThat(ctx).hasNotFailed();
+              EmailLinkSettings settings = ctx.getBean(EmailLinkSettings.class);
+              assertThat(settings.resendInterval()).isEqualTo(settings.tokenTtl());
+              assertThat(settings.codeSecret()).isEqualTo(shortestSecret);
+              assertThat(settings.codeMaxAttempts()).isEqualTo(1);
+            });
   }
 
   @Test
