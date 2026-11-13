@@ -10,7 +10,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # write: attach the jars, their signatures and the provenance to the GitHub Release
+      contents: write
       # build provenance: a signed attestation of which commit and workflow built each jar
       id-token: write
       attestations: write
@@ -38,8 +39,27 @@ jobs:
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
       - name: Attest build provenance
+        id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             who-*/target/who-*.jar
             who-*/target/who-*-cyclonedx.json
+      # The same signed files on the release page, where verifiers (and OpenSSF Scorecard) look for
+      # them: each module's jar, its GPG signature, and the provenance bundle for all of them.
+      - name: Attach signed jars and provenance to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          # the GPG plugin may write signatures beside the jar or under target/gpg, so search both
+          mapfile -t jars < <(find who-*/target -maxdepth 1 -name "who-*-${RELEASE_TAG}.jar")
+          mapfile -t sigs < <(find who-*/target -maxdepth 2 -name "who-*-${RELEASE_TAG}.jar.asc")
+          echo "jars: ${#jars[@]}, signatures: ${#sigs[@]}"
+          if [ "${#jars[@]}" -eq 0 ] || [ "${#jars[@]}" -ne "${#sigs[@]}" ]; then
+            echo "::error::expected one signature per jar"
+            exit 1
+          fi
+          cp "$BUNDLE" "who-$RELEASE_TAG.intoto.jsonl"
+          gh release upload "$RELEASE_TAG" --clobber "${jars[@]}" "${sigs[@]}" "who-$RELEASE_TAG.intoto.jsonl"
