@@ -30,6 +30,17 @@ public interface ApiKeyCredentialRepository {
   Optional<ApiKeyCredential> findByKeyHash(String keyHash);
 
   /**
+   * Finds a credential by its id, so that revoking it can report its name. A repository that cannot
+   * find by id keeps this default, and revocations it serves report no name.
+   *
+   * @param id the credential UUID
+   * @return the matching credential, or empty if not found
+   */
+  default Optional<ApiKeyCredential> findById(UUID id) {
+    return Optional.empty();
+  }
+
+  /**
    * Persists a credential. If a record with the same {@code id} already exists it is updated with
    * the new key hash.
    *

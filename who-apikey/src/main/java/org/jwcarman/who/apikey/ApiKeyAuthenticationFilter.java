@@ -17,42 +17,51 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
+import java.time.Clock;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.spring.security.WhoAuthenticationToken;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.jwcarman.who.spring.security.web.SignInFailedException;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationContext;
+import org.springframework.core.ResolvableType;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.config.ObjectPostProcessor;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 
 /**
- * Servlet filter that authenticates requests carrying a valid API key header.
+ * Signs in requests that carry an API key header, through Spring Security's {@link
+ * AuthenticationFilter}: {@link ApiKeyAuthenticationConverter} reads the header and {@link
+ * ApiKeyAuthenticationProvider} resolves the key.
  *
- * <p>If the configured header is absent or blank the request proceeds unauthenticated. If the
- * header value does not match any known key the request also proceeds unauthenticated — the filter
- * never produces a 401; that decision is left to the rest of the filter chain.
+ * <ul>
+ *   <li>No header, a blank one, or a request that is already authenticated (other than
+ *       anonymously): the request goes on as it is.
+ *   <li>A key that signs in: the request is authenticated as the key's identity, for this request
+ *       only (no session is created to hold it), and goes on. As with every Spring {@link
+ *       AuthenticationFilter}, a session the request already has gets a new id.
+ *   <li>A key that does not sign in (unknown, revoked, or of an inactive identity): the request is
+ *       refused at once with {@code 401}, even where anonymous access is permitted. The refusal is
+ *       handed to the application as a {@link SignInFailedException}, the same answer every who
+ *       sign-in gives, which never says why.
+ * </ul>
  *
- * <p>The filter never replaces an authentication that is already present (anything other than
- * anonymous). Add it to a chain with {@link WhoApiKeySecurity}; it is not registered with the
+ * <p>Add it to a chain with {@link WhoApiKeySecurity}, which also gives it the application's
+ * authentication event publisher, observation and exception handoff; it is not registered with the
  * servlet container on its own.
- *
- * <p>On any exception during key processing the {@link SecurityContextHolder} is cleared before the
- * exception propagates.
  */
-public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
+public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
 
-  private final ApiKeyCredentialRepository apiKeyCredentialRepository;
-  private final WhoService whoService;
-  private final String headerName;
+  private final ApiKeyAuthenticationProvider provider;
 
   /**
-   * Creates a new filter.
+   * Creates a new filter that publishes no who events.
    *
    * @param apiKeyCredentialRepository repository for looking up hashed API keys
    * @param whoService service for resolving a credential to a principal
@@ -62,35 +71,58 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
       ApiKeyCredentialRepository apiKeyCredentialRepository,
       WhoService whoService,
       String headerName) {
-    this.apiKeyCredentialRepository =
-        requireNonNull(apiKeyCredentialRepository, "apiKeyCredentialRepository must not be null");
-    this.whoService = requireNonNull(whoService, "whoService must not be null");
-    this.headerName = requireNonNull(headerName, "headerName must not be null");
+    this(
+        new ApiKeyAuthenticationProvider(
+            apiKeyCredentialRepository, whoService, WhoEventPublisher.NOOP, Clock.systemUTC()),
+        headerName);
   }
 
-  @Override
-  protected void doFilterInternal(
-      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-      throws ServletException, IOException {
-    String headerValue = request.getHeader(headerName);
-    if (headerValue != null && !headerValue.isBlank() && noAuthenticationPresent()) {
-      try {
-        String keyHash = ApiKeyService.sha256Hex(headerValue);
-        apiKeyCredentialRepository
-            .findByKeyHash(keyHash)
-            .flatMap(whoService::resolve)
-            .map(WhoAuthenticationToken::new)
-            .ifPresent(token -> SecurityContextHolder.getContext().setAuthentication(token));
-      } catch (Exception e) {
-        SecurityContextHolder.clearContext();
-        throw new ServletException("Error processing API key authentication", e);
-      }
-    }
-    filterChain.doFilter(request, response);
+  /**
+   * Creates a new filter.
+   *
+   * @param provider resolves the key and publishes the sign-in events
+   * @param headerName HTTP header name that carries the API key
+   */
+  public ApiKeyAuthenticationFilter(ApiKeyAuthenticationProvider provider, String headerName) {
+    super(
+        new ProviderManager(requireNonNull(provider, "provider must not be null")),
+        new ApiKeyAuthenticationConverter(headerName));
+    this.provider = provider;
+    // the provider publishes the sign-in; the request just goes on
+    setSuccessHandler((request, response, authentication) -> {});
+    setFailureHandler(handOffTo(new WhoExceptionHandoff(null)));
+    // the default already, but this filter depends on it: the sign-in lasts for the request only
+    setSecurityContextRepository(new RequestAttributeSecurityContextRepository());
   }
 
-  private static boolean noAuthenticationPresent() {
-    Authentication existing = SecurityContextHolder.getContext().getAuthentication();
-    return existing == null || existing instanceof AnonymousAuthenticationToken;
+  /**
+   * Applies the application's collaborators: the authentication manager gets the application's
+   * {@link AuthenticationEventPublisher} and is post-processed as Spring post-processes the
+   * managers it builds (observed, when the application observes), and refusals are handed to the
+   * application's {@link WhoExceptionHandoff}.
+   */
+  void applyApplicationContext(ApplicationContext context) {
+    ProviderManager manager = new ProviderManager(provider);
+    context
+        .getBeanProvider(AuthenticationEventPublisher.class)
+        .ifUnique(manager::setAuthenticationEventPublisher);
+    ObjectProvider<ObjectPostProcessor<AuthenticationManager>> postProcessor =
+        context.getBeanProvider(
+            ResolvableType.forClassWithGenerics(
+                ObjectPostProcessor.class, AuthenticationManager.class));
+    AuthenticationManager postProcessed =
+        postProcessor.getIfUnique(ObjectPostProcessor::identity).postProcess(manager);
+    setAuthenticationManagerResolver(request -> postProcessed);
+    setFailureHandler(
+        handOffTo(
+            context
+                .getBeanProvider(WhoExceptionHandoff.class)
+                .getIfAvailable(() -> new WhoExceptionHandoff(null))));
+  }
+
+  private static AuthenticationFailureHandler handOffTo(WhoExceptionHandoff handoff) {
+    return (request, response, exception) ->
+        handoff.handOff(
+            request, response, new SignInFailedException(exception), HttpStatus.UNAUTHORIZED);
   }
 }

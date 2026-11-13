@@ -17,8 +17,10 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.spi.Credential;
 
 /**
@@ -27,7 +29,7 @@ import org.jwcarman.who.core.spi.Credential;
  * <p>The raw key is never stored — only the hash reaches the database. The {@link #id()} UUID is
  * stable for the lifetime of the credential and used as the FK to the identity mapping table. The
  * {@link #name()} is a human-readable label (e.g. "Production server", "CI pipeline") to help users
- * identify and manage their keys.
+ * identify and manage their keys; it is also the label security events report.
  *
  * @param id the stable UUID for this credential record
  * @param name a human-readable label identifying this key (e.g. "Production server")
@@ -40,5 +42,25 @@ public record ApiKeyCredential(UUID id, String name, String keyHash) implements 
     requireNonNull(id, "id must not be null");
     requireNonNull(name, "name must not be null");
     requireNonNull(keyHash, "keyHash must not be null");
+  }
+
+  /**
+   * Returns {@link CredentialKind#API_KEY}.
+   *
+   * @return {@link CredentialKind#API_KEY}
+   */
+  @Override
+  public CredentialKind kind() {
+    return CredentialKind.API_KEY;
+  }
+
+  /**
+   * Returns the key's {@link #name()}.
+   *
+   * @return the name
+   */
+  @Override
+  public Optional<String> label() {
+    return Optional.of(name);
   }
 }

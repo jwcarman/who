@@ -18,6 +18,7 @@ package org.jwcarman.who.apikey;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -60,6 +61,15 @@ public class JdbcApiKeyCredentialRepository
   }
 
   @Override
+  public Optional<ApiKeyCredential> findById(UUID id) {
+    return jdbcClient
+        .sql("SELECT id, name, key_hash FROM who_api_key_credential WHERE id = :id")
+        .param(COL_ID, id)
+        .query(ROW_MAPPER)
+        .optional();
+  }
+
+  @Override
   public ApiKeyCredential save(ApiKeyCredential credential) {
     jdbcClient
         .sql(
@@ -87,6 +97,12 @@ public class JdbcApiKeyCredentialRepository
   @Override
   public boolean remove(UUID credentialId) {
     return deleteById(credentialId);
+  }
+
+  /** Finds the API key with the given id, an {@link ApiKeyCredential} labelled with its name. */
+  @Override
+  public Optional<Credential> find(UUID credentialId) {
+    return findById(credentialId).map(Credential.class::cast);
   }
 
   @Override

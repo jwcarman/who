@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -104,5 +105,29 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
     assertThat(repository.removeUnlinked()).isOne();
     assertThat(repository.findByKeyHash("orphan-hash")).isEmpty();
     assertThat(repository.findByKeyHash("linked-hash")).contains(linked);
+  }
+
+  @Test
+  void findByIdFindsTheCredential() {
+    ApiKeyCredential credential =
+        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Find Me", "hash-to-find"));
+
+    assertThat(repository.findById(credential.id())).contains(credential);
+    assertThat(repository.findById(UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
+  void findDescribesTheCredentialAsAnApiKeyLabelledWithItsName() {
+    ApiKeyCredential credential =
+        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Laptop", "hash-to-describe"));
+
+    assertThat(repository.find(credential.id()))
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.id()).isEqualTo(credential.id());
+              assertThat(found.kind()).isEqualTo(CredentialKind.API_KEY);
+              assertThat(found.label()).contains("Laptop");
+            });
+    assertThat(repository.find(UUID.randomUUID())).isEmpty();
   }
 }

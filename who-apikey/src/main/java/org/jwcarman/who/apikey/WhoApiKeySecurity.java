@@ -29,6 +29,11 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
  * <pre>{@code
  * http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());
  * }</pre>
+ *
+ * <p>The filter signs keys in through an authentication manager built as Spring builds its own:
+ * with the application's {@code AuthenticationEventPublisher}, if it has one, and observed when the
+ * application observes. A key that does not sign in is refused with {@code 401} through the
+ * application's {@code WhoExceptionHandoff}, if it has one.
  */
 public final class WhoApiKeySecurity {
 
@@ -66,10 +71,11 @@ public final class WhoApiKeySecurity {
 
     @Override
     public void configure(HttpSecurity http) {
-      ApiKeyAuthenticationFilter toAdd = filter;
-      if (toAdd == null) {
-        ApplicationContext context = http.getSharedObject(ApplicationContext.class);
-        toAdd = context.getBean(ApiKeyAuthenticationFilter.class);
+      ApplicationContext context = http.getSharedObject(ApplicationContext.class);
+      ApiKeyAuthenticationFilter toAdd =
+          filter == null ? context.getBean(ApiKeyAuthenticationFilter.class) : filter;
+      if (context != null) {
+        toAdd.applyApplicationContext(context);
       }
       http.addFilterBefore(toAdd, AuthorizationFilter.class);
     }

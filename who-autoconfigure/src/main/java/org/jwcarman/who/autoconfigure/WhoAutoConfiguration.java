@@ -24,6 +24,7 @@ import java.util.concurrent.Executor;
 import javax.sql.DataSource;
 
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.apikey.ApiKeyAuthenticationProvider;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
@@ -342,22 +343,49 @@ public class WhoAutoConfiguration {
       return new JdbcApiKeyCredentialRepository(jdbcClient);
     }
 
+    /**
+     * Creates and revokes API keys, publishing the credential events.
+     *
+     * @param apiKeyCredentialRepository stores the keys' hashes
+     * @param credentialIdentityRepository links keys to identities
+     * @param whoEventPublisher where the credential events are published
+     * @param clock stamps the events
+     * @return the service
+     */
     @Bean
     @ConditionalOnMissingBean
     public ApiKeyService apiKeyService(
         ApiKeyCredentialRepository apiKeyCredentialRepository,
-        CredentialIdentityRepository credentialIdentityRepository) {
-      return new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
+        CredentialIdentityRepository credentialIdentityRepository,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
+      return new ApiKeyService(
+          apiKeyCredentialRepository, credentialIdentityRepository, whoEventPublisher, clock);
     }
 
+    /**
+     * The API key filter. Its provider is not a bean, so it never joins the application's global
+     * authentication manager.
+     *
+     * @param apiKeyCredentialRepository looks keys up by their hash
+     * @param whoService resolves a key's credential to its identity
+     * @param properties the header name
+     * @param whoEventPublisher where API key sign-ins are published
+     * @param clock stamps the events
+     * @return the filter
+     */
     @Bean
     @ConditionalOnMissingBean
     public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(
         ApiKeyCredentialRepository apiKeyCredentialRepository,
         WhoService whoService,
-        WhoProperties properties) {
+        WhoProperties properties,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
       return new ApiKeyAuthenticationFilter(
-          apiKeyCredentialRepository, whoService, properties.getApiKey().getHeaderName());
+          new ApiKeyAuthenticationProvider(
+              apiKeyCredentialRepository, whoService, whoEventPublisher, clock),
+          properties.getApiKey().getHeaderName());
     }
 
     /**

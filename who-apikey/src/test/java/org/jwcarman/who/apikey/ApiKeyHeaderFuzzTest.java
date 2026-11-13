@@ -53,25 +53,29 @@ class ApiKeyHeaderFuzzTest {
       new ApiKeyAuthenticationFilter(REPOSITORY, mock(WhoService.class), HEADER);
 
   @FuzzTest(maxDuration = "2m")
-  void any_header_is_looked_up_by_its_hash_and_never_breaks_the_chain(byte[] header)
-      throws Exception {
+  void any_header_is_looked_up_by_its_hash_and_never_throws(byte[] header) throws Exception {
     // servlet containers decode header bytes as ISO-8859-1
     String value = new String(header, ISO_8859_1);
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HEADER, value);
+    MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
     REPOSITORY.lookups.clear();
     SecurityContextHolder.clearContext();
 
     try {
-      FILTER.doFilter(request, new MockHttpServletResponse(), chain);
+      FILTER.doFilter(request, response, chain);
 
-      assertThat(chain.getRequest()).isSameAs(request);
       assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
       if (value.isBlank()) {
+        // no key: the request goes on, anonymous
         assertThat(REPOSITORY.lookups).isEmpty();
+        assertThat(chain.getRequest()).isSameAs(request);
       } else {
+        // a key no one has: refused at once
         assertThat(REPOSITORY.lookups).containsExactly(sha256Hex(value));
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(chain.getRequest()).isNull();
       }
     } finally {
       SecurityContextHolder.clearContext();
