@@ -37,6 +37,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationRequestToken;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialCreationOptionsRequest;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialRequestOptionsRequest;
@@ -105,6 +106,15 @@ class WhoPasskeyAuthenticationProviderSignInTest extends AbstractPasskeyTest {
         .isEqualTo(credentialRepository.credentialUuid(registered.getCredentialId()));
     // verification recorded the use
     assertThat(stored().getSignatureCount()).isGreaterThan(registered.getSignatureCount());
+  }
+
+  @Test
+  void relyingPartyAnswersAVerifiedAssertionWithTheIdentitysUserEntity() {
+    PublicKeyCredentialUserEntity user =
+        operations.authenticate(device.authenticate(requestOptions()));
+
+    assertThat(user.getName()).isEqualTo(identity.id().toString());
+    assertThat(user.getId()).isEqualTo(registered.getUserEntityUserId());
   }
 
   private CredentialRecord stored() {

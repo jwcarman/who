@@ -166,6 +166,24 @@ class PasskeyRegistrationGuardFilterTest {
   }
 
   @Test
+  void guardDiscardsWhatAFailedRegistrationBufferedBeforeAnswering()
+      throws ServletException, IOException {
+    MockHttpServletRequest request = signedInAt(post(REGISTER), NOW);
+
+    guard.doFilter(
+        request,
+        response,
+        (req, res) -> {
+          res.getWriter().write("{\"partial\":");
+          throw new IllegalArgumentException("verification failed midway");
+        });
+
+    assertThat(handedOff).singleElement().isInstanceOf(InvalidPasskeyRegistrationException.class);
+    assertThat(response.getStatus()).isEqualTo(400);
+    assertThat(response.getContentAsString()).isEmpty();
+  }
+
+  @Test
   void guardLeavesCommittedResponsesAlone() throws IOException {
     MockHttpServletRequest request = signedInAt(post(REGISTER), NOW);
     IllegalStateException failure = new IllegalStateException("after the answer");

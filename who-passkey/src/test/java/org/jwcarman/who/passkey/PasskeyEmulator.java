@@ -15,18 +15,26 @@
  */
 package org.jwcarman.who.passkey;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorAttestationResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutableAuthenticationExtensionsClientOutputs;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialDescriptor;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 import org.springframework.security.web.webauthn.management.ImmutableRelyingPartyRegistrationRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyPublicKey;
 import org.springframework.security.web.webauthn.management.RelyingPartyRegistrationRequest;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /** A browser with one emulated authenticator, speaking Spring's WebAuthn types. */
 final class PasskeyEmulator {
@@ -95,6 +103,46 @@ final class PasskeyEmulator {
   RelyingPartyAuthenticationRequest authenticateWithoutUserVerification(
       PublicKeyCredentialRequestOptions options) {
     return authenticate(options, false);
+  }
+
+  /**
+   * Answers the JSON of {@code POST /webauthn/authenticate/options} as {@code
+   * navigator.credentials.get()} would, and returns the JSON body for {@code POST /login/webauthn}.
+   */
+  String signIn(String requestOptionsJson) {
+    JsonMapper json = JsonMapper.builder().build();
+    JsonNode options = json.readTree(requestOptionsJson);
+    List<PublicKeyCredentialDescriptor> allowed = new ArrayList<>();
+    for (JsonNode descriptor : options.path("allowCredentials")) {
+      allowed.add(
+          PublicKeyCredentialDescriptor.builder()
+              .id(Bytes.fromBase64(descriptor.path("id").asString()))
+              .build());
+    }
+    PublicKeyCredential<AuthenticatorAssertionResponse> credential =
+        authenticate(
+                PublicKeyCredentialRequestOptions.builder()
+                    .challenge(Bytes.fromBase64(options.path("challenge").asString()))
+                    .rpId(options.path("rpId").asString())
+                    .allowCredentials(allowed)
+                    .build())
+            .getPublicKey();
+    AuthenticatorAssertionResponse assertion = credential.getResponse();
+    ObjectNode response = json.createObjectNode();
+    response.put("authenticatorData", assertion.getAuthenticatorData().toBase64UrlString());
+    response.put("clientDataJSON", assertion.getClientDataJSON().toBase64UrlString());
+    response.put("signature", assertion.getSignature().toBase64UrlString());
+    if (assertion.getUserHandle() != null) {
+      response.put("userHandle", assertion.getUserHandle().toBase64UrlString());
+    }
+    ObjectNode body = json.createObjectNode();
+    body.put("id", credential.getId());
+    body.put("rawId", credential.getRawId().toBase64UrlString());
+    body.put("type", "public-key");
+    body.set("response", response);
+    body.set("clientExtensionResults", json.createObjectNode());
+    body.put("authenticatorAttachment", "platform");
+    return json.writeValueAsString(body);
   }
 
   private RelyingPartyAuthenticationRequest authenticate(
