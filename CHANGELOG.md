@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.15.0] - Unreleased
+
+### Breaking changes
+
+- Every sign-in email carries a typed code as well as the link. `POST /login/ott` accepts `{"token": "..."}` or `{"email": "...", "code": "..."}`. Using one ends the other.
+- `EmailLinkSender.send` takes an `EmailLinkMessage(address, link, code, expiresAt)` instead of `(address, link)`.
+- `who.email-link.code-secret` is required when email-link sign-in is on, at least 32 characters.
+- `who_email_link_token` gained `code_hash` and `code_attempts` (both `NOT NULL`). There is no upgrade path: recreate the database.
+- `EmailLinkTokenRepository`, `EmailLinkAuthenticationProvider` and `WhoOneTimeTokenService` have changed signatures.
+- The default subject is `Your sign-in link and code`.
+
+### Added
+
+- The code uses the Crockford base32 alphabet, is shown grouped (`K7F-2QM`), and is read without regard to case, spaces or dashes. `O` reads as `0`, and `I` and `L` as `1`.
+- After `who.email-link.code-max-attempts` wrong codes (default 5) the code is burnt; the link still works.
+- `who.email-link.code-length` (default 6, at least 6), `who.email-link.code-max-attempts` and `who.email-link.code-secret`.
+- `EmailLinkMessage.formattedCode()`.
+
 ## [0.14.0] - 2026-11-10
 
 ### Breaking changes

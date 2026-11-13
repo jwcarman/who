@@ -54,6 +54,7 @@ tooling (see 8).
    Base32, case-insensitive, grouped), with a configurable length. A code is low-entropy, so it
    has an attempt limit, is bound to the browser session that requested it, and each address has
    at most one live code. Designed in full when plan 4 is written.
+   Designed in `2026-11-13-email-sign-in-code-design.md`.
 
 ## 1. Decisions
 

@@ -10,7 +10,10 @@
 | `who.email-link.token-ttl` | `5m` | How long a sign-in link stays valid |
 | `who.email-link.resend-interval` | `60s` | Minimum time between two links for the same address. Startup fails if it is longer than `token-ttl` |
 | `who.email-link.from` | none | Sender address of sign-in emails. Required when links go out through Spring Boot's `JavaMailSender` |
-| `who.email-link.subject` | `Your sign-in link` | Subject of sign-in emails |
+| `who.email-link.subject` | `Your sign-in link and code` | Subject of sign-in emails |
+| `who.email-link.code-length` | `6` | Number of characters in the typed sign-in code. At least 6 |
+| `who.email-link.code-max-attempts` | `5` | Wrong guesses a sign-in code survives before it is burnt. The link still works. At least 1 |
+| `who.email-link.code-secret` | none | Secret that keys the code hash. Required when email-link sign-in is on, at least 32 characters, the same on every instance. Never stored in the database |
 | `who.passkey.rp-id` | none | The application's own host, such as `app.example.com`. Setting it turns passkeys on. When it is unset, no passkey beans exist. Never use a registrable domain that other apps share |
 | `who.passkey.rp-name` | `who` | Name of the relying party, shown by authenticators. Must not be blank |
 | `who.passkey.allowed-origins` | `https://<rp-id>` | Origins a registration or sign-in response may come from: each a scheme (`http` or `https`), a host and an optional port, with no path, such as `http://localhost:8080`. Startup fails on anything else |
