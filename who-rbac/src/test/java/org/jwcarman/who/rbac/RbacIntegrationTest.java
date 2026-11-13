@@ -127,12 +127,17 @@ class RbacIntegrationTest extends AbstractRbacTest {
   @Test
   void removeRoleFromIdentitySucceeds() {
     Role role = rbacService.createRole("REMOVE_ASSIGN_SUCCESS_ROLE");
+    rbacService.addPermissionToRole(role, "REPORT_READ");
     Identity identity = identityRepository.save(Identity.create());
     rbacService.assignRoleToIdentity(identity, role);
+    assertThat(resolver.resolve(identity)).containsExactly("REPORT_READ");
 
     rbacService.removeRoleFromIdentity(identity, role);
 
     assertThat(resolver.resolve(identity)).isEmpty();
+    // the role is no longer assigned, so removing it again is refused
+    assertThatThrownBy(() -> rbacService.removeRoleFromIdentity(identity, role))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
