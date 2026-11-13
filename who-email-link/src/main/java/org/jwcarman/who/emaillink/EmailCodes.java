@@ -22,6 +22,7 @@ import java.util.Optional;
 final class EmailCodes {
 
   private static final String ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  private static final int MAX_RAW_LENGTH = 64;
 
   private EmailCodes() {
     // utility class
@@ -33,11 +34,11 @@ final class EmailCodes {
    *
    * @param raw the typed code, possibly {@code null}
    * @param length the expected code length
-   * @return the normalized code, or empty if {@code raw} is {@code null}, has the wrong length, or
-   *     contains a character outside the code alphabet
+   * @return the normalized code, or empty if {@code raw} is {@code null}, longer than 64
+   *     characters, has the wrong length, or contains a character outside the code alphabet
    */
   static Optional<String> normalize(String raw, int length) {
-    if (raw == null) {
+    if (raw == null || raw.length() > MAX_RAW_LENGTH) {
       return Optional.empty();
     }
     var normalized = new StringBuilder(raw.length());

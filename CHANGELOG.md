@@ -21,6 +21,12 @@ All notable changes to this project are documented here. The format follows
 - After `who.email-link.code-max-attempts` wrong codes (default 5) the code is burnt; the link still works.
 - `who.email-link.code-length` (default 6, at least 6), `who.email-link.code-max-attempts` and `who.email-link.code-secret`.
 - `EmailLinkMessage.formattedCode()`.
+- The default email ends with "If you didn't ask to sign in, ignore this email. Never share this code with anyone."
+
+### Changed
+
+- Stricter input handling: a code sign-in whose address is longer than 320 characters or contains a control character fails with a 401 instead of a 500, a typed code longer than 64 characters is rejected, and `/ott/generate` and `/login/ott` ignore a JSON body larger than 8192 bytes.
+- `EmailLinkSettings` itself rejects a `codeSecret` shorter than 32 characters.
 
 ## [0.14.0] - 2026-11-10
 

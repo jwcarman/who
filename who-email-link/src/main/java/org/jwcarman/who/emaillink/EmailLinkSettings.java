@@ -38,10 +38,12 @@ public record EmailLinkSettings(
     String codeSecret) {
 
   private static final int MIN_CODE_LENGTH = 6;
+  private static final int MIN_CODE_SECRET_LENGTH = 32;
 
   /**
    * Compact constructor: validates that no field is {@code null}, {@code codeLength} is at least 6,
-   * {@code codeMaxAttempts} is at least 1 and {@code codeSecret} is not blank.
+   * {@code codeMaxAttempts} is at least 1 and {@code codeSecret} is not blank and has at least 32
+   * characters.
    */
   public EmailLinkSettings {
     requireNonNull(linkBaseUrl, "linkBaseUrl must not be null");
@@ -56,6 +58,10 @@ public record EmailLinkSettings(
     }
     if (codeSecret.isBlank()) {
       throw new IllegalArgumentException("codeSecret must not be blank");
+    }
+    if (codeSecret.length() < MIN_CODE_SECRET_LENGTH) {
+      throw new IllegalArgumentException(
+          "codeSecret must be at least " + MIN_CODE_SECRET_LENGTH + " characters");
     }
   }
 

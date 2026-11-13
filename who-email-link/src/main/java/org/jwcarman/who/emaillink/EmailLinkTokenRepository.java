@@ -47,6 +47,11 @@ public interface EmailLinkTokenRepository {
    * Atomically counts one code attempt against the live token of the credential with this address.
    * Nothing is counted, and the result is empty, once the cap is reached or the token has expired.
    *
+   * <p>The increment must commit even when the sign-in then fails. who calls this method outside
+   * any transaction, so it autocommits. A custom implementation, or an application that runs {@code
+   * /login/ott} inside a transaction, must not let a failed sign-in roll back the increment, or the
+   * attempt cap stops working.
+   *
    * @param normalizedAddress the normalized email address
    * @param maxAttempts the most attempts a token allows
    * @param now the current time

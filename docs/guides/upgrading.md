@@ -14,6 +14,7 @@
             ADD COLUMN code_hash     VARCHAR(64) NOT NULL,
             ADD COLUMN code_attempts INTEGER     NOT NULL;
         ```
+    - **This is not a rolling upgrade.** Stop the 0.14.0 instances first, and apply the schema change (Liquibase or the SQL) before or as 0.15.0 starts. If the columns are missing, sign-in emails silently stop: `/ott/generate` still answers `202`, and only a WARN is logged.
 - **Set `who.email-link.code-secret`.** It is required when email-link sign-in is on, at least 32 characters, and the same on every instance. Startup fails without it. See [Code secret](email-links.md#code-secret).
 - **`EmailLinkSender` takes an `EmailLinkMessage`.** The method is now `send(EmailLinkMessage message)` instead of `send(String address, String link)`. The message carries `address`, `link`, `code` and `expiresAt`, and `formattedCode()` gives the grouped code. Update custom senders to include the code. See [Turn it on](email-links.md#turn-it-on).
 - **`POST /login/ott` takes two body shapes.** `{"token": "..."}` as before, or `{"email": "...", "code": "..."}`.

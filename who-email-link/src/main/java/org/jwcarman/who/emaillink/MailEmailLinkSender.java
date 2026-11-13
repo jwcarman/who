@@ -65,7 +65,8 @@ public class MailEmailLinkSender implements EmailLinkSender {
         + "\n\nThe link and the code expire in "
         + minutes
         + (minutes == 1 ? " minute" : " minutes")
-        + " and work once.";
+        + " and work once."
+        + "\n\nIf you didn't ask to sign in, ignore this email. Never share this code with anyone.";
   }
 
   private long minutesLeft(EmailLinkMessage message) {

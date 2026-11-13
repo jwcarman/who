@@ -557,7 +557,14 @@ class EmailLinkSignInTest {
   void malformedConfirmIs401() throws Exception {
     Browser browser = new Browser(mvc);
 
-    for (String body : List.of("not json", "{}", "{\"token\":42}", "{\"token\":\"\"}", "")) {
+    for (String body :
+        List.of(
+            "not json",
+            "{}",
+            "{\"token\":42}",
+            "{\"token\":\"\"}",
+            "",
+            "{\"email\":\"owner\\u0000@example.com\",\"code\":\"000000\"}")) {
       assertInvalidToken(browser.performWithCsrf(confirmBody(body)));
     }
   }

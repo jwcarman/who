@@ -58,7 +58,8 @@ class MailEmailLinkSenderTest {
             "Sign in: "
                 + LINK
                 + "\n\nOr enter this code: K7F-2QM\n\nThe link and the code expire in 5 minutes"
-                + " and work once.");
+                + " and work once.\n\nIf you didn't ask to sign in, ignore this email. Never share"
+                + " this code with anyone.");
   }
 
   @Test

@@ -46,7 +46,9 @@ EmailLinkSender emailLinkSender(MyMailer mailer) {
         message.address(),
         "Your sign-in link and code",
         "Sign in: " + message.link()
-            + "\n\nOr enter this code: " + message.formattedCode());
+            + "\n\nOr enter this code: " + message.formattedCode()
+            + "\n\nIf you didn't ask to sign in, ignore this email."
+            + " Never share this code with anyone.");
 }
 ```
 
@@ -59,6 +61,8 @@ See the [Configuration Reference](configuration.md) for all eight properties.
 ## Code secret
 
 `who.email-link.code-secret` is required. It must be at least 32 characters, and every instance of your application must use the same value. Who stores the code only as an HMAC keyed with this secret. The secret is never stored in the database, so a copy of the database does not let anyone work out or check codes offline. Keep it in your secret store, not in source control.
+
+Generate it with `openssl rand -base64 32`, and do not reuse another secret, such as a JWT signing key or a database password. Like any secret property, it shows in `/actuator/env` and `/actuator/configprops` if those endpoints have `show-values` enabled.
 
 If you change the secret, codes already sent stop working. The links in those emails still work.
 
@@ -182,6 +186,18 @@ Input is case-insensitive. Spaces and dashes are ignored, so `k7f 2qm` and `K7F-
 A code is short, so it has an attempt limit. After `who.email-link.code-max-attempts` wrong codes (default 5) for an address, its code is burnt: even the right code fails. The link in the same email still works until it expires. A new request, once the [resend interval](#the-resend-interval) has passed, issues a fresh code with a fresh count.
 
 A burnt code, a wrong code, an unknown address and an expired code all fail the same way, so the response tells an attacker nothing.
+
+### How strong is the code
+
+With the defaults, a code is one of 32^6 ≈ 1.07 billion values, and each code allows 5 guesses. An attacker can have a fresh code issued once per [resend interval](#the-resend-interval) (60 seconds by default), so about 7,200 guesses a day against one address. That is about a 1-in-150,000 chance per day of taking over one targeted address, while the victim receives about 1,440 emails.
+
+Spraying many known addresses scales linearly: across 100,000 addresses, with no limit at the ingress, that is about 0.7 expected takeovers a day. So:
+
+- per-IP rate limits at the ingress are required (see [Rate limiting at the ingress](#rate-limiting-at-the-ingress));
+- for large user bases, set `who.email-link.code-length: 8` (about 1 trillion codes, 1024 times harder);
+- alert on volumes of failed sign-ins.
+
+Also, don't run `/login/ott` inside a transaction: the attempt count must commit even when the sign-in fails, or the attempt limit stops working. And limit the request body size at the ingress.
 
 ## Registering addresses
 

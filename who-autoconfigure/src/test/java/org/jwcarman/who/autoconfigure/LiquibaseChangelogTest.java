@@ -110,6 +110,47 @@ class LiquibaseChangelogTest {
             ALL_TABLES.stream().filter(t -> !t.startsWith("who_email_")).toList());
   }
 
+  @Test
+  void changeSetTwoUpgradesATableWithRows() throws Exception {
+    createDatabase("who_upgrade");
+    createDatabase("who_fresh");
+    runChangelog("who_upgrade", getClass().getClassLoader());
+
+    try (Connection connection = connect("who_upgrade");
+        Statement statement = connection.createStatement()) {
+      // simulate a 0.14.0 database: change set 2 not yet run, its columns absent, a link pending
+      statement.execute("DELETE FROM databasechangelog WHERE id = 'who-email-link-token-2'");
+      statement.execute(
+          "ALTER TABLE who_email_link_token DROP COLUMN code_hash, DROP COLUMN code_attempts");
+      statement.execute(
+          """
+          INSERT INTO who_email_credential (id, address)
+          VALUES ('00000000-0000-0000-0000-000000000001', 'owner@example.com')
+          """);
+      statement.execute(
+          """
+          INSERT INTO who_email_link_token (credential_id, token_hash, created_at, expires_at)
+          VALUES ('00000000-0000-0000-0000-000000000001', 'hash', now(), now() + interval '15 minutes')
+          """);
+    }
+
+    runChangelog("who_upgrade", getClass().getClassLoader());
+    runChangelog("who_fresh", getClass().getClassLoader());
+
+    try (Connection connection = connect("who_upgrade");
+        Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery("SELECT count(*) FROM who_email_link_token")) {
+      assertThat(rs.next()).isTrue();
+      assertThat(rs.getLong(1)).isZero();
+    }
+    List<String> upgraded = describe("who_upgrade");
+    assertThat(upgraded)
+        .contains(
+            "who_email_link_token|column|code_hash|character varying|NO",
+            "who_email_link_token|column|code_attempts|integer|NO");
+    assertThat(upgraded).isEqualTo(describe("who_fresh"));
+  }
+
   private static void runChangelog(String database, ClassLoader classLoader) throws Exception {
     DriverManagerDataSource dataSource =
         new DriverManagerDataSource(

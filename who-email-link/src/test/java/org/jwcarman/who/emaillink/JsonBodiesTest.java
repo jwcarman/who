@@ -20,15 +20,18 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.DelegatingServletInputStream;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -72,7 +75,7 @@ class JsonBodiesTest {
   @Test
   void aMapperThatYieldsNoNodeIsNull() {
     JsonMapper nullMapper = mock(JsonMapper.class);
-    when(nullMapper.readTree(any(InputStream.class))).thenReturn(null);
+    when(nullMapper.readTree(any(byte[].class))).thenReturn(null);
 
     assertThat(JsonBodies.readString(nullMapper, post("{}"), "email")).isNull();
   }
@@ -119,5 +122,34 @@ class JsonBodiesTest {
     HttpServletRequest broken = mock(HttpServletRequest.class);
     when(broken.getInputStream()).thenThrow(new IOException("boom"));
     assertThat(JsonBodies.readStrings(mapper, broken, "email")).isEmpty();
+  }
+
+  @Test
+  void anOversizedBodyByDeclaredLengthIsEmpty() throws IOException {
+    HttpServletRequest large = mock(HttpServletRequest.class);
+    when(large.getContentLengthLong()).thenReturn(JsonBodies.MAX_BODY_BYTES + 1L);
+
+    assertThat(JsonBodies.readStrings(mapper, large, "email")).isEmpty();
+    verify(large, never()).getInputStream();
+  }
+
+  @Test
+  void anOversizedBodyWithoutADeclaredLengthIsEmpty() throws IOException {
+    String padding = " ".repeat(JsonBodies.MAX_BODY_BYTES);
+    byte[] body = ("{\"email\":\"a@b.c\"}" + padding).getBytes(UTF_8);
+    HttpServletRequest chunked = mock(HttpServletRequest.class);
+    when(chunked.getContentLengthLong()).thenReturn(-1L);
+    when(chunked.getInputStream())
+        .thenReturn(new DelegatingServletInputStream(new ByteArrayInputStream(body)));
+
+    assertThat(JsonBodies.readStrings(mapper, chunked, "email")).isEmpty();
+  }
+
+  @Test
+  void aBodyAtTheCapIsRead() {
+    String json = "{\"email\":\"a@b.c\"}";
+    String padded = json + " ".repeat(JsonBodies.MAX_BODY_BYTES - json.length());
+
+    assertThat(JsonBodies.readString(mapper, post(padded), "email")).isEqualTo("a@b.c");
   }
 }

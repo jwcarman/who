@@ -72,4 +72,16 @@ class EmailLinkSettingsTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("codeSecret");
   }
+
+  @Test
+  void a_secret_of_31_characters_is_rejected() {
+    assertThatThrownBy(() -> settings(6, 5, "0123456789abcdef0123456789abcde"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("codeSecret");
+  }
+
+  @Test
+  void a_secret_of_32_characters_is_accepted() {
+    assertThat(settings(6, 5, "0123456789abcdef0123456789abcdef").codeSecret()).hasSize(32);
+  }
 }

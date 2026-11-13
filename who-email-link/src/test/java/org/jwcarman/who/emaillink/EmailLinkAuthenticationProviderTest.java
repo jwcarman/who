@@ -173,6 +173,21 @@ class EmailLinkAuthenticationProviderTest {
   }
 
   @Test
+  void addressWithANulNeverTouchesTheRepository() {
+    assertInvalid(new EmailCode("owner\u0000@example.com", "K7F2QM"));
+    verifyNoInteractions(repository, whoService);
+  }
+
+  @Test
+  void addressLongerThan320CharactersNeverTouchesTheRepository() {
+    String address = "a".repeat(309) + "@example.com";
+    assertThat(address).hasSize(321);
+
+    assertInvalid(new EmailCode(address, "K7F2QM"));
+    verifyNoInteractions(repository, whoService);
+  }
+
+  @Test
   void malformedIsInvalidWithoutTouchingAnything() {
     assertInvalid(new Malformed());
     verifyNoInteractions(repository, whoService);

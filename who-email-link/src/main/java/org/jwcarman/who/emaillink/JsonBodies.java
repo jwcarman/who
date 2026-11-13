@@ -25,8 +25,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Reads string fields from a JSON request body without ever throwing. */
+/**
+ * Reads string fields from a JSON request body without ever throwing. A body larger than {@value
+ * #MAX_BODY_BYTES} bytes is treated as no body at all.
+ */
 final class JsonBodies {
+
+  /** The largest body read, in bytes. */
+  static final int MAX_BODY_BYTES = 8192;
 
   private JsonBodies() {
     // utility class
@@ -52,17 +58,24 @@ final class JsonBodies {
    * @param request the request; its body is read once
    * @param fields the field names
    * @return the requested fields whose values are JSON strings; empty if the body is not a JSON
-   *     object
+   *     object or is larger than {@value #MAX_BODY_BYTES} bytes
    */
   static Map<String, String> readStrings(
       JsonMapper jsonMapper, HttpServletRequest request, String... fields) {
     // The servlet container owns the request stream and closes it; who must not.
     try {
+      if (request.getContentLengthLong() > MAX_BODY_BYTES) {
+        return Map.of();
+      }
       InputStream body = request.getInputStream();
       if (body == null) {
         return Map.of();
       }
-      JsonNode node = jsonMapper.readTree(body);
+      byte[] bytes = body.readNBytes(MAX_BODY_BYTES + 1);
+      if (bytes.length > MAX_BODY_BYTES) {
+        return Map.of();
+      }
+      JsonNode node = jsonMapper.readTree(bytes);
       if (node == null || !node.isObject()) {
         return Map.of();
       }

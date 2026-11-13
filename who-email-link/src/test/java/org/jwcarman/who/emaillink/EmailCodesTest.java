@@ -52,6 +52,11 @@ class EmailCodesTest {
     }
 
     @Test
+    void an_input_longer_than_64_characters_is_rejected() {
+      assertThat(EmailCodes.normalize("K7F2QM" + " ".repeat(59), 6)).isEmpty();
+    }
+
+    @Test
     void null_is_rejected() {
       assertThat(EmailCodes.normalize(null, 6)).isEmpty();
     }
