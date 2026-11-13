@@ -6,9 +6,6 @@ change as people use who and tell us what they need. Every feature starts with a
 
 ## 0.15.x: fixes found while preparing 0.15.0
 
-- **Passkey sign-in observations.** `PasskeyLoginMethod` builds its own `ProviderManager`, which
-  probably skips the Micrometer observation Spring Security adds to managers that `HttpSecurity`
-  builds. Prove it with a test, then fix it.
 - **Trace context for sign-in emails.** `whoEmailLinkExecutor` runs mail sends on virtual threads
   without a `ContextPropagatingTaskDecorator`, so the send is cut off from the request's trace.
 

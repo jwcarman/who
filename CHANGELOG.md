@@ -18,6 +18,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Passkey sign-ins are observed. With an `ObservationRegistry` (Spring Boot Actuator), Spring Security records a `spring.security.authentications` observation for each sign-in; passkey sign-ins were missing, because who builds that authentication manager itself.
 - A typed sign-in code containing non-ASCII letters is rejected. Some upper-cased to ASCII before the check (the dotless `ı` to `I`, the long `ſ` to `S`) and one turned into two letters (the ligature `ﬀ` to `FF`), so `Kjı2Kj` was read as `KJ12KJ`. Each such attempt still counted against the attempt limit, so guessing got no easier. Found by fuzzing.
 
 ### Documentation

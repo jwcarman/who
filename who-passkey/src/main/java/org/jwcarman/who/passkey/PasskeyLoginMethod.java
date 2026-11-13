@@ -24,8 +24,11 @@ import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.ResolvableType;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.ObjectPostProcessor;
@@ -49,9 +52,10 @@ import tools.jackson.databind.json.JsonMapper;
  *       (two beans of one type would make it fall back to in-memory maps).
  *   <li>Spring requires a {@link UserDetailsService} even though who's provider never calls one; if
  *       the chain has none to find, a stub that finds no users is shared.
- *   <li>The sign-in filter gets who's provider, {@link WhoSessionSecurityContextRepository}, the
- *       chain's shared {@link SessionAuthenticationStrategy} (so the session id changes and CSRF
- *       rotates at sign-in; Spring's default does neither) and who's JSON answers.
+ *   <li>The sign-in filter gets who's provider, observed and publishing events as Spring's own
+ *       managers do, {@link WhoSessionSecurityContextRepository}, the chain's shared {@link
+ *       SessionAuthenticationStrategy} (so the session id changes and CSRF rotates at sign-in;
+ *       Spring's default does neither) and who's JSON answers.
  *   <li>Spring's default registration page is off.
  *   <li>A {@link PasskeyRegistrationGuardFilter} supplies the registration answers Spring has no
  *       hook for.
@@ -136,6 +140,22 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         ExceptionTranslationFilter.class);
   }
 
+  /**
+   * Applies what Spring applies to the authentication managers it builds. Spring's own {@code
+   * webAuthn()} builds its manager by hand too and skips this, so passkey sign-ins would go
+   * unobserved. Today that means an observation of each sign-in when the application has an {@code
+   * ObservationRegistry} (Spring Boot provides one with Actuator), honoring the application's
+   * {@code SecurityObservationSettings}.
+   */
+  private static AuthenticationManager postProcessed(
+      ApplicationContext context, AuthenticationManager manager) {
+    ObjectProvider<ObjectPostProcessor<AuthenticationManager>> postProcessor =
+        context.getBeanProvider(
+            ResolvableType.forClassWithGenerics(
+                ObjectPostProcessor.class, AuthenticationManager.class));
+    return postProcessor.getIfUnique(ObjectPostProcessor::identity).postProcess(manager);
+  }
+
   // An anonymous class, not a lambda, so Spring can tell which type it post-processes.
   private ObjectPostProcessor<WebAuthnAuthenticationFilter> signInPostProcessor(
       HttpSecurity http, ApplicationContext context, JsonAuthenticationHandlers handlers) {
@@ -146,7 +166,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         context
             .getBeanProvider(AuthenticationEventPublisher.class)
             .ifUnique(manager::setAuthenticationEventPublisher);
-        filter.setAuthenticationManager(manager);
+        filter.setAuthenticationManager(postProcessed(context, manager));
         filter.setSecurityContextRepository(sessionRepository);
         // read now, during configure: SessionManagementConfigurer.init has shared it by then
         SessionAuthenticationStrategy sessionStrategy =

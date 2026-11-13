@@ -85,6 +85,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationRegistry;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -112,6 +115,9 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
 
   /** Failed authentications the application heard about. */
   static final List<AbstractAuthenticationFailureEvent> FAILURES = new CopyOnWriteArrayList<>();
+
+  /** Names of the observations that completed, as an application with Actuator would record. */
+  static final List<String> OBSERVED = new CopyOnWriteArrayList<>();
 
   @Configuration
   @EnableAutoConfiguration(exclude = UserDetailsServiceAutoConfiguration.class)
@@ -194,6 +200,27 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
       return new DefaultAuthenticationEventPublisher();
     }
 
+    /** As Spring Boot provides when Actuator is present; records each completed observation. */
+    @Bean
+    ObservationRegistry observationRegistry() {
+      ObservationRegistry registry = ObservationRegistry.create();
+      registry
+          .observationConfig()
+          .observationHandler(
+              new ObservationHandler<>() {
+                @Override
+                public boolean supportsContext(Observation.Context context) {
+                  return true;
+                }
+
+                @Override
+                public void onStop(Observation.Context context) {
+                  OBSERVED.add(context.getName());
+                }
+              });
+      return registry;
+    }
+
     @Bean
     ApplicationListener<AuthenticationSuccessEvent> successListener() {
       return SUCCESSES::add;
@@ -249,6 +276,7 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
     HANDED_OFF.clear();
     SUCCESSES.clear();
     FAILURES.clear();
+    OBSERVED.clear();
     mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     identity = identityRepository.save(Identity.create());
     device = PasskeyEmulator.honest(ORIGIN);
@@ -340,6 +368,16 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
         .singleElement()
         .extracting(e -> e.getAuthentication().getName())
         .isEqualTo(identity.id().toString());
+  }
+
+  @Test
+  void a_passkey_sign_in_is_observed_as_an_authentication_when_the_application_observes()
+      throws Exception {
+    signIn();
+
+    // the chain itself is observed, so the registry is in use
+    assertThat(OBSERVED).contains("spring.security.filterchains");
+    assertThat(OBSERVED).contains("spring.security.authentications");
   }
 
   private String forged() throws Exception {
