@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-13
+
 ### Breaking changes
 
 - `WhoAuthenticationToken` and `SignInFailedException` are `final`. Both called an inherited method from their constructor, which a subclass could observe half-built.
@@ -272,7 +274,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.15.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.16.0...HEAD
+[0.16.0]: https://github.com/jwcarman/who/releases/tag/0.16.0
 [0.15.0]: https://github.com/jwcarman/who/releases/tag/0.15.0
 [0.14.0]: https://github.com/jwcarman/who/releases/tag/0.14.0
 [0.13.0]: https://github.com/jwcarman/who/releases/tag/0.13.0

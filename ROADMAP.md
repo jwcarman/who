@@ -1,10 +1,10 @@
 # Roadmap
 
-Where who is going after 0.15.0. Each release below is a theme, not a promise: order and scope
+Where who is going after 0.16.0. Each release below is a theme, not a promise: order and scope
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 
-## 0.16: observability
+## 0.17: observability
 
 who publishes what happens, so applications can measure, alert on and audit it.
 
@@ -24,7 +24,7 @@ who publishes what happens, so applications can measure, alert on and audit it.
 Open questions: whether events are stable public API from day one, and whether the failure
 reason belongs in metrics at all.
 
-## 0.17: sensitive actions and self-service accounts
+## 0.18: sensitive actions and self-service accounts
 
 - **Recent sign-in (step-up).** Require a sign-in within the last N minutes before adding a
   passkey, changing an address, creating an API key or deleting an account, for example
@@ -33,16 +33,16 @@ reason belongs in metrics at all.
 - **Sessions.** List an identity's sessions (device, last seen) and sign out one of them, beside
   today's "sign out everywhere".
 - **Security notifications** for a changed address or a new API key, as `PasskeyAddedNotifier`
-  does for passkeys. Built on the 0.16 events.
+  does for passkeys. Built on the 0.17 events.
 
-## 0.18: API keys that are ready for production
+## 0.19: API keys that are ready for production
 
 - An expiry date, and a last-used time to find stale keys.
 - A recognizable prefix (such as `who_…`) so secret scanners can spot a leaked key.
 - Scopes: a key holds a subset of its identity's permissions.
 - Rotation with an overlap window.
 
-## 0.19: sign in with an identity provider
+## 0.20: sign in with an identity provider
 
 - Google, Apple, GitHub and any OIDC provider as a `PasswordlessLoginMethod`, on Spring's
   `oauth2Login`, linked to a who identity the way email and passkeys are.
@@ -54,12 +54,12 @@ reason belongs in metrics at all.
   explicit step by someone already signed in. Never link automatically by email address.
 - Serialization hints for `oauth2Login`'s session state, proven with a native build.
 
-## 0.20: organizations
+## 0.21: organizations
 
 - Roles and permissions scoped to an organization ("admin in Acme, member in Globex"),
   invitations to an organization, and permission checks against the current one.
 - This changes the data model more than anything else here, so its design should start early,
-  well before 0.20, even if the code comes last.
+  well before 0.21, even if the code comes last.
 
 ## 1.0: stability
 

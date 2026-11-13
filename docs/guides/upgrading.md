@@ -1,5 +1,17 @@
 # Upgrading
 
+## Upgrading to 0.16.0
+
+0.16.0 has no schema or property changes. One small break:
+
+- **`WhoAuthenticationToken` and `SignInFailedException` are `final`.** Both called an inherited
+  method from their constructor, which a subclass could observe half-built. If you extended
+  either one, wrap it or keep the extra data beside it instead.
+
+Optional: to keep sign-in emails in the request's trace, register a `TaskDecorator` such as
+Spring's `ContextPropagatingTaskDecorator`; see
+[Tracing the send](email-links.md#tracing-the-send).
+
 ## Upgrading to 0.15.0
 
 0.15.0 adds a typed sign-in code to every sign-in email. It changes the schema, a required property, and several signatures.
