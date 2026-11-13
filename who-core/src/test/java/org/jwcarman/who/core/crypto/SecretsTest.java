@@ -16,6 +16,7 @@
 package org.jwcarman.who.core.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Base64;
 import java.util.HashSet;
@@ -41,5 +42,26 @@ class SecretsTest {
   @Test
   void tokenDecodesToThirtyTwoBytes() {
     assertThat(Base64.getUrlDecoder().decode(Secrets.token())).hasSize(32);
+  }
+
+  @Test
+  void codeHasTheRequestedLengthAndOnlyCrockfordCharacters() {
+    for (int i = 0; i < 1_000; i++) {
+      assertThat(Secrets.code(6)).matches("^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{6}$");
+    }
+  }
+
+  @Test
+  void codesDiffer() {
+    var seen = new HashSet<String>();
+    for (int i = 0; i < 1_000; i++) {
+      seen.add(Secrets.code(6));
+    }
+    assertThat(seen.size()).isGreaterThan(990);
+  }
+
+  @Test
+  void codeRejectsALengthBelowOne() {
+    assertThatThrownBy(() -> Secrets.code(0)).isInstanceOf(IllegalArgumentException.class);
   }
 }

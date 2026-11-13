@@ -22,6 +22,7 @@ import java.util.Base64;
 public final class Secrets {
 
   private static final int TOKEN_BYTES = 32;
+  private static final String CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   private static final SecureRandom RANDOM = new SecureRandom();
   private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
 
@@ -39,5 +40,24 @@ public final class Secrets {
     var bytes = new byte[TOKEN_BYTES];
     RANDOM.nextBytes(bytes);
     return ENCODER.encodeToString(bytes);
+  }
+
+  /**
+   * Generates a new code of the given length. Each character is drawn uniformly from the Crockford
+   * base-32 alphabet, which omits {@code I}, {@code L}, {@code O} and {@code U}.
+   *
+   * @param length the number of characters, at least 1
+   * @return a new code
+   * @throws IllegalArgumentException if {@code length} is less than 1
+   */
+  public static String code(int length) {
+    if (length < 1) {
+      throw new IllegalArgumentException("Code length must be at least 1: " + length);
+    }
+    var code = new StringBuilder(length);
+    for (int i = 0; i < length; i++) {
+      code.append(CODE_ALPHABET.charAt(RANDOM.nextInt(CODE_ALPHABET.length())));
+    }
+    return code.toString();
   }
 }
