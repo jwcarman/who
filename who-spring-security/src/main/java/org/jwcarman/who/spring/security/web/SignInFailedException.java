@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.spring.security.web;
 
+import java.io.Serial;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -27,7 +29,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * an advice for its own type, with its own message.
  */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
-public class SignInFailedException extends AuthenticationException {
+public final class SignInFailedException extends AuthenticationException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   static final String MESSAGE = "Sign-in failed";
 

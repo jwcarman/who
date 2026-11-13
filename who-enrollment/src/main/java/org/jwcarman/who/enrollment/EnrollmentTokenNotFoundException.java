@@ -15,10 +15,14 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.io.Serial;
+
 import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when an enrollment token cannot be found. The message never carries the token. */
 public class EnrollmentTokenNotFoundException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /** Creates a new exception. */
   public EnrollmentTokenNotFoundException() {

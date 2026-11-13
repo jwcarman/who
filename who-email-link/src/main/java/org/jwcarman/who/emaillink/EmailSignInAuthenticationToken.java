@@ -17,6 +17,7 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.Serial;
 import java.util.List;
 import java.util.Objects;
 
@@ -29,6 +30,8 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
  * EmailLinkAuthenticationProvider}.
  */
 public final class EmailSignInAuthenticationToken extends AbstractAuthenticationToken {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   private final transient EmailSignInProof proof;
 

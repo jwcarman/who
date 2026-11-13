@@ -15,12 +15,16 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.io.Serial;
+
 /**
  * Thrown when a role is created with a name that is already taken. It extends {@link
  * IllegalArgumentException}, so callers that already catch that type keep working. The message does
  * not name the role.
  */
 public class RoleAlreadyExistsException extends IllegalArgumentException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /** Creates a new exception. */
   public RoleAlreadyExistsException() {

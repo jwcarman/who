@@ -15,10 +15,14 @@
  */
 package org.jwcarman.who.emaillink;
 
+import java.io.Serial;
+
 import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when an email address is already registered. The message never contains the address. */
 public class EmailAddressTakenException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /** Creates a new exception. */
   public EmailAddressTakenException() {

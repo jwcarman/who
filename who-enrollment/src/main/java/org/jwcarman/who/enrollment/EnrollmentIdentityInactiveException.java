@@ -15,12 +15,15 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.io.Serial;
 import java.util.UUID;
 
 import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when an enrollment is attempted for an identity that is not {@code ACTIVE}. */
 public class EnrollmentIdentityInactiveException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception.

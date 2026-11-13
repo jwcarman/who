@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.spring.security.web;
 
+import java.io.Serial;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -26,6 +28,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
 public class NotSignedInException extends AuthenticationException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   static final String MESSAGE = "Not signed in";
 

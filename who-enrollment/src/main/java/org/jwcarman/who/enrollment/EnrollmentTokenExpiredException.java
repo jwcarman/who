@@ -15,12 +15,15 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.io.Serial;
 import java.util.UUID;
 
 import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when an enrollment token has passed its expiration time. */
 public class EnrollmentTokenExpiredException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception for the given token id.

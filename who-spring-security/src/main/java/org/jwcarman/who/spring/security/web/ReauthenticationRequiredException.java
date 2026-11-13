@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.spring.security.web;
 
+import java.io.Serial;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 /** The caller signed in too long ago for this action and must sign in again. */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
 public class ReauthenticationRequiredException extends AuthenticationException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public ReauthenticationRequiredException() {

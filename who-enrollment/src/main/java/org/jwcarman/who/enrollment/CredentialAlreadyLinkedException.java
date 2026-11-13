@@ -15,12 +15,15 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.io.Serial;
 import java.util.UUID;
 
 import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when the credential being enrolled is already linked to an identity. */
 public class CredentialAlreadyLinkedException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception.

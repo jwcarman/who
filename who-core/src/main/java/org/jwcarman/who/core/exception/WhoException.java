@@ -15,8 +15,12 @@
  */
 package org.jwcarman.who.core.exception;
 
+import java.io.Serial;
+
 /** Base class for all Who framework exceptions. */
 public class WhoException extends RuntimeException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception with a formatted message.

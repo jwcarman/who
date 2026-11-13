@@ -17,6 +17,7 @@ package org.jwcarman.who.spring.security;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.Serial;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -33,7 +34,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
  * <p>Marked authenticated on creation. Credentials are not retained after authentication.
  * Authorities are derived from the principal's permissions automatically.
  */
-public class WhoAuthenticationToken extends AbstractAuthenticationToken {
+public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /** The resolved principal for this authentication. */
   private final WhoPrincipal principal;

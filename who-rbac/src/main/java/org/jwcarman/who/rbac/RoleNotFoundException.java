@@ -15,10 +15,14 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.io.Serial;
+
 import org.jwcarman.who.core.exception.WhoException;
 
 /** Thrown when a role lookup by name finds no matching role. */
 public class RoleNotFoundException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception for the given role name.

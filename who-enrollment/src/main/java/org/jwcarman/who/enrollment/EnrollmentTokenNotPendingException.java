@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.io.Serial;
 import java.util.UUID;
 
 import org.jwcarman.who.core.exception.WhoException;
@@ -24,6 +25,8 @@ import org.jwcarman.who.core.exception.WhoException;
  * (e.g. already redeemed or revoked).
  */
 public class EnrollmentTokenNotPendingException extends WhoException {
+
+  @Serial private static final long serialVersionUID = 1L;
 
   /**
    * Creates a new exception for the given token id and status.

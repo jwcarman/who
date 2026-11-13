@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `WhoAuthenticationToken` and `SignInFailedException` are `final`. Both called an inherited method from their constructor, which a subclass could observe half-built.
+
 ### Added
 
 - Every artifact on Maven Central ships a CycloneDX SBOM (`-cyclonedx.json` and `-cyclonedx.xml`).
