@@ -17,6 +17,7 @@ package org.jwcarman.who.autoconfigure;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
@@ -94,6 +95,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskDecorator;
+import org.springframework.core.task.support.CompositeTaskDecorator;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -543,12 +546,22 @@ public class WhoAutoConfiguration {
     /**
      * Sends sign-in emails off the request thread, so a known and an unknown address answer alike.
      * Not a default candidate, so it never stands in for the application's own executor.
+     *
+     * <p>Applies the application's {@link TaskDecorator} beans as Spring Boot does to its own
+     * executors (one on its own, several in order), so a {@code ContextPropagatingTaskDecorator}
+     * carries the request's trace and logging context to the send.
      */
     @Bean(name = EXECUTOR_BEAN_NAME, defaultCandidate = false)
     @ConditionalOnMissingBean(name = EXECUTOR_BEAN_NAME)
-    public Executor whoEmailLinkExecutor() {
+    public Executor whoEmailLinkExecutor(ObjectProvider<TaskDecorator> taskDecorators) {
       SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("who-email-link-");
       executor.setVirtualThreads(true);
+      List<TaskDecorator> decorators = taskDecorators.orderedStream().toList();
+      if (decorators.size() == 1) {
+        executor.setTaskDecorator(decorators.getFirst());
+      } else if (!decorators.isEmpty()) {
+        executor.setTaskDecorator(new CompositeTaskDecorator(decorators));
+      }
       return executor;
     }
 

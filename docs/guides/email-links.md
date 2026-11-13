@@ -252,6 +252,22 @@ Who sends at most one email per address per `who.email-link.resend-interval` (de
 
 The link and the code expire together, after `who.email-link.token-ttl` (default 5 minutes). The resend interval must not be longer than that.
 
+## Tracing the send
+
+`/ott/generate` answers `202` at once and sends the email on a virtual thread from the
+`whoEmailLinkExecutor` bean. That executor applies your `TaskDecorator` beans, as Spring Boot does
+to its own executors, so the send can stay in the request's trace and logging context. With
+Micrometer Tracing, register Spring's decorator:
+
+```java
+@Bean
+TaskDecorator contextPropagatingTaskDecorator() {
+  return new ContextPropagatingTaskDecorator();
+}
+```
+
+To use your own executor instead, define a bean named `whoEmailLinkExecutor`.
+
 ## Rate limiting at the ingress
 
 The attempt limit is per address, not per client. Who does not limit requests by client IP and never reads `X-Forwarded-For`. Put per-IP limits on `/ott/generate` and `/login/ott` at the load balancer, WAF or ingress, where the real client address is known. With [Passkeys](passkeys.md) on, limit `/webauthn/authenticate/options` and `/login/webauthn` the same way: the options endpoint creates a session for any anonymous caller. For example, with nginx:

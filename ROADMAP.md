@@ -4,11 +4,6 @@ Where who is going after 0.15.0. Each release below is a theme, not a promise: o
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 
-## 0.15.x: fixes found while preparing 0.15.0
-
-- **Trace context for sign-in emails.** `whoEmailLinkExecutor` runs mail sends on virtual threads
-  without a `ContextPropagatingTaskDecorator`, so the send is cut off from the request's trace.
-
 ## 0.16: observability
 
 who publishes what happens, so applications can measure, alert on and audit it.

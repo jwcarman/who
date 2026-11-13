@@ -18,6 +18,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Sign-in emails keep the request's trace and logging context. who's email executor applies the application's `TaskDecorator` beans, as Spring Boot does to its own executors, so with a `ContextPropagatingTaskDecorator` the send appears in the sign-in request's trace.
 - Passkey sign-ins are observed. With an `ObservationRegistry` (Spring Boot Actuator), Spring Security records a `spring.security.authentications` observation for each sign-in; passkey sign-ins were missing, because who builds that authentication manager itself.
 - A typed sign-in code containing non-ASCII letters is rejected. Some upper-cased to ASCII before the check (the dotless `ı` to `I`, the long `ſ` to `S`) and one turned into two letters (the ligature `ﬀ` to `FF`), so `Kjı2Kj` was read as `KJ12KJ`. Each such attempt still counted against the attempt limit, so guessing got no easier. Found by fuzzing.
 

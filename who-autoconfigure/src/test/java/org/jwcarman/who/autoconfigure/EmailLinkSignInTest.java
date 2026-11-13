@@ -68,6 +68,7 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
@@ -652,6 +653,56 @@ class EmailLinkSignInTest {
     }
   }
 
+  /** Stands in for a trace context, which lives in thread locals on the request thread. */
+  static final ThreadLocal<String> TRACE = new ThreadLocal<>();
+
+  /**
+   * Carries {@link #TRACE} to the task's thread, as {@code ContextPropagatingTaskDecorator} does.
+   */
+  @Configuration(proxyBeanMethods = false)
+  static class TraceDecoratorConfig {
+
+    @Bean
+    TaskDecorator traceDecorator() {
+      return task -> {
+        String trace = TRACE.get();
+        return () -> {
+          TRACE.set(trace);
+          try {
+            task.run();
+          } finally {
+            TRACE.remove();
+          }
+        };
+      };
+    }
+  }
+
+  /** Two decorators, as an application with tracing and its own MDC propagation might have. */
+  @Configuration(proxyBeanMethods = false)
+  static class TwoDecoratorsConfig {
+
+    static final List<String> APPLIED = new CopyOnWriteArrayList<>();
+
+    @Bean
+    TaskDecorator first() {
+      return task ->
+          () -> {
+            APPLIED.add("first");
+            task.run();
+          };
+    }
+
+    @Bean
+    TaskDecorator second() {
+      return task ->
+          () -> {
+            APPLIED.add("second");
+            task.run();
+          };
+    }
+  }
+
   private final ApplicationContextRunner startupRunner =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
@@ -836,6 +887,49 @@ class EmailLinkSignInTest {
               Thread thread = sendingThread.get(10, TimeUnit.SECONDS);
               assertThat(thread.isVirtual()).isTrue();
               assertThat(thread.getName()).startsWith("who-email-link-");
+            });
+  }
+
+  @Test
+  void signInEmailsKeepTheRequestsContextThroughTheApplicationsTaskDecorator() {
+    startupRunner
+        .withUserConfiguration(TraceDecoratorConfig.class)
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET)
+        .run(
+            ctx -> {
+              Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
+              CompletableFuture<String> seenTrace = new CompletableFuture<>();
+
+              TRACE.set("request-trace");
+              try {
+                executor.execute(() -> seenTrace.complete(String.valueOf(TRACE.get())));
+              } finally {
+                TRACE.remove();
+              }
+
+              assertThat(seenTrace.get(10, TimeUnit.SECONDS)).isEqualTo("request-trace");
+            });
+  }
+
+  @Test
+  void signInEmailsGoThroughEveryTaskDecoratorTheApplicationHas() {
+    TwoDecoratorsConfig.APPLIED.clear();
+    startupRunner
+        .withUserConfiguration(TwoDecoratorsConfig.class)
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + CODE_SECRET)
+        .run(
+            ctx -> {
+              Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
+              CompletableFuture<Void> sent = new CompletableFuture<>();
+
+              executor.execute(() -> sent.complete(null));
+
+              sent.get(10, TimeUnit.SECONDS);
+              assertThat(TwoDecoratorsConfig.APPLIED).containsExactlyInAnyOrder("first", "second");
             });
   }
 
