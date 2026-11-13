@@ -307,12 +307,11 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
         Duration.ofMinutes(10));
   }
 
-  @SuppressWarnings("unchecked")
   private static HttpSecurity http(UserDetailsService shared, UserDetailsService bean) {
     HttpSecurity http = mock(HttpSecurity.class);
     ApplicationContext context = mock(ApplicationContext.class);
-    ObjectProvider<UserDetailsService> beans = mock(ObjectProvider.class);
-    ObjectProvider<WhoExceptionHandoff> handoffs = mock(ObjectProvider.class);
+    ObjectProvider<UserDetailsService> beans = mock();
+    ObjectProvider<WhoExceptionHandoff> handoffs = mock();
     when(context.getBeanProvider(WhoExceptionHandoff.class)).thenReturn(handoffs);
     when(handoffs.getIfAvailable(any())).thenReturn(new WhoExceptionHandoff(null));
     when(http.getSharedObject(ApplicationContext.class)).thenReturn(context);

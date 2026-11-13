@@ -34,7 +34,6 @@ import tools.jackson.databind.json.JsonMapper;
 class EmailLinkLoginMethodTest {
 
   @Test
-  @SuppressWarnings("unchecked")
   void configuresEveryHookAndLeavesTheUrlsAlone() {
     JsonMapper mapper = JsonMapper.builder().build();
     WhoOneTimeTokenService tokenService = mock(WhoOneTimeTokenService.class);
@@ -55,10 +54,9 @@ class EmailLinkLoginMethodTest {
     method.configure(http);
 
     ArgumentCaptor<Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>>> customizer =
-        ArgumentCaptor.forClass(Customizer.class);
+        ArgumentCaptor.captor();
     verify(http).oneTimeTokenLogin(customizer.capture());
-    OneTimeTokenLoginConfigurer<HttpSecurity> ott =
-        mock(OneTimeTokenLoginConfigurer.class, RETURNS_SELF);
+    OneTimeTokenLoginConfigurer<HttpSecurity> ott = mock(RETURNS_SELF);
     customizer.getValue().customize(ott);
 
     verify(ott).tokenService(tokenService);
