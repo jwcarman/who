@@ -81,6 +81,11 @@ class EmailLinkSettingsTest {
   }
 
   @Test
+  void a_max_attempts_of_one_is_accepted() {
+    assertThat(settings(6, 1, "0123456789abcdef0123456789abcdef").codeMaxAttempts()).isEqualTo(1);
+  }
+
+  @Test
   void a_secret_of_32_characters_is_accepted() {
     assertThat(settings(6, 5, "0123456789abcdef0123456789abcdef").codeSecret()).hasSize(32);
   }

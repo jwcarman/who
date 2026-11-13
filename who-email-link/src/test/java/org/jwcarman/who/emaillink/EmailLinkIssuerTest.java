@@ -234,6 +234,15 @@ class EmailLinkIssuerTest {
   }
 
   @Test
+  void anAddressStartingWithAnAtSignIsStillLookedUp() {
+    when(credentials.findByAddress("@example.com")).thenReturn(Optional.empty());
+
+    issuer.issue("@example.com", TOKEN);
+
+    verify(credentials).findByAddress("@example.com");
+  }
+
+  @Test
   void anAddressWithAControlCharacterOrTooLongStopsBeforeTheLookup() {
     assertThat(issuer.issue("owner\u0000@example.com", TOKEN))
         .isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);

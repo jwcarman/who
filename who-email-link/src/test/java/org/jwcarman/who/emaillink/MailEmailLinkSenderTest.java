@@ -63,6 +63,13 @@ class MailEmailLinkSenderTest {
   }
 
   @Test
+  void aPartMinuteLeftRoundsUp() {
+    SimpleMailMessage message = sendWithTimeLeft(Duration.ofSeconds(270));
+
+    assertThat(message.getText()).contains("expire in 5 minutes and work once.");
+  }
+
+  @Test
   void lessThanAMinuteLeftReadsOneMinute() {
     SimpleMailMessage message = sendWithTimeLeft(Duration.ofSeconds(30));
 

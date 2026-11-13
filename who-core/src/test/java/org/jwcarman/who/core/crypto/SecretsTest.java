@@ -61,6 +61,11 @@ class SecretsTest {
   }
 
   @Test
+  void codeOfLengthOneHasOneCharacter() {
+    assertThat(Secrets.code(1)).hasSize(1);
+  }
+
+  @Test
   void codeRejectsALengthBelowOne() {
     assertThatThrownBy(() -> Secrets.code(0)).isInstanceOf(IllegalArgumentException.class);
   }

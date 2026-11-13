@@ -103,6 +103,13 @@ class EmailSignInAuthenticationTokenTest {
     }
 
     @Test
+    void a_token_hashes_like_its_proof() {
+      LinkToken proof = new LinkToken("t");
+
+      assertThat(new EmailSignInAuthenticationToken(proof)).hasSameHashCodeAs(proof);
+    }
+
+    @Test
     void tokens_with_different_proofs_are_not_equal() {
       EmailSignInAuthenticationToken a = new EmailSignInAuthenticationToken(new LinkToken("t"));
 
@@ -121,7 +128,7 @@ class EmailSignInAuthenticationTokenTest {
       assertThat(new EmailCode("a@b.c", "K7F2QM").toString())
           .contains("a@b.c")
           .doesNotContain("K7F2QM");
-      assertThat(new LinkToken("secret-token").toString()).doesNotContain("secret-token");
+      assertThat(new LinkToken("secret-token")).hasToString("LinkToken[token=****]");
       assertThat(new EmailSignInAuthenticationToken(new EmailCode("a@b.c", "K7F2QM")).toString())
           .doesNotContain("K7F2QM");
     }

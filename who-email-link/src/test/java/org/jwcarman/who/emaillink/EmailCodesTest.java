@@ -57,6 +57,13 @@ class EmailCodesTest {
     }
 
     @Test
+    void an_input_of_exactly_64_characters_passes_the_length_guard() {
+      String code = "K".repeat(64);
+
+      assertThat(EmailCodes.normalize(code, 64)).contains(code);
+    }
+
+    @Test
     void null_is_rejected() {
       assertThat(EmailCodes.normalize(null, 6)).isEmpty();
     }
