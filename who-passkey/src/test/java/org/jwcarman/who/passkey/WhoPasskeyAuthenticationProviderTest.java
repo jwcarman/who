@@ -43,7 +43,6 @@ import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
-import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationRequestToken;
 import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
@@ -68,17 +67,13 @@ class WhoPasskeyAuthenticationProviderTest {
 
   private static RelyingPartyAuthenticationRequest request(Bytes rawId) {
     PublicKeyCredential<AuthenticatorAssertionResponse> credential =
-        PublicKeyCredential.<AuthenticatorAssertionResponse>builder()
-            .id(rawId.toBase64UrlString())
-            .rawId(rawId)
-            .type(PublicKeyCredentialType.PUBLIC_KEY)
-            .response(
-                AuthenticatorAssertionResponse.builder()
-                    .authenticatorData(Bytes.random())
-                    .clientDataJSON(Bytes.random())
-                    .signature(Bytes.random())
-                    .build())
-            .build();
+        PasskeyEmulator.credential(
+            rawId,
+            AuthenticatorAssertionResponse.builder()
+                .authenticatorData(Bytes.random())
+                .clientDataJSON(Bytes.random())
+                .signature(Bytes.random())
+                .build());
     PublicKeyCredentialRequestOptions options =
         PublicKeyCredentialRequestOptions.builder()
             .challenge(Bytes.random())

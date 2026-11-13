@@ -20,9 +20,11 @@ import java.util.List;
 
 import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorAttestationResponse;
+import org.springframework.security.web.webauthn.api.AuthenticatorResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutableAuthenticationExtensionsClientOutputs;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
+import org.springframework.security.web.webauthn.api.PublicKeyCredential.PublicKeyCredentialBuilder;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialDescriptor;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
@@ -72,17 +74,12 @@ final class PasskeyEmulator {
             options.getExcludeCredentials().stream().map(d -> d.getId().getBytes()).toList());
     Bytes rawId = new Bytes(attestation.rawId());
     PublicKeyCredential<AuthenticatorAttestationResponse> credential =
-        PublicKeyCredential.<AuthenticatorAttestationResponse>builder()
-            .id(rawId.toBase64UrlString())
-            .rawId(rawId)
-            .type(PublicKeyCredentialType.PUBLIC_KEY)
-            .response(
-                AuthenticatorAttestationResponse.builder()
-                    .attestationObject(new Bytes(attestation.attestationObject()))
-                    .clientDataJSON(new Bytes(attestation.clientDataJson()))
-                    .build())
-            .clientExtensionResults(new ImmutableAuthenticationExtensionsClientOutputs())
-            .build();
+        credential(
+            rawId,
+            AuthenticatorAttestationResponse.builder()
+                .attestationObject(new Bytes(attestation.attestationObject()))
+                .clientDataJSON(new Bytes(attestation.clientDataJson()))
+                .build());
     return new ImmutableRelyingPartyRegistrationRequest(
         options, new RelyingPartyPublicKey(credential, label));
   }
@@ -155,20 +152,30 @@ final class PasskeyEmulator {
             userVerified);
     Bytes rawId = new Bytes(assertion.rawId());
     PublicKeyCredential<AuthenticatorAssertionResponse> credential =
-        PublicKeyCredential.<AuthenticatorAssertionResponse>builder()
-            .id(rawId.toBase64UrlString())
-            .rawId(rawId)
-            .type(PublicKeyCredentialType.PUBLIC_KEY)
-            .response(
-                AuthenticatorAssertionResponse.builder()
-                    .authenticatorData(new Bytes(assertion.authenticatorData()))
-                    .clientDataJSON(new Bytes(assertion.clientDataJson()))
-                    .signature(new Bytes(assertion.signature()))
-                    .userHandle(
-                        assertion.userHandle() != null ? new Bytes(assertion.userHandle()) : null)
-                    .build())
-            .clientExtensionResults(new ImmutableAuthenticationExtensionsClientOutputs())
-            .build();
+        credential(
+            rawId,
+            AuthenticatorAssertionResponse.builder()
+                .authenticatorData(new Bytes(assertion.authenticatorData()))
+                .clientDataJSON(new Bytes(assertion.clientDataJson()))
+                .signature(new Bytes(assertion.signature()))
+                .userHandle(
+                    assertion.userHandle() != null ? new Bytes(assertion.userHandle()) : null)
+                .build());
     return new RelyingPartyAuthenticationRequest(options, credential);
+  }
+
+  /**
+   * A public-key credential with the given id and response. Spring's builder setters return the raw
+   * builder type, so chaining them loses {@code R}; setting each on the typed builder keeps it.
+   */
+  static <R extends AuthenticatorResponse> PublicKeyCredential<R> credential(
+      Bytes rawId, R response) {
+    PublicKeyCredentialBuilder<R> builder = PublicKeyCredential.builder();
+    builder.id(rawId.toBase64UrlString());
+    builder.rawId(rawId);
+    builder.type(PublicKeyCredentialType.PUBLIC_KEY);
+    builder.response(response);
+    builder.clientExtensionResults(new ImmutableAuthenticationExtensionsClientOutputs());
+    return builder.build();
   }
 }
