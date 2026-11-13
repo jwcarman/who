@@ -87,4 +87,26 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
         .param(PARAM_ROLE_ID, roleId)
         .update();
   }
+
+  @Override
+  public boolean addPermissionIfAbsent(UUID roleId, String permission) {
+    return jdbcClient
+            .sql(
+                "INSERT INTO who_role_permission (role_id, permission) VALUES (:roleId, :permission) ON CONFLICT DO NOTHING")
+            .param(PARAM_ROLE_ID, roleId)
+            .param(PARAM_PERMISSION, permission)
+            .update()
+        == 1;
+  }
+
+  @Override
+  public boolean removePermissionIfPresent(UUID roleId, String permission) {
+    return jdbcClient
+            .sql(
+                "DELETE FROM who_role_permission WHERE role_id = :roleId AND permission = :permission")
+            .param(PARAM_ROLE_ID, roleId)
+            .param(PARAM_PERMISSION, permission)
+            .update()
+        == 1;
+  }
 }

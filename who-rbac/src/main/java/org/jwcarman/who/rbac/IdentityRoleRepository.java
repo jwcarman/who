@@ -66,4 +66,40 @@ public interface IdentityRoleRepository {
    * @param identityId the identity UUID
    */
   void removeAllRolesForIdentity(UUID identityId);
+
+  /**
+   * Assigns a role to an identity and reports whether that changed anything.
+   *
+   * <p>The default implementation reads the identity's roles before assigning, so an implementation
+   * should override it with a single write that reports the rows it affected.
+   *
+   * @param identityId the identity
+   * @param roleId the role
+   * @return {@code true} if the role was not yet assigned and now is
+   */
+  default boolean assignRoleIfAbsent(UUID identityId, UUID roleId) {
+    if (findRoleIdsByIdentityId(identityId).contains(roleId)) {
+      return false;
+    }
+    assignRole(identityId, roleId);
+    return true;
+  }
+
+  /**
+   * Removes a role assignment from an identity and reports whether that changed anything.
+   *
+   * <p>The default implementation reads the identity's roles before removing, so an implementation
+   * should override it with a single write that reports the rows it affected.
+   *
+   * @param identityId the identity
+   * @param roleId the role
+   * @return {@code true} if the role was assigned and now is not
+   */
+  default boolean removeRoleIfPresent(UUID identityId, UUID roleId) {
+    if (!findRoleIdsByIdentityId(identityId).contains(roleId)) {
+      return false;
+    }
+    removeRole(identityId, roleId);
+    return true;
+  }
 }

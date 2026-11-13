@@ -269,8 +269,15 @@ public class WhoAutoConfiguration {
     public RbacService rbacService(
         RoleRepository roleRepository,
         RolePermissionRepository rolePermissionRepository,
-        IdentityRoleRepository identityRoleRepository) {
-      return new RbacService(roleRepository, rolePermissionRepository, identityRoleRepository);
+        IdentityRoleRepository identityRoleRepository,
+        WhoEventPublisher whoEventPublisher,
+        Clock whoClock) {
+      return new RbacService(
+          roleRepository,
+          rolePermissionRepository,
+          identityRoleRepository,
+          whoEventPublisher,
+          whoClock);
     }
   }
 
@@ -291,12 +298,16 @@ public class WhoAutoConfiguration {
         EnrollmentTokenRepository enrollmentTokenRepository,
         IdentityRepository identityRepository,
         CredentialIdentityRepository credentialIdentityRepository,
-        WhoProperties properties) {
+        WhoProperties properties,
+        WhoEventPublisher whoEventPublisher,
+        Clock whoClock) {
       return new WhoEnrollmentService(
           enrollmentTokenRepository,
           identityRepository,
           credentialIdentityRepository,
-          properties.getEnrollment().getTokenExpiration());
+          properties.getEnrollment().getTokenExpiration(),
+          whoEventPublisher,
+          whoClock);
     }
   }
 

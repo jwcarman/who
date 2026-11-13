@@ -18,6 +18,7 @@ package org.jwcarman.who.enrollment;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -107,6 +108,16 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
             "UPDATE who_enrollment_token SET status = 'REVOKED' WHERE identity_id = :identityId AND status = 'PENDING'")
         .param(PARAM_IDENTITY_ID, identityId)
         .update();
+  }
+
+  @Override
+  public List<UUID> revokePendingForIdentity(UUID identityId) {
+    return jdbcClient
+        .sql(
+            "UPDATE who_enrollment_token SET status = 'REVOKED' WHERE identity_id = :identityId AND status = 'PENDING' RETURNING id")
+        .param(PARAM_IDENTITY_ID, identityId)
+        .query(UUID.class)
+        .list();
   }
 
   @Override

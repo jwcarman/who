@@ -15,13 +15,17 @@
  */
 package org.jwcarman.who.enrollment;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.event.CredentialAdded;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
@@ -41,16 +45,54 @@ public class WhoEnrollmentService {
   private final IdentityRepository identityRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final Duration tokenExpiration;
+  private final WhoEventPublisher eventPublisher;
+  private final Clock clock;
 
+  /**
+   * Creates a service that publishes no events.
+   *
+   * @param enrollmentTokenRepository where tokens are stored
+   * @param identityRepository where identities are stored
+   * @param credentialIdentityRepository where credential-to-identity links are stored
+   * @param tokenExpiration how long a new token stays valid
+   */
   public WhoEnrollmentService(
       EnrollmentTokenRepository enrollmentTokenRepository,
       IdentityRepository identityRepository,
       CredentialIdentityRepository credentialIdentityRepository,
       Duration tokenExpiration) {
+    this(
+        enrollmentTokenRepository,
+        identityRepository,
+        credentialIdentityRepository,
+        tokenExpiration,
+        WhoEventPublisher.NOOP,
+        Clock.systemUTC());
+  }
+
+  /**
+   * Creates a service that publishes an event for each token and credential change.
+   *
+   * @param enrollmentTokenRepository where tokens are stored
+   * @param identityRepository where identities are stored
+   * @param credentialIdentityRepository where credential-to-identity links are stored
+   * @param tokenExpiration how long a new token stays valid
+   * @param eventPublisher where the enrollment events are published
+   * @param clock the clock that decides token expiry on redemption and stamps events
+   */
+  public WhoEnrollmentService(
+      EnrollmentTokenRepository enrollmentTokenRepository,
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      Duration tokenExpiration,
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     this.enrollmentTokenRepository = enrollmentTokenRepository;
     this.identityRepository = identityRepository;
     this.credentialIdentityRepository = credentialIdentityRepository;
     this.tokenExpiration = tokenExpiration;
+    this.eventPublisher = eventPublisher;
+    this.clock = clock;
   }
 
   /**
@@ -66,7 +108,9 @@ public class WhoEnrollmentService {
     if (!identityRepository.existsById(identity.id())) {
       throw new IllegalArgumentException("Identity not found: " + identity.id());
     }
-    enrollmentTokenRepository.revokeAllPendingForIdentity(identity.id());
+    for (UUID revokedId : enrollmentTokenRepository.revokePendingForIdentity(identity.id())) {
+      eventPublisher.publish(new EnrollmentTokenRevoked(clock.instant(), identity.id(), revokedId));
+    }
     EnrollmentToken rawToken = EnrollmentToken.create(identity, tokenExpiration);
     EnrollmentToken hashedToken =
         new EnrollmentToken(
@@ -78,6 +122,8 @@ public class WhoEnrollmentService {
             rawToken.expiresAt(),
             null);
     enrollmentTokenRepository.save(hashedToken);
+    eventPublisher.publish(
+        new EnrollmentTokenCreated(clock.instant(), identity.id(), rawToken.id()));
     return rawToken;
   }
 
@@ -115,12 +161,13 @@ public class WhoEnrollmentService {
       throw new EnrollmentIdentityInactiveException(identity.id());
     }
 
-    if (!enrollmentTokenRepository.redeem(token.id(), Instant.now())) {
+    Instant now = clock.instant();
+    if (!enrollmentTokenRepository.redeem(token.id(), now)) {
       EnrollmentToken current =
           enrollmentTokenRepository
               .findById(token.id())
               .orElseThrow(EnrollmentTokenNotFoundException::new);
-      if (current.isExpired()) {
+      if (!now.isBefore(current.expiresAt())) {
         throw new EnrollmentTokenExpiredException(current.id());
       }
       throw new EnrollmentTokenNotPendingException(current.id(), current.status());
@@ -131,6 +178,13 @@ public class WhoEnrollmentService {
     } catch (DuplicateKeyException _) {
       throw new CredentialAlreadyLinkedException(credential.id());
     }
+    eventPublisher.publish(
+        new CredentialAdded(
+            clock.instant(),
+            identity.id(),
+            credential.id(),
+            credential.kind(),
+            credential.label().orElse(null)));
     return identity;
   }
 
@@ -142,10 +196,14 @@ public class WhoEnrollmentService {
    */
   @Transactional
   public void revokeToken(EnrollmentToken token) {
-    enrollmentTokenRepository
-        .findById(token.id())
-        .orElseThrow(EnrollmentTokenNotFoundException::new);
-    enrollmentTokenRepository.revoke(token.id());
+    EnrollmentToken current =
+        enrollmentTokenRepository
+            .findById(token.id())
+            .orElseThrow(EnrollmentTokenNotFoundException::new);
+    if (enrollmentTokenRepository.revoke(current.id())) {
+      eventPublisher.publish(
+          new EnrollmentTokenRevoked(clock.instant(), current.identityId(), current.id()));
+    }
   }
 
   /**

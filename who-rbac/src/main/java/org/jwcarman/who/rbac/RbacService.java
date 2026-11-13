@@ -15,12 +15,14 @@
  */
 package org.jwcarman.who.rbac;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,14 +37,49 @@ public class RbacService {
   private final RoleRepository roleRepository;
   private final RolePermissionRepository rolePermissionRepository;
   private final IdentityRoleRepository identityRoleRepository;
+  private final WhoEventPublisher eventPublisher;
+  private final Clock clock;
 
+  /**
+   * Creates a service that publishes no events.
+   *
+   * @param roleRepository where roles are stored
+   * @param rolePermissionRepository where role permissions are stored
+   * @param identityRoleRepository where identity-role assignments are stored
+   */
+  @Autowired
   public RbacService(
       RoleRepository roleRepository,
       RolePermissionRepository rolePermissionRepository,
       IdentityRoleRepository identityRoleRepository) {
+    this(
+        roleRepository,
+        rolePermissionRepository,
+        identityRoleRepository,
+        WhoEventPublisher.NOOP,
+        Clock.systemUTC());
+  }
+
+  /**
+   * Creates a service that publishes an event for each change it makes.
+   *
+   * @param roleRepository where roles are stored
+   * @param rolePermissionRepository where role permissions are stored
+   * @param identityRoleRepository where identity-role assignments are stored
+   * @param eventPublisher where the role events are published
+   * @param clock the clock events are stamped with
+   */
+  public RbacService(
+      RoleRepository roleRepository,
+      RolePermissionRepository rolePermissionRepository,
+      IdentityRoleRepository identityRoleRepository,
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     this.roleRepository = roleRepository;
     this.rolePermissionRepository = rolePermissionRepository;
     this.identityRoleRepository = identityRoleRepository;
+    this.eventPublisher = eventPublisher;
+    this.clock = clock;
   }
 
   /**
@@ -141,7 +178,9 @@ public class RbacService {
       throw new RoleAlreadyExistsException();
     }
     try {
-      return roleRepository.save(Role.create(name));
+      Role saved = roleRepository.save(Role.create(name));
+      eventPublisher.publish(new RoleCreated(clock.instant(), saved.id(), saved.name()));
+      return saved;
     } catch (DuplicateKeyException e) {
       // A concurrent create won the race between the check above and this insert.
       throw new RoleAlreadyExistsException(e);
@@ -160,6 +199,7 @@ public class RbacService {
       throw new IllegalArgumentException("Role not found: " + role.id());
     }
     roleRepository.deleteById(role.id());
+    eventPublisher.publish(new RoleDeleted(clock.instant(), role.id(), role.name()));
   }
 
   /**
@@ -174,7 +214,10 @@ public class RbacService {
     if (!roleRepository.existsById(role.id())) {
       throw new IllegalArgumentException("Role not found: " + role.id());
     }
-    rolePermissionRepository.addPermission(role.id(), permission);
+    if (rolePermissionRepository.addPermissionIfAbsent(role.id(), permission)) {
+      eventPublisher.publish(
+          new RolePermissionAdded(clock.instant(), role.id(), role.name(), permission));
+    }
   }
 
   /**
@@ -186,12 +229,12 @@ public class RbacService {
    */
   @Transactional
   public void removePermissionFromRole(Role role, String permission) {
-    Set<String> current = rolePermissionRepository.findPermissionsByRoleId(role.id());
-    if (!current.contains(permission)) {
+    if (!rolePermissionRepository.removePermissionIfPresent(role.id(), permission)) {
       throw new IllegalArgumentException(
           "Permission '" + permission + "' is not assigned to role: " + role.id());
     }
-    rolePermissionRepository.removePermission(role.id(), permission);
+    eventPublisher.publish(
+        new RolePermissionRemoved(clock.instant(), role.id(), role.name(), permission));
   }
 
   /**
@@ -206,7 +249,14 @@ public class RbacService {
     if (!roleRepository.existsById(role.id())) {
       throw new IllegalArgumentException("Role not found: " + role.id());
     }
-    identityRoleRepository.assignRole(identity.id(), role.id());
+    assign(identity, role);
+  }
+
+  private void assign(Identity identity, Role role) {
+    if (identityRoleRepository.assignRoleIfAbsent(identity.id(), role.id())) {
+      eventPublisher.publish(
+          new RoleAssigned(clock.instant(), identity.id(), role.id(), role.name()));
+    }
   }
 
   /**
@@ -237,7 +287,7 @@ public class RbacService {
   private void assignRoleByNameInternal(Identity identity, String roleName) {
     Role role =
         roleRepository.findByName(roleName).orElseThrow(() -> new RoleNotFoundException(roleName));
-    identityRoleRepository.assignRole(identity.id(), role.id());
+    assign(identity, role);
   }
 
   /**
@@ -249,10 +299,11 @@ public class RbacService {
    */
   @Transactional
   public void removeRoleFromIdentity(Identity identity, Role role) {
-    if (!identityRoleRepository.findRoleIdsByIdentityId(identity.id()).contains(role.id())) {
+    if (!identityRoleRepository.removeRoleIfPresent(identity.id(), role.id())) {
       throw new IllegalArgumentException(
           "Role " + role.id() + " is not assigned to identity: " + identity.id());
     }
-    identityRoleRepository.removeRole(identity.id(), role.id());
+    eventPublisher.publish(
+        new RoleUnassigned(clock.instant(), identity.id(), role.id(), role.name()));
   }
 }

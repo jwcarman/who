@@ -80,4 +80,26 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
         .param(PARAM_IDENTITY_ID, identityId)
         .update();
   }
+
+  @Override
+  public boolean assignRoleIfAbsent(UUID identityId, UUID roleId) {
+    return jdbcClient
+            .sql(
+                "INSERT INTO who_identity_role (identity_id, role_id) VALUES (:identityId, :roleId) ON CONFLICT DO NOTHING")
+            .param(PARAM_IDENTITY_ID, identityId)
+            .param(PARAM_ROLE_ID, roleId)
+            .update()
+        == 1;
+  }
+
+  @Override
+  public boolean removeRoleIfPresent(UUID identityId, UUID roleId) {
+    return jdbcClient
+            .sql(
+                "DELETE FROM who_identity_role WHERE identity_id = :identityId AND role_id = :roleId")
+            .param(PARAM_IDENTITY_ID, identityId)
+            .param(PARAM_ROLE_ID, roleId)
+            .update()
+        == 1;
+  }
 }

@@ -16,6 +16,7 @@
 package org.jwcarman.who.enrollment;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,6 +53,21 @@ public interface EnrollmentTokenRepository {
    * @param identityId the identity whose pending tokens should be revoked
    */
   void revokeAllPendingForIdentity(UUID identityId);
+
+  /**
+   * Revokes all {@code PENDING} tokens for the given identity and returns their ids, so each
+   * revocation can be reported.
+   *
+   * <p>The default implementation calls {@link #revokeAllPendingForIdentity(UUID)} and returns an
+   * empty list, so revocations by an implementation that does not override it are not reported.
+   *
+   * @param identityId the identity whose pending tokens should be revoked
+   * @return the ids of the tokens this call revoked (never null; empty if none)
+   */
+  default List<UUID> revokePendingForIdentity(UUID identityId) {
+    revokeAllPendingForIdentity(identityId);
+    return List.of();
+  }
 
   /**
    * Atomically marks a token {@code REDEEMED} if, and only if, it is still {@code PENDING} and has

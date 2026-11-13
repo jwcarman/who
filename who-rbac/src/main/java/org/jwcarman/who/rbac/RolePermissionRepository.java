@@ -60,4 +60,40 @@ public interface RolePermissionRepository {
    * @param roleId the role UUID
    */
   void removeAllPermissionsForRole(UUID roleId);
+
+  /**
+   * Grants a permission to a role and reports whether that changed anything.
+   *
+   * <p>The default implementation reads the role's permissions before adding, so an implementation
+   * should override it with a single write that reports the rows it affected.
+   *
+   * @param roleId the role
+   * @param permission the permission
+   * @return {@code true} if the role did not have the permission and now does
+   */
+  default boolean addPermissionIfAbsent(UUID roleId, String permission) {
+    if (findPermissionsByRoleId(roleId).contains(permission)) {
+      return false;
+    }
+    addPermission(roleId, permission);
+    return true;
+  }
+
+  /**
+   * Revokes a permission from a role and reports whether that changed anything.
+   *
+   * <p>The default implementation reads the role's permissions before removing, so an
+   * implementation should override it with a single write that reports the rows it affected.
+   *
+   * @param roleId the role
+   * @param permission the permission
+   * @return {@code true} if the role had the permission and now does not
+   */
+  default boolean removePermissionIfPresent(UUID roleId, String permission) {
+    if (!findPermissionsByRoleId(roleId).contains(permission)) {
+      return false;
+    }
+    removePermission(roleId, permission);
+    return true;
+  }
 }
