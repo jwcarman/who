@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.emaillink.EmailSignInProof.EmailCode;
@@ -89,7 +91,7 @@ class EmailLinkAuthenticationProviderTest {
     assertThat(who.getPrincipal()).isEqualTo(principal);
     assertThat(who.credentialId()).contains(credentialId);
     ArgumentCaptor<Credential> credential = ArgumentCaptor.forClass(Credential.class);
-    verify(whoService).resolve(credential.capture());
+    verify(whoService).resolveDetailed(credential.capture());
     assertThat(credential.getValue().id()).isEqualTo(credentialId);
   }
 
@@ -104,7 +106,7 @@ class EmailLinkAuthenticationProviderTest {
   void validLinkTokenGivesWhoTokenWithCredentialId() {
     when(repository.consume(MessageDigests.sha256Hex("value"), NOW))
         .thenReturn(Optional.of(credentialId));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolved(principal));
 
     assertSignedIn(provider.authenticate(signIn(new LinkToken("value"))));
   }
@@ -114,7 +116,7 @@ class EmailLinkAuthenticationProviderTest {
     when(repository.consume(anyString(), any())).thenReturn(Optional.empty());
 
     assertInvalid(new LinkToken("value"));
-    verify(whoService, never()).resolve(any(Credential.class));
+    verify(whoService, never()).resolveDetailed(any(Credential.class));
   }
 
   @Test
@@ -123,7 +125,7 @@ class EmailLinkAuthenticationProviderTest {
     when(repository.attemptCode("owner@example.com", 5, NOW))
         .thenReturn(Optional.of(new EmailCodeAttempt(credentialId, hash)));
     when(repository.consumeCode(credentialId, hash, NOW)).thenReturn(Optional.of(credentialId));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolved(principal));
 
     assertSignedIn(provider.authenticate(signIn(new EmailCode(" Owner@Example.com ", "k7f-2qm"))));
     verify(repository).consumeCode(credentialId, hash, NOW);
@@ -137,7 +139,7 @@ class EmailLinkAuthenticationProviderTest {
     when(repository.consumeCode(credentialId, hash, NOW)).thenReturn(Optional.empty());
 
     assertInvalid(new EmailCode("owner@example.com", "K7F2QM"));
-    verify(whoService, never()).resolve(any(Credential.class));
+    verify(whoService, never()).resolveDetailed(any(Credential.class));
   }
 
   @Test
@@ -197,7 +199,8 @@ class EmailLinkAuthenticationProviderTest {
   @Test
   void inactiveIdentityIsInvalid() {
     when(repository.consume(anyString(), any())).thenReturn(Optional.of(credentialId));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Inactive(UUID.randomUUID()));
 
     assertInvalid(new LinkToken("value"));
   }

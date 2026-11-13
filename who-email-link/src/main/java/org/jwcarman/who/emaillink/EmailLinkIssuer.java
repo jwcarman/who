@@ -20,9 +20,16 @@ import static java.util.Objects.requireNonNull;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.crypto.Secrets;
+import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.service.Resolution;
+import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.NoIdentity;
+import org.jwcarman.who.core.service.Resolution.NotLinked;
+import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +42,8 @@ import org.slf4j.LoggerFactory;
  * {@code 202}; that path ignores the {@link EmailLinkOutcome}. {@link #issue} never throws: every
  * failure is logged at WARN with only the credential id (when known) and the exception class, never
  * the exception message, the address or the token value.
+ *
+ * <p>Each call to {@link #issue} publishes one {@link SignInEmailRequested} with its outcome.
  */
 public class EmailLinkIssuer {
 
@@ -46,10 +55,11 @@ public class EmailLinkIssuer {
   private final EmailLinkSender sender;
   private final EmailLinkSettings settings;
   private final Clock clock;
+  private final WhoEventPublisher eventPublisher;
   private final EmailCodeHasher codeHasher;
 
   /**
-   * Creates a new issuer.
+   * Creates a new issuer that publishes no events.
    *
    * @param credentialService finds email credentials
    * @param whoService resolves credentials to active identities
@@ -65,6 +75,29 @@ public class EmailLinkIssuer {
       EmailLinkSender sender,
       EmailLinkSettings settings,
       Clock clock) {
+    this(
+        credentialService, whoService, repository, sender, settings, clock, WhoEventPublisher.NOOP);
+  }
+
+  /**
+   * Creates a new issuer.
+   *
+   * @param credentialService finds email credentials
+   * @param whoService resolves credentials to active identities
+   * @param repository stores token hashes
+   * @param sender sends the link
+   * @param settings the link settings
+   * @param clock the clock
+   * @param eventPublisher where {@link SignInEmailRequested} is published
+   */
+  public EmailLinkIssuer(
+      EmailCredentialService credentialService,
+      WhoService whoService,
+      EmailLinkTokenRepository repository,
+      EmailLinkSender sender,
+      EmailLinkSettings settings,
+      Clock clock,
+      WhoEventPublisher eventPublisher) {
     this.credentialService =
         requireNonNull(credentialService, "credentialService must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
@@ -72,13 +105,15 @@ public class EmailLinkIssuer {
     this.sender = requireNonNull(sender, "sender must not be null");
     this.settings = requireNonNull(settings, "settings must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
     this.codeHasher = new EmailCodeHasher(settings.codeSecret());
   }
 
   /**
    * Issues and sends a link if the address belongs to an active identity and no recent link is
    * outstanding, and reports what happened. Never throws: a failure is logged and reported as
-   * {@link EmailLinkOutcome#SEND_FAILED}.
+   * {@link EmailLinkOutcome#SEND_FAILED}. Publishes one {@link SignInEmailRequested} with the
+   * outcome.
    *
    * <p>This method is synchronous and uses its own transactions. A caller already in a transaction
    * should call it after that transaction commits, for example from {@code
@@ -90,32 +125,49 @@ public class EmailLinkIssuer {
    * @return what became of the request
    */
   public EmailLinkOutcome issue(String address, String tokenValue) {
+    Issued issued = issueIfKnown(address, tokenValue);
+    String reported = looksLikeAnAddress(address) ? EmailCredential.normalize(address) : null;
+    try {
+      eventPublisher.publish(
+          new SignInEmailRequested(
+              clock.instant(), reported, issued.outcome(), issued.identityId()));
+    } catch (RuntimeException e) {
+      log.warn("Failed to publish a sign-in email request: {}", e.getClass().getName());
+    }
+    return issued.outcome();
+  }
+
+  private Issued issueIfKnown(String address, String tokenValue) {
     if (!looksLikeAnAddress(address)) {
-      return EmailLinkOutcome.UNKNOWN_ADDRESS;
+      return new Issued(EmailLinkOutcome.UNKNOWN_ADDRESS, null);
     }
     Optional<EmailCredential> credential;
     try {
       credential = credentialService.findByAddress(address);
     } catch (RuntimeException e) {
       log.warn("Failed to look up a sign-in link address: {}", e.getClass().getName());
-      return EmailLinkOutcome.SEND_FAILED;
+      return new Issued(EmailLinkOutcome.SEND_FAILED, null);
     }
     if (credential.isEmpty()) {
       log.debug("Sign-in link requested for an unknown address");
-      return EmailLinkOutcome.UNKNOWN_ADDRESS;
+      return new Issued(EmailLinkOutcome.UNKNOWN_ADDRESS, null);
     }
     return issueTo(credential.get(), tokenValue);
   }
 
-  private EmailLinkOutcome issueTo(EmailCredential credential, String tokenValue) {
+  private Issued issueTo(EmailCredential credential, String tokenValue) {
     String tokenHash = MessageDigests.sha256Hex(tokenValue);
     String code = Secrets.code(settings.codeLength());
     Instant now = clock.instant();
     Instant expiresAt = now.plus(settings.tokenTtl());
+    UUID identityId = null;
     try {
-      if (whoService.resolve(credential).isEmpty()) {
-        return EmailLinkOutcome.INACTIVE_IDENTITY;
+      Resolution resolution = whoService.resolveDetailed(credential);
+      Optional<UUID> resolved = resolution.principal().map(p -> p.identity().id());
+      if (resolved.isEmpty()) {
+        return new Issued(EmailLinkOutcome.INACTIVE_IDENTITY, unresolvedIdentityId(resolution));
       }
+      identityId = resolved.get();
       boolean issued =
           repository.issue(
               credential.id(),
@@ -127,16 +179,24 @@ public class EmailLinkIssuer {
       if (!issued) {
         log.debug(
             "Sign-in link for credential {} suppressed by the resend interval", credential.id());
-        return EmailLinkOutcome.RESEND_SUPPRESSED;
+        return new Issued(EmailLinkOutcome.RESEND_SUPPRESSED, identityId);
       }
     } catch (RuntimeException e) {
       log.warn(
           "Failed to issue sign-in link for credential {}: {}",
           credential.id(),
           e.getClass().getName());
-      return EmailLinkOutcome.SEND_FAILED;
+      return new Issued(EmailLinkOutcome.SEND_FAILED, identityId);
     }
-    return send(credential, tokenValue, code, expiresAt, tokenHash);
+    return new Issued(send(credential, tokenValue, code, expiresAt, tokenHash), identityId);
+  }
+
+  private static UUID unresolvedIdentityId(Resolution resolution) {
+    return switch (resolution) {
+      case Inactive(UUID identityId) -> identityId;
+      case NoIdentity(UUID identityId) -> identityId;
+      case Resolved _, NotLinked _ -> null;
+    };
   }
 
   private EmailLinkOutcome send(
@@ -173,6 +233,9 @@ public class EmailLinkIssuer {
           e.getClass().getName());
     }
   }
+
+  /** What {@link #issue} did, and the identity it found, if any. */
+  private record Issued(EmailLinkOutcome outcome, UUID identityId) {}
 
   private static boolean looksLikeAnAddress(String address) {
     return EmailAddresses.isSafe(address) && address.indexOf('@') >= 0;

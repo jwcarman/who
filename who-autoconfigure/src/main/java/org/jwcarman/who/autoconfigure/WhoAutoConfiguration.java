@@ -539,9 +539,15 @@ public class WhoAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public JsonAuthenticationHandlers jsonAuthenticationHandlers(
-        ObjectProvider<JsonMapper> jsonMapper, ObjectProvider<WhoExceptionHandoff> handoff) {
+        ObjectProvider<JsonMapper> jsonMapper,
+        ObjectProvider<WhoExceptionHandoff> handoff,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
       return new JsonAuthenticationHandlers(
-          jsonMapper(jsonMapper), handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)));
+          jsonMapper(jsonMapper),
+          handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+          whoEventPublisher,
+          clock);
     }
 
     @Bean
@@ -552,7 +558,8 @@ public class WhoAutoConfiguration {
         EmailLinkTokenRepository emailLinkTokenRepository,
         ObjectProvider<EmailLinkSender> emailLinkSender,
         EmailLinkSettings settings,
-        Clock clock) {
+        Clock clock,
+        WhoEventPublisher whoEventPublisher) {
       EmailLinkSender sender = emailLinkSender.getIfAvailable();
       if (sender == null) {
         throw new IllegalStateException(
@@ -560,7 +567,13 @@ public class WhoAutoConfiguration {
                 + " EmailLinkSender bean, or set spring.mail.host and who.email-link.from");
       }
       return new EmailLinkIssuer(
-          emailCredentialService, whoService, emailLinkTokenRepository, sender, settings, clock);
+          emailCredentialService,
+          whoService,
+          emailLinkTokenRepository,
+          sender,
+          settings,
+          clock,
+          whoEventPublisher);
     }
 
     /**
@@ -608,14 +621,15 @@ public class WhoAutoConfiguration {
         WhoService whoService,
         EmailLinkTokenRepository emailLinkTokenRepository,
         EmailLinkSettings settings,
-        Clock clock) {
+        Clock clock,
+        WhoEventPublisher whoEventPublisher) {
       return new EmailLinkLoginMethod(
           tokenService,
           generateRequestResolver,
           generationSuccessHandler,
           authenticationConverter,
           new EmailLinkAuthenticationProvider(
-              emailLinkTokenRepository, settings, whoService, clock),
+              emailLinkTokenRepository, settings, whoService, clock, whoEventPublisher),
           handlers.success(),
           handlers.failure());
     }

@@ -44,6 +44,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.mockito.ArgumentCaptor;
@@ -113,9 +115,11 @@ class EmailLinkIssuerTest {
 
   private void known(boolean active) {
     when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
-    when(whoService.resolve(any(Credential.class)))
+    when(whoService.resolveDetailed(any(Credential.class)))
         .thenReturn(
-            active ? Optional.of(new WhoPrincipal(Identity.create(), Set.of())) : Optional.empty());
+            active
+                ? new Resolved(new WhoPrincipal(Identity.create(), Set.of()))
+                : new Inactive(UUID.randomUUID()));
   }
 
   @Test
@@ -217,7 +221,7 @@ class EmailLinkIssuerTest {
       case "findByAddress" -> when(credentials.findByAddress(ADDRESS)).thenThrow(failure);
       case "resolve" -> {
         when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
-        when(whoService.resolve(any(Credential.class))).thenThrow(failure);
+        when(whoService.resolveDetailed(any(Credential.class))).thenThrow(failure);
       }
       default -> {
         known(true);
@@ -348,7 +352,7 @@ class EmailLinkIssuerTest {
       case "findByAddress" -> when(credentials.findByAddress(ADDRESS)).thenThrow(failure);
       case "resolve" -> {
         when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
-        when(whoService.resolve(any(Credential.class))).thenThrow(failure);
+        when(whoService.resolveDetailed(any(Credential.class))).thenThrow(failure);
       }
       default -> {
         known(true);

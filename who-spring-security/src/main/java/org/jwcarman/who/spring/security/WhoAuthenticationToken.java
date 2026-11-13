@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import org.jspecify.annotations.NonNull;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -44,6 +45,9 @@ public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
   /** The credential used to authenticate, or {@code null}. */
   private final UUID credentialId;
 
+  /** How the sign-in that created this token was made, or {@code null} if not a sign-in. */
+  private final SignInMethod signInMethod;
+
   /**
    * Creates a new authenticated token. Authorities are derived from {@link
    * WhoPrincipal#permissions()} automatically.
@@ -61,9 +65,23 @@ public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
    * @param credentialId the id of the credential used, or {@code null} if unknown
    */
   public WhoAuthenticationToken(WhoPrincipal principal, UUID credentialId) {
+    this(principal, credentialId, null);
+  }
+
+  /**
+   * Creates a new authenticated token for a sign-in, so that who's success handler can report how
+   * the sign-in was made.
+   *
+   * @param principal the resolved principal
+   * @param credentialId the id of the credential used, or {@code null} if unknown
+   * @param signInMethod how the sign-in was made, or {@code null} if this is not a sign-in
+   */
+  public WhoAuthenticationToken(
+      WhoPrincipal principal, UUID credentialId, SignInMethod signInMethod) {
     super(extractAuthorities(principal));
     this.principal = principal;
     this.credentialId = credentialId;
+    this.signInMethod = signInMethod;
     setAuthenticated(true);
   }
 
@@ -74,6 +92,15 @@ public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
    */
   public Optional<UUID> credentialId() {
     return Optional.ofNullable(credentialId);
+  }
+
+  /**
+   * Returns how the sign-in that created this token was made, if it was a sign-in.
+   *
+   * @return the sign-in method, or empty
+   */
+  public Optional<SignInMethod> signInMethod() {
+    return Optional.ofNullable(signInMethod);
   }
 
   private static @NonNull List<SimpleGrantedAuthority> extractAuthorities(WhoPrincipal principal) {
@@ -105,11 +132,11 @@ public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
     if (!(o instanceof WhoAuthenticationToken that)) return false;
     if (!super.equals(o)) return false;
     // super.equals already compares the principal
-    return Objects.equals(credentialId, that.credentialId);
+    return Objects.equals(credentialId, that.credentialId) && signInMethod == that.signInMethod;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), credentialId);
+    return Objects.hash(super.hashCode(), credentialId, signInMethod);
   }
 }
