@@ -829,11 +829,11 @@ class EmailLinkSignInTest {
         .run(
             ctx -> {
               Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
-              CompletableFuture<Thread> sender = new CompletableFuture<>();
+              CompletableFuture<Thread> sendingThread = new CompletableFuture<>();
 
-              executor.execute(() -> sender.complete(Thread.currentThread()));
+              executor.execute(() -> sendingThread.complete(Thread.currentThread()));
 
-              Thread thread = sender.get(10, TimeUnit.SECONDS);
+              Thread thread = sendingThread.get(10, TimeUnit.SECONDS);
               assertThat(thread.isVirtual()).isTrue();
               assertThat(thread.getName()).startsWith("who-email-link-");
             });
