@@ -18,9 +18,14 @@ package org.jwcarman.who.passkey;
 import static java.util.Objects.requireNonNull;
 
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -51,6 +56,8 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   private static final String COL_IDENTITY_ID = "identity_id";
   private static final String COL_NAME = "name";
   private static final String COL_DISPLAY_NAME = "display_name";
+  private static final String COL_CREDENTIAL_UUID = "credential_uuid";
+  private static final String COL_LABEL = "label";
 
   private static final String SELECT = "SELECT id, name, display_name FROM who_passkey_user";
 
@@ -65,19 +72,40 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   private final SecureRandom random = new SecureRandom();
   private final JdbcClient jdbcClient;
   private final CredentialIdentityRepository credentialIdentityRepository;
+  private final WhoEventPublisher eventPublisher;
+  private final Clock clock;
 
   /**
-   * Creates a new repository.
+   * Creates a new repository that publishes no events.
    *
    * @param jdbcClient the JDBC client used to execute queries
    * @param credentialIdentityRepository unlinks an entity's passkeys when the entity is deleted
    */
   public JdbcWhoPasskeyUserRepository(
       JdbcClient jdbcClient, CredentialIdentityRepository credentialIdentityRepository) {
+    this(jdbcClient, credentialIdentityRepository, WhoEventPublisher.NOOP, Clock.systemUTC());
+  }
+
+  /**
+   * Creates a new repository.
+   *
+   * @param jdbcClient the JDBC client used to execute queries
+   * @param credentialIdentityRepository unlinks an entity's passkeys when the entity is deleted
+   * @param eventPublisher where {@link CredentialRevoked} is published for each passkey a deleted
+   *     entity takes with it
+   * @param clock stamps the events
+   */
+  public JdbcWhoPasskeyUserRepository(
+      JdbcClient jdbcClient,
+      CredentialIdentityRepository credentialIdentityRepository,
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient must not be null");
     this.credentialIdentityRepository =
         requireNonNull(
             credentialIdentityRepository, "credentialIdentityRepository must not be null");
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
   }
 
   /**
@@ -196,7 +224,8 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
 
   /**
    * Deletes the entity. Its passkeys are deleted by the foreign key cascade; this method unlinks
-   * each of them from the identity first, so no session signed in with one stays valid.
+   * each of them from the identity first, so no session signed in with one stays valid, and
+   * publishes {@link CredentialRevoked} for each one that was linked.
    *
    * @param id the user handle
    */
@@ -204,15 +233,35 @@ public class JdbcWhoPasskeyUserRepository implements PublicKeyCredentialUserEnti
   @Transactional
   public void delete(Bytes id) {
     String handle = id.toBase64UrlString();
-    jdbcClient
-        .sql(
-            "SELECT credential_uuid FROM who_passkey_credential"
-                + " WHERE user_entity_user_id = :id")
-        .param(COL_ID, handle)
-        .query(UUID.class)
-        .list()
-        .forEach(credentialIdentityRepository::unlink);
+    List<PasskeyCredential> passkeys =
+        jdbcClient
+            .sql(
+                "SELECT credential_uuid, label FROM who_passkey_credential"
+                    + " WHERE user_entity_user_id = :id")
+            .param(COL_ID, handle)
+            .query(
+                (rs, rowNum) ->
+                    new PasskeyCredential(
+                        rs.getObject(COL_CREDENTIAL_UUID, UUID.class), rs.getString(COL_LABEL)))
+            .list();
+    List<CredentialRevoked> revoked = new ArrayList<>();
+    for (PasskeyCredential passkey : passkeys) {
+      // looked up before unlinking, which removes the only record of the owner
+      credentialIdentityRepository
+          .findIdentityIdByCredentialId(passkey.id())
+          .ifPresent(
+              identityId ->
+                  revoked.add(
+                      new CredentialRevoked(
+                          clock.instant(),
+                          identityId,
+                          passkey.id(),
+                          passkey.kind(),
+                          passkey.label().orElse(null))));
+      credentialIdentityRepository.unlink(passkey.id());
+    }
     jdbcClient.sql("DELETE FROM who_passkey_user WHERE id = :id").param(COL_ID, handle).update();
+    revoked.forEach(eventPublisher::publish);
   }
 
   private Optional<PublicKeyCredentialUserEntity> findByIdentityId(UUID identityId) {

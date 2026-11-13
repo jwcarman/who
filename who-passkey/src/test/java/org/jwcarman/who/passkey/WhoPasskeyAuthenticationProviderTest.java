@@ -30,6 +30,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
@@ -103,7 +106,7 @@ class WhoPasskeyAuthenticationProviderTest {
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
     verifiedAssertion();
     when(credentialRepository.credentialUuid(rawId)).thenReturn(Optional.of(credentialUuid));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.of(principal));
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolved(principal));
 
     Authentication result = provider.authenticate(token);
 
@@ -111,8 +114,9 @@ class WhoPasskeyAuthenticationProviderTest {
     WhoAuthenticationToken who = (WhoAuthenticationToken) result;
     assertThat(who.getPrincipal()).isEqualTo(principal);
     assertThat(who.credentialId()).contains(credentialUuid);
+    assertThat(who.signInMethod()).contains(SignInMethod.PASSKEY);
     ArgumentCaptor<Credential> credential = ArgumentCaptor.forClass(Credential.class);
-    verify(whoService).resolve(credential.capture());
+    verify(whoService).resolveDetailed(credential.capture());
     assertThat(credential.getValue().id()).isEqualTo(credentialUuid);
   }
 
@@ -124,14 +128,15 @@ class WhoPasskeyAuthenticationProviderTest {
     assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class)
         .hasMessage("invalid_credential");
-    verify(whoService, never()).resolve(any(Credential.class));
+    verify(whoService, never()).resolveDetailed(any(Credential.class));
   }
 
   @Test
   void inactiveIdentityIsInvalid() {
     verifiedAssertion();
     when(credentialRepository.credentialUuid(rawId)).thenReturn(Optional.of(credentialUuid));
-    when(whoService.resolve(any(Credential.class))).thenReturn(Optional.empty());
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Inactive(UUID.randomUUID()));
 
     assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class)
@@ -148,7 +153,7 @@ class WhoPasskeyAuthenticationProviderTest {
         .hasMessage("invalid_credential")
         .hasNoCause();
     verify(credentialRepository, never()).credentialUuid(any());
-    verify(whoService, never()).resolve(any(Credential.class));
+    verify(whoService, never()).resolveDetailed(any(Credential.class));
   }
 
   @Test

@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Clock;
 import java.time.Duration;
 
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
@@ -59,6 +60,9 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>Spring's default registration page is off.
  *   <li>A {@link PasskeyRegistrationGuardFilter} supplies the registration answers Spring has no
  *       hook for.
+ *   <li>The success handler and the guard publish through the application's {@link
+ *       WhoEventPublisher} bean, if it has one: a successful sign-in publishes {@code
+ *       SignInSucceeded} once its session is saved.
  * </ul>
  *
  * <p>The provider and the guard are not beans: an {@link AuthenticationProvider} bean would join
@@ -120,7 +124,12 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         context
             .getBeanProvider(WhoExceptionHandoff.class)
             .getIfAvailable(() -> new WhoExceptionHandoff(null));
-    JsonAuthenticationHandlers handlers = new JsonAuthenticationHandlers(jsonMapper, handoff);
+    WhoEventPublisher eventPublisher =
+        context
+            .getBeanProvider(WhoEventPublisher.class)
+            .getIfAvailable(() -> WhoEventPublisher.NOOP);
+    JsonAuthenticationHandlers handlers =
+        new JsonAuthenticationHandlers(jsonMapper, handoff, eventPublisher, clock);
     http.setSharedObject(PublicKeyCredentialUserEntityRepository.class, userRepository);
     http.setSharedObject(UserCredentialRepository.class, credentialRepository);
     // Spring finds a UserDetailsService as a shared object, then as a unique bean
@@ -136,7 +145,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     // WebAuthn's own filters are added later, so anchor to a filter that is already there; this
     // sorts before all of them
     http.addFilterAfter(
-        new PasskeyRegistrationGuardFilter(sessionRepository, clock, registrationWindow, handoff),
+        new PasskeyRegistrationGuardFilter(
+            sessionRepository, clock, registrationWindow, handoff, eventPublisher),
         ExceptionTranslationFilter.class);
   }
 

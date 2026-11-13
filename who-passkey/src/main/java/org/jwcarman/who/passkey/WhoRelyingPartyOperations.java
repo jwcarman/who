@@ -17,9 +17,12 @@ package org.jwcarman.who.passkey;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.CredentialAdded;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +61,8 @@ import org.springframework.security.web.webauthn.management.Webauthn4JRelyingPar
  *       signed in now. Spring takes the owner from the stored options alone, so options left in a
  *       session by one identity could otherwise register a passkey for it after another identity
  *       signs in on the same session.
- *   <li>A successful registration is reported to the {@link PasskeyAddedNotifier}.
+ *   <li>A successful registration publishes {@link CredentialAdded}, then is reported to the {@link
+ *       PasskeyAddedNotifier}.
  * </ul>
  */
 public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations {
@@ -70,9 +74,12 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
   private final JdbcWhoPasskeyUserRepository userRepository;
   private final PasskeyNameResolver nameResolver;
   private final PasskeyAddedNotifier notifier;
+  private final JdbcWhoPasskeyCredentialRepository credentialRepository;
+  private final WhoEventPublisher eventPublisher;
+  private final Clock clock;
 
   /**
-   * Creates the relying party.
+   * Creates a relying party that publishes no events.
    *
    * @param settings the relying party settings
    * @param userRepository who's user entities
@@ -86,11 +93,43 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
       JdbcWhoPasskeyCredentialRepository credentialRepository,
       PasskeyNameResolver nameResolver,
       PasskeyAddedNotifier notifier) {
+    this(
+        settings,
+        userRepository,
+        credentialRepository,
+        nameResolver,
+        notifier,
+        WhoEventPublisher.NOOP,
+        Clock.systemUTC());
+  }
+
+  /**
+   * Creates the relying party.
+   *
+   * @param settings the relying party settings
+   * @param userRepository who's user entities
+   * @param credentialRepository who's credential records
+   * @param nameResolver picks a new user entity's picker name
+   * @param notifier told after each successful registration
+   * @param eventPublisher where {@link CredentialAdded} is published after each registration
+   * @param clock stamps the events
+   */
+  public WhoRelyingPartyOperations(
+      PasskeySettings settings,
+      JdbcWhoPasskeyUserRepository userRepository,
+      JdbcWhoPasskeyCredentialRepository credentialRepository,
+      PasskeyNameResolver nameResolver,
+      PasskeyAddedNotifier notifier,
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     requireNonNull(settings, "settings must not be null");
-    requireNonNull(credentialRepository, "credentialRepository must not be null");
+    this.credentialRepository =
+        requireNonNull(credentialRepository, "credentialRepository must not be null");
     this.userRepository = requireNonNull(userRepository, "userRepository must not be null");
     this.nameResolver = requireNonNull(nameResolver, "nameResolver must not be null");
     this.notifier = requireNonNull(notifier, "notifier must not be null");
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
     this.delegate =
         new Webauthn4JRelyingPartyOperations(
             userRepository,
@@ -139,8 +178,8 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
   }
 
   /**
-   * Checks that the creation options belong to the signed-in identity, delegates, then tells the
-   * notifier; a notifier failure is logged and not rethrown.
+   * Checks that the creation options belong to the signed-in identity, delegates, publishes {@link
+   * CredentialAdded}, then tells the notifier; a notifier failure is logged and not rethrown.
    *
    * @throws IllegalStateException if no identity is signed in, or the options' user entity is not
    *     the signed-in identity's
@@ -153,7 +192,11 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
         JdbcWhoPasskeyCredentialRepository.registering(() -> delegate.registerCredential(request));
     userRepository
         .findIdentityId(credential.getUserEntityUserId())
-        .ifPresent(identityId -> notify(identityId, credential.getLabel()));
+        .ifPresent(
+            identityId -> {
+              publishAdded(identityId, credential);
+              notify(identityId, credential.getLabel());
+            });
     return credential;
   }
 
@@ -179,6 +222,21 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
       throw new IllegalStateException(
           "the creation options do not belong to the signed-in identity");
     }
+  }
+
+  private void publishAdded(UUID identityId, CredentialRecord credential) {
+    credentialRepository
+        .credentialUuid(credential.getCredentialId())
+        .map(uuid -> new PasskeyCredential(uuid, credential.getLabel()))
+        .ifPresent(
+            passkey ->
+                eventPublisher.publish(
+                    new CredentialAdded(
+                        clock.instant(),
+                        identityId,
+                        passkey.id(),
+                        passkey.kind(),
+                        passkey.label().orElse(null))));
   }
 
   private void notify(UUID identityId, String label) {

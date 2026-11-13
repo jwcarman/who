@@ -512,8 +512,11 @@ public class WhoAutoConfiguration {
     @ConditionalOnMissingBean
     public EmailCredentialService emailCredentialService(
         EmailCredentialRepository emailCredentialRepository,
-        CredentialIdentityRepository credentialIdentityRepository) {
-      return new EmailCredentialService(emailCredentialRepository, credentialIdentityRepository);
+        CredentialIdentityRepository credentialIdentityRepository,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
+      return new EmailCredentialService(
+          emailCredentialRepository, credentialIdentityRepository, whoEventPublisher, clock);
     }
 
     @Bean
@@ -705,16 +708,24 @@ public class WhoAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public JdbcWhoPasskeyUserRepository whoPasskeyUserRepository(
-        JdbcClient jdbcClient, CredentialIdentityRepository credentialIdentityRepository) {
-      return new JdbcWhoPasskeyUserRepository(jdbcClient, credentialIdentityRepository);
+        JdbcClient jdbcClient,
+        CredentialIdentityRepository credentialIdentityRepository,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
+      return new JdbcWhoPasskeyUserRepository(
+          jdbcClient, credentialIdentityRepository, whoEventPublisher, clock);
     }
 
     /** Registered as a bean so its {@code @Transactional} methods are proxied. */
     @Bean
     @ConditionalOnMissingBean
     public JdbcWhoPasskeyCredentialRepository whoPasskeyCredentialRepository(
-        JdbcClient jdbcClient, CredentialIdentityRepository credentialIdentityRepository) {
-      return new JdbcWhoPasskeyCredentialRepository(jdbcClient, credentialIdentityRepository);
+        JdbcClient jdbcClient,
+        CredentialIdentityRepository credentialIdentityRepository,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
+      return new JdbcWhoPasskeyCredentialRepository(
+          jdbcClient, credentialIdentityRepository, whoEventPublisher, clock);
     }
 
     @Bean
@@ -759,9 +770,17 @@ public class WhoAutoConfiguration {
         JdbcWhoPasskeyUserRepository userRepository,
         JdbcWhoPasskeyCredentialRepository credentialRepository,
         PasskeyNameResolver nameResolver,
-        PasskeyAddedNotifier notifier) {
+        PasskeyAddedNotifier notifier,
+        WhoEventPublisher whoEventPublisher,
+        Clock clock) {
       return new WhoRelyingPartyOperations(
-          settings, userRepository, credentialRepository, nameResolver, notifier);
+          settings,
+          userRepository,
+          credentialRepository,
+          nameResolver,
+          notifier,
+          whoEventPublisher,
+          clock);
     }
 
     /**
@@ -779,11 +798,13 @@ public class WhoAutoConfiguration {
         WhoSessionSecurityContextRepository sessionRepository,
         ObjectProvider<JsonMapper> jsonMapper,
         Clock clock,
-        PasskeySettings settings) {
+        PasskeySettings settings,
+        WhoEventPublisher whoEventPublisher) {
       return new PasskeyLoginMethod(
           userRepository,
           credentialRepository,
-          new WhoPasskeyAuthenticationProvider(rpOperations, credentialRepository, whoService),
+          new WhoPasskeyAuthenticationProvider(
+              rpOperations, credentialRepository, whoService, whoEventPublisher),
           sessionRepository,
           jsonMapper.getIfAvailable(JsonMapper::new),
           clock,

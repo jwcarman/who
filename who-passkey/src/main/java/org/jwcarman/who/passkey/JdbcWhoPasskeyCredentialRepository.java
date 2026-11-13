@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -31,6 +32,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.springframework.jdbc.core.RowMapper;
@@ -58,6 +61,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>{@code created} is required; {@code last_used} may be {@code NULL}. Spring's registration
  * always sets both (its builder defaults {@code lastUsed} to {@code created}), but the mapper
  * accepts a missing {@code last_used} rather than failing.
+ *
+ * <p>Deleting a record publishes {@link CredentialRevoked}, whoever deletes it: Spring's {@code
+ * DELETE /webauthn/register/{id}} calls {@link #delete(Bytes)} directly.
  */
 public class JdbcWhoPasskeyCredentialRepository implements UserCredentialRepository {
 
@@ -119,19 +125,39 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
 
   private final JdbcClient jdbcClient;
   private final CredentialIdentityRepository credentialIdentityRepository;
+  private final WhoEventPublisher eventPublisher;
+  private final Clock clock;
 
   /**
-   * Creates a new repository.
+   * Creates a new repository that publishes no events.
    *
    * @param jdbcClient the JDBC client used to execute queries
    * @param credentialIdentityRepository links each passkey to its identity
    */
   public JdbcWhoPasskeyCredentialRepository(
       JdbcClient jdbcClient, CredentialIdentityRepository credentialIdentityRepository) {
+    this(jdbcClient, credentialIdentityRepository, WhoEventPublisher.NOOP, Clock.systemUTC());
+  }
+
+  /**
+   * Creates a new repository.
+   *
+   * @param jdbcClient the JDBC client used to execute queries
+   * @param credentialIdentityRepository links each passkey to its identity
+   * @param eventPublisher where {@link CredentialRevoked} is published
+   * @param clock stamps the events
+   */
+  public JdbcWhoPasskeyCredentialRepository(
+      JdbcClient jdbcClient,
+      CredentialIdentityRepository credentialIdentityRepository,
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient must not be null");
     this.credentialIdentityRepository =
         requireNonNull(
             credentialIdentityRepository, "credentialIdentityRepository must not be null");
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
   }
 
   /**
@@ -178,8 +204,9 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   }
 
   /**
-   * Deletes a credential record and unlinks its {@link PasskeyCredential}. Does nothing if no row
-   * has the credential id.
+   * Deletes a credential record and unlinks its {@link PasskeyCredential}, then publishes {@link
+   * CredentialRevoked} if it was linked to an identity. Does nothing if no row has the credential
+   * id.
    *
    * @param credentialId the credential id
    */
@@ -187,14 +214,26 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   @Transactional
   public void delete(Bytes credentialId) {
     String id = credentialId.toBase64UrlString();
-    findCredentialUuid(id)
+    findPasskey(id)
         .ifPresent(
-            credentialUuid -> {
+            passkey -> {
+              // looked up before unlinking, which removes the only record of the owner
+              Optional<UUID> owner =
+                  credentialIdentityRepository.findIdentityIdByCredentialId(passkey.id());
               jdbcClient
                   .sql("DELETE FROM who_passkey_credential WHERE credential_id = :credential_id")
                   .param(COL_CREDENTIAL_ID, id)
                   .update();
-              credentialIdentityRepository.unlink(credentialUuid);
+              credentialIdentityRepository.unlink(passkey.id());
+              owner.ifPresent(
+                  identityId ->
+                      eventPublisher.publish(
+                          new CredentialRevoked(
+                              clock.instant(),
+                              identityId,
+                              passkey.id(),
+                              passkey.kind(),
+                              passkey.label().orElse(null))));
             });
   }
 
@@ -266,6 +305,19 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
         .list();
   }
 
+  private Optional<PasskeyCredential> findPasskey(String credentialId) {
+    return jdbcClient
+        .sql(
+            "SELECT credential_uuid, label FROM who_passkey_credential"
+                + " WHERE credential_id = :credential_id")
+        .param(COL_CREDENTIAL_ID, credentialId)
+        .query(
+            (rs, rowNum) ->
+                new PasskeyCredential(
+                    rs.getObject(COL_CREDENTIAL_UUID, UUID.class), rs.getString(COL_LABEL)))
+        .optional();
+  }
+
   private Optional<UUID> findCredentialUuid(String credentialId) {
     return jdbcClient
         .sql(
@@ -300,7 +352,8 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
             .optional()
             .orElseThrow(
                 () -> new IllegalStateException("the credential's user entity does not exist"));
-    PasskeyCredential passkey = new PasskeyCredential(Identifiers.uuid());
+    PasskeyCredential passkey =
+        new PasskeyCredential(Identifiers.uuid(), credentialRecord.getLabel());
     jdbcClient
         .sql(
             "INSERT INTO who_passkey_credential (credential_id, user_entity_user_id, public_key,"

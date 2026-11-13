@@ -18,8 +18,10 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.spi.Credential;
 
@@ -36,6 +38,26 @@ public record EmailCredential(UUID id, String address) implements Credential {
   public EmailCredential {
     requireNonNull(id, "id must not be null");
     requireNonNull(address, "address must not be null");
+  }
+
+  /**
+   * Returns {@link CredentialKind#EMAIL}.
+   *
+   * @return {@link CredentialKind#EMAIL}
+   */
+  @Override
+  public CredentialKind kind() {
+    return CredentialKind.EMAIL;
+  }
+
+  /**
+   * Returns the address, which labels the credential in security events.
+   *
+   * @return the normalized address
+   */
+  @Override
+  public Optional<String> label() {
+    return Optional.of(address);
   }
 
   /**

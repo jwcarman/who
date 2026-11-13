@@ -20,13 +20,16 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
@@ -50,7 +53,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <ul>
  *   <li>signed out: {@link NotSignedInException} (Spring alone answers {@code 400});
  *   <li>signed in longer ago than the registration window: {@link
- *       ReauthenticationRequiredException};
+ *       ReauthenticationRequiredException}, after publishing {@link PasskeyRegistrationRefused};
  *   <li>a registration that fails verification: {@link InvalidPasskeyRegistrationException} (Spring
  *       alone lets the exception escape, so a {@code 500}).
  * </ul>
@@ -76,9 +79,10 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
   private final Clock clock;
   private final Duration registrationWindow;
   private final WhoExceptionHandoff handoff;
+  private final WhoEventPublisher eventPublisher;
 
   /**
-   * Creates the guard.
+   * Creates a guard that publishes no events.
    *
    * @param sessionRepository where the current {@link WhoSession} is read from
    * @param clock the current time
@@ -90,12 +94,31 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       Clock clock,
       Duration registrationWindow,
       WhoExceptionHandoff handoff) {
+    this(sessionRepository, clock, registrationWindow, handoff, WhoEventPublisher.NOOP);
+  }
+
+  /**
+   * Creates the guard.
+   *
+   * @param sessionRepository where the current {@link WhoSession} is read from
+   * @param clock the current time, which also stamps the events
+   * @param registrationWindow how long after signing in a passkey may be registered
+   * @param handoff hands the guard's errors to the application
+   * @param eventPublisher where {@link PasskeyRegistrationRefused} is published
+   */
+  public PasskeyRegistrationGuardFilter(
+      WhoSessionSecurityContextRepository sessionRepository,
+      Clock clock,
+      Duration registrationWindow,
+      WhoExceptionHandoff handoff,
+      WhoEventPublisher eventPublisher) {
     this.sessionRepository =
         requireNonNull(sessionRepository, "sessionRepository must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.registrationWindow =
         requireNonNull(registrationWindow, "registrationWindow must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
   }
 
   @Override
@@ -112,7 +135,12 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    if (session.get().signedInAt().plus(registrationWindow).isBefore(clock.instant())) {
+    Instant now = clock.instant();
+    if (session.get().signedInAt().plus(registrationWindow).isBefore(now)) {
+      UUID identityId = session.get().identityId();
+      log.debug(
+          "Passkey registration refused: reauthentication required, identityId={}", identityId);
+      eventPublisher.publish(new PasskeyRegistrationRefused(now, identityId));
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;

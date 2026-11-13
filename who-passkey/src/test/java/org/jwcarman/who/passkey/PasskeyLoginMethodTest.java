@@ -38,6 +38,7 @@ import jakarta.servlet.Filter;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
@@ -314,6 +315,9 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     ObjectProvider<WhoExceptionHandoff> handoffs = mock();
     when(context.getBeanProvider(WhoExceptionHandoff.class)).thenReturn(handoffs);
     when(handoffs.getIfAvailable(any())).thenReturn(new WhoExceptionHandoff(null));
+    ObjectProvider<WhoEventPublisher> publishers = mock();
+    when(context.getBeanProvider(WhoEventPublisher.class)).thenReturn(publishers);
+    when(publishers.getIfAvailable(any())).thenReturn(WhoEventPublisher.NOOP);
     when(http.getSharedObject(ApplicationContext.class)).thenReturn(context);
     when(http.getSharedObject(UserDetailsService.class)).thenReturn(shared);
     when(context.getBeanProvider(UserDetailsService.class)).thenReturn(beans);

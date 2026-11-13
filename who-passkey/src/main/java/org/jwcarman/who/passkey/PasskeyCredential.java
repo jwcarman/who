@@ -17,8 +17,10 @@ package org.jwcarman.who.passkey;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.spi.Credential;
 
 /**
@@ -26,11 +28,41 @@ import org.jwcarman.who.core.spi.Credential;
  * to an identity through {@link org.jwcarman.who.core.repository.CredentialIdentityRepository}.
  *
  * @param id the stable UUID for this passkey
+ * @param passkeyLabel the label the owner gave the passkey, or {@code null} if none
  */
-public record PasskeyCredential(UUID id) implements Credential {
+public record PasskeyCredential(UUID id, String passkeyLabel) implements Credential {
 
   /** Compact constructor: validates that the id is not {@code null}. */
   public PasskeyCredential {
     requireNonNull(id, "id must not be null");
+  }
+
+  /**
+   * Creates a passkey with no label.
+   *
+   * @param id the stable UUID for this passkey
+   */
+  public PasskeyCredential(UUID id) {
+    this(id, null);
+  }
+
+  /**
+   * Returns {@link CredentialKind#PASSKEY}.
+   *
+   * @return {@link CredentialKind#PASSKEY}
+   */
+  @Override
+  public CredentialKind kind() {
+    return CredentialKind.PASSKEY;
+  }
+
+  /**
+   * Returns the passkey's label, which labels it in security events.
+   *
+   * @return the label, or empty if none
+   */
+  @Override
+  public Optional<String> label() {
+    return Optional.ofNullable(passkeyLabel);
   }
 }

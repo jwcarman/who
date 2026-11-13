@@ -18,6 +18,7 @@ package org.jwcarman.who.emaillink;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -93,6 +94,18 @@ public class JdbcEmailCredentialRepository implements EmailCredentialRepository,
             .param(COL_ID, id)
             .update()
         > 0;
+  }
+
+  /**
+   * Finds this module's credential with the given id, so that removing it can be reported with its
+   * kind and address.
+   *
+   * @param credentialId the credential id
+   * @return the credential, or empty if this module has none with that id
+   */
+  @Override
+  public Optional<Credential> find(UUID credentialId) {
+    return findById(credentialId).map(Credential.class::cast);
   }
 
   @Override
