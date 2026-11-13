@@ -37,6 +37,15 @@ public record EmailLinkMessage(String address, String link, String code, Instant
     requireNonNull(expiresAt, "expiresAt must not be null");
   }
 
+  @Override
+  public String toString() {
+    return "EmailLinkMessage[address="
+        + address
+        + ", link=****, code=****, expiresAt="
+        + expiresAt
+        + "]";
+  }
+
   /**
    * Returns the code laid out for reading, for example {@code K7F-2QM}.
    *

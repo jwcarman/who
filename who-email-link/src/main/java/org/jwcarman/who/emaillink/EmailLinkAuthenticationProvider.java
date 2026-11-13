@@ -104,7 +104,7 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
 
   private Optional<UUID> redeemCode(String address, String typedCode, Instant now) {
     Optional<String> normalized = EmailCodes.normalize(typedCode, codeLength);
-    if (normalized.isEmpty() || address == null || address.isBlank()) {
+    if (normalized.isEmpty() || address.isBlank()) {
       return Optional.empty();
     }
     String code = normalized.get();

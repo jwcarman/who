@@ -18,6 +18,7 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.jwcarman.who.emaillink.EmailSignInProof.EmailCode;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -62,11 +63,12 @@ public final class EmailSignInAuthenticationToken extends AbstractAuthentication
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof EmailSignInAuthenticationToken other && proof.equals(other.proof);
+    return obj instanceof EmailSignInAuthenticationToken other
+        && Objects.equals(proof, other.proof);
   }
 
   @Override
   public int hashCode() {
-    return proof.hashCode();
+    return Objects.hashCode(proof);
   }
 }

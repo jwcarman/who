@@ -16,6 +16,7 @@
 package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 
@@ -39,5 +40,36 @@ class EmailLinkSettingsTest {
             secret);
 
     assertThat(settings.toString()).doesNotContain(secret).contains("codeSecret=****");
+  }
+
+  private static EmailLinkSettings settings(int codeLength, int codeMaxAttempts, String secret) {
+    return new EmailLinkSettings(
+        "https://app.test/signin",
+        Duration.ofMinutes(15),
+        Duration.ofSeconds(60),
+        codeLength,
+        codeMaxAttempts,
+        secret);
+  }
+
+  @Test
+  void a_code_length_below_six_is_rejected() {
+    assertThatThrownBy(() -> settings(5, 5, "0123456789abcdef0123456789abcdef"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("codeLength");
+  }
+
+  @Test
+  void a_max_attempts_below_one_is_rejected() {
+    assertThatThrownBy(() -> settings(6, 0, "0123456789abcdef0123456789abcdef"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("codeMaxAttempts");
+  }
+
+  @Test
+  void a_blank_secret_is_rejected() {
+    assertThatThrownBy(() -> settings(6, 5, "  "))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("codeSecret");
   }
 }

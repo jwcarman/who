@@ -18,6 +18,12 @@ package org.jwcarman.who.emaillink;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -65,6 +71,28 @@ class EmailSignInAuthenticationTokenTest {
 
   @Nested
   class Equality {
+
+    @Test
+    void a_serialized_token_loses_its_proof_but_still_compares_and_hashes() throws Exception {
+      ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+      try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+        out.writeObject(new EmailSignInAuthenticationToken(new EmailCode("a@b.c", "K7F2QM")));
+      }
+      EmailSignInAuthenticationToken restored = read(bytes.toByteArray());
+
+      assertThat(restored.proof()).isNull();
+      assertThat(restored.equals(restored)).isTrue();
+      assertThat(restored.hashCode()).isZero();
+      assertThat(restored)
+          .isNotEqualTo(new EmailSignInAuthenticationToken(new EmailCode("a@b.c", "K7F2QM")));
+    }
+
+    private static EmailSignInAuthenticationToken read(byte[] bytes)
+        throws IOException, ClassNotFoundException {
+      try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
+        return (EmailSignInAuthenticationToken) in.readObject();
+      }
+    }
 
     @Test
     void tokens_with_equal_proofs_are_equal() {

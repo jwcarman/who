@@ -37,12 +37,26 @@ public record EmailLinkSettings(
     int codeMaxAttempts,
     String codeSecret) {
 
-  /** Compact constructor: validates that no field is {@code null}. */
+  private static final int MIN_CODE_LENGTH = 6;
+
+  /**
+   * Compact constructor: validates that no field is {@code null}, {@code codeLength} is at least 6,
+   * {@code codeMaxAttempts} is at least 1 and {@code codeSecret} is not blank.
+   */
   public EmailLinkSettings {
     requireNonNull(linkBaseUrl, "linkBaseUrl must not be null");
     requireNonNull(tokenTtl, "tokenTtl must not be null");
     requireNonNull(resendInterval, "resendInterval must not be null");
     requireNonNull(codeSecret, "codeSecret must not be null");
+    if (codeLength < MIN_CODE_LENGTH) {
+      throw new IllegalArgumentException("codeLength must be at least " + MIN_CODE_LENGTH);
+    }
+    if (codeMaxAttempts < 1) {
+      throw new IllegalArgumentException("codeMaxAttempts must be at least 1");
+    }
+    if (codeSecret.isBlank()) {
+      throw new IllegalArgumentException("codeSecret must not be blank");
+    }
   }
 
   @Override

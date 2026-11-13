@@ -254,6 +254,7 @@ spring:
 who:
   email-link:
     link-base-url: https://app.example.com/signin
+    code-secret: <at least 32 random characters>
     from: no-reply@example.com
   passkey:
     rp-id: app.example.com

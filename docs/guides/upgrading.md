@@ -4,7 +4,7 @@
 
 0.15.0 adds a typed sign-in code to every sign-in email. It changes the schema, a required property, and several signatures. There is no upgrade path for the schema.
 
-- **Recreate the database.** `who_email_link_token` gained `code_hash VARCHAR(64) NOT NULL` and `code_attempts INTEGER NOT NULL`. Who does not migrate existing tables: drop and recreate them. If you manage the schema with Flyway, copy the new table from [Database Setup](database.md).
+- **Recreate the database.** `who_email_link_token` gained `code_hash VARCHAR(64) NOT NULL` and `code_attempts INTEGER NOT NULL`. Who does not migrate existing tables: drop and recreate them. A Liquibase-managed database that is not recreated fails at startup with a checksum validation error on changeSet `who-email-link-token-1`. If you manage the schema with Flyway, copy the new table from [Database Setup](database.md).
 - **Set `who.email-link.code-secret`.** It is required when email-link sign-in is on, at least 32 characters, and the same on every instance. Startup fails without it. See [Code secret](email-links.md#code-secret).
 - **`EmailLinkSender` takes an `EmailLinkMessage`.** The method is now `send(EmailLinkMessage message)` instead of `send(String address, String link)`. The message carries `address`, `link`, `code` and `expiresAt`, and `formattedCode()` gives the grouped code. Update custom senders to include the code. See [Turn it on](email-links.md#turn-it-on).
 - **`POST /login/ott` takes two body shapes.** `{"token": "..."}` as before, or `{"email": "...", "code": "..."}`.
@@ -12,7 +12,8 @@
 - **Changed signatures.** Code that implements or calls these must change:
     - `EmailLinkTokenRepository`: `issue` takes the code hash, and `attemptCode` and `consumeCode` are new;
     - `EmailLinkAuthenticationProvider` is built with `(repository, settings, whoService, clock)`;
-    - `WhoOneTimeTokenService` is built with `(clock, tokenTtl)`.
+    - `WhoOneTimeTokenService` is built with `(clock, tokenTtl)`;
+    - `WhoOneTimeTokenService.consume` now throws `UnsupportedOperationException`. who's `EmailLinkAuthenticationProvider` redeems sign-ins, so an application that reuses that bean with Spring's default OTT provider must switch to who's provider.
 
 ## Upgrading to 0.14.0
 

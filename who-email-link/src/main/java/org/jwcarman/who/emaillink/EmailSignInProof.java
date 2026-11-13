@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.emaillink;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * What a sign-in request at {@code POST /login/ott} presents: the token from the emailed link, the
  * address and code typed by hand, or something malformed. The secret parts never appear in {@code
@@ -29,6 +31,11 @@ public sealed interface EmailSignInProof {
    */
   record LinkToken(String token) implements EmailSignInProof {
 
+    /** Compact constructor: validates that the token is not {@code null}. */
+    public LinkToken {
+      requireNonNull(token, "token must not be null");
+    }
+
     @Override
     public String toString() {
       return "LinkToken[token=****]";
@@ -42,6 +49,12 @@ public sealed interface EmailSignInProof {
    * @param code the code, as typed
    */
   record EmailCode(String address, String code) implements EmailSignInProof {
+
+    /** Compact constructor: validates that neither field is {@code null}. */
+    public EmailCode {
+      requireNonNull(address, "address must not be null");
+      requireNonNull(code, "code must not be null");
+    }
 
     @Override
     public String toString() {
