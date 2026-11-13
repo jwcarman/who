@@ -45,6 +45,7 @@
 
         <!-- Plugin Versions -->
         <compiler.plugin.version>3.16.0</compiler.plugin.version>
+        <cyclonedx.plugin.version>2.9.3</cyclonedx.plugin.version>
         <dependency.plugin.version>3.11.0</dependency.plugin.version>
         <enforcer.plugin.version>3.7.0</enforcer.plugin.version>
         <failsafe.plugin.version>3.6.1</failsafe.plugin.version>
@@ -337,6 +338,27 @@
                                 </goals>
                             </execution>
                         </executions>
+                    </plugin>
+                    <!-- A CycloneDX SBOM per module (-cyclonedx.json and .xml), attached so it is signed
+                         and published to Maven Central beside the jar. -->
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>${cyclonedx.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>make-sbom</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>makeBom</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <projectType>library</projectType>
+                            <outputFormat>all</outputFormat>
+                            <includeTestScope>false</includeTestScope>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
