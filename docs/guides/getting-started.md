@@ -51,7 +51,7 @@ Import the BOM so that every who module uses the same version:
         <dependency>
             <groupId>org.jwcarman.who</groupId>
             <artifactId>who-bom</artifactId>
-            <version>0.14.0</version>
+            <version>0.15.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
