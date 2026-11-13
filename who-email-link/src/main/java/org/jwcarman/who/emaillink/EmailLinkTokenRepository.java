@@ -29,13 +29,40 @@ public interface EmailLinkTokenRepository {
    *
    * @param credentialId the email credential
    * @param tokenHash the SHA-256 hash of the token value
+   * @param codeHash the HMAC hash of the sign-in code
    * @param now the current time
    * @param expiresAt when the token expires
    * @param resendInterval the minimum age of an existing token before it may be replaced
    * @return {@code true} if a row changed, meaning the link should be sent
    */
   boolean issue(
-      UUID credentialId, String tokenHash, Instant now, Instant expiresAt, Duration resendInterval);
+      UUID credentialId,
+      String tokenHash,
+      String codeHash,
+      Instant now,
+      Instant expiresAt,
+      Duration resendInterval);
+
+  /**
+   * Atomically counts one code attempt against the live token of the credential with this address.
+   * Nothing is counted, and the result is empty, once the cap is reached or the token has expired.
+   *
+   * @param normalizedAddress the normalized email address
+   * @param maxAttempts the most attempts a token allows
+   * @param now the current time
+   * @return the credential id and stored code hash, or empty if no attempt is available
+   */
+  Optional<EmailCodeAttempt> attemptCode(String normalizedAddress, int maxAttempts, Instant now);
+
+  /**
+   * Atomically consumes an unexpired token by its code hash.
+   *
+   * @param credentialId the email credential
+   * @param codeHash the HMAC hash of the submitted code
+   * @param now the current time
+   * @return the credential id, or empty if the code does not match, was used, or expired
+   */
+  Optional<UUID> consumeCode(UUID credentialId, String codeHash, Instant now);
 
   /**
    * Atomically consumes an unexpired token.

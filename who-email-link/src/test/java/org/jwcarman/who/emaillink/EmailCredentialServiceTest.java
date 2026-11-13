@@ -182,7 +182,12 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
     EmailCredential orphan = service.register(deleted, "stale-link@example.com");
     Instant now = Instant.now();
     tokenRepository.issue(
-        orphan.id(), "stale-token-hash", now, now.plus(Duration.ofMinutes(15)), Duration.ZERO);
+        orphan.id(),
+        "stale-token-hash",
+        "stale-code-hash",
+        now,
+        now.plus(Duration.ofMinutes(15)),
+        Duration.ZERO);
     deleteIdentityRow(deleted);
     Identity identity = identityRepository.save(Identity.create());
 

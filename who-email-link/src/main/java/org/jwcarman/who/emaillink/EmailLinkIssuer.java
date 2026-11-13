@@ -115,6 +115,7 @@ public class EmailLinkIssuer {
           repository.issue(
               credential.id(),
               tokenHash,
+              tokenHash,
               now,
               now.plus(settings.tokenTtl()),
               settings.resendInterval());

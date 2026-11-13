@@ -119,12 +119,18 @@ class EmailLinkIssuerTest {
   @Test
   void knownActiveAddressIsSentAFragmentLink() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
 
     issuer.issue(ADDRESS, TOKEN);
 
     verify(repository)
-        .issue(credential.id(), MessageDigests.sha256Hex(TOKEN), NOW, NOW.plus(TTL), RESEND);
+        .issue(
+            credential.id(),
+            MessageDigests.sha256Hex(TOKEN),
+            MessageDigests.sha256Hex(TOKEN),
+            NOW,
+            NOW.plus(TTL),
+            RESEND);
     verify(sender).send(ADDRESS, "https://app.test/signin#token=" + TOKEN);
   }
 
@@ -157,7 +163,7 @@ class EmailLinkIssuerTest {
   @Test
   void withinResendIntervalSendsNothing() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(false);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(false);
 
     issuer.issue(ADDRESS, TOKEN);
 
@@ -168,20 +174,20 @@ class EmailLinkIssuerTest {
   @Test
   void failedSendRemovesTheTokenSoTheUserCanRetry() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
     doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
 
     issuer.issue(ADDRESS, TOKEN);
 
     ArgumentCaptor<String> issuedHash = ArgumentCaptor.forClass(String.class);
-    verify(repository).issue(any(), issuedHash.capture(), any(), any(), any());
+    verify(repository).issue(any(), issuedHash.capture(), anyString(), any(), any(), any());
     verify(repository).delete(credential.id(), issuedHash.getValue());
   }
 
   @Test
   void failedSendIsLoggedWithoutTheAddressOrToken() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
     doThrow(new IllegalStateException("secret-detail " + ADDRESS))
         .when(sender)
         .send(anyString(), anyString());
@@ -207,7 +213,8 @@ class EmailLinkIssuerTest {
       }
       default -> {
         known(true);
-        when(repository.issue(any(), anyString(), any(), any(), any())).thenThrow(failure);
+        when(repository.issue(any(), anyString(), anyString(), any(), any(), any()))
+            .thenThrow(failure);
       }
     }
 
@@ -229,7 +236,7 @@ class EmailLinkIssuerTest {
   @Test
   void failedCleanupAfterAFailedSendIsLoggedWithoutTheAddressOrToken() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
     doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
     doThrow(new IllegalArgumentException("secret-detail " + ADDRESS))
         .when(repository)
@@ -258,7 +265,7 @@ class EmailLinkIssuerTest {
   @Test
   void knownActiveAddressIsSent() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
   }
@@ -291,7 +298,7 @@ class EmailLinkIssuerTest {
   @Test
   void withinResendIntervalIsSuppressed() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(false);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(false);
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.RESEND_SUPPRESSED);
   }
@@ -299,7 +306,7 @@ class EmailLinkIssuerTest {
   @Test
   void failedSendIsSendFailed() {
     known(true);
-    when(repository.issue(any(), anyString(), any(), any(), any())).thenReturn(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
     doThrow(new IllegalStateException("smtp down")).when(sender).send(anyString(), anyString());
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
@@ -318,7 +325,8 @@ class EmailLinkIssuerTest {
       }
       default -> {
         known(true);
-        when(repository.issue(any(), anyString(), any(), any(), any())).thenThrow(failure);
+        when(repository.issue(any(), anyString(), anyString(), any(), any(), any()))
+            .thenThrow(failure);
       }
     }
 
