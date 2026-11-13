@@ -27,6 +27,7 @@ import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
@@ -92,6 +93,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
@@ -170,12 +172,26 @@ public class WhoAutoConfiguration {
   }
 
   /**
+   * Publishes who's events as Spring application events, after the surrounding transaction commits.
+   *
+   * @param publisher the Spring event publisher
+   * @return the publisher who's services use
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public WhoEventPublisher whoEventPublisher(ApplicationEventPublisher publisher) {
+    return new SpringWhoEventPublisher(publisher);
+  }
+
+  /**
    * Creates the core {@link WhoService} that resolves credentials to principals.
    *
    * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
    * @param identityRepository stores and retrieves identities
    * @param permissionsResolver resolves permissions for an active identity
    * @param credentialRemovers every credential module's remover, used to delete identities
+   * @param whoEventPublisher where who's events are published
+   * @param whoClock the clock events are stamped with
    * @return a configured {@link WhoService}
    */
   @Bean
@@ -184,12 +200,16 @@ public class WhoAutoConfiguration {
       CredentialIdentityRepository credentialIdentityRepository,
       IdentityRepository identityRepository,
       PermissionsResolver permissionsResolver,
-      ObjectProvider<CredentialRemover> credentialRemovers) {
+      ObjectProvider<CredentialRemover> credentialRemovers,
+      WhoEventPublisher whoEventPublisher,
+      Clock whoClock) {
     return new WhoService(
         identityRepository,
         credentialIdentityRepository,
         permissionsResolver,
-        credentialRemovers.orderedStream().toList());
+        credentialRemovers.orderedStream().toList(),
+        whoEventPublisher,
+        whoClock);
   }
 
   /** Registers JDBC repository beans when {@code who-jdbc} is on the classpath. */
