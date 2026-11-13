@@ -1,0 +1,6 @@
+name: who CodeQL config
+
+# Tests build insecure setups on purpose (CSRF off, plain cookies) to prove that who refuses or
+# handles them, so scanning them only produces noise. Production code and who-example stay scanned.
+paths-ignore:
+  - '**/src/test/**'
