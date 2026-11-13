@@ -60,9 +60,38 @@ Published advisories: [github.com/jwcarman/who/security/advisories](https://gith
 ## Verifying a release
 
 Every artifact on Maven Central is signed with GPG and ships a CycloneDX SBOM
-(`-cyclonedx.json`). Release builds also carry a GitHub build attestation, which you can check
-against a downloaded jar:
+(`-cyclonedx.json`). The jars and their signatures are also attached to each
+[GitHub Release](https://github.com/jwcarman/who/releases).
+
+**Signature.** Releases are signed with this key:
+
+```
+6268 5DD0 87F8 4A30 B6E7  7BF2 0DE1 9C9D 88B8 9E43
+```
+
+It is published on [keyserver.ubuntu.com](https://keyserver.ubuntu.com/pks/lookup?op=index&search=0x62685DD087F84A30B6E77BF20DE19C9D88B89E43).
+Fetch it, then check a jar against its `.asc` file:
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --recv-keys 62685DD087F84A30B6E77BF20DE19C9D88B89E43
+gpg --verify who-core-0.16.0.jar.asc who-core-0.16.0.jar
+```
+
+`gpg` should report a good signature from that fingerprint. If a release is ever signed with a
+different key, this section will say so first.
+
+**Provenance.** Release builds also carry a GitHub build attestation, which ties a jar to the
+workflow run and commit that built it:
 
 ```bash
 gh attestation verify who-core-0.16.0.jar --repo jwcarman/who
+```
+
+**Rebuilding.** Builds are reproducible from 0.16.0 on: building a release tag with the same
+JDK major version gives byte-for-byte the jars on Maven Central.
+
+```bash
+git checkout 0.16.0
+./mvnw -B versions:set -DnewVersion=0.16.0 -DgenerateBackupPoms=false
+./mvnw -B package -DskipTests
 ```

@@ -5,6 +5,7 @@
 [![Java](https://img.shields.io/badge/dynamic/xml?url=https://raw.githubusercontent.com/jwcarman/who/main/pom.xml&query=//*[local-name()='java.version']/text()&label=Java&color=orange)](https://openjdk.org/)
 [![Maven Central](https://img.shields.io/maven-central/v/org.jwcarman.who/who-spring-boot-starter)](https://central.sonatype.com/artifact/org.jwcarman.who/who-spring-boot-starter)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jwcarman/who/badge)](https://scorecard.dev/viewer/?uri=github.com/jwcarman/who)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16671/badge)](https://www.bestpractices.dev/projects/16671)
 
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)

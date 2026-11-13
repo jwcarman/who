@@ -77,6 +77,10 @@ Releases are cut by the maintainer from `main`. The version in the poms stays at
 `-SNAPSHOT`; publishing a GitHub Release builds, signs and publishes to Maven Central. Before a
 release, the latest Fuzz workflow run should be green; start one by hand if the last is old.
 
+## Governance
+
+Who decides what, and how, is in [GOVERNANCE.md](GOVERNANCE.md).
+
 ## Conduct
 
 Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).

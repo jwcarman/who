@@ -14,6 +14,7 @@ All notable changes to this project are documented here. The format follows
 
 - Every artifact on Maven Central ships a CycloneDX SBOM (`-cyclonedx.json` and `-cyclonedx.xml`).
 - Release jars carry a GitHub build provenance attestation: `gh attestation verify <jar> --repo jwcarman/who`.
+- Builds are reproducible: rebuilding a release tag gives byte-for-byte the jars on Maven Central. `SECURITY.md` shows how to check, and how to verify the GPG signature.
 
 ### Fixed
 
@@ -23,7 +24,8 @@ All notable changes to this project are documented here. The format follows
 
 - Fuzz tests for the sign-in request bodies, typed codes and the API-key header, replayed in every build and fuzzed weekly by a new workflow. CONTRIBUTING explains how to run them.
 - A [Security Model](https://jwcarman.github.io/who/guides/security-model/) guide: what who protects, what the application must do, and what who assumes.
-- `SECURITY.md` (private vulnerability reporting), `CONTRIBUTING.md` and a code of conduct.
+- `SECURITY.md` (private vulnerability reporting), `CONTRIBUTING.md`, `GOVERNANCE.md` and a code of conduct.
+- The security model guide adds trust boundaries, the design principles who follows, and the common weaknesses it counters.
 
 ## [0.15.0] - 2026-11-13
 

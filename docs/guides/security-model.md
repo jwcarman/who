@@ -4,6 +4,19 @@ What who protects against, what it leaves to your application, and what it assum
 live in each guide; this page collects them so you can review who as one system. To report a
 vulnerability, see the [security policy](https://github.com/jwcarman/who/blob/main/SECURITY.md).
 
+## Trust boundaries
+
+who runs inside your application and draws these lines:
+
+| Boundary | What crosses it | Treated as |
+|----------|-----------------|------------|
+| Browser or API client → who's endpoints and filters | sign-in bodies, typed codes, link tokens, passkey assertions, API-key headers, session cookies | untrusted: bounded and validated before any database call, and fuzzed |
+| JWT issuer → `JwtDecoder` → who | a validated token's issuer and subject | trusted only after your decoder checks the signature, issuer and audience |
+| Mailbox → person | the link and code in a sign-in email | as trustworthy as the mailbox (see below) |
+| Your application code → who's services | calls to `EmailCredentialService`, `RbacService`, `ApiKeyService` and the rest | trusted: your code decides who may call them |
+| who → database | identities, credentials, roles, hashed secrets | trusted for integrity; read access alone reveals no live secret |
+| Configuration → who | `who.*` properties, including `code-secret` | trusted, and checked at startup |
+
 ## What who protects
 
 **Secrets are stored as hashes, never as values.**
@@ -61,6 +74,42 @@ input that ever broke it is replayed as a test in every build.
 running insecurely: a code secret shorter than 32 characters or left as an unresolved
 `${...}` placeholder, a disabled CSRF configuration, a stateless passwordless chain, and the other
 checks listed in each guide.
+
+## Design principles
+
+How who applies the classic secure design principles (Saltzer and Schroeder):
+
+- **Fail-safe defaults.** Method security is on, CSRF is required, unknown credentials are denied
+  rather than provisioned, and weak or missing settings stop startup.
+- **Complete mediation.** The session holds only ids; the identity and credential are re-checked
+  on every request.
+- **Least privilege.** `@RequiresPermission` grants nothing the resolved permissions don't
+  include; API keys and sessions map to the same identity and the same permissions.
+- **Economy of mechanism.** Sign-in is built on Spring Security's one-time-token and WebAuthn
+  support, not a parallel implementation; every credential type ends in one `WhoPrincipal`.
+- **Separation of privilege.** A typed code needs both the stored HMAC and the secret that is not
+  in the database.
+- **Open design.** Nothing depends on the code being secret; the source and this document are
+  public.
+- **Psychological acceptability.** No passwords to choose or reuse; uniform answers mean
+  applications can't leak account existence by accident.
+
+## Common weaknesses and how they are countered
+
+| Weakness | Countered by |
+|----------|--------------|
+| Account enumeration (CWE-204, CWE-208) | uniform `202` and `401` answers; a dummy HMAC when no code exists |
+| Brute-forcing codes (CWE-307) | per-address attempt limit, counted atomically; expiry; ingress rate limits |
+| Session fixation (CWE-384) and CSRF (CWE-352) | session id and CSRF token rotated at sign-in; CSRF required |
+| Stolen database contents (CWE-256, CWE-312) | tokens, codes and API keys stored only as hashes or keyed HMACs |
+| Weak randomness (CWE-330) | every secret from `SecureRandom`, 256 bits for tokens and keys |
+| Injection and malformed input (CWE-20, CWE-89) | parameterized SQL only; allowlisted, size-capped input, fuzzed with Jazzer |
+| Open redirects (CWE-601) | no redirects: sign-in answers `401` and `403` directly |
+| Insecure configuration (CWE-1188) | startup checks for the code secret, CSRF and session settings |
+| Race conditions (CWE-362) | single-statement attempt counting and single-use redemption |
+
+Static analysis (CodeQL, SonarCloud) runs on every change, and fuzz tests replay every input
+that ever broke the parsers.
 
 ## What your application must do
 
