@@ -146,6 +146,10 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
    * unobserved. Today that means an observation of each sign-in when the application has an {@code
    * ObservationRegistry} (Spring Boot provides one with Actuator), honoring the application's
    * {@code SecurityObservationSettings}.
+   *
+   * <p>Reported upstream as <a
+   * href="https://github.com/spring-projects/spring-security/issues/20112">spring-security#20112</a>;
+   * once fixed there, this is redundant but harmless.
    */
   private static AuthenticationManager postProcessed(
       ApplicationContext context, AuthenticationManager manager) {
