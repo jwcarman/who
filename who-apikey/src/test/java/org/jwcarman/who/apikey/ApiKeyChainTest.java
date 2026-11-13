@@ -36,11 +36,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+// Each test builds its own chains, so what it checks is how WhoApiKeySecurity configured them for
+// this test rather than a context cached from an earlier one.
 @Import(ApiKeyChainTest.ChainConfig.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ApiKeyChainTest extends AbstractApiKeyTest {
 
   private static final String HEADER = "X-API-Key";
