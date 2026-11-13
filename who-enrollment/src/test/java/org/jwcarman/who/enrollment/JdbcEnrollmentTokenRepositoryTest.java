@@ -48,8 +48,8 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
   @Test
   void savesAndRetrievesById() {
     EnrollmentToken token = EnrollmentToken.create(identity, Duration.ofHours(24));
-    repository.save(token);
 
+    assertThat(repository.save(token)).isSameAs(token);
     assertThat(repository.findById(token.id()))
         .isPresent()
         .get()
