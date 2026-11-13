@@ -744,6 +744,20 @@ class EmailLinkSignInTest {
   }
 
   @Test
+  void blankCodeSecretFailsStartup() {
+    startupRunner
+        .withPropertyValues(
+            "who.email-link.link-base-url=" + LINK_BASE_URL,
+            "who.email-link.code-secret=" + " ".repeat(40))
+        .run(
+            ctx ->
+                assertThat(ctx.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .hasMessageContaining("who.email-link.code-secret"));
+  }
+
+  @Test
   void shortCodeSecretFailsStartup() {
     startupRunner
         .withPropertyValues(

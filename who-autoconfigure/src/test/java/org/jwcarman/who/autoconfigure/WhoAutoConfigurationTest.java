@@ -42,6 +42,7 @@ import org.jwcarman.who.jwt.JwtCredentialRepository;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration;
@@ -51,10 +52,14 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 class WhoAutoConfigurationTest {
 
@@ -148,6 +153,34 @@ class WhoAutoConfigurationTest {
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(context -> assertThat(context).hasSingleBean(WhoMeController.class));
+  }
+
+  @Test
+  void exceptionHandoffSendsTheFallbackWhenMvcDeclinesTheException() {
+    new WebApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class, DecliningResolverConfig.class)
+        .run(
+            context -> {
+              MockHttpServletResponse response = new MockHttpServletResponse();
+              context
+                  .getBean(WhoExceptionHandoff.class)
+                  .handOff(
+                      new MockHttpServletRequest(),
+                      response,
+                      new IllegalStateException("unhandled"),
+                      HttpStatus.UNAUTHORIZED);
+              assertThat(response.getStatus()).isEqualTo(401);
+            });
+  }
+
+  /** An MVC resolver that handles nothing, as when no advice matches the exception. */
+  @Configuration
+  static class DecliningResolverConfig {
+    @Bean
+    HandlerExceptionResolver handlerExceptionResolver() {
+      return (request, response, handler, exception) -> null;
+    }
   }
 
   @Test

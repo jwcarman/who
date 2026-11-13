@@ -16,13 +16,19 @@
 package org.jwcarman.who.core.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mockStatic;
 
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+
+import javax.crypto.Mac;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class HmacsTest {
@@ -46,6 +52,20 @@ class HmacsTest {
       var other = Hmacs.hmacSha256Hex("Other".getBytes(StandardCharsets.UTF_8), INPUT);
 
       assertThat(other).isNotEqualTo(one);
+    }
+
+    @Test
+    void a_missing_algorithm_is_wrapped_in_an_illegal_argument_exception() {
+      var key = "Jefe".getBytes(StandardCharsets.UTF_8);
+      var missing = new NoSuchAlgorithmException("no HmacSHA256");
+      try (MockedStatic<Mac> mac = mockStatic(Mac.class)) {
+        mac.when(() -> Mac.getInstance("HmacSHA256")).thenThrow(missing);
+
+        assertThatThrownBy(() -> Hmacs.hmacSha256Hex(key, INPUT))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("HMAC-SHA256 failed")
+            .hasCause(missing);
+      }
     }
   }
 }
