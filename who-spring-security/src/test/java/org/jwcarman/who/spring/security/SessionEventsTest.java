@@ -277,6 +277,17 @@ class SessionEventsTest {
     }
 
     @Test
+    void a_missing_resolution_ends_the_session_quietly() throws Exception {
+      MockHttpSession session = signedIn();
+      // nothing stubbed: the mocked WhoService answers null
+
+      mvc.perform(get("/who/me").session(session)).andExpect(status().isUnauthorized());
+
+      assertThat(session.isInvalid()).isTrue();
+      assertThat(EVENTS).isEmpty();
+    }
+
+    @Test
     void the_session_ends_only_once() throws Exception {
       MockHttpSession session = signedIn();
       resolvesTo(new Resolution.Inactive(identity.id()));

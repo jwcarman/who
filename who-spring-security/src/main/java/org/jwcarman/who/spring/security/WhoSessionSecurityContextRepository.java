@@ -167,12 +167,19 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       context.setAuthentication(token);
       request.setAttribute(LOADED_ATTRIBUTE, token);
     } else {
-      eventPublisher.publish(
-          new SessionEnded(
-              clock.instant(), whoSession.identityId(), credentialId, endReason(resolution)));
+      if (resolution != null) {
+        publishEnded(whoSession, resolution);
+      }
       invalidate(request);
     }
     return context;
+  }
+
+  private void publishEnded(WhoSession whoSession, Resolution resolution) {
+    UUID credentialId = whoSession.credentialId();
+    eventPublisher.publish(
+        new SessionEnded(
+            clock.instant(), whoSession.identityId(), credentialId, endReason(resolution)));
   }
 
   /** A credential that still resolves, to someone else or to no one active, ended the identity. */
