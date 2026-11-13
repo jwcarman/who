@@ -9,7 +9,8 @@ That shapes how changes are made here, so please read this first.
 
 - **Bugs:** open an issue with a way to reproduce it, ideally a failing test.
 - **Features and behavior changes:** open an issue first and describe the problem, not just the
-  change. Larger features get a short design document in `docs/superpowers/specs/` before code.
+  change. Larger features get a short design document in `docs/superpowers/specs/` before code;
+  see [ROADMAP.md](ROADMAP.md) for what is already planned.
 - Small fixes to docs and typos can go straight to a pull request.
 
 ## Building
