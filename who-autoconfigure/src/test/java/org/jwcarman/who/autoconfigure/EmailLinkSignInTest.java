@@ -60,7 +60,6 @@ import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -705,13 +704,13 @@ class EmailLinkSignInTest {
 
   private final ApplicationContextRunner startupRunner =
       new ApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+          .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(StartupConfig.class);
 
   @Test
   void absentLinkBaseUrlMeansNoEmailLinkSignIn() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
         .run(
             ctx -> {
@@ -725,7 +724,7 @@ class EmailLinkSignInTest {
   @Test
   void linkBaseUrlWithoutASenderFailsStartup() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,

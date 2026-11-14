@@ -96,14 +96,13 @@ class PasskeyAutoConfigurationTest {
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij";
 
   private static final AutoConfigurations AUTO_CONFIGURATIONS =
-      AutoConfigurations.of(
+      WhoTestAutoConfigurations.who(
           DataSourceAutoConfiguration.class,
           DataSourceTransactionManagerAutoConfiguration.class,
           TransactionAutoConfiguration.class,
           JdbcTemplateAutoConfiguration.class,
           JdbcClientAutoConfiguration.class,
-          MailSenderAutoConfiguration.class,
-          WhoAutoConfiguration.class);
+          MailSenderAutoConfiguration.class);
 
   /** Passkeys off: the embedded H2 database is enough. */
   private final ApplicationContextRunner h2Runner =
@@ -629,7 +628,7 @@ class PasskeyAutoConfigurationTest {
   /** Starts the runner's context and returns what who logged about passkey-added emails. */
   private static List<String> passkeyAddedEmailWarnings(
       ApplicationContextRunner runner, boolean sends) {
-    Logger logger = (Logger) LoggerFactory.getLogger(WhoAutoConfiguration.class);
+    Logger logger = (Logger) LoggerFactory.getLogger(WhoPasskeyAutoConfiguration.class);
     ListAppender<ILoggingEvent> logs = new ListAppender<>();
     logs.start();
     logger.addAppender(logs);

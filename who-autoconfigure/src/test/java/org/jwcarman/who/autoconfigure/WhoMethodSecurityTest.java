@@ -24,7 +24,6 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.spring.security.RequiresPermission;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -69,7 +68,7 @@ class WhoMethodSecurityTest {
 
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+          .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(AppConfig.class);
 
   @AfterEach

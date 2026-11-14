@@ -34,7 +34,6 @@ import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailLinkSender;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
@@ -59,13 +58,12 @@ class SpringWhoEventPublisherTest {
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
           .withConfiguration(
-              AutoConfigurations.of(
+              WhoTestAutoConfigurations.who(
                   DataSourceAutoConfiguration.class,
                   DataSourceTransactionManagerAutoConfiguration.class,
                   TransactionAutoConfiguration.class,
                   JdbcTemplateAutoConfiguration.class,
-                  JdbcClientAutoConfiguration.class,
-                  WhoAutoConfiguration.class))
+                  JdbcClientAutoConfiguration.class))
           .withUserConfiguration(Listener.class)
           .withPropertyValues(
               "who.initialize-schema=always",

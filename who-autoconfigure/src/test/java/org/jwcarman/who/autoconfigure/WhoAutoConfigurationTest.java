@@ -52,7 +52,6 @@ import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -99,7 +98,7 @@ class WhoAutoConfigurationTest {
   void whoServiceObservesResolutionsWithTheApplicationsObservationRegistry() {
     TestObservationRegistry observations = TestObservationRegistry.create();
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withBean(ObservationRegistry.class, () -> observations)
         .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
@@ -121,7 +120,7 @@ class WhoAutoConfigurationTest {
   void twoObservationRegistriesLeaveWhoUnobservedInsteadOfFailingStartup() {
     EmailCredentialService emailCredentials = mock(EmailCredentialService.class);
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
         .withBean("first", ObservationRegistry.class, ObservationRegistry::create)
@@ -142,7 +141,7 @@ class WhoAutoConfigurationTest {
   @Test
   void whoServiceResolvesWithoutAnObservationRegistry() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
         .withBean(
@@ -159,7 +158,7 @@ class WhoAutoConfigurationTest {
   @Test
   void allModulesOnClasspathCreatesWhoServiceAndOptionalBeans() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(
             context -> {
@@ -175,8 +174,7 @@ class WhoAutoConfigurationTest {
   @Test
   void appWithItsOwnMailButNoEmailLinksIsAskedForNothing() {
     new ApplicationContextRunner()
-        .withConfiguration(
-            AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who(MailSenderAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues("spring.mail.host=localhost")
         .run(
@@ -193,7 +191,7 @@ class WhoAutoConfigurationTest {
     EmailCredentialService emailCredentials = mock(EmailCredentialService.class);
     when(emailCredentials.findByAddress("nobody@example.com")).thenReturn(Optional.empty());
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
         .withBean(ObservationRegistry.class, () -> observations)
@@ -213,8 +211,7 @@ class WhoAutoConfigurationTest {
   @Test
   void mailSenderIsUsedWhenSpringBootConfiguresJavaMail() {
     new ApplicationContextRunner()
-        .withConfiguration(
-            AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who(MailSenderAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues(
             LINK_BASE_URL,
@@ -231,8 +228,7 @@ class WhoAutoConfigurationTest {
   @Test
   void mailSenderWithoutFromAddressFailsStartup() {
     new ApplicationContextRunner()
-        .withConfiguration(
-            AutoConfigurations.of(MailSenderAutoConfiguration.class, WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who(MailSenderAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET, "spring.mail.host=localhost")
         .run(
@@ -246,7 +242,7 @@ class WhoAutoConfigurationTest {
   @Test
   void whoMeControllerIsRegisteredInServletWebApplications() {
     new WebApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(context -> assertThat(context).hasSingleBean(WhoMeController.class));
   }
@@ -254,7 +250,7 @@ class WhoAutoConfigurationTest {
   @Test
   void exceptionHandoffSendsTheFallbackWhenMvcDeclinesTheException() {
     new WebApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class, DecliningResolverConfig.class)
         .run(
             context -> {
@@ -282,7 +278,7 @@ class WhoAutoConfigurationTest {
   @Test
   void whoMeControllerIsNotRegisteredOutsideWebApplications() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(context -> assertThat(context).doesNotHaveBean(WhoMeController.class));
   }
@@ -303,7 +299,7 @@ class WhoAutoConfigurationTest {
   @Test
   void jdbcOnlyContextLoadsWithoutErrors() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withClassLoader(
             new FilteredClassLoader(
@@ -323,7 +319,7 @@ class WhoAutoConfigurationTest {
   @Test
   void schemaInitializationRunsForEmbeddedDatabaseByDefault() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(
             context -> {
@@ -341,7 +337,7 @@ class WhoAutoConfigurationTest {
   @Test
   void schemaInitializationSkippedWhenModeIsNever() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withPropertyValues("who.initialize-schema=never")
         .run(
@@ -359,7 +355,7 @@ class WhoAutoConfigurationTest {
   @Test
   void apiKeyFilterIsNotRegisteredWithTheServletContainer() {
     new WebApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(
             context -> {
@@ -377,7 +373,7 @@ class WhoAutoConfigurationTest {
   @Test
   void everyPresentCredentialModuleRegistersItsRepositoryAsItsRemover() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
         .withBean(EmailLinkSender.class, () -> message -> {})
@@ -403,7 +399,7 @@ class WhoAutoConfigurationTest {
   @Test
   void withoutEmailLinksThereIsNoEmailRemover() {
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .run(
             context ->
@@ -416,7 +412,7 @@ class WhoAutoConfigurationTest {
   void whoServiceUsesEveryCredentialRemover() {
     CredentialRemover own = mock(CredentialRemover.class);
     new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withBean("ownCredentialRemover", CredentialRemover.class, () -> own)
         .run(

@@ -32,7 +32,6 @@ import org.jwcarman.who.jwt.JwtCredential;
 import org.jwcarman.who.jwt.JwtCredentialRepository;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
@@ -53,13 +52,12 @@ class DeleteIdentityTest {
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
           .withConfiguration(
-              AutoConfigurations.of(
+              WhoTestAutoConfigurations.who(
                   DataSourceAutoConfiguration.class,
                   DataSourceTransactionManagerAutoConfiguration.class,
                   TransactionAutoConfiguration.class,
                   JdbcTemplateAutoConfiguration.class,
-                  JdbcClientAutoConfiguration.class,
-                  WhoAutoConfiguration.class))
+                  JdbcClientAutoConfiguration.class))
           .withPropertyValues(
               "who.initialize-schema=always",
               "who.email-link.link-base-url=https://app.example.com/signin",
