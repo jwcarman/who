@@ -45,6 +45,27 @@ fuzzes every target for ten minutes each week.
 A new fuzz test belongs with any new code that parses input from an unauthenticated caller. Keep
 it fast and free of I/O, and assert what must hold for every input, not only that nothing throws.
 
+### Native tests
+
+`who-native-tests/` holds four small apps, one per sign-in method (email link and code, passkey,
+API key, JWT). Each depends only on the who modules its method needs, and its `*IT` drives it over
+HTTP against PostgreSQL: sign in, `/who/me`, a permission check, a refused credential, and the
+security events each of those publishes. The apps are test code, never published, and only the
+`native-tests` profile builds them.
+
+```bash
+# on the JVM, in seconds: for writing and debugging the tests
+./mvnw -Pnative-tests verify -pl who-native-tests/native-email-link -am -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false
+# as a native image, in minutes: needs GraalVM 25 as JAVA_HOME
+./mvnw -Pnative-tests -Dnative verify -pl who-native-tests/native-email-link -am -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+A native run writes the app's output to `target/app.log` in the app's module. When an app fails
+natively because a who module is missing a hint, fix it in that module (its `RuntimeHints` or its
+`reachability-metadata.json`) with a hints test, never in the app: every user's app would need
+the same fix. The [Native workflow](.github/workflows/native.yml) builds every app on each push to
+`main` and weekly.
+
 To work on the docs site, run `pip install --require-hashes -r docs/requirements.txt`, then
 `mkdocs serve`. CI builds it with `mkdocs build --strict`, so broken links fail the build.
 
@@ -76,6 +97,7 @@ Sonar and CodeQL run on every pull request; please address what they find.
 Releases are cut by the maintainer from `main`. The version in the poms stays at the next
 `-SNAPSHOT`; publishing a GitHub Release builds, signs and publishes to Maven Central. Before a
 release, the latest Fuzz workflow run should be green; start one by hand if the last is old.
+The Native workflow must be green on the release commit.
 
 ## Governance
 

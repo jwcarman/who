@@ -2,7 +2,7 @@
 
 Who works in a GraalVM native image with no native configuration in your app. Its jars carry what the image needs, so you add who to a Spring Boot app, build it with Spring Boot's native support (`process-aot` and GraalVM's `native-maven-plugin`), and the binary signs users in with email links and passkeys as the JVM build does.
 
-Who's native support is proven against GraalVM 25 and Spring Boot 4.1 by a separate Spring Boot app built on who (not by who's own build): it runs its whole browser suite (email links, P-256 and Ed25519 passkeys, roles, invitations and passkey revocation) against the native binary, with no reflection, resource or proxy configuration of its own.
+Who's native support is proven against GraalVM 25 and Spring Boot 4.1 in who's own build. `who-native-tests` holds one small app per sign-in method (email link and code, passkey, API key and JWT), each with only the who modules that method needs and no reflection, resource or proxy configuration of its own. Each is compiled native and driven over HTTP against PostgreSQL: sign in, `/who/me`, a permission check, a refused credential, and the security events they publish. A separate Spring Boot app built on who also runs its whole browser suite (email links, P-256 and Ed25519 passkeys, roles, invitations and passkey revocation) against its native binary.
 
 ## What who ships
 
@@ -21,6 +21,22 @@ Two code choices keep who native-friendly:
 
 - Who's JDBC repositories are not annotated `@Repository`. Who's `@Bean` methods return them as interfaces, and Spring AOT cannot generate the class proxy that `@Repository` exception translation needs for a bean it only knows by its interface. Exceptions are still translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy.
 - With `who.initialize-schema: never`, who does not look up its schema scripts at all.
+
+## Set who's switches at build time
+
+Spring AOT decides at build time which beans the image contains, so it evaluates `@ConditionalOnProperty` then, not when the binary starts. who switches email links on with `who.email-link.link-base-url` and passkeys with `who.passkey.rp-id`. If a property is missing when the image is built, the feature is missing from the binary, even if you pass the property when it starts, and startup fails with a missing bean (such as `EmailCredentialService`).
+
+Put both in `application.yml`, with the value you use most or a placeholder with a default, and override it at run time as usual:
+
+```yaml
+who:
+  email-link:
+    link-base-url: ${LINK_BASE_URL:http://localhost:8080/signin}
+  passkey:
+    rp-id: ${RP_ID:localhost}
+```
+
+The same applies to Spring Boot's own switches, such as `spring.security.oauth2.resourceserver.jwt.public-key-location` or `jwk-set-uri` for a JWT resource server.
 
 ## Liquibase
 
