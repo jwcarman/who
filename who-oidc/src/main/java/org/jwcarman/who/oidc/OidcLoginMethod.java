@@ -22,11 +22,13 @@ import java.time.Duration;
 import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -34,6 +36,7 @@ import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthor
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.NullSecurityContextRepository;
@@ -49,9 +52,12 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
   private final WhoService whoService;
   private final FederatedCredentialRepository credentials;
   private final WhoSessionSecurityContextRepository sessions;
+  private final OidcSignUpService signUpService;
+  private final IdentityRepository identities;
   private final OidcRedirects redirects;
   private final Clock clock;
   private final Duration signUpWindow;
+  private final Duration linkWindow;
   private final PendingSignUps pendingSignUps = new PendingSignUps();
 
   /**
@@ -61,25 +67,34 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
    * @param whoService resolves a credential to its identity
    * @param credentials finds the credential for an issuer and subject
    * @param sessions stores the who session
+   * @param signUpService confirms pending sign-ups and links
+   * @param identities finds the identity signed in, for a link
    * @param redirects where the browser goes after a provider sign-in
    * @param clock stamps events and expiries
    * @param signUpWindow how long a pending sign-up lasts
+   * @param linkWindow how recently the identity must have signed in to link an account
    */
   public OidcLoginMethod(
       SignInRegistrations registrations,
       WhoService whoService,
       FederatedCredentialRepository credentials,
       WhoSessionSecurityContextRepository sessions,
+      OidcSignUpService signUpService,
+      IdentityRepository identities,
       OidcRedirects redirects,
       Clock clock,
-      Duration signUpWindow) {
+      Duration signUpWindow,
+      Duration linkWindow) {
     this.registrations = requireNonNull(registrations, "registrations must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.credentials = requireNonNull(credentials, "credentials must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
+    this.signUpService = requireNonNull(signUpService, "signUpService must not be null");
+    this.identities = requireNonNull(identities, "identities must not be null");
     this.redirects = requireNonNull(redirects, "redirects must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.signUpWindow = requireNonNull(signUpWindow, "signUpWindow must not be null");
+    this.linkWindow = requireNonNull(linkWindow, "linkWindow must not be null");
   }
 
   @Override
@@ -87,8 +102,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
     return Set.of(
         "/oauth2/authorization/**",
         "/login/oauth2/code/**",
-        "/who/oidc/pending",
-        "/who/oidc/sign-up");
+        PendingSignUpFilter.PENDING_URL,
+        PendingSignUpFilter.SIGN_UP_URL);
   }
 
   @Override
@@ -148,6 +163,12 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
               "Provider sign-in needs the chain's session management (session fixation"
                   + " protection and CSRF rotation); it is disabled on this chain");
         }
+        WhoEventPublisher eventPublisher =
+            context
+                .getBeanProvider(WhoEventPublisher.class)
+                .getIfAvailable(() -> WhoEventPublisher.NOOP);
+        LastSignInCookie lastSignInCookie =
+            context.getBeanProvider(LastSignInCookie.class).getIfAvailable();
         OidcSignInHandler handler =
             new OidcSignInHandler(
                 registrations,
@@ -157,12 +178,27 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
                 sessionStrategy,
                 pendingSignUps,
                 redirects,
-                context
-                    .getBeanProvider(WhoEventPublisher.class)
-                    .getIfAvailable(() -> WhoEventPublisher.NOOP),
-                context.getBeanProvider(LastSignInCookie.class).getIfAvailable(),
+                eventPublisher,
+                lastSignInCookie,
                 clock,
                 signUpWindow);
+        // added here, where the session strategy is known; sorts before authorization, as
+        // passkeys' guard filter does
+        http.addFilterAfter(
+            new PendingSignUpFilter(
+                signUpService,
+                identities,
+                sessions,
+                sessionStrategy,
+                pendingSignUps,
+                context
+                    .getBeanProvider(WhoExceptionHandoff.class)
+                    .getIfAvailable(() -> new WhoExceptionHandoff(null)),
+                eventPublisher,
+                lastSignInCookie,
+                clock,
+                linkWindow),
+            ExceptionTranslationFilter.class);
         // Spring's token is not a who sign-in: no session strategy for it, and no saving it
         filter.setSessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy());
         filter.setSecurityContextRepository(new NullSecurityContextRepository());
