@@ -18,6 +18,7 @@ All notable changes to this project are documented here. The format follows
 - `JwtCredentialService` with `link` and `unlink`, so linking JWT credentials publishes events.
 - `WhoService.resolveDetailed`, which says why a credential did not resolve (not linked, no such identity, inactive). `Resolution` may gain outcomes in a minor release, so a `switch` over it needs a default branch; a `null` answer, such as from a mock, is treated as not linked.
 - One DEBUG log line for each failed sign-in, with its reason.
+- A native test bed in who's own build: `who-native-tests` has one small app per sign-in method (email link and code, passkey, API key, JWT), each depending only on the who modules that method needs, and each compiled as a GraalVM native image and driven over HTTP against PostgreSQL, events included. The Native workflow runs them on `main` and weekly. The apps are never published.
 
 ### Changed
 
@@ -36,6 +37,7 @@ All notable changes to this project are documented here. The format follows
 - An [Events](https://jwcarman.github.io/who/guides/events/) guide: every event, when listeners run, personal data, reading the actor and client, and the compatibility policy.
 - The security model guide gains an audit trail section and the logging rule.
 - An upgrading section for 0.17.0.
+- Native Images: properties that switch who's features on (`who.email-link.link-base-url`, `who.passkey.rp-id`) must be present when the image is built, because Spring AOT evaluates conditions at build time; set them in `application.yml` and override the value at run time.
 
 ## [0.16.0] - 2026-11-13
 
@@ -51,6 +53,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `who.initialize-schema: always` created no tables in a native image: the initializer finds each module's schema script by looking up a class from that module by name, which a native image answers only for registered types. who-autoconfigure now registers them (`WhoSchemaRuntimeHints`). Liquibase was not affected.
 - Sign-in emails keep the request's trace and logging context. who's email executor applies the application's `TaskDecorator` beans, as Spring Boot does to its own executors, so with a `ContextPropagatingTaskDecorator` the send appears in the sign-in request's trace.
 - Passkey sign-ins are observed. With an `ObservationRegistry` (Spring Boot Actuator), Spring Security records a `spring.security.authentications` observation for each sign-in; passkey sign-ins were missing, because who builds that authentication manager itself.
 - A typed sign-in code containing non-ASCII letters is rejected. Some upper-cased to ASCII before the check (the dotless `ı` to `I`, the long `ſ` to `S`) and one turned into two letters (the ligature `ﬀ` to `FF`), so `Kjı2Kj` was read as `KJ12KJ`. Each such attempt still counted against the attempt limit, so guessing got no easier. Found by fuzzing.

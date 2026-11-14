@@ -97,5 +97,14 @@ public class WhoDataSourceScriptDatabaseInitializer extends DataSourceScriptData
     return locations;
   }
 
+  /**
+   * The class whose presence means a module's schema script runs, one per module with a schema.
+   * {@link WhoSchemaRuntimeHints} registers them, because a native image answers a lookup by name
+   * only for registered types.
+   */
+  static List<String> moduleMarkers() {
+    return MODULE_SCHEMAS.stream().map(ModuleSchema::sentinelClass).toList();
+  }
+
   private record ModuleSchema(String sentinelClass, String schemaLocation) {}
 }
