@@ -1,1 +1,2 @@
 org.jwcarman.who.autoconfigure.WhoAutoConfiguration
+org.jwcarman.who.autoconfigure.WhoMetricsAutoConfiguration
