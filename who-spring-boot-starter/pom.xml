@@ -31,7 +31,7 @@
     <artifactId>who-spring-boot-starter</artifactId>
 
     <name>Who - Spring Boot Starter</name>
-    <description>Convenience starter that pulls in all Who modules: core, jdbc, rbac, jwt, and autoconfigure</description>
+    <description>who's base: identities, sessions and permissions (core, spring-security, jdbc, rbac and autoconfigure). Add a sign-in module (who-email-link, who-passkey, who-apikey, who-jwt) or who-enrollment to turn it on.</description>
 
     <dependencies>
         <dependency>
@@ -57,31 +57,6 @@
         <dependency>
             <groupId>org.jwcarman.who</groupId>
             <artifactId>who-rbac</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-jwt</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-enrollment</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-apikey</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-email-link</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jwcarman.who</groupId>
-            <artifactId>who-passkey</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
