@@ -38,6 +38,7 @@
         <module>native-test-support</module>
         <module>native-email-link</module>
         <module>native-passkey</module>
+        <module>native-api-key</module>
     </modules>
 
     <properties>

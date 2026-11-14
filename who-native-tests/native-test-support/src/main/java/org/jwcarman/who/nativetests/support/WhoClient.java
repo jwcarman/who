@@ -47,15 +47,31 @@ public final class WhoClient implements AutoCloseable {
   private final URI baseUri;
   private final CookieManager cookies = new CookieManager();
   private final HttpClient http;
+  private final boolean csrf;
 
   /**
-   * Creates a client with no cookies.
+   * Creates a client with no cookies, for an app with who's browser chain.
    *
    * @param baseUri the app's base URI
    */
   public WhoClient(URI baseUri) {
+    this(baseUri, true);
+  }
+
+  private WhoClient(URI baseUri, boolean csrf) {
     this.baseUri = baseUri;
+    this.csrf = csrf;
     this.http = HttpClient.newBuilder().cookieHandler(cookies).build();
+  }
+
+  /**
+   * Creates a client that sends no CSRF token, for a stateless app (API keys, JWTs).
+   *
+   * @param baseUri the app's base URI
+   * @return the client
+   */
+  public static WhoClient stateless(URI baseUri) {
+    return new WhoClient(baseUri, false);
   }
 
   /** An HTTP answer. */
@@ -117,7 +133,7 @@ public final class WhoClient implements AutoCloseable {
   private Response send(String method, String path, String body, String... headers) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(baseUri.resolve(path)).timeout(Duration.ofSeconds(30));
-    if (!"GET".equals(method)) {
+    if (csrf && !"GET".equals(method)) {
       String token =
           csrfToken()
               .orElseGet(

@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: native-api-key
+  # spring.datasource.* come from the test's arguments
+
+who:
+  initialize-schema: never
