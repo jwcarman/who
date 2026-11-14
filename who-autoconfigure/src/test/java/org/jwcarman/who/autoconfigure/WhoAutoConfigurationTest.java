@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
+import java.util.UUID;
 
 import javax.sql.DataSource;
 
@@ -29,6 +30,9 @@ import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
@@ -61,6 +65,10 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.observation.tck.TestObservationRegistry;
+import io.micrometer.observation.tck.TestObservationRegistryAssert;
+
 class WhoAutoConfigurationTest {
 
   @Configuration
@@ -82,6 +90,45 @@ class WhoAutoConfigurationTest {
 
   private static final String CODE_SECRET =
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij";
+
+  @Test
+  void whoServiceObservesResolutionsWithTheApplicationsObservationRegistry() {
+    TestObservationRegistry observations = TestObservationRegistry.create();
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .withBean(ObservationRegistry.class, () -> observations)
+        .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
+        .withBean(
+            CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
+        .run(
+            context -> {
+              UUID credentialId = UUID.randomUUID();
+              context.getBean(WhoService.class).resolveDetailed(() -> credentialId);
+
+              TestObservationRegistryAssert.assertThat(observations)
+                  .hasObservationWithNameEqualTo(WhoService.RESOLVE_OBSERVATION)
+                  .that()
+                  .hasLowCardinalityKeyValue("outcome", "not-linked");
+            });
+  }
+
+  @Test
+  void whoServiceResolvesWithoutAnObservationRegistry() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(TestDataSourceConfig.class)
+        .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
+        .withBean(
+            CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
+        .run(
+            context -> {
+              UUID credentialId = UUID.randomUUID();
+              assertThat(context).doesNotHaveBean(ObservationRegistry.class);
+              assertThat(context.getBean(WhoService.class).resolveDetailed(() -> credentialId))
+                  .isInstanceOf(Resolution.NotLinked.class);
+            });
+  }
 
   @Test
   void allModulesOnClasspathCreatesWhoServiceAndOptionalBeans() {

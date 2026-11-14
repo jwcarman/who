@@ -33,12 +33,15 @@ import org.jwcarman.who.core.event.IdentityDeleted;
 import org.jwcarman.who.core.event.IdentityReactivated;
 import org.jwcarman.who.core.event.OrphanedCredentialsPurged;
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.observation.WhoObservations;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.springframework.transaction.annotation.Transactional;
+
+import io.micrometer.observation.ObservationRegistry;
 
 /**
  * Core service that resolves a {@link Credential} to a {@link WhoPrincipal}.
@@ -63,6 +66,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class WhoService {
 
+  /** The name of the observation around each credential resolution. */
+  public static final String RESOLVE_OBSERVATION = "who.principal.resolve";
+
   private static final String IDENTITY_ID_REQUIRED = "identityId must not be null";
 
   private final IdentityRepository identityRepository;
@@ -71,6 +77,7 @@ public class WhoService {
   private final List<CredentialRemover> credentialRemovers;
   private final WhoEventPublisher events;
   private final Clock clock;
+  private final ObservationRegistry observations;
 
   /**
    * Constructs a {@code WhoService} without credential removers: {@link #deleteIdentity(UUID)} then
@@ -126,6 +133,36 @@ public class WhoService {
       List<CredentialRemover> credentialRemovers,
       WhoEventPublisher events,
       Clock clock) {
+    this(
+        identityRepository,
+        credentialIdentityRepository,
+        permissionsResolver,
+        credentialRemovers,
+        events,
+        clock,
+        ObservationRegistry.NOOP);
+  }
+
+  /**
+   * Constructs a {@code WhoService} that publishes security events and observes each credential
+   * resolution as {@value #RESOLVE_OBSERVATION}.
+   *
+   * @param identityRepository stores and retrieves identities
+   * @param credentialIdentityRepository maps credential UUIDs to identity UUIDs
+   * @param permissionsResolver resolves permissions for an active identity
+   * @param credentialRemovers one per credential module; delete that module's credential rows
+   * @param events receives the events this service publishes
+   * @param clock supplies the {@code occurredAt} of published events
+   * @param observations records an observation for each resolution
+   */
+  public WhoService(
+      IdentityRepository identityRepository,
+      CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver,
+      List<CredentialRemover> credentialRemovers,
+      WhoEventPublisher events,
+      Clock clock,
+      ObservationRegistry observations) {
     this.identityRepository =
         requireNonNull(identityRepository, "identityRepository must not be null");
     this.credentialIdentityRepository =
@@ -137,6 +174,7 @@ public class WhoService {
         List.copyOf(requireNonNull(credentialRemovers, "credentialRemovers must not be null"));
     this.events = requireNonNull(events, "events must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
+    this.observations = requireNonNull(observations, "observations must not be null");
   }
 
   /**
@@ -167,6 +205,24 @@ public class WhoService {
    * @return {@link Resolution.Resolved} with the principal, or the reason it did not resolve
    */
   public Resolution resolveDetailed(Credential credential) {
+    return WhoObservations.observe(
+        observations,
+        RESOLVE_OBSERVATION,
+        "who resolve principal",
+        () -> resolveUnobserved(credential),
+        WhoService::outcomeOf);
+  }
+
+  private static String outcomeOf(Resolution resolution) {
+    return switch (resolution) {
+      case Resolution.Resolved _ -> "resolved";
+      case Resolution.Inactive _ -> "inactive";
+      case Resolution.NoIdentity _ -> "no-identity";
+      case Resolution.NotLinked _ -> "not-linked";
+    };
+  }
+
+  private Resolution resolveUnobserved(Credential credential) {
     Optional<UUID> linked =
         credentialIdentityRepository.findIdentityIdByCredentialId(credential.id());
     if (linked.isEmpty()) {

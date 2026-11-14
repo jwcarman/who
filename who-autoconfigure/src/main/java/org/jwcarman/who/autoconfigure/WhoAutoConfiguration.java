@@ -110,6 +110,7 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+import io.micrometer.observation.ObservationRegistry;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -195,6 +196,7 @@ public class WhoAutoConfiguration {
    * @param credentialRemovers every credential module's remover, used to delete identities
    * @param whoEventPublisher where who's events are published
    * @param whoClock the clock events are stamped with
+   * @param observationRegistry the application's observation registry, if it has one
    * @return a configured {@link WhoService}
    */
   @Bean
@@ -205,14 +207,16 @@ public class WhoAutoConfiguration {
       PermissionsResolver permissionsResolver,
       ObjectProvider<CredentialRemover> credentialRemovers,
       WhoEventPublisher whoEventPublisher,
-      Clock whoClock) {
+      Clock whoClock,
+      ObjectProvider<ObservationRegistry> observationRegistry) {
     return new WhoService(
         identityRepository,
         credentialIdentityRepository,
         permissionsResolver,
         credentialRemovers.orderedStream().toList(),
         whoEventPublisher,
-        whoClock);
+        whoClock,
+        observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP));
   }
 
   /** Registers JDBC repository beans when {@code who-jdbc} is on the classpath. */
