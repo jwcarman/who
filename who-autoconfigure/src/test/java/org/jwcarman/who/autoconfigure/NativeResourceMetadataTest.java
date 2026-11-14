@@ -53,7 +53,7 @@ class NativeResourceMetadataTest {
         .containsExactlyInAnyOrder(
             "who-jdbc",
             "who-rbac",
-            "who-jwt",
+            "who-federated",
             "who-enrollment",
             "who-apikey",
             "who-email-link",
@@ -102,6 +102,10 @@ class NativeResourceMetadataTest {
     assertThat(candidates).isNotEmpty();
     for (Resource candidate : candidates) {
       String url = candidate.getURL().toString();
+      if (url.contains("/test-classes/")) {
+        // a test fixture, such as the 0.18 change log the upgrade test replays, ships in no jar
+        continue;
+      }
       // the last occurrence: a jar in the local Maven repository sits under org/jwcarman/who/ too
       String path = url.substring(url.lastIndexOf("org/jwcarman/who/"));
       assertThat(globs).as("coverage of %s", path).anyMatch(glob -> matcher.match(glob, path));
