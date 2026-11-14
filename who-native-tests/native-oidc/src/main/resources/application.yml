@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: native-oidc
+  # spring.datasource.* and the provider's issuer-uri come from the test's arguments
+  security:
+    oauth2:
+      client:
+        registration:
+          # Set here, not only as an argument: Spring AOT builds the beans at build time, and
+          # Spring Boot registers clients only when one is configured.
+          test:
+            client-id: native-oidc
+            client-secret: native-tests-only-secret
+            scope: openid,email,profile
+        provider:
+          test:
+            # the test's StubOidcProvider replaces this
+            issuer-uri: http://127.0.0.1:1
+
+who:
+  security:
+    # who's default chain opens these to signed-out requests; / is where provider sign-in lands
+    public-paths:
+      - "/test/**"
+      - "/"
+  initialize-schema: never

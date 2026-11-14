@@ -40,6 +40,7 @@
         <module>native-passkey</module>
         <module>native-api-key</module>
         <module>native-jwt</module>
+        <module>native-oidc</module>
     </modules>
 
     <properties>
