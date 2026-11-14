@@ -16,11 +16,14 @@
 package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -160,6 +163,25 @@ class EmailCredentialEventsTest extends AbstractEmailLinkTest {
           .containsExactly(
               new CredentialRevoked(
                   NOW, identity.id(), credential.id(), CredentialKind.EMAIL, "gone@example.com"));
+    }
+
+    @Test
+    void losing_a_concurrent_revoke_publishes_nothing_and_leaves_the_link_alone() {
+      EmailCredential credential = service.register(identity, "raced@example.com");
+      events.clear();
+      // the other revoke wins between the lookup and this delete
+      EmailCredentialRepository raced = mock(EmailCredentialRepository.class);
+      when(raced.findById(credential.id())).thenReturn(Optional.of(credential));
+      when(raced.deleteById(credential.id())).thenReturn(false);
+      EmailCredentialService racing =
+          new EmailCredentialService(
+              raced, credentialIdentityRepository, events::add, Clock.fixed(NOW, ZoneOffset.UTC));
+
+      racing.revoke(credential.id());
+
+      assertThat(events).isEmpty();
+      assertThat(credentialIdentityRepository.findIdentityIdByCredentialId(credential.id()))
+          .contains(identity.id());
     }
 
     @Test

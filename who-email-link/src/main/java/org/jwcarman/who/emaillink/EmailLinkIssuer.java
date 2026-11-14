@@ -30,7 +30,6 @@ import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.NotLinked;
-import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,7 +196,7 @@ public class EmailLinkIssuer {
     return switch (resolution) {
       case Inactive(UUID identityId) -> identityId;
       case NoIdentity(UUID identityId) -> identityId;
-      case Resolved _, NotLinked _ -> null;
+      default -> null;
     };
   }
 

@@ -19,7 +19,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.Serial;
 import java.util.List;
-import java.util.Objects;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 
@@ -71,19 +70,17 @@ public final class ApiKeyAuthenticationToken extends AbstractAuthenticationToken
   }
 
   /**
-   * Two requests are equal when Spring's token fields are, and they hold the same key (or both have
-   * erased it).
+   * Two requests are equal when Spring's token fields are, which include the key (or its erasure),
+   * and both are API-key requests.
    */
   @Override
   public boolean equals(Object other) {
-    return other instanceof ApiKeyAuthenticationToken that
-        && super.equals(that)
-        && Objects.equals(key, that.key);
+    return other instanceof ApiKeyAuthenticationToken && super.equals(other);
   }
 
   @Override
   public int hashCode() {
-    return 31 * super.hashCode() + Objects.hashCode(key);
+    return super.hashCode();
   }
 
   /** Forgets the raw key. */

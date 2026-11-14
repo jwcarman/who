@@ -60,6 +60,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -214,6 +215,41 @@ class SessionEventsTest {
 
       // an API-key request carries no who session, so there is nothing of ours to sign out of
       repository.onLogout(new MockHttpServletRequest(), apiKey);
+
+      assertThat(publishedEvents()).isEmpty();
+    }
+
+    @Test
+    void logging_out_a_who_token_that_has_no_credential_publishes_nothing() {
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.setSession(signedIn());
+      WhoAuthenticationToken withoutCredential =
+          new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of("task.read")));
+
+      repository.onLogout(request, withoutCredential);
+
+      assertThat(publishedEvents()).isEmpty();
+    }
+
+    @Test
+    void logging_out_with_a_who_token_and_a_who_session_publishes_signed_out() {
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.setSession(signedIn());
+      WhoAuthenticationToken token =
+          new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of("task.read")), credentialId);
+
+      repository.onLogout(request, token);
+
+      assertThat(publishedEvents())
+          .containsExactly(new SignedOut(NOW, identity.id(), credentialId));
+    }
+
+    @Test
+    void logging_out_a_non_who_authentication_publishes_nothing() {
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.setSession(signedIn());
+
+      repository.onLogout(request, new TestingAuthenticationToken("someone", "secret"));
 
       assertThat(publishedEvents()).isEmpty();
     }

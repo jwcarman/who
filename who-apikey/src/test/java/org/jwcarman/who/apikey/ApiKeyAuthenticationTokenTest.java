@@ -22,6 +22,7 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ApiKeyAuthenticationTokenTest {
@@ -94,6 +95,15 @@ class ApiKeyAuthenticationTokenTest {
     @Test
     void a_token_is_not_equal_to_another_type() {
       assertThat(new ApiKeyAuthenticationToken(KEY)).isNotEqualTo(KEY);
+    }
+
+    @Test
+    void a_token_is_not_equal_to_another_kind_of_token_with_the_same_fields() {
+      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken(KEY);
+      TestingAuthenticationToken lookalike = new TestingAuthenticationToken(null, KEY);
+      lookalike.setAuthenticated(false);
+
+      assertThat(token).isNotEqualTo(lookalike);
     }
   }
 }

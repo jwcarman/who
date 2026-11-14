@@ -24,6 +24,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 class WhoAuthenticationTokenTest {
@@ -133,6 +134,19 @@ class WhoAuthenticationTokenTest {
         .isEqualTo(new WhoAuthenticationToken(principal, credentialId))
         .isNotEqualTo(new WhoAuthenticationToken(principal, UUID.randomUUID()))
         .isNotEqualTo(new WhoAuthenticationToken(principal));
+  }
+
+  @Test
+  void equalsRequiresTheSameSignInMethod() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read"));
+    UUID credentialId = UUID.randomUUID();
+    WhoAuthenticationToken apiKey =
+        new WhoAuthenticationToken(principal, credentialId, SignInMethod.API_KEY);
+
+    assertThat(apiKey)
+        .isEqualTo(new WhoAuthenticationToken(principal, credentialId, SignInMethod.API_KEY))
+        .isNotEqualTo(new WhoAuthenticationToken(principal, credentialId, SignInMethod.PASSKEY))
+        .isNotEqualTo(new WhoAuthenticationToken(principal, credentialId));
   }
 
   @Test

@@ -86,6 +86,26 @@ class JdbcRoleRepositoryTest extends AbstractRbacTest {
   }
 
   @Test
+  void deleteByIdIfPresentRemovesTheRoleAndReportsIt() {
+    Role role = Role.create("PRESENT");
+    repository.save(role);
+
+    assertThat(repository.deleteByIdIfPresent(role.id())).isTrue();
+
+    assertThat(repository.findById(role.id())).isEmpty();
+  }
+
+  @Test
+  void deleteByIdIfPresentReportsFalseForAnUnknownId() {
+    Role other = Role.create("BYSTANDER");
+    repository.save(other);
+
+    assertThat(repository.deleteByIdIfPresent(UUID.randomUUID())).isFalse();
+
+    assertThat(repository.findById(other.id())).isPresent();
+  }
+
+  @Test
   void findByIdReturnsEmptyWhenNotFound() {
     assertThat(repository.findById(UUID.randomUUID())).isEmpty();
   }
