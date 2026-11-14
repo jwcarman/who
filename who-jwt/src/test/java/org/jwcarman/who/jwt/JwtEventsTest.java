@@ -218,6 +218,25 @@ class JwtEventsTest {
     }
 
     @Test
+    void missing_iss_publishes_missing_claims() throws Exception {
+      assertThat(statusOf(jwt(Map.of("sub", SUBJECT)))).isEqualTo(401);
+
+      assertThat(events)
+          .containsExactly(
+              new SignInFailed(
+                  NOW, SignInMethod.JWT, SignInFailureReason.MISSING_CLAIMS, null, null, null));
+    }
+
+    @Test
+    void a_missing_resolution_is_treated_as_not_linked() {
+      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
+
+      // the mocked WhoService stubs nothing, so resolveDetailed answers null
+      assertRefused(SignInFailureReason.UNKNOWN_CREDENTIAL, null, credential.id());
+    }
+
+    @Test
     void an_unknown_subject_publishes_unknown_credential() throws Exception {
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.empty());
 

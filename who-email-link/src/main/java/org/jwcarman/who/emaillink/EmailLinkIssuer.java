@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -162,7 +163,8 @@ public class EmailLinkIssuer {
     Instant expiresAt = now.plus(settings.tokenTtl());
     UUID identityId = null;
     try {
-      Resolution resolution = whoService.resolveDetailed(credential);
+      Resolution resolution =
+          Objects.requireNonNullElse(whoService.resolveDetailed(credential), new NotLinked());
       Optional<UUID> resolved = resolution.principal().map(p -> p.identity().id());
       if (resolved.isEmpty()) {
         return new Issued(EmailLinkOutcome.INACTIVE_IDENTITY, unresolvedIdentityId(resolution));

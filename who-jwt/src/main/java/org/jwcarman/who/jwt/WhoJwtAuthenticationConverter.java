@@ -18,6 +18,7 @@ package org.jwcarman.who.jwt;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -124,7 +125,8 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
       throw unknown(issuer, subject, null, null);
     }
     UUID credentialId = found.get().id();
-    return switch (whoService.resolveDetailed(found.get())) {
+    return switch (Objects.requireNonNullElse(
+        whoService.resolveDetailed(found.get()), new NotLinked())) {
       case Resolved(WhoPrincipal principal) -> succeeded(principal, credentialId);
       case Inactive(UUID identityId) ->
           throw failed(

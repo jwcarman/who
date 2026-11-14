@@ -18,6 +18,7 @@ package org.jwcarman.who.apikey;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -106,7 +107,8 @@ public class ApiKeyAuthenticationProvider implements AuthenticationProvider {
     }
     ApiKeyCredential credential = found.get();
     UUID credentialId = credential.id();
-    return switch (whoService.resolveDetailed(credential)) {
+    return switch (Objects.requireNonNullElse(
+        whoService.resolveDetailed(credential), new NotLinked())) {
       case Resolved(WhoPrincipal principal) -> succeeded(principal, credentialId);
       case Inactive(UUID identityId) ->
           throw failed(SignInFailureReason.INACTIVE_IDENTITY, identityId, credentialId);

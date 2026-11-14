@@ -327,6 +327,15 @@ class EmailLinkIssuerTest {
   }
 
   @Test
+  void aMissingResolutionIsTreatedAsNotLinked() {
+    when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
+
+    // the mocked WhoService stubs nothing, so resolveDetailed answers null
+    assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.INACTIVE_IDENTITY);
+    verify(sender, never()).send(any());
+  }
+
+  @Test
   void withinResendIntervalIsSuppressed() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(false);

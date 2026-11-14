@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -185,7 +186,8 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
         method == SignInMethod.EMAIL_LINK
             ? SignInFailureReason.INVALID_LINK
             : SignInFailureReason.NO_LIVE_CODE;
-    return switch (whoService.resolveDetailed(() -> credentialId)) {
+    return switch (Objects.requireNonNullElse(
+        whoService.resolveDetailed(() -> credentialId), new NotLinked())) {
       case Resolved(WhoPrincipal principal) ->
           new WhoAuthenticationToken(principal, credentialId, method);
       case Inactive(UUID identityId) ->

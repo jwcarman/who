@@ -29,6 +29,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +39,10 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInFailed;
+import org.jwcarman.who.core.event.SignInFailureReason;
+import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
@@ -203,5 +209,32 @@ class EmailLinkAuthenticationProviderTest {
         .thenReturn(new Inactive(UUID.randomUUID()));
 
     assertInvalid(new LinkToken("value"));
+  }
+
+  @Test
+  void aMissingResolutionIsTreatedAsNotLinked() {
+    List<WhoEvent> events = new ArrayList<>();
+    EmailLinkAuthenticationProvider publishing =
+        new EmailLinkAuthenticationProvider(
+            repository, SETTINGS, whoService, Clock.fixed(NOW, ZoneOffset.UTC), events::add);
+    when(repository.consume(anyString(), any())).thenReturn(Optional.of(credentialId));
+    EmailSignInAuthenticationToken token = signIn(new LinkToken("value"));
+
+    // the mocked WhoService stubs nothing, so resolveDetailed answers null
+    assertThatThrownBy(() -> publishing.authenticate(token))
+        .isInstanceOf(InvalidOneTimeTokenException.class)
+        .hasMessage("invalid_token");
+
+    assertThat(events)
+        .hasSize(1)
+        .first()
+        .isInstanceOfSatisfying(
+            SignInFailed.class,
+            failed -> {
+              assertThat(failed.method()).isEqualTo(SignInMethod.EMAIL_LINK);
+              assertThat(failed.reason()).isEqualTo(SignInFailureReason.INVALID_LINK);
+              assertThat(failed.identityId()).isNull();
+              assertThat(failed.credentialId()).isEqualTo(credentialId);
+            });
   }
 }

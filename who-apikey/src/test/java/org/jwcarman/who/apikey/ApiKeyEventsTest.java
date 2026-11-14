@@ -16,12 +16,16 @@
 package org.jwcarman.who.apikey;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -42,6 +46,7 @@ import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -50,6 +55,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.authentication.event.AbstractAuthenticationEvent;
 import org.springframework.security.authentication.event.AbstractAuthenticationFailureEvent;
@@ -233,6 +239,37 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
       assertThat(SUCCESSES).hasSize(1);
       assertThat(FAILURES).hasSize(1);
+    }
+  }
+
+  @Nested
+  class Resolving_a_key {
+
+    @Test
+    void a_missing_resolution_is_treated_as_not_linked() {
+      ApiKeyCredentialRepository repository = mock(ApiKeyCredentialRepository.class);
+      ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "events", "hash");
+      when(repository.findByKeyHash(ApiKeyService.sha256Hex("who_key")))
+          .thenReturn(Optional.of(credential));
+      List<WhoEvent> published = new ArrayList<>();
+      // the mocked WhoService stubs nothing, so resolveDetailed answers null
+      ApiKeyAuthenticationProvider provider =
+          new ApiKeyAuthenticationProvider(
+              repository, mock(WhoService.class), published::add, Clock.fixed(NOW, ZoneOffset.UTC));
+      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken("who_key");
+
+      assertThatThrownBy(() -> provider.authenticate(token))
+          .isInstanceOf(BadCredentialsException.class);
+
+      assertThat(published)
+          .containsExactly(
+              new SignInFailed(
+                  NOW,
+                  SignInMethod.API_KEY,
+                  SignInFailureReason.UNKNOWN_KEY,
+                  null,
+                  null,
+                  credential.id()));
     }
   }
 
