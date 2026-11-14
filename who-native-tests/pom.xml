@@ -39,6 +39,7 @@
         <module>native-email-link</module>
         <module>native-passkey</module>
         <module>native-api-key</module>
+        <module>native-jwt</module>
     </modules>
 
     <properties>
