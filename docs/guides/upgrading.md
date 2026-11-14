@@ -35,7 +35,7 @@ changes.
 
 - **An application with no `SecurityFilterChain` gets who's chain instead of Spring Boot's.**
   Boot's default chains (form login and HTTP Basic, and the resource server's, Actuator's,
-  `oauth2Login`'s and the authorization server's) are replaced by who's: every
+  and `oauth2Login`'s) are replaced by who's: every
   sign-in method on the classpath, `401` for a signed-out request, and no redirect to `/login`.
   Only `/error`, the sign-in endpoints, Actuator's health endpoint and the paths in
   `who.security.public-paths` are open to signed-out requests. List your own sign-in page and its

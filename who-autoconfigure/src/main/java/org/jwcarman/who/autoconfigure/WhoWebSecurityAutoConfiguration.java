@@ -41,7 +41,9 @@ import org.springframework.util.ClassUtils;
  * classpath ({@link WhoSecurity#all()}), the {@linkplain WhoPublicPaths public paths} open to
  * signed-out requests, CSRF for every request that brings a session, Actuator's health endpoint
  * open as Boot's own chain leaves it, and every other request signed in. It backs off as soon as
- * the application defines a {@link SecurityFilterChain} of its own.
+ * the application defines a {@link SecurityFilterChain} of its own, and takes the place of the
+ * default chains Spring Boot would register: form login, the resource server's, Actuator's and
+ * {@code oauth2Login}'s.
  */
 @AutoConfiguration(
     after = {
@@ -57,8 +59,7 @@ import org.springframework.util.ClassUtils;
       "org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration",
       "org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration",
       "org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration",
-      "org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration",
-      "org.springframework.boot.security.oauth2.server.authorization.autoconfigure.servlet.OAuth2AuthorizationServerAutoConfiguration"
+      "org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration"
     })
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(
