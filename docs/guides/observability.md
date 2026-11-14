@@ -53,8 +53,8 @@ report.
 
 | Observation | Spans | Key |
 |---|---|---|
-| `who.principal.resolve` (`who resolve principal`) | Loading a credential's identity and its permissions | `outcome`: `resolved`, `inactive`, `not-linked`, `no-identity` |
-| `who.sign-in.email.issue` (`who issue sign-in email`) | Looking up the address, storing the code and sending the mail | `outcome`: as `who.sign-in.emails` |
+| `who.principal.resolve` (`who resolve principal`) | Loading a credential's identity and its permissions | `outcome`: `resolved`, `inactive`, `not-linked`, `no-identity`, or `error` when the lookup throws (a database fault) |
+| `who.sign-in.email.issue` (`who issue sign-in email`) | Looking up the address, storing the code and sending the mail | `outcome`: as `who.sign-in.emails`, or `error` if issuing throws |
 
 With Actuator each observation is a timer of the same name, and a span when tracing is on. The
 resolution runs on every authenticated request (sessions, API keys and JWTs re-resolve the

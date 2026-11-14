@@ -154,6 +154,7 @@ class WhoServiceObservationTest {
           .hasObservationWithNameEqualTo(NAME)
           .that()
           .hasError(fault)
+          .hasLowCardinalityKeyValue("outcome", "error")
           .hasBeenStopped();
     }
   }

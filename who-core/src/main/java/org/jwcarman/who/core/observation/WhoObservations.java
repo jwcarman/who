@@ -38,13 +38,16 @@ public final class WhoObservations {
   /** The one low-cardinality key on who's observations. */
   public static final String OUTCOME = "outcome";
 
+  /** The {@value #OUTCOME} of work that threw. */
+  public static final String ERROR = "error";
+
   private static final Logger LOG = System.getLogger(WhoObservations.class.getName());
 
   private WhoObservations() {}
 
   /**
    * Runs {@code work} inside an observation named {@code name}, tagged {@value #OUTCOME} with the
-   * value {@code outcome} gives for the result.
+   * value {@code outcome} gives for the result, or {@value #ERROR} when {@code work} throws.
    *
    * @param registry where the observation is recorded; {@link ObservationRegistry#NOOP} records
    *     nothing
@@ -63,24 +66,24 @@ public final class WhoObservations {
       Function<? super T, String> outcome) {
     Observation observation =
         Observation.createNotStarted(name, registry).contextualName(contextualName);
-    boolean started = attempt(observation::start);
-    Observation.Scope scope = started ? openScope(observation) : null;
+    // Stop is attempted even when start fails: handlers that started before the failing one
+    // (a long-task timer, say) must still be stopped.
+    attempt(observation::start);
+    Observation.Scope scope = openScope(registry, observation);
     try {
       T result = work.get();
       observation.lowCardinalityKeyValue(OUTCOME, outcome.apply(result));
       return result;
     } catch (RuntimeException e) {
-      if (started) {
-        attempt(() -> observation.error(e));
-      }
+      // Every series keeps the same tag keys: a failure is outcome=error.
+      observation.lowCardinalityKeyValue(OUTCOME, ERROR);
+      attempt(() -> observation.error(e));
       throw e;
     } finally {
       if (scope != null) {
         attempt(scope::close);
       }
-      if (started) {
-        attempt(observation::stop);
-      }
+      attempt(observation::stop);
     }
   }
 
@@ -95,22 +98,27 @@ public final class WhoObservations {
     return value.name().toLowerCase(Locale.ROOT).replace('_', '-');
   }
 
-  private static Observation.Scope openScope(Observation observation) {
+  /**
+   * Opens the observation's scope. Micrometer makes the scope current before it notifies handlers,
+   * so if a handler throws, the scope that was current before is put back.
+   */
+  private static Observation.Scope openScope(
+      ObservationRegistry registry, Observation observation) {
+    Observation.Scope previous = registry.getCurrentObservationScope();
     try {
       return observation.openScope();
     } catch (RuntimeException e) {
       handlerFailed(e);
+      registry.setCurrentObservationScope(previous);
       return null;
     }
   }
 
-  private static boolean attempt(Runnable step) {
+  private static void attempt(Runnable step) {
     try {
       step.run();
-      return true;
     } catch (RuntimeException e) {
       handlerFailed(e);
-      return false;
     }
   }
 

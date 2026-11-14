@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.micrometer.core.instrument.observation.DefaultMeterObservationHandler;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationRegistry;
@@ -80,6 +82,7 @@ class WhoObservationsTest {
           .hasObservationWithNameEqualTo(NAME)
           .that()
           .hasError(fault)
+          .hasLowCardinalityKeyValue("outcome", "error")
           .hasBeenStopped();
     }
   }
@@ -176,6 +179,41 @@ class WhoObservationsTest {
                       },
                       r -> "unused"))
           .isSameAs(fault);
+    }
+
+    @Test
+    void failing_on_start_leaves_no_long_task_running() {
+      SimpleMeterRegistry meters = new SimpleMeterRegistry();
+      ObservationRegistry registry = ObservationRegistry.create();
+      registry
+          .observationConfig()
+          .observationHandler(new DefaultMeterObservationHandler(meters))
+          .observationHandler(
+              new ObservationHandler<>() {
+                @Override
+                public boolean supportsContext(Observation.Context context) {
+                  return true;
+                }
+
+                @Override
+                public void onStart(Observation.Context context) {
+                  throw new IllegalStateException("handler start");
+                }
+              });
+
+      WhoObservations.observe(registry, NAME, "who test", () -> "done", r -> "ok");
+
+      assertThat(meters.get(NAME + ".active").longTaskTimer().activeTasks()).isZero();
+    }
+
+    @Test
+    void failing_on_scope_open_leaves_no_scope_behind() {
+      ObservationRegistry registry = failingAt(EnumSet.of(Phase.SCOPE_OPENED));
+
+      WhoObservations.observe(registry, NAME, "who test", () -> "done", r -> "ok");
+
+      assertThat(registry.getCurrentObservationScope()).isNull();
+      assertThat(registry.getCurrentObservation()).isNull();
     }
 
     @Test
