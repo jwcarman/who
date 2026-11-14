@@ -26,6 +26,13 @@ metrics at all.
 
 ## 0.18: sensitive actions and self-service accounts
 
+- **Opt-in sign-in methods (breaking).** Slim `who-spring-boot-starter` to what every application
+  needs (core, autoconfigure, Spring Security, JDBC, RBAC); applications add `who-email-link`,
+  `who-passkey`, `who-apikey` or `who-jwt` for the methods they use. Every method also needs an
+  explicit switch, as email links and passkeys do today: API-key and JWT sign-in currently turn on
+  whenever their classes are present, and the starter always brings them. First establish what an
+  application that never configured them exposes today, for the upgrade notes. The native test
+  apps already use this shape.
 - **Recent sign-in (step-up).** Require a sign-in within the last N minutes before adding a
   passkey, changing an address, creating an API key or deleting an account, for example
   `@RequiresRecentSignIn(minutes = 5)` beside `@RequiresPermission`.
