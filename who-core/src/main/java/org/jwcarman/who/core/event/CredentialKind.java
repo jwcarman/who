@@ -23,8 +23,8 @@ public enum CredentialKind {
   PASSKEY,
   /** An API key. */
   API_KEY,
-  /** A JSON Web Token subject. */
-  JWT,
+  /** An account at an identity provider or token issuer, keyed by issuer and subject. */
+  FEDERATED,
   /** Any other credential type. */
   OTHER
 }

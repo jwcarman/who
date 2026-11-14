@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.jwt;
+package org.jwcarman.who.federated;
 
 import static java.util.Objects.requireNonNull;
 
@@ -30,33 +30,34 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for linking JWT issuer/subject pairs to identities and unlinking them again.
+ * Service for linking issuer/subject pairs to identities and unlinking them again.
  *
  * <p>Linking publishes {@link CredentialAdded} and unlinking publishes {@link CredentialRevoked},
  * each labelled with the issuer. Neither event carries the subject.
  */
-public class JwtCredentialService {
+public class FederatedCredentialService {
 
-  private final JwtCredentialRepository jwtCredentialRepository;
+  private final FederatedCredentialRepository federatedCredentialRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final WhoEventPublisher eventPublisher;
   private final Clock clock;
 
   /**
-   * Creates a new {@code JwtCredentialService}.
+   * Creates a new {@code FederatedCredentialService}.
    *
-   * @param jwtCredentialRepository repository for JWT credentials
+   * @param federatedCredentialRepository repository for federated credentials
    * @param credentialIdentityRepository repository for linking credentials to identities
    * @param eventPublisher where {@link CredentialAdded} and {@link CredentialRevoked} are published
    * @param clock stamps the events
    */
-  public JwtCredentialService(
-      JwtCredentialRepository jwtCredentialRepository,
+  public FederatedCredentialService(
+      FederatedCredentialRepository federatedCredentialRepository,
       CredentialIdentityRepository credentialIdentityRepository,
       WhoEventPublisher eventPublisher,
       Clock clock) {
-    this.jwtCredentialRepository =
-        requireNonNull(jwtCredentialRepository, "jwtCredentialRepository must not be null");
+    this.federatedCredentialRepository =
+        requireNonNull(
+            federatedCredentialRepository, "federatedCredentialRepository must not be null");
     this.credentialIdentityRepository =
         requireNonNull(
             credentialIdentityRepository, "credentialIdentityRepository must not be null");
@@ -69,21 +70,46 @@ public class JwtCredentialService {
    * {@link CredentialAdded} labelled with the issuer.
    *
    * @param identity the identity to link the credential to
-   * @param issuer the JWT {@code iss} claim value
-   * @param subject the JWT {@code sub} claim value
+   * @param issuer the issuer
+   * @param subject the subject at that issuer
    * @return the saved credential
    */
   @Transactional
-  public JwtCredential link(Identity identity, String issuer, String subject) {
+  public FederatedCredential link(Identity identity, String issuer, String subject) {
     requireNonNull(identity, "identity must not be null");
     requireNonNull(issuer, "issuer must not be null");
     requireNonNull(subject, "subject must not be null");
 
-    JwtCredential credential = jwtCredentialRepository.save(JwtCredential.create(issuer, subject));
+    FederatedCredential credential =
+        federatedCredentialRepository.save(FederatedCredential.create(issuer, subject));
     credentialIdentityRepository.link(credential.id(), identity.id());
     eventPublisher.publish(
         new CredentialAdded(
             clock.instant(), identity.id(), credential.id(), credential.kind(), issuer));
+    return credential;
+  }
+
+  /**
+   * Links a credential that is already saved, and linked to no identity, to the identity, then
+   * publishes {@link CredentialAdded} labelled with the issuer.
+   *
+   * @param identity the identity to link the credential to
+   * @param credential the saved credential
+   * @return the credential
+   */
+  @Transactional
+  public FederatedCredential linkExisting(Identity identity, FederatedCredential credential) {
+    requireNonNull(identity, "identity must not be null");
+    requireNonNull(credential, "credential must not be null");
+
+    credentialIdentityRepository.link(credential.id(), identity.id());
+    eventPublisher.publish(
+        new CredentialAdded(
+            clock.instant(),
+            identity.id(),
+            credential.id(),
+            credential.kind(),
+            credential.issuer()));
     return credential;
   }
 
@@ -93,16 +119,16 @@ public class JwtCredentialService {
    * null} when the repository cannot find the credential by id. Does nothing visible for an id that
    * is not linked.
    *
-   * @param credentialId the id of the JWT credential
+   * @param credentialId the id of the federated credential
    */
   @Transactional
   public void unlink(UUID credentialId) {
     requireNonNull(credentialId, "credentialId must not be null");
     // looked up before deleting and unlinking, which remove the only record of issuer and owner
     Optional<String> issuer =
-        jwtCredentialRepository.findById(credentialId).map(JwtCredential::issuer);
+        federatedCredentialRepository.findById(credentialId).map(FederatedCredential::issuer);
     Optional<UUID> owner = credentialIdentityRepository.findIdentityIdByCredentialId(credentialId);
-    jwtCredentialRepository.deleteById(credentialId);
+    federatedCredentialRepository.deleteById(credentialId);
     credentialIdentityRepository.unlink(credentialId);
     owner.ifPresent(
         identityId ->
@@ -111,7 +137,7 @@ public class JwtCredentialService {
                     clock.instant(),
                     identityId,
                     credentialId,
-                    CredentialKind.JWT,
+                    CredentialKind.FEDERATED,
                     issuer.orElse(null))));
   }
 }

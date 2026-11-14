@@ -45,8 +45,8 @@ import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
-import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
-import org.jwcarman.who.jwt.JwtCredentialRepository;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
+import org.jwcarman.who.federated.JdbcFederatedCredentialRepository;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -403,12 +403,12 @@ class WhoAutoConfigurationTest {
               assertThat(removers)
                   .containsExactlyInAnyOrder(
                       context.getBean(EmailCredentialRepository.class),
-                      context.getBean(JwtCredentialRepository.class),
+                      context.getBean(FederatedCredentialRepository.class),
                       context.getBean(ApiKeyCredentialRepository.class));
               assertThat(context.getBean(EmailCredentialRepository.class))
                   .isInstanceOf(JdbcEmailCredentialRepository.class);
-              assertThat(context.getBean(JwtCredentialRepository.class))
-                  .isInstanceOf(JdbcJwtCredentialRepository.class);
+              assertThat(context.getBean(FederatedCredentialRepository.class))
+                  .isInstanceOf(JdbcFederatedCredentialRepository.class);
               assertThat(context.getBean(ApiKeyCredentialRepository.class))
                   .isInstanceOf(JdbcApiKeyCredentialRepository.class);
             });

@@ -19,12 +19,8 @@ package org.jwcarman.who.autoconfigure;
 import java.time.Clock;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
-import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.core.spi.CredentialRemover;
-import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
-import org.jwcarman.who.jwt.JwtCredentialRepository;
-import org.jwcarman.who.jwt.JwtCredentialService;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.jwt.JwtLoginMethod;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.springframework.beans.factory.ObjectProvider;
@@ -34,33 +30,19 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 /** Registers JWT beans when {@code who-jwt} is on the classpath. */
-@AutoConfiguration(after = WhoAutoConfiguration.class)
+@AutoConfiguration(after = {WhoAutoConfiguration.class, WhoFederatedAutoConfiguration.class})
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.jwt.WhoJwtAuthenticationConverter")
 @ConditionalOnBooleanProperty(name = "who.jwt.enabled", matchIfMissing = true)
 public class WhoJwtAutoConfiguration {
 
   /**
-   * The repository is also this module's {@link CredentialRemover}; its declared type exposes both,
-   * so {@link WhoService} finds it without a second bean.
-   *
-   * @param jdbcClient the JDBC client
-   * @return the repository
-   */
-  @Bean
-  @ConditionalOnMissingBean(JwtCredentialRepository.class)
-  public JdbcJwtCredentialRepository jwtCredentialRepository(JdbcClient jdbcClient) {
-    return new JdbcJwtCredentialRepository(jdbcClient);
-  }
-
-  /**
    * The converter that signs JWTs in, publishing the sign-in events.
    *
-   * @param jwtCredentialRepository looks credentials up by issuer and subject
+   * @param federatedCredentialRepository looks credentials up by issuer and subject
    * @param whoService resolves a credential to its identity
    * @param whoEventPublisher where the sign-in events are published
    * @param clock stamps the events
@@ -69,12 +51,12 @@ public class WhoJwtAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public WhoJwtAuthenticationConverter whoJwtAuthenticationConverter(
-      JwtCredentialRepository jwtCredentialRepository,
+      FederatedCredentialRepository federatedCredentialRepository,
       WhoService whoService,
       WhoEventPublisher whoEventPublisher,
       Clock clock) {
     return new WhoJwtAuthenticationConverter(
-        jwtCredentialRepository, whoService, whoEventPublisher, clock);
+        federatedCredentialRepository, whoService, whoEventPublisher, clock);
   }
 
   /**
@@ -102,25 +84,5 @@ public class WhoJwtAutoConfiguration {
                       "Set it, or spring.security.oauth2.resourceserver.jwt.jwk-set-uri, or register"
                           + " a JwtDecoder bean. Or turn JWT sign-in off with who.jwt.enabled=false.");
                 }));
-  }
-
-  /**
-   * Links JWT issuer/subject pairs to identities, publishing the credential events.
-   *
-   * @param jwtCredentialRepository stores the credentials
-   * @param credentialIdentityRepository links credentials to identities
-   * @param whoEventPublisher where the credential events are published
-   * @param clock stamps the events
-   * @return the service
-   */
-  @Bean
-  @ConditionalOnMissingBean
-  public JwtCredentialService jwtCredentialService(
-      JwtCredentialRepository jwtCredentialRepository,
-      CredentialIdentityRepository credentialIdentityRepository,
-      WhoEventPublisher whoEventPublisher,
-      Clock clock) {
-    return new JwtCredentialService(
-        jwtCredentialRepository, credentialIdentityRepository, whoEventPublisher, clock);
   }
 }

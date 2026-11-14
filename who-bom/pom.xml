@@ -58,6 +58,11 @@
             </dependency>
             <dependency>
                 <groupId>org.jwcarman.who</groupId>
+                <artifactId>who-federated</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jwcarman.who</groupId>
                 <artifactId>who-jwt</artifactId>
                 <version>${project.version}</version>
             </dependency>

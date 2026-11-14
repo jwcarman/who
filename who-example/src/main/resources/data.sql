@@ -7,7 +7,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- JWT Credentials (issuer=http://localhost:8080, subject=username)
-INSERT INTO who_jwt_credential (id, issuer, subject)
+INSERT INTO who_federated_credential (id, issuer, subject)
 VALUES
     ('00000000-0000-0000-0001-000000000001', 'http://localhost:8080', 'alice'),
     ('00000000-0000-0000-0001-000000000002', 'http://localhost:8080', 'bob'),

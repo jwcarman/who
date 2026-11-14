@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.jwt;
+package org.jwcarman.who.federated;
 
 import java.util.Optional;
 import java.util.UUID;
 
-/** Repository for persisting and retrieving {@link JwtCredential} records. */
-public interface JwtCredentialRepository {
+/** Repository for persisting and retrieving {@link FederatedCredential} records. */
+public interface FederatedCredentialRepository {
 
   /**
    * Finds a credential by its issuer and subject claims.
    *
-   * @param issuer the JWT {@code iss} claim value
-   * @param subject the JWT {@code sub} claim value
+   * @param issuer the issuer
+   * @param subject the subject at that issuer
    * @return the credential, or empty if not found
    */
-  Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject);
+  Optional<FederatedCredential> findByIssuerAndSubject(String issuer, String subject);
 
   /**
    * Finds a credential by its id, so that unlinking it can report its issuer. A repository that
@@ -37,18 +37,18 @@ public interface JwtCredentialRepository {
    * @param id the credential UUID
    * @return the matching credential, or empty if not found
    */
-  default Optional<JwtCredential> findById(UUID id) {
+  default Optional<FederatedCredential> findById(UUID id) {
     return Optional.empty();
   }
 
   /**
-   * Persists a credential. If a record with the same id already exists it is left unchanged (JWT
-   * credentials are immutable — issuer and subject never change after creation).
+   * Persists a credential. If a record with the same id already exists it is left unchanged
+   * (federated credentials are immutable — issuer and subject never change after creation).
    *
    * @param credential the credential to save
    * @return the saved credential
    */
-  JwtCredential save(JwtCredential credential);
+  FederatedCredential save(FederatedCredential credential);
 
   /**
    * Deletes the credential with the given id.

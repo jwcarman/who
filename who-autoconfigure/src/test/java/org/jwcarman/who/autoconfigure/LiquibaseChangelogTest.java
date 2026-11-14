@@ -51,7 +51,7 @@ class LiquibaseChangelogTest {
       List.of(
           "org/jwcarman/who/jdbc/who-jdbc-schema.sql",
           "org/jwcarman/who/rbac/who-rbac-schema.sql",
-          "org/jwcarman/who/jwt/who-jwt-schema.sql",
+          "org/jwcarman/who/federated/who-federated-schema.sql",
           "org/jwcarman/who/enrollment/who-enrollment-schema.sql",
           "org/jwcarman/who/apikey/who-apikey-schema.sql",
           "org/jwcarman/who/emaillink/who-email-link-schema.sql",
@@ -67,7 +67,7 @@ class LiquibaseChangelogTest {
           "who_role",
           "who_role_permission",
           "who_identity_role",
-          "who_jwt_credential",
+          "who_federated_credential",
           "who_enrollment_token",
           "who_api_key_credential",
           "who_email_credential",

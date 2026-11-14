@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -52,7 +53,7 @@ class WhoJwtChainTest {
     JwtAuthenticationProvider provider = new JwtAuthenticationProvider(decoder);
     provider.setJwtAuthenticationConverter(
         new WhoJwtAuthenticationConverter(
-            mock(JwtCredentialRepository.class), mock(WhoService.class)));
+            mock(FederatedCredentialRepository.class), mock(WhoService.class)));
     BearerTokenAuthenticationFilter filter =
         new BearerTokenAuthenticationFilter(new ProviderManager(provider));
     filter.setAuthenticationEntryPoint(new BearerTokenAuthenticationEntryPoint());

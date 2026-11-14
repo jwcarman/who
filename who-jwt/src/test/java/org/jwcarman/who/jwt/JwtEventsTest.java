@@ -17,9 +17,7 @@ package org.jwcarman.who.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
@@ -40,19 +38,17 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
-import org.jwcarman.who.core.event.CredentialAdded;
-import org.jwcarman.who.core.event.CredentialKind;
-import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
-import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.NotLinked;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.federated.FederatedCredential;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.ProviderManager;
@@ -65,8 +61,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 /**
- * The events JWTs publish: {@link JwtCredentialService} for credential changes and {@link
- * WhoJwtAuthenticationConverter} for sign-ins, one per request, through a real bearer-token filter.
+ * The events JWT sign-in publishes through {@link WhoJwtAuthenticationConverter}, one per request,
+ * through a real bearer-token filter.
  */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class JwtEventsTest {
@@ -80,73 +76,10 @@ class JwtEventsTest {
   private final List<WhoEvent> events = new CopyOnWriteArrayList<>();
 
   @Nested
-  class Managing_credentials {
-
-    private final JwtCredentialRepository repository = mock(JwtCredentialRepository.class);
-    private final CredentialIdentityRepository links = mock(CredentialIdentityRepository.class);
-    private final JwtCredentialService service =
-        new JwtCredentialService(repository, links, events::add, CLOCK);
-
-    @Test
-    void link_publishes_credential_added_with_the_issuer() {
-      Identity identity = Identity.create();
-      when(repository.save(any(JwtCredential.class))).thenAnswer(call -> call.getArgument(0));
-
-      JwtCredential credential = service.link(identity, ISSUER, SUBJECT);
-
-      verify(links).link(credential.id(), identity.id());
-      assertThat(events)
-          .containsExactly(
-              new CredentialAdded(NOW, identity.id(), credential.id(), CredentialKind.JWT, ISSUER))
-          .noneMatch(event -> event.toString().contains(SUBJECT));
-    }
-
-    @Test
-    void unlink_publishes_credential_revoked() {
-      UUID identityId = UUID.randomUUID();
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
-      when(repository.findById(credential.id())).thenReturn(Optional.of(credential));
-      when(links.findIdentityIdByCredentialId(credential.id())).thenReturn(Optional.of(identityId));
-
-      service.unlink(credential.id());
-
-      verify(repository).deleteById(credential.id());
-      verify(links).unlink(credential.id());
-      assertThat(events)
-          .containsExactly(
-              new CredentialRevoked(NOW, identityId, credential.id(), CredentialKind.JWT, ISSUER));
-    }
-
-    @Test
-    void unlinking_an_id_that_is_linked_to_nothing_publishes_nothing() {
-      UUID unknown = UUID.randomUUID();
-      when(links.findIdentityIdByCredentialId(unknown)).thenReturn(Optional.empty());
-
-      service.unlink(unknown);
-
-      assertThat(events).isEmpty();
-    }
-
-    @Test
-    void a_repository_that_cannot_find_by_id_still_publishes_revoked_with_no_label() {
-      UUID identityId = UUID.randomUUID();
-      UUID credentialId = UUID.randomUUID();
-      JwtCredentialRepository defaulting = mock(JwtCredentialRepository.class);
-      when(defaulting.findById(credentialId)).thenCallRealMethod();
-      when(links.findIdentityIdByCredentialId(credentialId)).thenReturn(Optional.of(identityId));
-
-      new JwtCredentialService(defaulting, links, events::add, CLOCK).unlink(credentialId);
-
-      assertThat(events)
-          .containsExactly(
-              new CredentialRevoked(NOW, identityId, credentialId, CredentialKind.JWT, null));
-    }
-  }
-
-  @Nested
   class Signing_in {
 
-    private final JwtCredentialRepository repository = mock(JwtCredentialRepository.class);
+    private final FederatedCredentialRepository repository =
+        mock(FederatedCredentialRepository.class);
     private final WhoService whoService = mock(WhoService.class);
     private final JwtDecoder decoder = mock(JwtDecoder.class);
     private MockMvc mvc;
@@ -175,7 +108,7 @@ class JwtEventsTest {
 
     @Test
     void a_known_jwt_publishes_no_sign_in_succeeded() throws Exception {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
       Identity identity = Identity.create();
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
       when(whoService.resolveDetailed(credential))
@@ -190,7 +123,7 @@ class JwtEventsTest {
 
     @Test
     void the_token_carries_the_jwt_method_and_credential_id() {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
       WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
       when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
@@ -226,7 +159,7 @@ class JwtEventsTest {
 
     @Test
     void a_missing_resolution_is_treated_as_not_linked() {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
 
       // the mocked WhoService stubs nothing, so resolveDetailed answers null
@@ -248,7 +181,7 @@ class JwtEventsTest {
 
     @Test
     void an_unlinked_credential_publishes_unknown_credential_with_its_id() {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
       when(whoService.resolveDetailed(credential)).thenReturn(new NotLinked());
 
@@ -257,7 +190,7 @@ class JwtEventsTest {
 
     @Test
     void a_credential_whose_identity_is_gone_publishes_unknown_credential_with_both_ids() {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
       UUID identityId = UUID.randomUUID();
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
       when(whoService.resolveDetailed(credential)).thenReturn(new NoIdentity(identityId));
@@ -267,7 +200,7 @@ class JwtEventsTest {
 
     @Test
     void an_inactive_identity_publishes_inactive_identity() throws Exception {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+      FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
       UUID identityId = UUID.randomUUID();
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
       when(whoService.resolveDetailed(credential)).thenReturn(new Inactive(identityId));

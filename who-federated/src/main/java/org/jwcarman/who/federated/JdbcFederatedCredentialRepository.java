@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.jwt;
+package org.jwcarman.who.federated;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -24,61 +24,62 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
- * JDBC implementation of {@link JwtCredentialRepository} backed by the {@code who_jwt_credential}
- * table. It is also the JWT module's {@link CredentialRemover}.
+ * JDBC implementation of {@link FederatedCredentialRepository} backed by the {@code
+ * who_federated_credential} table. It is also the federated credential's {@link CredentialRemover}.
  */
-public class JdbcJwtCredentialRepository implements JwtCredentialRepository, CredentialRemover {
+public class JdbcFederatedCredentialRepository
+    implements FederatedCredentialRepository, CredentialRemover {
 
   private static final String COL_ID = "id";
   private static final String COL_ISSUER = "issuer";
   private static final String COL_SUBJECT = "subject";
 
-  private static final RowMapper<JwtCredential> ROW_MAPPER =
+  private static final RowMapper<FederatedCredential> ROW_MAPPER =
       (rs, rowNum) ->
-          new JwtCredential(
+          new FederatedCredential(
               rs.getObject(COL_ID, UUID.class),
               rs.getString(COL_ISSUER),
               rs.getString(COL_SUBJECT));
 
   private final JdbcClient jdbcClient;
 
-  public JdbcJwtCredentialRepository(JdbcClient jdbcClient) {
+  public JdbcFederatedCredentialRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }
 
   @Override
-  public Optional<JwtCredential> findByIssuerAndSubject(String issuer, String subject) {
+  public Optional<FederatedCredential> findByIssuerAndSubject(String issuer, String subject) {
     return jdbcClient
         .sql(
-            "SELECT id, issuer, subject FROM who_jwt_credential WHERE issuer = :issuer AND subject = :subject")
+            "SELECT id, issuer, subject FROM who_federated_credential WHERE issuer = :issuer AND subject = :subject")
         .param(COL_ISSUER, issuer)
         .param(COL_SUBJECT, subject)
         .query(ROW_MAPPER)
         .optional();
   }
 
-  /** Finds the JWT credential with the given id. */
+  /** Finds the federated credential with the given id. */
   @Override
-  public Optional<JwtCredential> findById(UUID id) {
+  public Optional<FederatedCredential> findById(UUID id) {
     return jdbcClient
-        .sql("SELECT id, issuer, subject FROM who_jwt_credential WHERE id = :id")
+        .sql("SELECT id, issuer, subject FROM who_federated_credential WHERE id = :id")
         .param(COL_ID, id)
         .query(ROW_MAPPER)
         .optional();
   }
 
-  /** Finds the JWT credential with the given id, labelled with its issuer. */
+  /** Finds the federated credential with the given id, labelled with its issuer. */
   @Override
   public Optional<Credential> find(UUID credentialId) {
     return findById(credentialId).map(Credential.class::cast);
   }
 
   @Override
-  public JwtCredential save(JwtCredential credential) {
+  public FederatedCredential save(FederatedCredential credential) {
     jdbcClient
         .sql(
             """
-                        INSERT INTO who_jwt_credential (id, issuer, subject)
+                        INSERT INTO who_federated_credential (id, issuer, subject)
                         VALUES (:id, :issuer, :subject)
                         ON CONFLICT (id) DO NOTHING
                         """)
@@ -91,13 +92,16 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository, Cre
 
   @Override
   public void deleteById(UUID id) {
-    jdbcClient.sql("DELETE FROM who_jwt_credential WHERE id = :id").param(COL_ID, id).update();
+    jdbcClient
+        .sql("DELETE FROM who_federated_credential WHERE id = :id")
+        .param(COL_ID, id)
+        .update();
   }
 
   @Override
   public boolean remove(UUID credentialId) {
     return jdbcClient
-            .sql("DELETE FROM who_jwt_credential WHERE id = :id")
+            .sql("DELETE FROM who_federated_credential WHERE id = :id")
             .param(COL_ID, credentialId)
             .update()
         > 0;
@@ -107,7 +111,7 @@ public class JdbcJwtCredentialRepository implements JwtCredentialRepository, Cre
   public int removeUnlinked() {
     return jdbcClient
         .sql(
-            "DELETE FROM who_jwt_credential j WHERE NOT EXISTS"
+            "DELETE FROM who_federated_credential j WHERE NOT EXISTS"
                 + " (SELECT 1 FROM who_credential_identity ci WHERE ci.credential_id = j.id)")
         .update();
   }

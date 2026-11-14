@@ -20,7 +20,7 @@ import java.util.Map;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.jwt.JwtCredentialService;
+import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.springframework.http.ResponseEntity;
@@ -40,11 +40,11 @@ class TestController {
 
   private final EventRecorder recorder;
   private final WhoService who;
-  private final JwtCredentialService jwts;
+  private final FederatedCredentialService jwts;
   private final RbacService rbac;
 
   TestController(
-      EventRecorder recorder, WhoService who, JwtCredentialService jwts, RbacService rbac) {
+      EventRecorder recorder, WhoService who, FederatedCredentialService jwts, RbacService rbac) {
     this.recorder = recorder;
     this.who = who;
     this.jwts = jwts;

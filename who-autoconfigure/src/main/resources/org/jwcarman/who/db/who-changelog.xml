@@ -26,7 +26,7 @@
 
     <include file="classpath:org/jwcarman/who/jdbc/db/who-jdbc-changelog.xml" errorIfMissing="false"/>
     <include file="classpath:org/jwcarman/who/rbac/db/who-rbac-changelog.xml" errorIfMissing="false"/>
-    <include file="classpath:org/jwcarman/who/jwt/db/who-jwt-changelog.xml" errorIfMissing="false"/>
+    <include file="classpath:org/jwcarman/who/federated/db/who-federated-changelog.xml" errorIfMissing="false"/>
     <include file="classpath:org/jwcarman/who/enrollment/db/who-enrollment-changelog.xml" errorIfMissing="false"/>
     <include file="classpath:org/jwcarman/who/apikey/db/who-apikey-changelog.xml" errorIfMissing="false"/>
     <include file="classpath:org/jwcarman/who/emaillink/db/who-email-link-changelog.xml" errorIfMissing="false"/>

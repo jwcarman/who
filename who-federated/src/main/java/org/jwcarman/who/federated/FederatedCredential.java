@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.jwt;
+package org.jwcarman.who.federated;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,42 +25,43 @@ import org.jwcarman.who.core.id.Identifiers;
 import org.jwcarman.who.core.spi.Credential;
 
 /**
- * Credential representing a JWT identified by its issuer and subject claims.
+ * An account at an identity provider or token issuer, identified by its issuer and subject: the
+ * credential both JWT sign-in and identity-provider sign-in key on.
  *
  * <p>The {@link #id()} UUID is stable for the lifetime of the credential record and is used as the
  * foreign key to the identity mapping table.
  *
  * @param id stable UUID identifying this credential record
- * @param issuer the JWT {@code iss} claim value
- * @param subject the JWT {@code sub} claim value
+ * @param issuer the issuer, as who's configuration names it
+ * @param subject the account's subject at that issuer
  */
-public record JwtCredential(UUID id, String issuer, String subject) implements Credential {
+public record FederatedCredential(UUID id, String issuer, String subject) implements Credential {
 
-  public JwtCredential {
+  public FederatedCredential {
     requireNonNull(id, "id must not be null");
     requireNonNull(issuer, "issuer must not be null");
     requireNonNull(subject, "subject must not be null");
   }
 
   /**
-   * Creates a new {@code JwtCredential} with a randomly generated UUID.
+   * Creates a new {@code FederatedCredential} with a randomly generated UUID.
    *
-   * @param issuer the JWT {@code iss} claim value
-   * @param subject the JWT {@code sub} claim value
+   * @param issuer the issuer
+   * @param subject the subject at that issuer
    * @return a new credential
    */
-  public static JwtCredential create(String issuer, String subject) {
-    return new JwtCredential(Identifiers.uuid(), issuer, subject);
+  public static FederatedCredential create(String issuer, String subject) {
+    return new FederatedCredential(Identifiers.uuid(), issuer, subject);
   }
 
   /**
-   * Returns {@link CredentialKind#JWT}.
+   * Returns {@link CredentialKind#FEDERATED}.
    *
-   * @return {@link CredentialKind#JWT}
+   * @return {@link CredentialKind#FEDERATED}
    */
   @Override
   public CredentialKind kind() {
-    return CredentialKind.JWT;
+    return CredentialKind.FEDERATED;
   }
 
   /**

@@ -1,6 +1,7 @@
 org.jwcarman.who.autoconfigure.WhoAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoSpringSecurityAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoEnrollmentAutoConfiguration
+org.jwcarman.who.autoconfigure.WhoFederatedAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoJwtAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoApiKeyAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoEmailLinkAutoConfiguration

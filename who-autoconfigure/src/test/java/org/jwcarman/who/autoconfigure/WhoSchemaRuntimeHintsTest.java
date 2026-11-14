@@ -37,7 +37,7 @@ class WhoSchemaRuntimeHintsTest {
       List.of(
           "org.jwcarman.who.jdbc.JdbcIdentityRepository",
           "org.jwcarman.who.rbac.JdbcRoleRepository",
-          "org.jwcarman.who.jwt.JdbcJwtCredentialRepository",
+          "org.jwcarman.who.federated.JdbcFederatedCredentialRepository",
           "org.jwcarman.who.enrollment.JdbcEnrollmentTokenRepository",
           "org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository",
           "org.jwcarman.who.emaillink.JdbcEmailCredentialRepository",

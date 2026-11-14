@@ -11,7 +11,7 @@ spring:
       schema-locations:
         - classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql
         - classpath:org/jwcarman/who/rbac/who-rbac-schema.sql
-        - classpath:org/jwcarman/who/jwt/who-jwt-schema.sql
+        - classpath:org/jwcarman/who/federated/who-federated-schema.sql
         - classpath:schema.sql
       data-locations:
         - classpath:data.sql

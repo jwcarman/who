@@ -46,8 +46,8 @@ public class WhoDataSourceScriptDatabaseInitializer extends DataSourceScriptData
               "org.jwcarman.who.rbac.JdbcRoleRepository",
               "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql"),
           new ModuleSchema(
-              "org.jwcarman.who.jwt.JdbcJwtCredentialRepository",
-              "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql"),
+              "org.jwcarman.who.federated.JdbcFederatedCredentialRepository",
+              "classpath:org/jwcarman/who/federated/who-federated-schema.sql"),
           new ModuleSchema(
               "org.jwcarman.who.enrollment.JdbcEnrollmentTokenRepository",
               "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql"),

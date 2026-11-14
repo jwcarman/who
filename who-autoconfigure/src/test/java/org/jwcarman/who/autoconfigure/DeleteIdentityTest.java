@@ -28,8 +28,8 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkSender;
-import org.jwcarman.who.jwt.JwtCredential;
-import org.jwcarman.who.jwt.JwtCredentialRepository;
+import org.jwcarman.who.federated.FederatedCredential;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
@@ -100,7 +100,7 @@ class DeleteIdentityTest {
           assertThat(count(jdbc, "who_identity", "id", identity.id())).isZero();
           assertThat(count(jdbc, "who_credential_identity", "identity_id", identity.id())).isZero();
           assertThat(count(jdbc, "who_email_credential", "id", email)).isZero();
-          assertThat(count(jdbc, "who_jwt_credential", "id", jwt)).isZero();
+          assertThat(count(jdbc, "who_federated_credential", "id", jwt)).isZero();
           assertThat(count(jdbc, "who_api_key_credential", "id", apiKey)).isZero();
           assertThat(count(jdbc, "who_identity_role", "identity_id", identity.id())).isZero();
           assertThat(count(jdbc, "who_passkey_user", "identity_id", identity.id())).isZero();
@@ -142,17 +142,19 @@ class DeleteIdentityTest {
           assertThat(whoService.purgeOrphanedCredentials()).isEqualTo(3);
 
           assertThat(count(jdbc, "who_email_credential", "id", orphanEmail.id())).isZero();
-          assertThat(count(jdbc, "who_jwt_credential", "id", orphanJwt)).isZero();
+          assertThat(count(jdbc, "who_federated_credential", "id", orphanJwt)).isZero();
           assertThat(count(jdbc, "who_email_credential", "id", keptEmail.id())).isOne();
-          assertThat(count(jdbc, "who_jwt_credential", "id", keptJwt)).isOne();
+          assertThat(count(jdbc, "who_federated_credential", "id", keptJwt)).isOne();
           whoService.deleteIdentity(kept.id());
         });
   }
 
   private static UUID linkedJwt(
       AssertableApplicationContext context, Identity identity, String subject) {
-    JwtCredential credential =
-        context.getBean(JwtCredentialRepository.class).save(JwtCredential.create(ISSUER, subject));
+    FederatedCredential credential =
+        context
+            .getBean(FederatedCredentialRepository.class)
+            .save(FederatedCredential.create(ISSUER, subject));
     context.getBean(CredentialIdentityRepository.class).link(credential.id(), identity.id());
     return credential.id();
   }

@@ -112,6 +112,7 @@
         <module>who-jdbc</module>
         <module>who-rbac</module>
         <module>who-spring-security</module>
+        <module>who-federated</module>
         <module>who-jwt</module>
         <module>who-enrollment</module>
         <module>who-apikey</module>

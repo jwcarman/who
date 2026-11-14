@@ -32,6 +32,8 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.Resolution.NotLinked;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.federated.FederatedCredential;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,7 +47,7 @@ class WhoJwtAuthenticationConverterTest {
   private static final String ISSUER = "https://issuer.example.com";
   private static final String SUBJECT = "user-123";
 
-  @Mock private JwtCredentialRepository jwtCredentialRepository;
+  @Mock private FederatedCredentialRepository federatedCredentialRepository;
 
   @Mock private WhoService whoService;
 
@@ -53,13 +55,13 @@ class WhoJwtAuthenticationConverterTest {
 
   @BeforeEach
   void setUp() {
-    converter = new WhoJwtAuthenticationConverter(jwtCredentialRepository, whoService);
+    converter = new WhoJwtAuthenticationConverter(federatedCredentialRepository, whoService);
   }
 
   @Test
   void throwsBadCredentialsWhenCredentialNotFound() {
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
-    when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
+    when(federatedCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.empty());
 
     assertThatExceptionOfType(BadCredentialsException.class)
@@ -68,10 +70,10 @@ class WhoJwtAuthenticationConverterTest {
 
   @Test
   void throwsBadCredentialsWhenWhoServiceReturnsEmpty() {
-    JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
-    when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
+    when(federatedCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
     when(whoService.resolveDetailed(credential)).thenReturn(new NotLinked());
 
@@ -81,11 +83,11 @@ class WhoJwtAuthenticationConverterTest {
 
   @Test
   void returnsAuthenticationTokenForValidCredential() {
-    JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
-    when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
+    when(federatedCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
     when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
@@ -97,11 +99,11 @@ class WhoJwtAuthenticationConverterTest {
 
   @Test
   void authoritiesMatchPermissionsInPrincipal() {
-    JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data", "write:data"));
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
-    when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
+    when(federatedCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
     when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
@@ -115,11 +117,11 @@ class WhoJwtAuthenticationConverterTest {
 
   @Test
   void getCredentialsReturnsNull() {
-    JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
     Jwt jwt = buildJwt(ISSUER, SUBJECT);
 
-    when(jwtCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
+    when(federatedCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
         .thenReturn(Optional.of(credential));
     when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 
@@ -167,11 +169,11 @@ class WhoJwtAuthenticationConverterTest {
 
   @Test
   void nonUrlIssuerIsLookedUp() {
-    JwtCredential credential = JwtCredential.create("noir", SUBJECT);
+    FederatedCredential credential = FederatedCredential.create("noir", SUBJECT);
     WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
     Jwt jwt = buildJwt("noir", SUBJECT);
 
-    when(jwtCredentialRepository.findByIssuerAndSubject("noir", SUBJECT))
+    when(federatedCredentialRepository.findByIssuerAndSubject("noir", SUBJECT))
         .thenReturn(Optional.of(credential));
     when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
 

@@ -1,0 +1,6 @@
+{
+  "resources": [
+    {"glob": "org/jwcarman/who/federated/db/*.xml"},
+    {"glob": "org/jwcarman/who/federated/who-*-schema.sql"}
+  ]
+}

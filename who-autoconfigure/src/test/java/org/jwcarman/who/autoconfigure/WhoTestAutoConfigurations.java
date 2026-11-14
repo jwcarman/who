@@ -35,6 +35,7 @@ final class WhoTestAutoConfigurations {
           WhoAutoConfiguration.class,
           WhoSpringSecurityAutoConfiguration.class,
           WhoEnrollmentAutoConfiguration.class,
+          WhoFederatedAutoConfiguration.class,
           WhoJwtAutoConfiguration.class,
           WhoApiKeyAutoConfiguration.class,
           WhoEmailLinkAutoConfiguration.class,

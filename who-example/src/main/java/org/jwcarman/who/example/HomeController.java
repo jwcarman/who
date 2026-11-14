@@ -17,7 +17,7 @@ package org.jwcarman.who.example;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.jwt.JwtCredentialRepository;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
@@ -30,11 +30,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class HomeController {
 
   private final WhoService whoService;
-  private final JwtCredentialRepository jwtCredentialRepository;
+  private final FederatedCredentialRepository federatedCredentialRepository;
 
-  public HomeController(WhoService whoService, JwtCredentialRepository jwtCredentialRepository) {
+  public HomeController(
+      WhoService whoService, FederatedCredentialRepository federatedCredentialRepository) {
     this.whoService = whoService;
-    this.jwtCredentialRepository = jwtCredentialRepository;
+    this.federatedCredentialRepository = federatedCredentialRepository;
   }
 
   @GetMapping("/")
@@ -52,7 +53,7 @@ public class HomeController {
 
     // Look up the WhoPrincipal for this user via JWT credential
     String issuer = "http://localhost:8080";
-    jwtCredentialRepository
+    federatedCredentialRepository
         .findByIssuerAndSubject(issuer, username)
         .ifPresent(
             cred -> {

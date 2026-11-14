@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.who.jwt;
+package org.jwcarman.who.federated;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,9 +26,9 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
-class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
+class JdbcFederatedCredentialRepositoryTest extends AbstractFederatedTest {
 
-  @Autowired private JdbcJwtCredentialRepository repository;
+  @Autowired private JdbcFederatedCredentialRepository repository;
   @Autowired private IdentityRepository identityRepository;
   @Autowired private CredentialIdentityRepository credentialIdentityRepository;
 
@@ -36,7 +36,8 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
   @Test
   void savesAndFindsCredentialByIssuerAndSubject() {
-    JwtCredential credential = JwtCredential.create("https://issuer.example.com", "user-123");
+    FederatedCredential credential =
+        FederatedCredential.create("https://issuer.example.com", "user-123");
     repository.save(credential);
 
     assertThat(repository.findByIssuerAndSubject("https://issuer.example.com", "user-123"))
@@ -57,7 +58,8 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
   @Test
   void deleteByIdRemovesCredential() {
-    JwtCredential credential = JwtCredential.create("https://issuer.example.com", "to-delete");
+    FederatedCredential credential =
+        FederatedCredential.create("https://issuer.example.com", "to-delete");
     repository.save(credential);
 
     repository.deleteById(credential.id());
@@ -70,8 +72,10 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
   void saveIsIdempotentOnConflict() {
     // ON CONFLICT (id) DO NOTHING — saving the same id twice leaves the first record intact
     UUID id = UUID.randomUUID();
-    JwtCredential first = new JwtCredential(id, "https://issuer.example.com", "subject-a");
-    JwtCredential second = new JwtCredential(id, "https://other.example.com", "subject-b");
+    FederatedCredential first =
+        new FederatedCredential(id, "https://issuer.example.com", "subject-a");
+    FederatedCredential second =
+        new FederatedCredential(id, "https://other.example.com", "subject-b");
 
     repository.save(first);
     repository.save(second); // should be silently ignored
@@ -84,7 +88,8 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
   @Test
   void removeDeletesTheCredentialItOwns() {
-    JwtCredential credential = repository.save(JwtCredential.create(ISSUER, "to-remove"));
+    FederatedCredential credential =
+        repository.save(FederatedCredential.create(ISSUER, "to-remove"));
 
     assertThat(repository.remove(credential.id())).isTrue();
     assertThat(repository.findByIssuerAndSubject(ISSUER, "to-remove")).isEmpty();
@@ -99,9 +104,9 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
   void removeUnlinkedDeletesOnlyUnlinkedCredentials() {
     repository.removeUnlinked();
     Identity identity = identityRepository.save(Identity.create());
-    JwtCredential linked = repository.save(JwtCredential.create(ISSUER, "linked"));
+    FederatedCredential linked = repository.save(FederatedCredential.create(ISSUER, "linked"));
     credentialIdentityRepository.link(linked.id(), identity.id());
-    repository.save(JwtCredential.create(ISSUER, "orphan"));
+    repository.save(FederatedCredential.create(ISSUER, "orphan"));
 
     assertThat(repository.removeUnlinked()).isOne();
     assertThat(repository.findByIssuerAndSubject(ISSUER, "orphan")).isEmpty();
@@ -110,7 +115,7 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
   @Test
   void findByIdFindsTheCredential() {
-    JwtCredential credential = repository.save(JwtCredential.create(ISSUER, "by-id"));
+    FederatedCredential credential = repository.save(FederatedCredential.create(ISSUER, "by-id"));
 
     assertThat(repository.findById(credential.id())).contains(credential);
     assertThat(repository.findById(UUID.randomUUID())).isEmpty();
@@ -118,12 +123,13 @@ class JdbcJwtCredentialRepositoryTest extends AbstractJwtTest {
 
   @Test
   void findDescribesTheCredentialItOwns() {
-    JwtCredential credential = repository.save(JwtCredential.create(ISSUER, "described"));
+    FederatedCredential credential =
+        repository.save(FederatedCredential.create(ISSUER, "described"));
 
     assertThat(repository.find(credential.id()))
         .hasValueSatisfying(
             found -> {
-              assertThat(found.kind()).isEqualTo(CredentialKind.JWT);
+              assertThat(found.kind()).isEqualTo(CredentialKind.FEDERATED);
               assertThat(found.label()).contains(ISSUER);
             });
     assertThat(repository.find(UUID.randomUUID())).isEmpty();

@@ -33,7 +33,7 @@ class WhoDataSourceScriptDatabaseInitializerTest {
         .containsExactly(
             "classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql",
             "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql",
-            "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql",
+            "classpath:org/jwcarman/who/federated/who-federated-schema.sql",
             "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql",
             "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql",
             "classpath:org/jwcarman/who/emaillink/who-email-link-schema.sql",
@@ -50,7 +50,7 @@ class WhoDataSourceScriptDatabaseInitializerTest {
             "classpath:org/jwcarman/who/jdbc/who-jdbc-schema.sql",
             "classpath:org/jwcarman/who/rbac/who-rbac-schema.sql")
         .contains(
-            "classpath:org/jwcarman/who/jwt/who-jwt-schema.sql",
+            "classpath:org/jwcarman/who/federated/who-federated-schema.sql",
             "classpath:org/jwcarman/who/enrollment/who-enrollment-schema.sql",
             "classpath:org/jwcarman/who/apikey/who-apikey-schema.sql");
   }

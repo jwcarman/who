@@ -32,6 +32,8 @@ import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.NotLinked;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.federated.FederatedCredential;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +52,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimNames;
  *
  * <ul>
  *   <li>the JWT has no {@code iss} or no {@code sub} claim,
- *   <li>no {@link JwtCredential} is registered for the issuer/subject pair, or
+ *   <li>no {@link FederatedCredential} is registered for the issuer/subject pair, or
  *   <li>{@link WhoService#resolveDetailed} finds no active identity linked to the credential.
  * </ul>
  *
@@ -71,7 +73,7 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
 
   private static final Logger log = LoggerFactory.getLogger(WhoJwtAuthenticationConverter.class);
 
-  private final JwtCredentialRepository jwtCredentialRepository;
+  private final FederatedCredentialRepository federatedCredentialRepository;
   private final WhoService whoService;
   private final WhoEventPublisher eventPublisher;
   private final Clock clock;
@@ -79,29 +81,30 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
   /**
    * Creates a new converter that publishes no events.
    *
-   * @param jwtCredentialRepository repository for looking up registered JWT credentials
+   * @param federatedCredentialRepository repository for looking up registered JWT credentials
    * @param whoService service for resolving a credential to a principal
    */
   public WhoJwtAuthenticationConverter(
-      JwtCredentialRepository jwtCredentialRepository, WhoService whoService) {
-    this(jwtCredentialRepository, whoService, WhoEventPublisher.NOOP, Clock.systemUTC());
+      FederatedCredentialRepository federatedCredentialRepository, WhoService whoService) {
+    this(federatedCredentialRepository, whoService, WhoEventPublisher.NOOP, Clock.systemUTC());
   }
 
   /**
    * Creates a new converter.
    *
-   * @param jwtCredentialRepository repository for looking up registered JWT credentials
+   * @param federatedCredentialRepository repository for looking up registered JWT credentials
    * @param whoService service for resolving a credential to a principal
    * @param eventPublisher where {@link SignInFailed} is published
    * @param clock stamps the events
    */
   public WhoJwtAuthenticationConverter(
-      JwtCredentialRepository jwtCredentialRepository,
+      FederatedCredentialRepository federatedCredentialRepository,
       WhoService whoService,
       WhoEventPublisher eventPublisher,
       Clock clock) {
-    this.jwtCredentialRepository =
-        requireNonNull(jwtCredentialRepository, "jwtCredentialRepository must not be null");
+    this.federatedCredentialRepository =
+        requireNonNull(
+            federatedCredentialRepository, "federatedCredentialRepository must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
@@ -120,7 +123,8 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
           null,
           null);
     }
-    Optional<JwtCredential> found = jwtCredentialRepository.findByIssuerAndSubject(issuer, subject);
+    Optional<FederatedCredential> found =
+        federatedCredentialRepository.findByIssuerAndSubject(issuer, subject);
     if (found.isEmpty()) {
       throw unknown(issuer, subject, null, null);
     }

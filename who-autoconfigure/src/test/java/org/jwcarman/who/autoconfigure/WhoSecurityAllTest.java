@@ -43,7 +43,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
-import org.jwcarman.who.jwt.JwtCredentialService;
+import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -170,7 +170,7 @@ class WhoSecurityAllTest {
   @LocalServerPort private int port;
   @Autowired private WhoService whoService;
   @Autowired private ApiKeyService apiKeyService;
-  @Autowired private JwtCredentialService jwtCredentialService;
+  @Autowired private FederatedCredentialService federatedCredentialService;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private EmailCredentialService emailCredentialService;
 
@@ -181,10 +181,10 @@ class WhoSecurityAllTest {
   @BeforeEach
   void setUp() {
     jdbcClient.sql("DELETE FROM who_identity").update();
-    jdbcClient.sql("DELETE FROM who_jwt_credential").update();
+    jdbcClient.sql("DELETE FROM who_federated_credential").update();
     Identity identity = whoService.createIdentity();
     apiKey = apiKeyService.create(identity, "test");
-    jwtCredentialService.link(identity, ISSUER, SUBJECT);
+    federatedCredentialService.link(identity, ISSUER, SUBJECT);
     emailCredentialService.register(identity, ADDRESS);
     SENT.clear();
   }
