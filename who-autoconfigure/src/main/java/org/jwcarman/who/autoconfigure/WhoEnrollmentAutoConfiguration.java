@@ -25,6 +25,7 @@ import org.jwcarman.who.enrollment.EnrollmentTokenRepository;
 import org.jwcarman.who.enrollment.JdbcEnrollmentTokenRepository;
 import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -35,6 +36,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @AutoConfiguration(after = WhoAutoConfiguration.class)
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.enrollment.WhoEnrollmentService")
+@ConditionalOnBooleanProperty(name = "who.enrollment.enabled", matchIfMissing = true)
 public class WhoEnrollmentAutoConfiguration {
 
   @Bean

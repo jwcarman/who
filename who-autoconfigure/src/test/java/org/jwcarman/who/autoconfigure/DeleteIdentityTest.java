@@ -65,7 +65,8 @@ class DeleteIdentityTest {
               "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
               "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
               "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword())
-          .withBean(EmailLinkSender.class, () -> message -> {});
+          .withBean(EmailLinkSender.class, () -> message -> {})
+          .withPropertyValues("who.passkey.enabled=false");
 
   @Test
   void deleteIdentityRemovesEveryCredentialAndLink() {

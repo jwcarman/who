@@ -46,9 +46,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -63,19 +63,20 @@ import io.micrometer.observation.ObservationRegistry;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Registers email sign-in link beans when {@code who-email-link} is on the classpath and the
- * application opts in by setting {@code who.email-link.link-base-url}.
+ * Turns email-link sign-in on when {@code who-email-link} is on the classpath; {@code
+ * who.email-link.enabled=false} turns it off.
  *
- * <p>Once opted in, {@code who.email-link.resend-interval} must not exceed {@code
- * who.email-link.token-ttl}, and an {@link EmailLinkSender} must be available; startup fails
- * otherwise.
+ * <p>Startup fails with a {@link WhoConfigurationException} when {@code
+ * who.email-link.link-base-url} or {@code who.email-link.code-secret} is missing, when {@code
+ * who.email-link.resend-interval} exceeds {@code who.email-link.token-ttl}, or when no {@link
+ * EmailLinkSender} is available.
  */
 @AutoConfiguration(
     after = WhoAutoConfiguration.class,
     afterName = "org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration")
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.emaillink.EmailLinkLoginMethod")
-@ConditionalOnProperty(prefix = "who.email-link", name = "link-base-url")
+@ConditionalOnBooleanProperty(name = "who.email-link.enabled", matchIfMissing = true)
 public class WhoEmailLinkAutoConfiguration {
 
   static final String EXECUTOR_BEAN_NAME = "whoEmailLinkExecutor";
@@ -88,7 +89,8 @@ public class WhoEmailLinkAutoConfiguration {
       throw new WhoConfigurationException(
           "who.email-link.link-base-url",
           "must be set to the page that receives sign-in links",
-          "Set it to the URL of your sign-in page, such as https://app.example.com/signin.");
+          "Set it to the URL of your sign-in page, such as https://app.example.com/signin."
+              + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
     Duration tokenTtl = emailLink.getTokenTtl();
     Duration resendInterval = emailLink.getResendInterval();
@@ -109,13 +111,15 @@ public class WhoEmailLinkAutoConfiguration {
       throw new WhoConfigurationException(
           "who.email-link.code-secret",
           "is an unresolved placeholder",
-          "Set the environment variable or property it names.");
+          "Set the environment variable or property it names."
+              + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
     if (codeSecret == null || codeSecret.isBlank() || codeSecret.length() < 32) {
       throw new WhoConfigurationException(
           "who.email-link.code-secret",
           "must be set to at least 32 characters",
-          "Set it to a random secret of at least 32 characters, kept out of source control.");
+          "Set it to a random secret of at least 32 characters, kept out of source control."
+              + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
     if (emailLink.getCodeLength() < 6) {
       throw new WhoConfigurationException(
@@ -214,7 +218,8 @@ public class WhoEmailLinkAutoConfiguration {
       throw new WhoConfigurationException(
           "spring.mail.host",
           "is not set, so sign-in emails cannot be sent",
-          "Set spring.mail.host and who.email-link.from, or register an EmailLinkSender bean.");
+          "Set spring.mail.host and who.email-link.from, or register an EmailLinkSender bean."
+              + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
     return new EmailLinkIssuer(
         emailCredentialService,
@@ -296,7 +301,6 @@ public class WhoEmailLinkAutoConfiguration {
         "org.jwcarman.who.emaillink.MailEmailLinkSender",
         "org.springframework.mail.javamail.JavaMailSender"
       })
-  @ConditionalOnProperty(prefix = "who.email-link", name = "link-base-url")
   static class MailEmailLinkSenderConfiguration {
 
     @Bean
@@ -309,7 +313,8 @@ public class WhoEmailLinkAutoConfiguration {
         throw new WhoConfigurationException(
             "who.email-link.from",
             "must be set to the sender address of sign-in emails",
-            "Set it to the address sign-in emails come from, such as no-reply@example.com.");
+            "Set it to the address sign-in emails come from, such as no-reply@example.com."
+                + " Or turn email-link sign-in off with who.email-link.enabled=false.");
       }
       return new MailEmailLinkSender(
           javaMailSender, emailLink.getFrom(), emailLink.getSubject(), clock);

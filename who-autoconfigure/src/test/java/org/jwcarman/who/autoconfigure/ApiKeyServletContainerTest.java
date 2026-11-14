@@ -54,7 +54,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    classes = ApiKeyServletContainerTest.App.class)
+    classes = ApiKeyServletContainerTest.App.class,
+    properties = {"who.email-link.enabled=false", "who.passkey.enabled=false"})
 class ApiKeyServletContainerTest {
 
   @Configuration

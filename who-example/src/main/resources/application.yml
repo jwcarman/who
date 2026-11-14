@@ -43,3 +43,10 @@ spring:
 logging:
   level:
     org.jwcarman.who: DEBUG
+
+# Temporary until the starter is slim (0.18 Task 4): the starter still brings every module.
+who:
+  email-link:
+    enabled: false
+  passkey:
+    enabled: false

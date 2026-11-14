@@ -95,7 +95,8 @@ import ch.qos.logback.core.read.ListAppender;
     properties = {
       "who.initialize-schema=always",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
-      "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET
+      "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,
+      "who.passkey.enabled=false"
     })
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class EmailSignInEventsTest {

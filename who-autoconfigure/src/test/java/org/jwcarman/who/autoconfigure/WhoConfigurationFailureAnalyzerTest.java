@@ -129,7 +129,8 @@ class WhoConfigurationFailureAnalyzerTest {
     @Test
     void a_blank_rp_id() {
       runner
-          .withPropertyValues("who.passkey.rp-id=")
+          .withUserConfiguration(Sender.class)
+          .withPropertyValues(LINK, SECRET, "who.passkey.rp-id=")
           .run(context -> assertProperty(context, "who.passkey.rp-id"));
     }
   }

@@ -87,7 +87,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
       "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
-      "spring.session.jdbc.initialize-schema=never"
+      "spring.session.jdbc.initialize-schema=never",
+      "who.passkey.enabled=false"
     })
 @AutoConfigureMockMvc
 @Testcontainers

@@ -95,7 +95,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
     properties = {
       "who.initialize-schema=always",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
-      "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET
+      "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,
+      "who.passkey.enabled=false"
     })
 @Testcontainers
 class EmailLinkSignInTest {
@@ -590,6 +591,7 @@ class EmailLinkSignInTest {
             "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
             "spring.datasource.username=" + POSTGRES.getUsername(),
             "spring.datasource.password=" + POSTGRES.getPassword())
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             other -> {
               assertThat(other).hasNotFailed();
@@ -708,10 +710,11 @@ class EmailLinkSignInTest {
           .withUserConfiguration(StartupConfig.class);
 
   @Test
-  void absentLinkBaseUrlMeansNoEmailLinkSignIn() {
+  void emailLinksOffMeansNoEmailLinkSignIn() {
     new ApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             ctx -> {
               assertThat(ctx).hasNotFailed();
@@ -729,6 +732,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -745,6 +749,7 @@ class EmailLinkSignInTest {
     startupRunner
         .withPropertyValues(
             "who.email-link.link-base-url=", "who.email-link.code-secret=" + CODE_SECRET)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -774,6 +779,7 @@ class EmailLinkSignInTest {
             "who.email-link.code-secret=" + CODE_SECRET,
             "who.email-link.token-ttl=1m",
             "who.email-link.resend-interval=2m")
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -787,6 +793,7 @@ class EmailLinkSignInTest {
   void missingCodeSecretFailsStartup() {
     startupRunner
         .withPropertyValues("who.email-link.link-base-url=" + LINK_BASE_URL)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -801,6 +808,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + " ".repeat(40))
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -815,6 +823,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET.substring(0, 31))
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -847,6 +856,7 @@ class EmailLinkSignInTest {
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET,
             "who.email-link.code-length=5")
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -862,6 +872,7 @@ class EmailLinkSignInTest {
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET,
             "who.email-link.code-max-attempts=0")
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx ->
                 assertThat(ctx.getStartupFailure())
@@ -876,6 +887,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx -> {
               Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
@@ -896,6 +908,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx -> {
               Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
@@ -920,6 +933,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx -> {
               Executor executor = ctx.getBean("whoEmailLinkExecutor", Executor.class);
@@ -942,6 +956,7 @@ class EmailLinkSignInTest {
             "who.email-link.token-ttl=2m",
             "who.email-link.resend-interval=2m",
             "who.email-link.code-max-attempts=1")
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             ctx -> {
               assertThat(ctx).hasNotFailed();
@@ -958,6 +973,7 @@ class EmailLinkSignInTest {
         .withPropertyValues(
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(ctx -> assertThat(ctx).hasNotFailed());
   }
 }

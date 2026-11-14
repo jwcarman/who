@@ -37,6 +37,7 @@ public class WhoProperties {
   private MethodSecurity methodSecurity = new MethodSecurity();
   private EmailLink emailLink = new EmailLink();
   private Passkey passkey = new Passkey();
+  private Jwt jwt = new Jwt();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -149,9 +150,30 @@ public class WhoProperties {
   /** Properties for the {@code who-passkey} module. */
   public static class Passkey {
 
+    /** Whether passkey sign-in is on. It is on whenever its module is on the classpath. */
+    private boolean enabled = true;
+
     /**
-     * Relying party id: the application's own host, such as {@code app.example.com}. Setting it
-     * turns passkeys on; when unset, no passkey beans are registered.
+     * Returns whether passkey sign-in is on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns passkey sign-in off with {@code false}.
+     *
+     * @param enabled false to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    /**
+     * Relying party id: the application's own host, such as {@code app.example.com}. Required when
+     * {@code who-passkey} is on the classpath; startup fails without it.
      */
     private String rpId;
 
@@ -269,10 +291,31 @@ public class WhoProperties {
   /** Properties for the {@code who-email-link} module. */
   public static class EmailLink {
 
+    /** Whether email-link sign-in is on. It is on whenever its module is on the classpath. */
+    private boolean enabled = true;
+
+    /**
+     * Returns whether email-link sign-in is on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns email-link sign-in off with {@code false}.
+     *
+     * @param enabled false to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
     /**
      * Page of the application that receives sign-in links; the token is appended as a {@code
-     * #token=...} fragment. Setting it turns email-link sign-in on; when unset, no email-link beans
-     * are registered.
+     * #token=...} fragment. Required when {@code who-email-link} is on the classpath; startup fails
+     * without it.
      */
     private String linkBaseUrl;
 
@@ -478,6 +521,27 @@ public class WhoProperties {
   /** Properties for the {@code who-enrollment} module. */
   public static class Enrollment {
 
+    /** Whether enrollment is on. It is on whenever its module is on the classpath. */
+    private boolean enabled = true;
+
+    /**
+     * Returns whether enrollment is on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns enrollment off with {@code false}.
+     *
+     * @param enabled false to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
     /** Duration after which a newly created enrollment token expires. */
     private Duration tokenExpiration = Duration.ofHours(24);
 
@@ -503,6 +567,27 @@ public class WhoProperties {
   /** Properties for the {@code who-apikey} module. */
   public static class ApiKey {
 
+    /** Whether API-key sign-in is on. It is on whenever its module is on the classpath. */
+    private boolean enabled = true;
+
+    /**
+     * Returns whether API-key sign-in is on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns API-key sign-in off with {@code false}.
+     *
+     * @param enabled false to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
     /** HTTP header name that carries the API key. */
     private String headerName = "X-API-Key";
 
@@ -522,6 +607,49 @@ public class WhoProperties {
      */
     public void setHeaderName(String headerName) {
       this.headerName = headerName;
+    }
+  }
+
+  /**
+   * Returns the JWT module properties.
+   *
+   * @return JWT properties
+   */
+  public Jwt getJwt() {
+    return jwt;
+  }
+
+  /**
+   * Sets the JWT module properties.
+   *
+   * @param jwt JWT properties
+   */
+  public void setJwt(Jwt jwt) {
+    this.jwt = jwt;
+  }
+
+  /** Properties for the {@code who-jwt} module. */
+  public static class Jwt {
+
+    /** Whether JWT sign-in is on. It is on whenever its module is on the classpath. */
+    private boolean enabled = true;
+
+    /**
+     * Returns whether JWT sign-in is on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns JWT sign-in off with {@code false}.
+     *
+     * @param enabled false to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
     }
   }
 }

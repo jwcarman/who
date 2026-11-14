@@ -104,6 +104,7 @@ class WhoAutoConfigurationTest {
         .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
         .withBean(
             CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               UUID credentialId = UUID.randomUUID();
@@ -130,6 +131,7 @@ class WhoAutoConfigurationTest {
             CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
         .withBean(EmailCredentialService.class, () -> emailCredentials)
         .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -146,6 +148,7 @@ class WhoAutoConfigurationTest {
         .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
         .withBean(
             CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               UUID credentialId = UUID.randomUUID();
@@ -160,6 +163,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -177,6 +181,7 @@ class WhoAutoConfigurationTest {
         .withConfiguration(WhoTestAutoConfigurations.who(MailSenderAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues("spring.mail.host=localhost")
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -197,6 +202,7 @@ class WhoAutoConfigurationTest {
         .withBean(ObservationRegistry.class, () -> observations)
         .withBean(EmailCredentialService.class, () -> emailCredentials)
         .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             context -> {
               context.getBean(EmailLinkIssuer.class).issue("nobody@example.com", "token");
@@ -218,6 +224,7 @@ class WhoAutoConfigurationTest {
             CODE_SECRET,
             "spring.mail.host=localhost",
             "who.email-link.from=who@example.com")
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -231,6 +238,7 @@ class WhoAutoConfigurationTest {
         .withConfiguration(WhoTestAutoConfigurations.who(MailSenderAutoConfiguration.class))
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET, "spring.mail.host=localhost")
+        .withPropertyValues("who.passkey.enabled=false")
         .run(
             context ->
                 assertThat(context.getStartupFailure())
@@ -244,6 +252,7 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(context -> assertThat(context).hasSingleBean(WhoMeController.class));
   }
 
@@ -252,6 +261,7 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class, DecliningResolverConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               MockHttpServletResponse response = new MockHttpServletResponse();
@@ -280,6 +290,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(context -> assertThat(context).doesNotHaveBean(WhoMeController.class));
   }
 
@@ -304,6 +315,7 @@ class WhoAutoConfigurationTest {
         .withClassLoader(
             new FilteredClassLoader(
                 RbacPermissionsResolver.class, WhoJwtAuthenticationConverter.class))
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -321,6 +333,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -340,6 +353,7 @@ class WhoAutoConfigurationTest {
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withPropertyValues("who.initialize-schema=never")
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -357,6 +371,7 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -375,7 +390,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
+        .withPropertyValues(LINK_BASE_URL, CODE_SECRET, "who.passkey.enabled=false")
         .withBean(EmailLinkSender.class, () -> message -> {})
         .run(
             context -> {
@@ -401,6 +416,7 @@ class WhoAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context ->
                 assertThat(context.getBeansOfType(CredentialRemover.class).values())
@@ -415,6 +431,7 @@ class WhoAutoConfigurationTest {
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withBean("ownCredentialRemover", CredentialRemover.class, () -> own)
+        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
         .run(
             context -> {
               context.getBean(WhoService.class).purgeOrphanedCredentials();

@@ -72,7 +72,8 @@ class SpringWhoEventPublisherTest {
               "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
               "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
               "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword())
-          .withBean(EmailLinkSender.class, () -> message -> {});
+          .withBean(EmailLinkSender.class, () -> message -> {})
+          .withPropertyValues("who.passkey.enabled=false");
 
   /** Records every event and can be told to fail. */
   @Configuration(proxyBeanMethods = false)
@@ -115,6 +116,7 @@ class SpringWhoEventPublisherTest {
     void a_requires_new_listener_write_after_commit_is_visible_afterwards() {
       runner
           .withUserConfiguration(RequiresNewAudit.class)
+          .withPropertyValues("who.passkey.enabled=false")
           .run(
               context -> {
                 JdbcClient jdbc = context.getBean(JdbcClient.class);
@@ -251,6 +253,7 @@ class SpringWhoEventPublisherTest {
     WhoEventPublisher custom = event -> {};
     runner
         .withBean(WhoEventPublisher.class, () -> custom)
+        .withPropertyValues("who.passkey.enabled=false")
         .run(context -> assertThat(context.getBean(WhoEventPublisher.class)).isSameAs(custom));
   }
 }

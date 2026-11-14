@@ -40,9 +40,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -69,7 +69,7 @@ import tools.jackson.databind.json.JsonMapper;
     afterName = "org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration")
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.passkey.PasskeyLoginMethod")
-@ConditionalOnProperty(prefix = "who.passkey", name = "rp-id")
+@ConditionalOnBooleanProperty(name = "who.passkey.enabled", matchIfMissing = true)
 public class WhoPasskeyAutoConfiguration {
 
   private static final Logger log = LoggerFactory.getLogger(WhoPasskeyAutoConfiguration.class);
@@ -87,7 +87,7 @@ public class WhoPasskeyAutoConfiguration {
       throw new WhoConfigurationException(
           "who.passkey.rp-id",
           "must be set to the application's host",
-          "Set it to the host passkeys are bound to, such as app.example.com.");
+          "Set it to the host passkeys are bound to, such as app.example.com. Or turn passkeys off with who.passkey.enabled=false.");
     }
     Set<String> allowedOrigins =
         passkey.getAllowedOrigins().isEmpty()
@@ -249,7 +249,7 @@ public class WhoPasskeyAutoConfiguration {
       EmailCredentialService emails =
           context.getBeanProvider(EmailCredentialService.class).getIfAvailable();
       if (emails == null) {
-        return noPasskeyAddedEmails("email-link sign-in is off (who.email-link.link-base-url)");
+        return noPasskeyAddedEmails("email-link sign-in is off (who.email-link.enabled=false)");
       }
       JavaMailSender mailSender = context.getBeanProvider(JavaMailSender.class).getIfAvailable();
       if (mailSender == null) {

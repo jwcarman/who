@@ -28,6 +28,7 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -39,6 +40,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @AutoConfiguration(after = WhoAutoConfiguration.class)
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.apikey.ApiKeyAuthenticationFilter")
+@ConditionalOnBooleanProperty(name = "who.api-key.enabled", matchIfMissing = true)
 public class WhoApiKeyAutoConfiguration {
 
   /**

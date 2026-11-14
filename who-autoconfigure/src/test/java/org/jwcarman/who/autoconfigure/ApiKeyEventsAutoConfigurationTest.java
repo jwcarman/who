@@ -74,7 +74,9 @@ class ApiKeyEventsAutoConfigurationTest {
               "who.initialize-schema=always",
               "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
               "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
-              "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword())
+              "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword(),
+              "who.email-link.enabled=false",
+              "who.passkey.enabled=false")
           .withBean(EmailLinkSender.class, () -> message -> {})
           .withBean(WhoEventPublisher.class, () -> events::add)
           .withBean(Clock.class, () -> Clock.fixed(NOW, ZoneOffset.UTC));

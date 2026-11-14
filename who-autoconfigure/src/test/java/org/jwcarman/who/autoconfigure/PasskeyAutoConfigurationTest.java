@@ -91,6 +91,8 @@ import ch.qos.logback.core.read.ListAppender;
 class PasskeyAutoConfigurationTest {
 
   static final String RP_ID = "who.passkey.rp-id=app.example.com";
+  static final String PASSKEYS_OFF = "who.passkey.enabled=false";
+  static final String EMAIL_LINKS_OFF = "who.email-link.enabled=false";
   static final String LINK_BASE_URL = "who.email-link.link-base-url=https://app.example.com/in";
   static final String CODE_SECRET =
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij";
@@ -104,9 +106,11 @@ class PasskeyAutoConfigurationTest {
           JdbcClientAutoConfiguration.class,
           MailSenderAutoConfiguration.class);
 
-  /** Passkeys off: the embedded H2 database is enough. */
+  /** Passkeys and email links off: the embedded H2 database is enough. */
   private final ApplicationContextRunner h2Runner =
-      new ApplicationContextRunner().withConfiguration(AUTO_CONFIGURATIONS);
+      new ApplicationContextRunner()
+          .withConfiguration(AUTO_CONFIGURATIONS)
+          .withPropertyValues(PASSKEYS_OFF, EMAIL_LINKS_OFF);
 
   /** For passkeys on: PostgreSQL, with who's schema. */
   private static ApplicationContextRunner postgresRunner() {
@@ -125,7 +129,7 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
-  void absentRpIdMeansNoPasskeyBeans() {
+  void passkeysOffMeansNoPasskeyBeans() {
     h2Runner.run(
         context -> {
           assertThat(context).hasNotFailed();
@@ -144,8 +148,9 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
-  void rpIdTurnsPasskeysOn() {
+  void passkeysAreOnWithTheJar() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID)
         .run(
             context -> {
@@ -181,6 +186,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void passkeySettingsBindFromProperties() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(
             RP_ID,
             "who.passkey.rp-name=Acme",
@@ -200,6 +206,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void blankRpIdFailsStartup() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues("who.passkey.rp-id=")
         .run(
             context ->
@@ -213,6 +220,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void originWithoutASchemeFailsStartup() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID, "who.passkey.allowed-origins=app.example.com")
         .run(
             context ->
@@ -226,6 +234,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void originWithAPathFailsStartup() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID, "who.passkey.allowed-origins=https://app.example.com/signin")
         .run(
             context ->
@@ -239,6 +248,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void localDevelopmentOriginStarts() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(
             "who.passkey.rp-id=localhost", "who.passkey.allowed-origins=http://localhost:8080")
         .run(
@@ -250,6 +260,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void blankRpNameFailsStartup() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID, "who.passkey.rp-name=")
         .run(
             context ->
@@ -263,6 +274,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void repositoriesAreTransactionalProxies() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID)
         .run(
             context -> {
@@ -278,6 +290,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void noTwoRepositoryBeansOfOneType() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID)
         .run(
             context -> {
@@ -312,6 +325,7 @@ class PasskeyAutoConfigurationTest {
   void existingWebAuthnRelyingPartyOperationsBeanWins() {
     WebAuthnRelyingPartyOperations own = mock(WebAuthnRelyingPartyOperations.class);
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID)
         .withBean(WebAuthnRelyingPartyOperations.class, () -> own)
         .run(
@@ -330,6 +344,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void providerUsesTheRelyingPartyBean() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID)
         .run(
             context ->
@@ -364,6 +379,7 @@ class PasskeyAutoConfigurationTest {
         .withPropertyValues(postgresProperties())
         .withPropertyValues(RP_ID)
         .withUserConfiguration(OwnUserDetailsApp.class)
+        .withPropertyValues("who.email-link.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -386,6 +402,7 @@ class PasskeyAutoConfigurationTest {
   @Test
   void withoutEmailLinksTheNameIsTheIdentityId() {
     postgresRunner()
+        .withPropertyValues(EMAIL_LINKS_OFF)
         .withPropertyValues(RP_ID)
         .run(
             context -> {
@@ -499,6 +516,7 @@ class PasskeyAutoConfigurationTest {
   void withoutWhoEmailLinkTheNameIsTheIdentityIdAndNoPasskeyAddedEmails() {
     ApplicationContextRunner runner =
         postgresRunner()
+            .withPropertyValues(EMAIL_LINKS_OFF)
             .withClassLoader(new FilteredClassLoader("org.jwcarman.who.emaillink"))
             .withPropertyValues(
                 RP_ID, "spring.mail.host=localhost", "who.passkey.from=security@example.com");
@@ -579,11 +597,12 @@ class PasskeyAutoConfigurationTest {
             passkeyAddedEmailWarnings(
                 false,
                 RP_ID,
+                EMAIL_LINKS_OFF,
                 "spring.mail.host=localhost",
                 "who.passkey.from=security@example.com"))
         .singleElement()
         .asString()
-        .contains("who.email-link.link-base-url")
+        .contains("who.email-link.enabled=false")
         .doesNotContain("security@example.com");
   }
 

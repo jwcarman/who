@@ -88,7 +88,8 @@ import tools.jackson.databind.node.ObjectNode;
     properties = {
       "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
-      "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij"
+      "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
+      "who.passkey.enabled=false"
     })
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ApiKeyErrorDispatchTest {

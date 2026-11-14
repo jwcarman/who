@@ -26,9 +26,9 @@ import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -105,7 +105,7 @@ public class WhoSpringSecurityAutoConfiguration {
   @Configuration(proxyBeanMethods = false)
   @EnableMethodSecurity
   @ConditionalOnClass(name = "org.jwcarman.who.spring.security.RequiresPermission")
-  @ConditionalOnProperty(prefix = "who.method-security", name = "enabled", matchIfMissing = true)
+  @ConditionalOnBooleanProperty(name = "who.method-security.enabled", matchIfMissing = true)
   @ConditionalOnMissingBean(
       type =
           "org.springframework.security.config.annotation.method.configuration.PrePostMethodSecurityConfiguration")
