@@ -343,6 +343,8 @@ class EmailLinkSignInTest {
         .isEqualTo("{\"identityId\":\"" + identity.id() + "\"}");
     assertThat(browser.session.getId()).isNotEqualTo(sessionIdBefore);
     assertThat(browser.xsrf).isNotNull().isNotEqualTo(xsrfBefore);
+    assertThat(signedIn.getResponse().getHeaders("Set-Cookie"))
+        .anyMatch(cookie -> cookie.startsWith("who_last_sign_in=email-link;"));
 
     mvc.perform(get("/who/me").session(browser.session))
         .andExpect(status().isOk())

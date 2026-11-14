@@ -23,6 +23,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.springframework.beans.factory.ObjectProvider;
@@ -64,6 +65,21 @@ public class WhoSpringSecurityAutoConfiguration {
    * @param properties the application's own public paths
    * @return the paths
    */
+  /**
+   * Remembers in the browser which way someone last signed in. Turn it off with {@code
+   * who.security.last-sign-in-cookie.enabled=false}.
+   *
+   * @return the cookie writer
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnBooleanProperty(
+      name = "who.security.last-sign-in-cookie.enabled",
+      matchIfMissing = true)
+  public LastSignInCookie lastSignInCookie() {
+    return new LastSignInCookie();
+  }
+
   @Bean
   @ConditionalOnMissingBean
   public WhoPublicPaths whoPublicPaths(

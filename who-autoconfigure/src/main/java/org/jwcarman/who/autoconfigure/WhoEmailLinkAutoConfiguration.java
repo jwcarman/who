@@ -41,6 +41,7 @@ import org.jwcarman.who.emaillink.JsonOneTimeTokenAuthenticationConverter;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
 import org.jwcarman.who.emaillink.WhoOneTimeTokenService;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
+import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -191,12 +192,14 @@ public class WhoEmailLinkAutoConfiguration {
       ObjectProvider<JsonMapper> jsonMapper,
       ObjectProvider<WhoExceptionHandoff> handoff,
       WhoEventPublisher whoEventPublisher,
-      Clock clock) {
+      Clock clock,
+      ObjectProvider<LastSignInCookie> lastSignInCookie) {
     return new JsonAuthenticationHandlers(
         jsonMapper(jsonMapper),
         handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
         whoEventPublisher,
-        clock);
+        clock,
+        lastSignInCookie.getIfAvailable());
   }
 
   @Bean

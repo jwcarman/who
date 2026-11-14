@@ -25,6 +25,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
+import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
@@ -136,7 +137,12 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
             .getBeanProvider(WhoEventPublisher.class)
             .getIfAvailable(() -> WhoEventPublisher.NOOP);
     JsonAuthenticationHandlers handlers =
-        new JsonAuthenticationHandlers(jsonMapper, handoff, eventPublisher, clock);
+        new JsonAuthenticationHandlers(
+            jsonMapper,
+            handoff,
+            eventPublisher,
+            clock,
+            context.getBeanProvider(LastSignInCookie.class).getIfAvailable());
     http.setSharedObject(PublicKeyCredentialUserEntityRepository.class, userRepository);
     http.setSharedObject(UserCredentialRepository.class, credentialRepository);
     // Spring finds a UserDetailsService as a shared object, then as a unique bean

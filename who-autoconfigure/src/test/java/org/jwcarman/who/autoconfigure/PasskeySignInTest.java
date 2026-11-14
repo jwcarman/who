@@ -495,6 +495,8 @@ class PasskeySignInTest {
     MvcResult signedIn = signInWithPasskey(browser, device);
 
     assertSignedInAs(signedIn, owner);
+    assertThat(signedIn.getResponse().getHeaders("Set-Cookie"))
+        .anyMatch(cookie -> cookie.startsWith("who_last_sign_in=passkey;"));
     assertThat(browser.session.getId()).isNotEqualTo(sessionIdBefore);
     // the session now rests on the passkey, not the email credential
     emailCredentialService.revoke(ownerEmail.id());

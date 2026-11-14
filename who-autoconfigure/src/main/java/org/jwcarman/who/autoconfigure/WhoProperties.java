@@ -684,6 +684,27 @@ public class WhoProperties {
      */
     private List<String> publicPaths = new ArrayList<>();
 
+    /** The cookie that remembers which way someone last signed in. */
+    private LastSignInCookie lastSignInCookie = new LastSignInCookie();
+
+    /**
+     * Returns the last-sign-in cookie's settings.
+     *
+     * @return the settings
+     */
+    public LastSignInCookie getLastSignInCookie() {
+      return lastSignInCookie;
+    }
+
+    /**
+     * Sets the last-sign-in cookie's settings.
+     *
+     * @param lastSignInCookie the settings
+     */
+    public void setLastSignInCookie(LastSignInCookie lastSignInCookie) {
+      this.lastSignInCookie = lastSignInCookie;
+    }
+
     /**
      * Returns the application's public paths.
      *
@@ -700,6 +721,31 @@ public class WhoProperties {
      */
     public void setPublicPaths(List<String> publicPaths) {
       this.publicPaths = publicPaths;
+    }
+
+    /** Settings for the cookie that remembers which way someone last signed in. */
+    public static class LastSignInCookie {
+
+      /** Whether who sets the cookie after a browser sign-in. */
+      private boolean enabled = true;
+
+      /**
+       * Returns whether who sets the cookie.
+       *
+       * @return {@code true} unless turned off
+       */
+      public boolean isEnabled() {
+        return enabled;
+      }
+
+      /**
+       * Sets whether who sets the cookie.
+       *
+       * @param enabled {@code false} to turn it off
+       */
+      public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+      }
     }
   }
 }

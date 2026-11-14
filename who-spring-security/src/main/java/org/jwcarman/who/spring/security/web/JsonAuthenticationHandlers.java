@@ -51,6 +51,7 @@ public class JsonAuthenticationHandlers {
   private final WhoExceptionHandoff handoff;
   private final WhoEventPublisher eventPublisher;
   private final Clock clock;
+  private final LastSignInCookie lastSignInCookie;
 
   /**
    * Creates new handlers that publish no events.
@@ -75,29 +76,58 @@ public class JsonAuthenticationHandlers {
       WhoExceptionHandoff handoff,
       WhoEventPublisher eventPublisher,
       Clock clock) {
+    this(jsonMapper, handoff, eventPublisher, clock, null);
+  }
+
+  /**
+   * Creates new handlers that also remember the sign-in method in the browser.
+   *
+   * @param jsonMapper writes the success body
+   * @param handoff hands sign-in failures to the application
+   * @param eventPublisher where {@link SignInSucceeded} is published
+   * @param clock stamps the events
+   * @param lastSignInCookie records the method on success, or {@code null} to record nothing
+   */
+  public JsonAuthenticationHandlers(
+      JsonMapper jsonMapper,
+      WhoExceptionHandoff handoff,
+      WhoEventPublisher eventPublisher,
+      Clock clock,
+      LastSignInCookie lastSignInCookie) {
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
+    this.lastSignInCookie = lastSignInCookie;
   }
 
   /**
    * Returns the success handler: {@code 200} with {@code {"identityId": "..."}}. Then, when the
    * authentication is a {@link WhoAuthenticationToken} that knows its {@link
    * WhoAuthenticationToken#signInMethod() sign-in method} and credential, it publishes {@link
-   * SignInSucceeded}.
+   * SignInSucceeded}. Given a {@link LastSignInCookie}, it first records the method in the browser.
    *
    * @return the success handler
    */
   public AuthenticationSuccessHandler success() {
     return (request, response, authentication) -> {
       WhoPrincipal principal = (WhoPrincipal) authentication.getPrincipal();
+      // before the body, which commits the response
+      rememberMethod(response, authentication);
       write(
           response,
           HttpServletResponse.SC_OK,
           Map.of("identityId", principal.identity().id().toString()));
       publishSucceeded(authentication, principal);
     };
+  }
+
+  private void rememberMethod(HttpServletResponse response, Authentication authentication) {
+    if (lastSignInCookie != null
+        && authentication instanceof WhoAuthenticationToken token
+        && token.signInMethod().isPresent()) {
+      lastSignInCookie.write(response, LastSignInCookie.valueFor(token.signInMethod().get()));
+    }
   }
 
   private void publishSucceeded(Authentication authentication, WhoPrincipal principal) {

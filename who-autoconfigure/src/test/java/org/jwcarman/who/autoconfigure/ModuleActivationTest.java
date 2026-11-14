@@ -31,6 +31,7 @@ import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyService;
+import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -197,6 +198,26 @@ class ModuleActivationTest {
               context -> {
                 assertThat(context).hasNotFailed();
                 assertThat(context).doesNotHaveBean(ApiKeyAuthenticationFilter.class);
+              });
+    }
+  }
+
+  @Nested
+  class Last_sign_in_cookie {
+
+    @Test
+    void is_on_by_default() {
+      configured.run(context -> assertThat(context).hasSingleBean(LastSignInCookie.class));
+    }
+
+    @Test
+    void the_cookie_can_be_turned_off() {
+      configured
+          .withPropertyValues("who.security.last-sign-in-cookie.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).doesNotHaveBean(LastSignInCookie.class);
               });
     }
   }
