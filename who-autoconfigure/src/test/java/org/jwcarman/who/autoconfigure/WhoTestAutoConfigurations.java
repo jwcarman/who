@@ -40,6 +40,7 @@ final class WhoTestAutoConfigurations {
           WhoApiKeyAutoConfiguration.class,
           WhoEmailLinkAutoConfiguration.class,
           WhoPasskeyAutoConfiguration.class,
+          WhoOidcAutoConfiguration.class,
           WhoWebSecurityAutoConfiguration.class);
 
   private WhoTestAutoConfigurations() {}

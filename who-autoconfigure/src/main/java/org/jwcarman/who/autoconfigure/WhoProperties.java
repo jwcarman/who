@@ -17,8 +17,10 @@ package org.jwcarman.who.autoconfigure;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -41,6 +43,7 @@ public class WhoProperties {
   private Passkey passkey = new Passkey();
   private Jwt jwt = new Jwt();
   private Security security = new Security();
+  private Oidc oidc = new Oidc();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -674,6 +677,24 @@ public class WhoProperties {
     this.security = security;
   }
 
+  /**
+   * Returns the provider sign-in settings.
+   *
+   * @return the settings
+   */
+  public Oidc getOidc() {
+    return oidc;
+  }
+
+  /**
+   * Sets the provider sign-in settings.
+   *
+   * @param oidc the settings
+   */
+  public void setOidc(Oidc oidc) {
+    this.oidc = oidc;
+  }
+
   /** Properties for who's security chain. */
   public static class Security {
 
@@ -745,6 +766,238 @@ public class WhoProperties {
        */
       public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+      }
+    }
+  }
+
+  /**
+   * Properties for sign-in with Google, GitHub or any OpenID Connect provider ({@code who-oidc}).
+   */
+  public static class Oidc {
+
+    /** Whether provider sign-in is on; it is whenever {@code who-oidc} is on the classpath. */
+    private boolean enabled = true;
+
+    /** Where a provider sign-in lands: a path on this site. */
+    private String successUrl = "/";
+
+    /**
+     * Where every other provider sign-in outcome lands, with an {@code error} code: a path on this
+     * site, such as the sign-in page.
+     */
+    private String failureUrl = "/";
+
+    /** How long a pending sign-up waits for the person to confirm it. */
+    private Duration signUpWindow = Duration.ofMinutes(10);
+
+    /** How recently the identity must have signed in to link a provider account. */
+    private Duration linkWindow = Duration.ofMinutes(10);
+
+    /** Per client registration settings, by registration id. */
+    private Map<String, Provider> providers = new LinkedHashMap<>();
+
+    /**
+     * Returns whether provider sign-in is on.
+     *
+     * @return {@code true} unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Sets whether provider sign-in is on.
+     *
+     * @param enabled {@code false} to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    /**
+     * Returns where a provider sign-in lands.
+     *
+     * @return a path on this site
+     */
+    public String getSuccessUrl() {
+      return successUrl;
+    }
+
+    /**
+     * Sets where a provider sign-in lands.
+     *
+     * @param successUrl a path on this site
+     */
+    public void setSuccessUrl(String successUrl) {
+      this.successUrl = successUrl;
+    }
+
+    /**
+     * Returns where every other outcome lands.
+     *
+     * @return a path on this site
+     */
+    public String getFailureUrl() {
+      return failureUrl;
+    }
+
+    /**
+     * Sets where every other outcome lands.
+     *
+     * @param failureUrl a path on this site
+     */
+    public void setFailureUrl(String failureUrl) {
+      this.failureUrl = failureUrl;
+    }
+
+    /**
+     * Returns how long a pending sign-up waits.
+     *
+     * @return the window
+     */
+    public Duration getSignUpWindow() {
+      return signUpWindow;
+    }
+
+    /**
+     * Sets how long a pending sign-up waits.
+     *
+     * @param signUpWindow the window
+     */
+    public void setSignUpWindow(Duration signUpWindow) {
+      this.signUpWindow = signUpWindow;
+    }
+
+    /**
+     * Returns how recently the identity must have signed in to link an account.
+     *
+     * @return the window
+     */
+    public Duration getLinkWindow() {
+      return linkWindow;
+    }
+
+    /**
+     * Sets how recently the identity must have signed in to link an account.
+     *
+     * @param linkWindow the window
+     */
+    public void setLinkWindow(Duration linkWindow) {
+      this.linkWindow = linkWindow;
+    }
+
+    /**
+     * Returns the per registration settings.
+     *
+     * @return settings by registration id
+     */
+    public Map<String, Provider> getProviders() {
+      return providers;
+    }
+
+    /**
+     * Sets the per registration settings.
+     *
+     * @param providers settings by registration id
+     */
+    public void setProviders(Map<String, Provider> providers) {
+      this.providers = providers;
+    }
+
+    /** Settings for one client registration. */
+    public static class Provider {
+
+      /** Whether who signs people in with this registration. */
+      private boolean enabled = true;
+
+      /**
+       * The issuer credentials from this registration are stored under. Required for a provider
+       * configured without {@code issuer-uri}; must equal it when both are set.
+       */
+      private String issuer;
+
+      /**
+       * The user-info attribute that identifies the account, for a provider that is not OpenID
+       * Connect (github.com has a default).
+       */
+      private String subjectAttribute;
+
+      /**
+       * Whether the provider's verified email may be used. Defaults to true for Google and
+       * github.com, false for every other provider.
+       */
+      private Boolean trustEmail;
+
+      /**
+       * Returns whether who signs people in with this registration.
+       *
+       * @return {@code true} unless turned off
+       */
+      public boolean isEnabled() {
+        return enabled;
+      }
+
+      /**
+       * Sets whether who signs people in with this registration.
+       *
+       * @param enabled {@code false} to leave it out
+       */
+      public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+      }
+
+      /**
+       * Returns the issuer credentials are stored under.
+       *
+       * @return the issuer, or null
+       */
+      public String getIssuer() {
+        return issuer;
+      }
+
+      /**
+       * Sets the issuer credentials are stored under.
+       *
+       * @param issuer the issuer
+       */
+      public void setIssuer(String issuer) {
+        this.issuer = issuer;
+      }
+
+      /**
+       * Returns the attribute that identifies the account.
+       *
+       * @return the attribute, or null
+       */
+      public String getSubjectAttribute() {
+        return subjectAttribute;
+      }
+
+      /**
+       * Sets the attribute that identifies the account.
+       *
+       * @param subjectAttribute the attribute
+       */
+      public void setSubjectAttribute(String subjectAttribute) {
+        this.subjectAttribute = subjectAttribute;
+      }
+
+      /**
+       * Returns whether the provider's verified email may be used.
+       *
+       * @return the setting, or null for the default
+       */
+      public Boolean getTrustEmail() {
+        return trustEmail;
+      }
+
+      /**
+       * Sets whether the provider's verified email may be used.
+       *
+       * @param trustEmail the setting
+       */
+      public void setTrustEmail(Boolean trustEmail) {
+        this.trustEmail = trustEmail;
       }
     }
   }

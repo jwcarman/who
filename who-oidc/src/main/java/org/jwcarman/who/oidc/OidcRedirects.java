@@ -75,12 +75,26 @@ public final class OidcRedirects {
         .toUriString();
   }
 
+  /**
+   * Whether a URL is a path on this site: it starts with {@code /}, but not with {@code //} or a
+   * slash and a backslash, which browsers read as another host.
+   *
+   * @param url the URL
+   * @return {@code true} for a local path
+   */
+  public static boolean isLocalPath(String url) {
+    if (url == null || !url.startsWith("/") || url.startsWith("//") || url.startsWith("/\\")) {
+      return false;
+    }
+    try {
+      return !URI.create(url.replace("\\", "%5C")).isAbsolute();
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
   private static String localPath(String url, String name) {
-    if (url == null
-        || !url.startsWith("/")
-        || url.startsWith("//")
-        || url.startsWith("/\\")
-        || URI.create(url.replace("\\", "%5C")).isAbsolute()) {
+    if (!isLocalPath(url)) {
       throw new IllegalArgumentException(
           "who.oidc." + name + " must be a local path such as /signin, not " + url);
     }

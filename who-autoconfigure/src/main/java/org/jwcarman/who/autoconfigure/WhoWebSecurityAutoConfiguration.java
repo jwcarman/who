@@ -51,7 +51,8 @@ import org.springframework.util.ClassUtils;
       WhoJwtAutoConfiguration.class,
       WhoApiKeyAutoConfiguration.class,
       WhoEmailLinkAutoConfiguration.class,
-      WhoPasskeyAutoConfiguration.class
+      WhoPasskeyAutoConfiguration.class,
+      WhoOidcAutoConfiguration.class
     },
     afterName =
         "org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration",

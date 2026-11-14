@@ -23,18 +23,29 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
+import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
+import org.jwcarman.who.oidc.OidcLoginMethod;
+import org.jwcarman.who.oidc.OidcSignUpService;
+import org.jwcarman.who.oidc.SignInRegistrations;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -260,6 +271,125 @@ class ModuleActivationTest {
                 assertThat(context).hasNotFailed();
                 assertThat(context).doesNotHaveBean(WhoEnrollmentService.class);
               });
+    }
+  }
+
+  @Nested
+  @ExtendWith(OutputCaptureExtension.class)
+  class Oidc {
+
+    private static final String GITHUB = "spring.security.oauth2.client.registration.github.";
+
+    private final ApplicationContextRunner oidc =
+        configured
+            .withConfiguration(
+                AutoConfigurations.of(
+                    OAuth2ClientAutoConfiguration.class,
+                    DataSourceTransactionManagerAutoConfiguration.class))
+            .withPropertyValues(
+                "who.oidc.enabled=true",
+                "who.security.public-paths=/",
+                GITHUB + "client-id=client",
+                GITHUB + "client-secret=secret");
+
+    @Test
+    void is_on_with_the_jar_and_a_registration() {
+      oidc.run(
+          context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(OidcLoginMethod.class);
+            assertThat(context).hasSingleBean(OidcSignUpService.class);
+            assertThat(context.getBean(WhoSignUpPolicy.class))
+                .isInstanceOf(ClosedSignUpPolicy.class);
+          });
+    }
+
+    @Test
+    void is_off_with_enabled_false() {
+      oidc.withPropertyValues("who.oidc.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).doesNotHaveBean(OidcLoginMethod.class);
+                assertThat(context).doesNotHaveBean(SignInRegistrations.class);
+                assertThat(context).doesNotHaveBean(WhoSignUpPolicy.class);
+              });
+    }
+
+    @Test
+    void no_registration_fails_startup_naming_the_property() {
+      configured
+          .withConfiguration(
+              AutoConfigurations.of(
+                  OAuth2ClientAutoConfiguration.class,
+                  DataSourceTransactionManagerAutoConfiguration.class))
+          .withPropertyValues("who.oidc.enabled=true")
+          .run(
+              context ->
+                  assertMissing(context, "spring.security.oauth2.client.registration", "oidc"));
+    }
+
+    @Test
+    void missing_issuer_fails_startup() {
+      String acme = "spring.security.oauth2.client.registration.acme.";
+      String provider = "spring.security.oauth2.client.provider.acme.";
+      oidc.withPropertyValues(
+              acme + "client-id=client",
+              acme + "client-secret=secret",
+              acme + "scope=openid",
+              acme + "authorization-grant-type=authorization_code",
+              acme + "redirect-uri={baseUrl}/login/oauth2/code/{registrationId}",
+              provider + "authorization-uri=https://idp.example.com/authorize",
+              provider + "token-uri=https://idp.example.com/token",
+              provider + "jwk-set-uri=https://idp.example.com/jwks")
+          .run(context -> assertMissing(context, "who.oidc.providers.acme.issuer", "oidc"));
+    }
+
+    @Test
+    void duplicate_issuer_fails_startup() {
+      String gh = "spring.security.oauth2.client.registration.gh.";
+      oidc.withPropertyValues(
+              gh + "client-id=client", gh + "client-secret=secret", gh + "provider=github")
+          .run(
+              context ->
+                  assertThat(context.getStartupFailure())
+                      .rootCause()
+                      .isInstanceOfSatisfying(
+                          WhoConfigurationException.class,
+                          e -> {
+                            // whichever of the two Spring Boot lists second
+                            assertThat(e.property())
+                                .isIn(
+                                    "who.oidc.providers.gh.issuer",
+                                    "who.oidc.providers.github.issuer");
+                            assertThat(e.getMessage()).contains("the same issuer");
+                            assertThat(e.action()).contains("who.oidc.enabled=false");
+                          }));
+    }
+
+    @Test
+    void absolute_failure_url_fails_startup() {
+      oidc.withPropertyValues("who.oidc.failure-url=https://evil.example.com/")
+          .run(context -> assertMissing(context, "who.oidc.failure-url", "oidc"));
+    }
+
+    @Test
+    void failure_url_not_public_warns(CapturedOutput output) {
+      oidc.withPropertyValues("who.oidc.failure-url=/signin?x=1")
+          .run(context -> assertThat(context).hasNotFailed());
+
+      assertThat(output)
+          .contains(
+              "who.oidc.failure-url /signin?x=1 is not in who.security.public-paths; a"
+                  + " signed-out person sent there gets a 401");
+    }
+
+    @Test
+    void failure_url_that_is_public_does_not_warn(CapturedOutput output) {
+      oidc.withPropertyValues("who.oidc.failure-url=/signin", "who.security.public-paths=/signin")
+          .run(context -> assertThat(context).hasNotFailed());
+
+      assertThat(output).doesNotContain("is not in who.security.public-paths");
     }
   }
 

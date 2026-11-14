@@ -209,6 +209,16 @@
     <build>
         <plugins>
             <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- who-oidc is on this module's test classpath, and the module is on
+                             with its jar; the tests that exercise it turn it back on -->
+                        <who.oidc.enabled>false</who.oidc.enabled>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <annotationProcessorPaths>

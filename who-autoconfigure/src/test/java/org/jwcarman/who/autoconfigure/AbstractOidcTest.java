@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,20 +25,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.jwcarman.who.autoconfigure.EmailLinkSignInTest.RecordingSender;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
-import org.jwcarman.who.core.event.WhoEventPublisher;
-import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
@@ -47,21 +48,22 @@ import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
-import org.jwcarman.who.oidc.OidcLoginMethod;
-import org.jwcarman.who.oidc.OidcRedirects;
-import org.jwcarman.who.oidc.OidcSignUpService;
-import org.jwcarman.who.oidc.SignInRegistrations;
-import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.test.StubOidcProvider;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
@@ -69,7 +71,6 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -82,6 +83,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.enabled=false",
       "who.jwt.enabled=false",
+      "who.oidc.enabled=true",
+      "who.oidc.success-url=" + AbstractOidcTest.SUCCESS_URL,
+      "who.oidc.failure-url=" + AbstractOidcTest.FAILURE_URL,
       // WhoMockMvcBrowser keeps a MockHttpSession, whose attributes these tests read
       "spring.autoconfigure.exclude="
           + "org.springframework.boot.session.jdbc.autoconfigure.JdbcSessionAutoConfiguration",
@@ -144,50 +148,49 @@ abstract class AbstractOidcTest {
       return new SwitchablePolicy();
     }
 
-    // Task 9 replaces these with WhoOidcAutoConfiguration
     @Bean
-    OidcSignUpService oidcSignUpService(
-        SwitchablePolicy policy,
-        WhoService whoService,
-        IdentityRepository identities,
-        FederatedCredentialRepository credentials,
-        FederatedCredentialService credentialService,
-        CredentialIdentityRepository credentialIdentities,
-        WhoEventPublisher eventPublisher,
-        Clock clock,
-        PlatformTransactionManager transactionManager) {
-      return new OidcSignUpService(
-          policy,
-          whoService,
-          identities,
-          credentials,
-          credentialService,
-          credentialIdentities,
-          eventPublisher,
-          clock,
-          transactionManager);
+    RecordingAuthorizedClients recordingAuthorizedClients() {
+      return new RecordingAuthorizedClients();
     }
 
+    /** An application chain in place of who's default one, when a test asks for it. */
     @Bean
-    OidcLoginMethod oidcLoginMethod(
-        InMemoryClientRegistrationRepository clients,
-        WhoService whoService,
-        FederatedCredentialRepository credentials,
-        WhoSessionSecurityContextRepository sessions,
-        OidcSignUpService signUpService,
-        IdentityRepository identities,
-        Clock clock) {
-      return new OidcLoginMethod(
-          SignInRegistrations.of(clients, Map.of()),
-          whoService,
-          credentials,
-          sessions,
-          signUpService,
-          identities,
-          new OidcRedirects(SUCCESS_URL, FAILURE_URL),
-          clock,
-          Duration.ofMinutes(10),
-          LINK_WINDOW);
+    @ConditionalOnBooleanProperty("test.application-chain")
+    SecurityFilterChain applicationChain(HttpSecurity http) {
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .with(WhoWebSecurity.passwordless(), withDefaults());
+      return http.build();
+    }
+  }
+
+  /** The application's own authorized-client repository, which who's sign-in must not use. */
+  static final class RecordingAuthorizedClients implements OAuth2AuthorizedClientRepository {
+
+    final AtomicInteger calls = new AtomicInteger();
+
+    @Override
+    public <T extends OAuth2AuthorizedClient> T loadAuthorizedClient(
+        String clientRegistrationId, Authentication principal, HttpServletRequest request) {
+      calls.incrementAndGet();
+      return null;
+    }
+
+    @Override
+    public void saveAuthorizedClient(
+        OAuth2AuthorizedClient authorizedClient,
+        Authentication principal,
+        HttpServletRequest request,
+        HttpServletResponse response) {
+      calls.incrementAndGet();
+    }
+
+    @Override
+    public void removeAuthorizedClient(
+        String clientRegistrationId,
+        Authentication principal,
+        HttpServletRequest request,
+        HttpServletResponse response) {
+      calls.incrementAndGet();
     }
   }
 
@@ -200,6 +203,7 @@ abstract class AbstractOidcTest {
   @Autowired SwitchablePolicy policy;
   @Autowired RecordingSender sender;
   @Autowired ApplicationEvents events;
+  @Autowired RecordingAuthorizedClients recordingAuthorizedClients;
 
   WhoMockMvcBrowser browser;
   Identity alice;
@@ -214,6 +218,7 @@ abstract class AbstractOidcTest {
     jdbcClient.sql("DELETE FROM who_identity").update();
     PROVIDER.nextIssuerClaim(null);
     policy.set(new ClosedSignUpPolicy());
+    recordingAuthorizedClients.calls.set(0);
     sender.sent.clear();
     alice = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
     aliceCredential = federatedCredentialService.link(alice, PROVIDER.issuer(), "alice");
