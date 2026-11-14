@@ -1,6 +1,6 @@
 # Native Images
 
-Who works in a GraalVM native image with no native configuration in your app. Its jars carry what the image needs, so you add who to a Spring Boot app, build it with Spring Boot's native support (`process-aot` and GraalVM's `native-maven-plugin`), and the binary signs users in with email links and passkeys as the JVM build does.
+Who works in a GraalVM native image with no native configuration in your app. Its jars carry what the image needs, so you add who to a Spring Boot app, build it with Spring Boot's native support (`process-aot` and GraalVM's `native-maven-plugin`), and the binary signs users in with email links, passkeys, API keys and JWTs as the JVM build does.
 
 Who's native support is proven against GraalVM 25 and Spring Boot 4.1 in who's own build. `who-native-tests` holds one small app per sign-in method (email link and code, passkey, API key and JWT), each with only the who modules that method needs and no reflection, resource or proxy configuration of its own. Each is compiled native and driven over HTTP against PostgreSQL: sign in, `/who/me`, a permission check, a refused credential, and the security events they publish. A separate Spring Boot app built on who also runs its whole browser suite (email links, P-256 and Ed25519 passkeys, roles, invitations and passkey revocation) against its native binary.
 
@@ -15,7 +15,9 @@ Every module that has database files ships GraalVM reachability metadata at `MET
 
 Sessions are covered too, including Spring Session JDBC, which stores session attributes with Java serialization. A native image needs a serialization hint for each class that is serialized, and who ships them. `who-spring-security` registers `WhoSession`, `UUID`, `Instant` and `java.time.Ser`. `who-passkey` registers every `Serializable` class in `org.springframework.security.web.webauthn.api`, because the session holds the creation or request options during a passkey ceremony, plus `Duration`, `Boolean`, `HashSet`, `Arrays$ArrayList` and `byte[]`. Your app needs no hints for sessions. See [Sessions](sessions.md).
 
-Who's own types need nothing: Spring AOT covers its configuration, beans, properties and `@Transactional` proxies.
+`who-autoconfigure` registers the one lookup by name in who's own code (`WhoSchemaRuntimeHints`): `who.initialize-schema` decides which modules' schema scripts to run by looking up a class from each module, and a native image finds a class by name only when it is registered.
+
+Otherwise who's own types need nothing: Spring AOT covers its configuration, beans, properties and `@Transactional` proxies.
 
 Two code choices keep who native-friendly:
 

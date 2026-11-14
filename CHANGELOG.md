@@ -32,6 +32,10 @@ All notable changes to this project are documented here. The format follows
 - `RbacService` is a `@Service`: a component scan builds one without a publisher, which publishes no role events. Use the autoconfigured bean.
 - Deleting a role publishes `RoleDeleted` once, even when two deletes race.
 
+### Fixed
+
+- `who.initialize-schema: always` created no tables in a native image: the initializer finds each module's schema script by looking up a class from that module by name, which a native image answers only for registered types. who-autoconfigure now registers them (`WhoSchemaRuntimeHints`). Liquibase was not affected.
+
 ### Documentation
 
 - An [Events](https://jwcarman.github.io/who/guides/events/) guide: every event, when listeners run, personal data, reading the actor and client, and the compatibility policy.
@@ -53,7 +57,6 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
-- `who.initialize-schema: always` created no tables in a native image: the initializer finds each module's schema script by looking up a class from that module by name, which a native image answers only for registered types. who-autoconfigure now registers them (`WhoSchemaRuntimeHints`). Liquibase was not affected.
 - Sign-in emails keep the request's trace and logging context. who's email executor applies the application's `TaskDecorator` beans, as Spring Boot does to its own executors, so with a `ContextPropagatingTaskDecorator` the send appears in the sign-in request's trace.
 - Passkey sign-ins are observed. With an `ObservationRegistry` (Spring Boot Actuator), Spring Security records a `spring.security.authentications` observation for each sign-in; passkey sign-ins were missing, because who builds that authentication manager itself.
 - A typed sign-in code containing non-ASCII letters is rejected. Some upper-cased to ASCII before the check (the dotless `ı` to `I`, the long `ſ` to `S`) and one turned into two letters (the ligature `ﬀ` to `FF`), so `Kjı2Kj` was read as `KJ12KJ`. Each such attempt still counted against the attempt limit, so guessing got no easier. Found by fuzzing.
