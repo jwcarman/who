@@ -336,16 +336,24 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
       String unknown = "who_" + "u".repeat(43);
       List<String> keys = List.of(key, unknown);
       List<String> hashes = List.of(ApiKeyService.sha256Hex(key), ApiKeyService.sha256Hex(unknown));
-      logs.list.clear();
+      // Other threads (connection pools of cached contexts) log into the capture too. Logback
+      // appends while holding the appender's lock, so read and clear the list under the same lock.
+      synchronized (logs) {
+        logs.list.clear();
+      }
 
       assertThat(statusOf(key)).isEqualTo(200);
       assertThat(statusOf(unknown)).isEqualTo(401);
 
+      List<ILoggingEvent> captured;
+      synchronized (logs) {
+        captured = new ArrayList<>(logs.list);
+      }
       // every line, from every logger at every level
       List<String> logged = new ArrayList<>();
       // who's own lines; the JDBC driver traces the hash it is asked to look up
       List<String> loggedByWho = new ArrayList<>();
-      for (ILoggingEvent line : logs.list) {
+      for (ILoggingEvent line : captured) {
         List<String> texts = new ArrayList<>();
         texts.add(line.getFormattedMessage());
         if (line.getThrowableProxy() != null) {
