@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS who_passkey_credential (
 
 ## Passkey storage is PostgreSQL only
 
-The `who-passkey` repositories use `ON CONFLICT`, so passkey storage works on PostgreSQL 14+ only. The other modules also run on H2. Passkeys are opt-in: the tables are used only when `who.passkey.rp-id` is set. See [Passkeys](passkeys.md).
+The `who-passkey` repositories use `ON CONFLICT`, so passkey storage works on PostgreSQL 14+ only. The other modules also run on H2. The tables are used only when `who-passkey` is on the classpath. See [Passkeys](passkeys.md).
 
 ## Liquibase
 

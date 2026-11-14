@@ -4,11 +4,21 @@ Who supports sign-in with passkeys, in the `who-passkey` module (`org.jwcarman.w
 
 A passkey is the only factor. Who requires user verification (a PIN, a fingerprint or a face scan) and a discoverable (resident) credential, so the user does not type a name.
 
-Passkeys are opt-in. An application that does not set `who.passkey.rp-id` gets no passkey beans.
+Add `who-passkey` to turn passkeys on; an application without the jar has none of this.
 
 ## Turn it on
 
-Set the relying party id: the host of your app.
+Add the dependency (its version comes from who's BOM):
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-passkey</artifactId>
+</dependency>
+```
+
+Then set the relying party id: the host of your app. Startup fails until it is set; the message
+also says how to turn passkeys off without removing the jar: `who.passkey.enabled=false`.
 
 ```yaml
 who:
@@ -48,7 +58,17 @@ See the [Configuration Reference](configuration.md) for all five properties.
 
 ## Wire the chain
 
-Passkeys use the same `WhoWebSecurity.passwordless()` as [Email Links](email-links.md). Apply it to the chain that serves your browser app and permit the sign-in endpoints:
+With no `SecurityFilterChain` of your own there is nothing to wire: who's default chain mounts
+passkeys and opens `/webauthn/authenticate/options` and `/login/webauthn` to signed-out requests
+(see [Getting Started](getting-started.md#secure-the-app)). List your own sign-in page in
+`who.security.public-paths`.
+
+### Your own chain
+
+In a chain of your own, `WhoSecurity.all()` mounts every sign-in method at once (see [Getting
+Started](getting-started.md#your-own-chain)). Or use the same `WhoWebSecurity.passwordless()` as
+[Email Links](email-links.md): apply it to the chain that serves your browser app and permit the
+sign-in endpoints:
 
 ```java
 @Bean

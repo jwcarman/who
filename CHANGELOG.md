@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `who-spring-boot-starter` brings the base only: `who-core`, `who-spring-security`, `who-jdbc`, `who-rbac` and the autoconfiguration. Add `who-email-link`, `who-passkey`, `who-apikey`, `who-jwt` or `who-enrollment` for each feature you use. See [Upgrading to 0.18.0](docs/guides/upgrading.md#upgrading-to-0180).
+- A module on the classpath is on. `who.email-link.link-base-url` and `who.passkey.rp-id` no longer turn their method on; a module whose required settings are missing fails startup instead of staying off. Turn a module off with `who.<module>.enabled=false`.
+- An application with no `SecurityFilterChain` gets who's default chain instead of Spring Boot's form login and HTTP Basic: every sign-in method on the classpath, `401` for signed-out requests, and only `/error`, the sign-in endpoints, Actuator's health endpoint and `who.security.public-paths` open. An application with its own chain is unaffected.
+- The `jsonOneTimeTokenAuthenticationConverter` bean is gone; the converter is built with the `EmailLinkLoginMethod` bean.
+
+### Added
+
+- `who.email-link.enabled`, `who.passkey.enabled`, `who.api-key.enabled`, `who.jwt.enabled` and `who.enrollment.enabled`, each `true` by default.
+- `WhoSecurity.all()`, which mounts every sign-in method on the classpath into a chain of your own, and `WhoPublicPaths` with the paths a signed-out request must reach. Each module contributes a `PasswordlessLoginMethod` or `StatelessLoginMethod` bean.
+- `who.security.public-paths`, the application's own paths open to signed-out requests.
+- A startup failure report for missing or unusable who settings, naming the property, the fix and the switch that turns the module off (`WhoConfigurationException`).
+
+### Changed
+
+- The "passkey added" startup warning is logged by `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`.
+- who's autoconfiguration is split into one class per module (`WhoAutoConfiguration`, `WhoSpringSecurityAutoConfiguration`, `WhoEmailLinkAutoConfiguration`, `WhoPasskeyAutoConfiguration`, `WhoApiKeyAutoConfiguration`, `WhoJwtAutoConfiguration`, `WhoEnrollmentAutoConfiguration`, `WhoWebSecurityAutoConfiguration`), so `@ImportAutoConfiguration` and exclusions can name one module.
+- The native test apps use the starter and who's default chain, with no security configuration of their own.
+
+### Fixed
+
+- An application with email links and its own `oauth2ResourceServer` refused every bearer token: Spring's resource server took who's one-time-token converter bean as its own and read each request as a sign-in code.
+
 ## [0.17.0] - 2026-11-14
 
 ### Breaking changes

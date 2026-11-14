@@ -2,9 +2,27 @@
 
 Who supports API key authentication via `who-apikey`. API keys are hashed before storage — the raw key is shown once at creation and cannot be retrieved again.
 
+## Turn it on
+
+Add the dependency (its version comes from who's BOM). API keys need no settings:
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-apikey</artifactId>
+</dependency>
+```
+
+`who.api-key.enabled=false` turns them off without removing the jar.
+
 ## Wiring the filter
 
-The filter is not registered globally. It only runs in chains that add it. Add it with `WhoApiKeySecurity`:
+With no `SecurityFilterChain` of your own there is nothing to wire: who's default chain runs the
+filter (see [Getting Started](getting-started.md#secure-the-app)). A request that carries the
+header needs no CSRF token and never gets a session. In a chain of your own, `WhoSecurity.all()`
+mounts API keys with every other sign-in method.
+
+The filter is not registered globally. It only runs in chains that add it. To add only API keys to a chain, use `WhoApiKeySecurity`:
 
 ```java
 http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());

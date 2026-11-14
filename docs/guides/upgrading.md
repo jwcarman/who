@@ -1,5 +1,64 @@
 # Upgrading
 
+## Upgrading to 0.18.0
+
+0.18.0 makes who work like any Spring Boot starter: add a module's jar and it is on, and an
+application with no security configuration of its own gets a working chain. There are no schema
+changes.
+
+- **The starter no longer brings every module.** `who-spring-boot-starter` now brings the base
+  only: identities, sessions, permissions (`who-core`, `who-spring-security`, `who-jdbc`,
+  `who-rbac`) and the autoconfiguration. Add each sign-in method you use, with no version under
+  the BOM:
+
+    | You use | Add |
+    |---|---|
+    | Email links and codes | `who-email-link` |
+    | Passkeys | `who-passkey` |
+    | API keys | `who-apikey` |
+    | JWTs | `who-jwt` |
+    | Enrollment tokens | `who-enrollment` |
+
+- **A module on the classpath is on.** Setting `who.email-link.link-base-url` or
+  `who.passkey.rp-id` no longer turns a method on; the jar does. A module whose required settings
+  are missing now fails startup, and the report names the property to set and the switch that
+  turns the module off:
+
+    | Module | Fails startup without |
+    |---|---|
+    | `who-email-link` | `who.email-link.link-base-url`, `who.email-link.code-secret`, and an `EmailLinkSender` or `spring.mail.host` with `who.email-link.from` |
+    | `who-passkey` | `who.passkey.rp-id` |
+    | `who-jwt` (when who mounts it) | `spring.security.oauth2.resourceserver.jwt.issuer-uri`, `jwk-set-uri`, `public-key-location`, or a `JwtDecoder` bean |
+
+    To keep a module's jar but turn it off, set `who.email-link.enabled`, `who.passkey.enabled`,
+    `who.api-key.enabled`, `who.jwt.enabled` or `who.enrollment.enabled` to `false`.
+
+- **An application with no `SecurityFilterChain` gets who's chain instead of Spring Boot's.**
+  Boot's default chain (form login, HTTP Basic, a generated password) is replaced by who's: every
+  sign-in method on the classpath, `401` for a signed-out request, and no redirect to `/login`.
+  Only `/error`, the sign-in endpoints, Actuator's health endpoint and the paths in
+  `who.security.public-paths` are open to signed-out requests. List your own sign-in page and its
+  assets there, including the page `link-base-url` points at:
+
+    ```yaml
+    who:
+      security:
+        public-paths:
+          - /signin
+          - /assets/**
+    ```
+
+- **An application with its own `SecurityFilterChain` is unchanged.** who's chain backs off for
+  any chain of yours, and `WhoWebSecurity.passwordless()` and `WhoApiKeySecurity.apiKey()` work as
+  before. To mount every method in your own chain in one call, use `WhoSecurity.all()` with
+  `WhoPublicPaths`; see [Getting Started](getting-started.md#your-own-chain).
+- **who no longer publishes an `AuthenticationConverter` bean.** The email-link
+  `jsonOneTimeTokenAuthenticationConverter` bean is gone: Spring's resource server took it as its
+  own, so an application with email links and its own `oauth2ResourceServer` refused every bearer
+  token. If you replaced that bean, replace the `EmailLinkLoginMethod` bean instead.
+- **The "passkey added" startup warning moved logger.** It is now logged by
+  `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`, not `WhoAutoConfiguration`.
+
 ## Upgrading to 0.17.0
 
 0.17.0 adds [security events](events.md). There are no schema or property changes. One behavior

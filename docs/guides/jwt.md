@@ -1,8 +1,23 @@
 # JWT
 
+## Turn it on
+
+Add the dependency (its version comes from who's BOM):
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-jwt</artifactId>
+</dependency>
+```
+
+`who.jwt.enabled=false` turns JWT sign-in off without removing the jar.
+
 ## Point at your authorization server
 
-Tell Who where your authorization server lives:
+Tell Who where your authorization server lives. When who mounts JWT sign-in (in its default chain
+or through `WhoSecurity.all()`), startup fails until one of these is set or you register a
+`JwtDecoder` bean:
 
 ```yaml
 spring:
@@ -33,7 +48,13 @@ A token with no `iss` or no `sub` claim gets 401.
 
 ## Wire the converter
 
-Wire `WhoJwtAuthenticationConverter` into your resource server security filter chain:
+With no `SecurityFilterChain` of your own there is nothing to wire: who's default chain is a
+resource server that verifies tokens with your `JwtDecoder` and signs them in with
+`WhoJwtAuthenticationConverter` (see [Getting Started](getting-started.md#secure-the-app)). A
+request with an `Authorization: Bearer` header needs no CSRF token and never gets a session. In a
+chain of your own, `WhoSecurity.all()` does the same alongside every other sign-in method.
+
+To write the resource server yourself, wire `WhoJwtAuthenticationConverter` into it:
 
 ```java
 @Bean

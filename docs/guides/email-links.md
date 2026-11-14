@@ -2,11 +2,20 @@
 
 Who supports sign-in by an emailed link or code, in the `who-email-link` module. The user enters an address and gets an email with a link and a short code. Opening the link, or typing the code, signs them in and starts an HTTP session. It is built on Spring Security's one-time-token login. Who supplies the hooks and keeps Spring's endpoints: `POST /ott/generate`, `POST /login/ott` and `POST /logout`. Who adds one endpoint of its own, `GET /who/me`.
 
-Email links are opt-in. An application that uses only JWT or API keys configures nothing.
+Add `who-email-link` to turn email links on; an application without the jar has none of this.
 
 ## Turn it on
 
-Set the page of your app that receives sign-in links:
+Add the dependency (its version comes from who's BOM):
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-email-link</artifactId>
+</dependency>
+```
+
+Then set the page of your app that receives sign-in links, and the code secret:
 
 ```yaml
 who:
@@ -15,7 +24,7 @@ who:
     code-secret: <at least 32 random characters>
 ```
 
-When this property is set, the application also needs a way to send mail. Either register an `EmailLinkSender` bean, or set `spring.mail.host` and `who.email-link.from` to send through Spring Boot's `JavaMailSender`:
+The application also needs a way to send mail. Either register an `EmailLinkSender` bean, or set `spring.mail.host` and `who.email-link.from` to send through Spring Boot's `JavaMailSender`:
 
 ```yaml
 spring:
@@ -30,12 +39,15 @@ who:
 
 Startup fails, and the message names the fix, if:
 
-- `link-base-url` is blank;
+- `link-base-url` is missing or blank;
 - `who.email-link.code-length` is below 6;
 - `who.email-link.code-max-attempts` is below 1;
 - `who.email-link.code-secret` is missing, shorter than 32 characters, or an unresolved placeholder such as `${CODE_SECRET}` (Spring binds an unset variable as that literal text);
 - there is no `EmailLinkSender` and no `JavaMailSender` with `who.email-link.from`;
 - `who.email-link.resend-interval` is longer than `who.email-link.token-ttl`.
+
+Each message also says how to turn email links off without removing the jar:
+`who.email-link.enabled=false`.
 
 A custom sender is one method:
 
@@ -68,7 +80,24 @@ If you change the secret, codes already sent stop working. The links in those em
 
 ## Wire the chain
 
-Apply `WhoWebSecurity.passwordless()` to the `SecurityFilterChain` that serves your browser app:
+With no `SecurityFilterChain` of your own there is nothing to wire: who's default chain mounts
+email links, opens `/ott/generate` and `/login/ott` to signed-out requests, and does everything
+listed below (see [Getting Started](getting-started.md#secure-the-app)). Open the page
+`link-base-url` points at, and the assets it loads, yourself:
+
+```yaml
+who:
+  security:
+    public-paths:
+      - /signin
+      - /assets/**
+```
+
+### Your own chain
+
+In a chain of your own, `WhoSecurity.all()` mounts every sign-in method at once (see [Getting
+Started](getting-started.md#your-own-chain)). To mount the browser methods only, apply
+`WhoWebSecurity.passwordless()` to the `SecurityFilterChain` that serves your browser app:
 
 ```java
 @Bean
@@ -91,7 +120,7 @@ It also:
 - changes the session id at sign-in;
 - adds `Referrer-Policy: no-referrer`.
 
-Startup fails if the chain disables CSRF or is `STATELESS`. A session in a chain without CSRF protection lets other sites forge requests. Do not combine `passwordless()` with a stateless chain. Who detects `sessionCreationPolicy(STATELESS)`, but not a stateless chain that also sets its own `SecurityContextRepository`. Keep stateless `/api/**` callers (JWT, API keys) in a separate chain:
+Startup fails if the chain disables CSRF or is `STATELESS`. A session in a chain without CSRF protection lets other sites forge requests. Do not combine `passwordless()` with a stateless chain. Who detects `sessionCreationPolicy(STATELESS)`, but not a stateless chain that also sets its own `SecurityContextRepository`. `WhoSecurity.all()` serves API keys and JWTs in the same chain, statelessly and without CSRF for the requests that carry them. With `passwordless()` alone, keep stateless `/api/**` callers in a separate chain:
 
 ```java
 @Bean

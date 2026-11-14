@@ -59,7 +59,8 @@ Import the BOM so that every who module uses the same version:
 </dependencyManagement>
 ```
 
-Then add the starter, and `who-test` for your tests, with no versions:
+Then add the starter, each sign-in method you use, and `who-test` for your tests, with no
+versions:
 
 ```xml
 <dependency>
@@ -68,12 +69,96 @@ Then add the starter, and `who-test` for your tests, with no versions:
 </dependency>
 <dependency>
     <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-email-link</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
     <artifactId>who-test</artifactId>
     <scope>test</scope>
 </dependency>
 ```
 
-The starter brings every module and the autoconfiguration. The BOM manages only who's own artifacts, not Spring Boot's versions.
+The starter brings the base: identities, sessions, permissions and the autoconfiguration. Each
+sign-in method is its own module, and adding its jar turns it on:
+
+| Sign-in method | Module | Guide |
+|---|---|---|
+| Emailed link or typed code | `who-email-link` | [Email Links](email-links.md) |
+| Passkey | `who-passkey` | [Passkeys](passkeys.md) |
+| API key | `who-apikey` | [API Keys](api-keys.md) |
+| JWT from your authorization server | `who-jwt` | [JWT](jwt.md) |
+
+`who-enrollment` adds [enrollment tokens](enrollment.md). The BOM manages only who's own
+artifacts, not Spring Boot's versions.
+
+A module that needs settings fails startup until it has them, and the report says what to set,
+for example:
+
+```text
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+who cannot start: who.email-link.link-base-url must be set to the page that receives sign-in links.
+
+Action:
+
+Set it to the URL of your sign-in page, such as https://app.example.com/signin. Or turn email-link sign-in off with who.email-link.enabled=false.
+```
+
+`who.<module>.enabled=false` turns a module off without removing its jar. See the
+[Configuration Reference](configuration.md).
+
+## Secure the app
+
+With no `SecurityFilterChain` of your own, who registers one in place of Spring Boot's. It mounts
+every sign-in method on the classpath and answers a signed-out request with `401` (as a
+`NotSignedInException`, so your `@RestControllerAdvice` can shape it; see [Errors](errors.md)).
+There is no login page and no redirect. Signed-out requests may reach only:
+
+- `/error`;
+- each sign-in method's endpoints, such as `/ott/generate` and `/login/ott`;
+- Actuator's health endpoint, if Actuator is present;
+- the paths you list in `who.security.public-paths`.
+
+List your own sign-in page and the assets it loads there, including the page
+`who.email-link.link-base-url` points at:
+
+```yaml
+who:
+  security:
+    public-paths:
+      - /signin
+      - /assets/**
+```
+
+When a browser sign-in method (email link or passkey) is present, the chain protects against
+CSRF with Spring's `csrf.spa()`; requests that carry an API key or a bearer token are exempt,
+because they bring their own credential. With only API keys or JWTs, nothing gives a request a
+session, so the chain does not check CSRF.
+
+### Your own chain
+
+Define any `SecurityFilterChain` and who's chain backs off; Spring Boot's rule. To keep who's
+sign-in methods in a chain of your own, mount them all with `WhoSecurity.all()`, and open the same
+paths with `WhoPublicPaths`:
+
+```java
+@Bean
+SecurityFilterChain chain(HttpSecurity http, WhoPublicPaths publicPaths) {
+    http.with(WhoSecurity.all(), Customizer.withDefaults())
+        .authorizeHttpRequests(a -> a
+            .requestMatchers(publicPaths.patterns()).permitAll()
+            .anyRequest().authenticated());
+    return http.build();
+}
+```
+
+Or wire one method at a time, as each method's guide shows: `WhoWebSecurity.passwordless()` for
+email links and passkeys, `WhoApiKeySecurity.apiKey()` for API keys, and Spring's
+`oauth2ResourceServer()` with `WhoJwtAuthenticationConverter` for JWTs.
 
 ## Create an identity
 
@@ -126,6 +211,7 @@ the purge skip that module's rows unless your bean also implements
 ## Next steps
 
 1. [Database Setup](database.md): create Who's tables.
-2. [JWT](jwt.md) or [API Keys](api-keys.md): accept credentials.
+2. [Email Links](email-links.md), [Passkeys](passkeys.md), [API Keys](api-keys.md) or
+   [JWT](jwt.md): set up each sign-in method you added.
 3. [Enrollment](enrollment.md): link a user's credential to an identity.
 4. [RBAC and Method Security](rbac.md): grant permissions and check them.

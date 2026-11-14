@@ -29,15 +29,13 @@ is a tag.
 
 ## 0.18: sensitive actions and self-service accounts
 
-- **Opt-in sign-in methods (breaking).** Slim `who-spring-boot-starter` to what every application
-  needs (core, autoconfigure, Spring Security, JDBC, RBAC); applications add `who-email-link`,
-  `who-passkey`, `who-apikey` or `who-jwt` for the methods they use. Every method also needs an
-  explicit switch, as email links and passkeys do today: API-key and JWT sign-in currently turn on
-  whenever their classes are present, and the starter always brings them. First establish what an
-  application that never configured them exposes today, for the upgrade notes. The native test
-  apps already use this shape.
-- **Actuator `info` contributor** naming the sign-in methods that are on, once each method has
-  its explicit switch (moved from 0.17).
+- **Opt-in sign-in methods (breaking).** (Done in 0.18.0: see [Upgrading to
+  0.18.0](docs/guides/upgrading.md#upgrading-to-0180).) `who-spring-boot-starter` brings the base;
+  applications add `who-email-link`, `who-passkey`, `who-apikey` or `who-jwt`, and each turns on
+  with its jar, with `who.<module>.enabled=false` to turn it off. With no chain of its own, an
+  application gets who's default chain with every method on the classpath.
+- **Actuator `info` contributor** naming the sign-in methods that are on (moved from 0.17). Each
+  method now has its own switch, so this can report them.
 - **Recent sign-in (step-up).** Require a sign-in within the last N minutes before adding a
   passkey, changing an address, creating an API key or deleting an account, for example
   `@RequiresRecentSignIn(minutes = 5)` beside `@RequiresPermission`.

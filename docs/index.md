@@ -99,6 +99,6 @@ by creating them yourself.
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
 | `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |
 | `who-passkey` | Passkey sign-in: `PasskeyService`, `PasskeyAddedNotifier`, and the hooks for Spring's WebAuthn login |
-| `who-spring-security` | `@RequiresPermission`, `WhoWebSecurity.passwordless()` and `GET /who/me` |
+| `who-spring-security` | `@RequiresPermission`, `WhoSecurity.all()`, `WhoWebSecurity.passwordless()` and `GET /who/me` |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
-| `who-spring-boot-starter` | Starter that pulls in all of the above |
+| `who-spring-boot-starter` | Starter with the base: `who-core`, `who-spring-security`, `who-jdbc`, `who-rbac` and the autoconfiguration. Add each sign-in module you use; its jar turns it on |
