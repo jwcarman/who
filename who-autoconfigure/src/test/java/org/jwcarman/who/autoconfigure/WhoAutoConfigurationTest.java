@@ -252,7 +252,8 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
+        .withPropertyValues(
+            "who.email-link.enabled=false", "who.passkey.enabled=false", "who.jwt.enabled=false")
         .run(context -> assertThat(context).hasSingleBean(WhoMeController.class));
   }
 
@@ -261,7 +262,8 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class, DecliningResolverConfig.class)
-        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
+        .withPropertyValues(
+            "who.email-link.enabled=false", "who.passkey.enabled=false", "who.jwt.enabled=false")
         .run(
             context -> {
               MockHttpServletResponse response = new MockHttpServletResponse();
@@ -371,7 +373,8 @@ class WhoAutoConfigurationTest {
     new WebApplicationContextRunner()
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
+        .withPropertyValues(
+            "who.email-link.enabled=false", "who.passkey.enabled=false", "who.jwt.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();

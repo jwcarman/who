@@ -5,4 +5,5 @@ org.jwcarman.who.autoconfigure.WhoJwtAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoApiKeyAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoEmailLinkAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration
+org.jwcarman.who.autoconfigure.WhoWebSecurityAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoMetricsAutoConfiguration

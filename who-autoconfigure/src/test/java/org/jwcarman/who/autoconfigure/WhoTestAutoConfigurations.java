@@ -19,19 +19,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration;
 
-/** Every who autoconfiguration, as the application context of a real app would load them. */
+/**
+ * Every who autoconfiguration, plus the Spring Boot security autoconfigurations that come with
+ * who-spring-security, as the application context of a real app would load them.
+ */
 final class WhoTestAutoConfigurations {
 
   private static final List<Class<?>> WHO =
       List.of(
+          SecurityAutoConfiguration.class,
+          ServletWebSecurityAutoConfiguration.class,
           WhoAutoConfiguration.class,
           WhoSpringSecurityAutoConfiguration.class,
           WhoEnrollmentAutoConfiguration.class,
           WhoJwtAutoConfiguration.class,
           WhoApiKeyAutoConfiguration.class,
           WhoEmailLinkAutoConfiguration.class,
-          WhoPasskeyAutoConfiguration.class);
+          WhoPasskeyAutoConfiguration.class,
+          WhoWebSecurityAutoConfiguration.class);
 
   private WhoTestAutoConfigurations() {}
 
@@ -43,7 +51,7 @@ final class WhoTestAutoConfigurations {
    */
   static AutoConfigurations who(Class<?>... others) {
     List<Class<?>> all = new ArrayList<>(List.of(others));
-    all.addAll(WHO);
+    WHO.stream().filter(c -> !all.contains(c)).forEach(all::add);
     return AutoConfigurations.of(all.toArray(Class<?>[]::new));
   }
 }
