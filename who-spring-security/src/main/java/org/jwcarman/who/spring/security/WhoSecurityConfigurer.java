@@ -26,8 +26,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * Mounts every who sign-in method in the application context into one chain:
@@ -35,8 +35,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * <ul>
  *   <li>when there is a {@link PasswordlessLoginMethod} bean, everything {@link
  *       WhoWebSecurity#passwordless()} does for browser sessions;
- *   <li>every {@link StatelessLoginMethod} bean, and a CSRF exemption for the requests that carry
- *       one of their credentials;
+ *   <li>every {@link StatelessLoginMethod} bean, and, when the chain has CSRF protection, an
+ *       exemption for the requests that one of their credentials signs in;
  *   <li>a {@code 401} for a signed-out request and a {@code 403} for a denied one, handed to the
  *       application's exception handling.
  * </ul>
@@ -91,11 +91,13 @@ public class WhoSecurityConfigurer
     for (StatelessLoginMethod method : stateless) {
       method.configure(http);
     }
-    if (!stateless.isEmpty()) {
-      RequestMatcher carriesCredential =
+    // Only adjust CSRF the chain already has: http.csrf(...) would turn it back on in a chain that
+    // turned it off.
+    CsrfConfigurer<HttpSecurity> csrf = http.getConfigurer(CsrfConfigurer.class);
+    if (csrf != null && !stateless.isEmpty()) {
+      csrf.ignoringRequestMatchers(
           new OrRequestMatcher(
-              stateless.stream().map(StatelessLoginMethod::carriesCredential).toList());
-      http.csrf(csrf -> csrf.ignoringRequestMatchers(carriesCredential));
+              stateless.stream().map(StatelessLoginMethod::carriesCredential).toList()));
     }
   }
 }

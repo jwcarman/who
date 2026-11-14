@@ -25,7 +25,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 
 import javax.sql.DataSource;
@@ -38,6 +40,8 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.jwt.JwtCredentialService;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
@@ -80,7 +84,8 @@ import org.springframework.web.bind.annotation.RestController;
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=localhost",
       "who.passkey.allowed-origins=http://localhost",
-      "who.security.public-paths=/open/**"
+      "who.security.public-paths=/open/**",
+      "spring.session.jdbc.initialize-schema=always"
     })
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoSecurityAllTest {
@@ -88,6 +93,8 @@ class WhoSecurityAllTest {
   static final String ISSUER = "https://issuer.example.com";
   static final String GOOD_TOKEN = "good-token";
   static final String SUBJECT = "alice";
+  static final String ADDRESS = "alice@example.com";
+  static final List<EmailLinkMessage> SENT = new CopyOnWriteArrayList<>();
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
@@ -102,7 +109,7 @@ class WhoSecurityAllTest {
 
     @Bean
     EmailLinkSender emailLinkSender() {
-      return message -> {};
+      return SENT::add;
     }
 
     @Bean
@@ -165,6 +172,7 @@ class WhoSecurityAllTest {
   @Autowired private ApiKeyService apiKeyService;
   @Autowired private JwtCredentialService jwtCredentialService;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private EmailCredentialService emailCredentialService;
 
   private final CookieManager cookies = new CookieManager();
   private final HttpClient client = HttpClient.newBuilder().cookieHandler(cookies).build();
@@ -177,6 +185,8 @@ class WhoSecurityAllTest {
     Identity identity = whoService.createIdentity();
     apiKey = apiKeyService.create(identity, "test");
     jwtCredentialService.link(identity, ISSUER, SUBJECT);
+    emailCredentialService.register(identity, ADDRESS);
+    SENT.clear();
   }
 
   private URI uri(String path) {
@@ -240,6 +250,64 @@ class WhoSecurityAllTest {
               send(post("/secure/ping").header("Authorization", "Basic YWxpY2U6c2VjcmV0"))
                   .statusCode())
           .isEqualTo(403);
+    }
+  }
+
+  private HttpRequest.Builder json(String path, String body) throws Exception {
+    return HttpRequest.newBuilder(uri(path))
+        .header("Content-Type", "application/json")
+        .header("X-XSRF-TOKEN", csrfToken())
+        .POST(HttpRequest.BodyPublishers.ofString(body));
+  }
+
+  /** Signs the browser in with an emailed link, so later requests carry a session cookie. */
+  private void signIn() throws Exception {
+    assertThat(send(json("/ott/generate", "{\"email\":\"" + ADDRESS + "\"}")).statusCode())
+        .isLessThan(300);
+    String link = SENT.getLast().link();
+    String token = link.substring(link.indexOf("#token=") + "#token=".length());
+    assertThat(send(json("/login/ott", "{\"token\":\"" + token + "\"}")).statusCode())
+        .isEqualTo(200);
+  }
+
+  /**
+   * A request with a session is signed in by its cookie, which a forged request carries too. A
+   * header that does not sign the request in itself must not exempt it from CSRF.
+   */
+  @Nested
+  class Csrf_with_a_session {
+
+    @BeforeEach
+    void signedIn() throws Exception {
+      signIn();
+    }
+
+    @Test
+    void a_post_without_a_csrf_token_is_forbidden() throws Exception {
+      assertThat(send(post("/secure/ping")).statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void a_post_with_a_csrf_token_is_signed_in_by_the_session() throws Exception {
+      assertThat(send(post("/secure/ping").header("X-XSRF-TOKEN", csrfToken())).statusCode())
+          .isEqualTo(200);
+    }
+
+    @Test
+    void a_junk_api_key_does_not_skip_csrf() throws Exception {
+      assertThat(send(post("/secure/ping").header("X-API-Key", "junk")).statusCode())
+          .isEqualTo(403);
+    }
+
+    @Test
+    void a_blank_api_key_does_not_skip_csrf() throws Exception {
+      assertThat(send(post("/secure/ping").header("X-API-Key", " ")).statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void a_bogus_bearer_token_is_unauthorized() throws Exception {
+      assertThat(send(post("/secure/ping").header("Authorization", "Bearer bogus")).statusCode())
+          .isEqualTo(401);
     }
   }
 

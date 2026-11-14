@@ -53,6 +53,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -140,6 +141,31 @@ class WhoDefaultChainTest {
       runner()
           .withPropertyValues("who.security.public-paths=/signup")
           .run(context -> assertThat(postStatus(context, "/signup")).isNotEqualTo(403));
+    }
+
+    /**
+     * Something other than who, such as a {@code Customizer<HttpSecurity>} bean adding a login, may
+     * still give requests a session; a request that brings one keeps its CSRF check.
+     */
+    @Test
+    void without_a_browser_method_a_post_that_brings_a_session_needs_a_csrf_token() {
+      runner()
+          .withPropertyValues("who.security.public-paths=/signup")
+          .run(
+              context ->
+                  assertThat(
+                          mvc(context)
+                              .perform(
+                                  post("/signup")
+                                      .with(
+                                          request -> {
+                                            request.setRequestedSessionId("a-session");
+                                            return request;
+                                          }))
+                              .andReturn()
+                              .getResponse()
+                              .getStatus())
+                      .isEqualTo(403));
     }
 
     @Test
@@ -234,6 +260,37 @@ class WhoDefaultChainTest {
               });
     }
 
+    @Test
+    void all_keeps_csrf_off_in_a_chain_that_turned_it_off() {
+      runner()
+          .withUserConfiguration(NoCsrfChain.class)
+          .run(
+              context ->
+                  assertThat(
+                          mvc(context)
+                              .perform(post("/app/hook"))
+                              .andReturn()
+                              .getResponse()
+                              .getStatus())
+                      .isEqualTo(401));
+    }
+
+    @Test
+    void all_with_a_browser_method_fails_startup_in_a_chain_without_csrf() {
+      runner()
+          .withUserConfiguration(NoCsrfChain.class)
+          .withPropertyValues(
+              "who.passkey.enabled=true",
+              "who.passkey.rp-id=localhost",
+              "who.passkey.allowed-origins=http://localhost")
+          .run(
+              context ->
+                  assertThat(context.getStartupFailure())
+                      .isNotNull()
+                      .rootCause()
+                      .hasMessageContaining("CSRF"));
+    }
+
     /**
      * Spring's resource server takes any {@code AuthenticationConverter} bean in the context when
      * the chain names none, so who must not publish one.
@@ -284,6 +341,18 @@ class WhoDefaultChainTest {
     @Bean
     Executor whoEmailLinkExecutor() {
       return Runnable::run;
+    }
+  }
+
+  /** An API-only chain that turns CSRF off itself. */
+  @Configuration(proxyBeanMethods = false)
+  static class NoCsrfChain {
+    @Bean
+    SecurityFilterChain noCsrfChain(HttpSecurity http) {
+      http.csrf(AbstractHttpConfigurer::disable)
+          .with(WhoSecurity.all(), withDefaults())
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
     }
   }
 

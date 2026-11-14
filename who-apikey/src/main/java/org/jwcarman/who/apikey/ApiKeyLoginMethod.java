@@ -21,17 +21,18 @@ import static org.springframework.security.config.Customizer.withDefaults;
 import org.jwcarman.who.spring.security.StatelessLoginMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.util.StringUtils;
 
 /**
  * API-key sign-in as a {@link StatelessLoginMethod}: adds the {@link ApiKeyAuthenticationFilter} as
- * {@link WhoApiKeySecurity#apiKey(ApiKeyAuthenticationFilter)} does, and matches the requests whose
- * API-key header is present and not blank.
+ * {@link WhoApiKeySecurity#apiKey(ApiKeyAuthenticationFilter)} does, and matches the requests the
+ * key would sign in: the header is present and not blank, and the request is not already signed in.
+ * A request with a session ignores the header, as {@link ApiKeyAuthenticationConverter} does, so
+ * the header does not exempt it from CSRF either.
  */
 public final class ApiKeyLoginMethod implements StatelessLoginMethod {
 
   private final ApiKeyAuthenticationFilter filter;
-  private final String headerName;
+  private final ApiKeyAuthenticationConverter converter;
 
   /**
    * Creates the login method.
@@ -41,7 +42,9 @@ public final class ApiKeyLoginMethod implements StatelessLoginMethod {
    */
   public ApiKeyLoginMethod(ApiKeyAuthenticationFilter filter, String headerName) {
     this.filter = requireNonNull(filter, "filter must not be null");
-    this.headerName = requireNonNull(headerName, "headerName must not be null");
+    this.converter =
+        new ApiKeyAuthenticationConverter(
+            requireNonNull(headerName, "headerName must not be null"));
   }
 
   @Override
@@ -51,6 +54,6 @@ public final class ApiKeyLoginMethod implements StatelessLoginMethod {
 
   @Override
   public RequestMatcher carriesCredential() {
-    return request -> StringUtils.hasText(request.getHeader(headerName));
+    return request -> converter.convert(request) != null;
   }
 }

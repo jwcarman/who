@@ -24,24 +24,24 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.endpoint.web.WebServerNamespace;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
-import org.springframework.boot.security.autoconfigure.web.servlet.ConditionalOnDefaultServletWebSecurity;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.ClassUtils;
 
 /**
  * who's default {@link SecurityFilterChain}, in place of Spring Boot's: every sign-in method on the
  * classpath ({@link WhoSecurity#all()}), the {@linkplain WhoPublicPaths public paths} open to
- * signed-out requests, CSRF only where a browser sign-in method gives requests a session,
- * Actuator's health endpoint open as Boot's own chain leaves it, and every other request signed in.
- * It backs off as soon as the application defines a {@link SecurityFilterChain} of its own.
+ * signed-out requests, CSRF for every request that brings a session, Actuator's health endpoint
+ * open as Boot's own chain leaves it, and every other request signed in. It backs off as soon as
+ * the application defines a {@link SecurityFilterChain} of its own.
  */
 @AutoConfiguration(
     after = {
@@ -56,12 +56,25 @@ import org.springframework.util.ClassUtils;
     beforeName = {
       "org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration",
       "org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration",
-      "org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration"
+      "org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration",
+      "org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration",
+      "org.springframework.boot.security.oauth2.server.authorization.autoconfigure.servlet.OAuth2AuthorizationServerAutoConfiguration"
     })
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@ConditionalOnClass(name = "org.jwcarman.who.spring.security.WhoSecurity")
-@ConditionalOnDefaultServletWebSecurity
+@ConditionalOnClass(
+    name = {
+      "org.jwcarman.who.spring.security.WhoSecurity",
+      "org.springframework.security.web.SecurityFilterChain",
+      "org.springframework.security.config.annotation.web.builders.HttpSecurity"
+    })
+// Boot's @ConditionalOnDefaultServletWebSecurity in full: that annotation exists only from Spring
+// Boot 4.1.2, and on 4.1.0 or 4.1.1 Spring would drop it unread, so this chain would not back off.
+@ConditionalOnMissingBean(SecurityFilterChain.class)
 public class WhoWebSecurityAutoConfiguration {
+
+  /** A request that brings no session, so a forged copy of it would be signed out too. */
+  private static final RequestMatcher NO_SESSION =
+      request -> request.getRequestedSessionId() == null;
 
   private static final String ACTUATOR =
       "org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointAutoConfiguration";
@@ -69,9 +82,9 @@ public class WhoWebSecurityAutoConfiguration {
   /**
    * The default chain.
    *
-   * <p>Without a browser sign-in method nothing gives a request a session, so there is no session
-   * for CSRF to guard: CSRF then ignores every request, and a signed-out client may post to a
-   * public path.
+   * <p>Without a browser sign-in method who gives no request a session, so CSRF then ignores the
+   * requests that bring none, and a signed-out client may post to a public path. A request that
+   * brings a session, which something other than who may have started, keeps its CSRF check.
    *
    * @param http the chain builder
    * @param publicPaths the paths open to signed-out requests
@@ -86,9 +99,7 @@ public class WhoWebSecurityAutoConfiguration {
       ObjectProvider<PasswordlessLoginMethod> browserMethods) {
     boolean actuator = ClassUtils.isPresent(ACTUATOR, getClass().getClassLoader());
     if (browserMethods.stream().findAny().isEmpty()) {
-      // Ignore rather than disable: WhoSecurity.all() customizes CSRF when the chain is built, and
-      // that would bring a disabled CSRF back.
-      http.csrf(csrf -> csrf.ignoringRequestMatchers(AnyRequestMatcher.INSTANCE));
+      http.csrf(csrf -> csrf.ignoringRequestMatchers(NO_SESSION));
     }
     http.with(WhoSecurity.all(), withDefaults())
         .authorizeHttpRequests(
