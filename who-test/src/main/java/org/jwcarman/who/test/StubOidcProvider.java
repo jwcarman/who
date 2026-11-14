@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
@@ -31,6 +32,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -68,6 +72,8 @@ public final class StubOidcProvider implements AutoCloseable {
   private final RSAKey key;
   private final boolean gitHub;
   private final String issuer;
+  private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+  private final AtomicInteger emailRequests = new AtomicInteger();
 
   private volatile String subject = "user";
   private volatile Map<String, Object> claims = Map.of();
@@ -75,6 +81,8 @@ public final class StubOidcProvider implements AutoCloseable {
   private volatile String nonce;
   private volatile String clientId;
   private volatile List<Map<String, Object>> emails = List.of();
+  private volatile int emailsStatus = 200;
+  private volatile Duration emailsDelay = Duration.ZERO;
 
   private StubOidcProvider(boolean gitHub) {
     this.gitHub = gitHub;
@@ -89,6 +97,7 @@ public final class StubOidcProvider implements AutoCloseable {
     }
     this.issuer = "http://127.0.0.1:" + server.getAddress().getPort();
     server.createContext("/", this::handle);
+    server.setExecutor(executor);
     server.start();
   }
 
@@ -153,10 +162,38 @@ public final class StubOidcProvider implements AutoCloseable {
     this.emails = List.copyOf(emails);
   }
 
+  /**
+   * Makes GitHub's {@code /user/emails} answer with an error status.
+   *
+   * @param status the HTTP status to answer with
+   */
+  public void failEmails(int status) {
+    this.emailsStatus = status;
+  }
+
+  /**
+   * Makes GitHub's {@code /user/emails} wait before it answers.
+   *
+   * @param delay how long to wait
+   */
+  public void delayEmails(Duration delay) {
+    this.emailsDelay = delay;
+  }
+
+  /**
+   * How many times GitHub's {@code /user/emails} has been called.
+   *
+   * @return the number of calls
+   */
+  public int emailRequests() {
+    return emailRequests.get();
+  }
+
   /** Stops the server. */
   @Override
   public void close() {
     server.stop(0);
+    executor.shutdownNow();
   }
 
   private void handle(HttpExchange exchange) throws IOException {
@@ -174,9 +211,24 @@ public final class StubOidcProvider implements AutoCloseable {
         case "/authorize" -> authorize(exchange);
         case "/token" -> json(exchange, token(exchange));
         case "/userinfo", "/user" -> json(exchange, user());
-        case "/user/emails" -> send(exchange, 200, JSONArrayUtils.toJSONString(emails));
+        case "/user/emails" -> emails(exchange);
         default -> send(exchange, 404, "{}");
       }
+    }
+  }
+
+  private void emails(HttpExchange exchange) throws IOException {
+    emailRequests.incrementAndGet();
+    try {
+      Thread.sleep(emailsDelay);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return;
+    }
+    if (emailsStatus == 200) {
+      send(exchange, 200, JSONArrayUtils.toJSONString(emails));
+    } else {
+      send(exchange, emailsStatus, "{\"message\":\"failed\"}");
     }
   }
 
