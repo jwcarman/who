@@ -90,6 +90,33 @@ public final class TestEndpoints {
   }
 
   /**
+   * Waits up to ten seconds for a meter named {@code name} with every one of {@code tags} (each
+   * {@code key=value}) to have counted at least once, from {@code GET /test/metrics/{name}}, and
+   * returns its count.
+   *
+   * @param client a client of the app
+   * @param name the meter name
+   * @param tags the {@code key=value} tags the meter must carry
+   * @return the meter's count
+   * @throws AssertionError if no such meter has counted
+   */
+  public static double awaitMetric(WhoClient client, String name, String... tags) {
+    Instant deadline = Instant.now().plus(WAIT);
+    JsonNode seen;
+    do {
+      seen = client.get("/test/metrics/" + name).json();
+      for (Map.Entry<String, JsonNode> meter : seen.properties()) {
+        List<String> meterTags = List.of(meter.getKey().split(","));
+        if (meterTags.containsAll(List.of(tags)) && meter.getValue().asDouble() >= 1.0) {
+          return meter.getValue().asDouble();
+        }
+      }
+      pause();
+    } while (Instant.now().isBefore(deadline));
+    throw new AssertionError("No " + name + " meter with " + List.of(tags) + " in " + seen);
+  }
+
+  /**
    * Waits up to ten seconds for an email to the address and returns its text.
    *
    * @param client a client of the app

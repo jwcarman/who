@@ -150,6 +150,14 @@ class EmailLinkSignInIT {
         TestEndpoints.awaitEvent(
             client,
             Map.of("type", "SignInSucceeded", "method", "EMAIL_CODE", "identityId", identityId));
+        assertThat(
+                TestEndpoints.awaitMetric(
+                    client, "who.sign-ins", "method=email-code", "outcome=success", "reason=none"))
+            .isGreaterThanOrEqualTo(1.0);
+        assertThat(TestEndpoints.awaitMetric(client, "who.sign-in.emails", "outcome=sent"))
+            .isGreaterThanOrEqualTo(1.0);
+        assertThat(TestEndpoints.awaitMetric(client, "who.principal.resolve", "outcome=resolved"))
+            .isGreaterThanOrEqualTo(1.0);
       }
     }
 
@@ -169,6 +177,14 @@ class EmailLinkSignInIT {
         // a failed sign-in may carry no identity (events guide); only this test sends a wrong code
         TestEndpoints.awaitEvent(
             client, Map.of("type", "SignInFailed", "method", "EMAIL_CODE", "reason", "WRONG_CODE"));
+        assertThat(
+                TestEndpoints.awaitMetric(
+                    client,
+                    "who.sign-ins",
+                    "method=email-code",
+                    "outcome=failure",
+                    "reason=wrong-code"))
+            .isGreaterThanOrEqualTo(1.0);
         assertThat(identityId).isNotBlank();
       }
     }
