@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: native-email-link
+  # spring.datasource.* and who.email-link.link-base-url come from the test's arguments
+
+who:
+  initialize-schema: never
+  email-link:
+    from: sign-in@example.test
+    # a fixed secret is fine: this app exists only for tests
+    code-secret: native-tests-only-code-secret-0123456789

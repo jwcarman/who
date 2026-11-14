@@ -277,6 +277,16 @@
     </build>
 
     <profiles>
+        <!-- Small apps, one per sign-in method, built native and driven over HTTP:
+             ./mvnw -Pnative-tests verify -pl who-native-tests/<app> -am            (on the JVM)
+             ./mvnw -Pnative-tests -Dnative verify -pl who-native-tests/<app> -am   (native; GraalVM 25)
+             Never part of the ci or release builds. See CONTRIBUTING.md. -->
+        <profile>
+            <id>native-tests</id>
+            <modules>
+                <module>who-native-tests</module>
+            </modules>
+        </profile>
         <profile>
             <id>ci</id>
             <build>
