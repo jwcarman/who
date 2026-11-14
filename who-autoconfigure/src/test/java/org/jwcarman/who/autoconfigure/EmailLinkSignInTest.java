@@ -108,8 +108,11 @@ class EmailLinkSignInTest {
   static final String XSRF_COOKIE = "XSRF-TOKEN";
   static final String XSRF_HEADER = "X-XSRF-TOKEN";
 
-  // Singleton container — started once per JVM and shared across all test classes.
-  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
+  // Singleton container — started once per JVM and shared across all test classes. Spring caches
+  // up to 32 contexts, each with its own connection pool of up to 10, beyond Postgres's default
+  // of 100 connections.
+  static final PostgreSQLContainer POSTGRES =
+      new PostgreSQLContainer("postgres:16").withCommand("postgres", "-c", "max_connections=400");
 
   static {
     POSTGRES.start();
