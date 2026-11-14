@@ -145,9 +145,44 @@ Two limits to know:
   `A listener failed on {}: {}`, with the event's simple name and the exception's class name.
   The sign-in or change is not affected. Spring stops at the first listener that throws, so
   later listeners do not see that event. Handle your own failures inside the listener.
+- **A listener that writes.** A listener for an event from a transactional who change runs right
+  after the commit, while that transaction's resources are still bound to the thread. A listener
+  that writes to a database or calls a who service should run in its own transaction
+  (`@Transactional(propagation = Propagation.REQUIRES_NEW)`) or `@Async`. Without that, whether its
+  writes are committed depends on the transaction manager. With plain JDBC they may happen to be
+  committed as a side effect of the connection being released. Spring documents that, in an
+  after-commit callback, changes made through the finished transaction's resources (a JPA
+  `EntityManager`, for example) are not committed
+  ([`TransactionSynchronization#afterCommit`](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/support/TransactionSynchronization.html#afterCommit())),
+  and a who service call that joins with `REQUIRED` runs in the already-finished transaction.
 - **An event published from another listener's after-commit callback** can be lost. This is the
   same limit `@TransactionalEventListener` has: the transaction is over by then. Do not make
   changes through who services from inside an after-commit callback and expect their events.
+
+A database-backed audit listener, with its own transaction:
+
+```java
+@Component
+class AuditTrail {
+
+  private final JdbcClient jdbc;
+
+  AuditTrail(JdbcClient jdbc) {
+    this.jdbc = jdbc;
+  }
+
+  @EventListener
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void on(IdentityDeactivated event) {
+    jdbc.sql("INSERT INTO audit (kind, identity_id, at) VALUES ('DEACTIVATED', :id, :at)")
+        .param("id", event.identityId())
+        .param("at", Timestamp.from(event.occurredAt()))
+        .update();
+  }
+}
+```
+
+The method is `public` so that Spring's transactional proxy applies to it.
 
 ## Personal data and untrusted text
 

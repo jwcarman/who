@@ -47,6 +47,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /** Who's events reach Spring listeners only after the transaction that caused them commits. */
@@ -86,6 +88,53 @@ class SpringWhoEventPublisherTest {
       if (failing) {
         throw new IllegalStateException("secret-detail");
       }
+    }
+  }
+
+  /** An audit listener that writes in a transaction of its own, as the events guide advises. */
+  @Configuration(proxyBeanMethods = false)
+  static class RequiresNewAudit {
+    private final JdbcClient jdbc;
+
+    RequiresNewAudit(JdbcClient jdbc) {
+      this.jdbc = jdbc;
+    }
+
+    @EventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(IdentityDeactivated event) {
+      jdbc.sql("INSERT INTO audit_requires_new (identity_id) VALUES (:id)")
+          .param("id", event.identityId())
+          .update();
+    }
+  }
+
+  @Nested
+  @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+  class Database_listeners {
+
+    @Test
+    void a_requires_new_listener_write_after_commit_is_visible_afterwards() {
+      runner
+          .withUserConfiguration(RequiresNewAudit.class)
+          .run(
+              context -> {
+                JdbcClient jdbc = context.getBean(JdbcClient.class);
+                jdbc.sql("CREATE TABLE audit_requires_new (identity_id uuid NOT NULL)").update();
+                WhoService whoService = context.getBean(WhoService.class);
+                UUID id = whoService.createIdentity().id();
+                TransactionTemplate tx =
+                    new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
+
+                tx.executeWithoutResult(status -> assertThat(whoService.deactivate(id)).isTrue());
+
+                assertThat(
+                        jdbc.sql("SELECT COUNT(*) FROM audit_requires_new WHERE identity_id = :id")
+                            .param("id", id)
+                            .query(Integer.class)
+                            .single())
+                    .isEqualTo(1);
+              });
     }
   }
 
