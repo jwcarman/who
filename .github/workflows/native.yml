@@ -1,0 +1,49 @@
+name: Native
+
+# Builds each app in who-native-tests as a GraalVM native image and drives it over HTTP against
+# PostgreSQL (see CONTRIBUTING.md). One job per app, so a failure names the sign-in method that
+# broke. A native build takes minutes, so this runs on main, weekly and by hand, not on every pull
+# request.
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [ native-email-link, native-passkey, native-api-key, native-jwt ]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up GraalVM 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          java-version: '25'
+          distribution: 'graalvm'
+          cache: maven
+      - name: Build native and test
+        env:
+          APP: ${{ matrix.app }}
+        run: >-
+          ./mvnw -B -Pnative-tests -Dnative verify -pl "who-native-tests/$APP" -am
+          -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false
+      - name: Upload app log and test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.app }}-logs
+          path: |
+            who-native-tests/${{ matrix.app }}/target/app.log
+            who-native-tests/${{ matrix.app }}/target/failsafe-reports/
+          if-no-files-found: ignore
