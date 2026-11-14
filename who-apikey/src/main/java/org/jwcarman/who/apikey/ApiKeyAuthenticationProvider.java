@@ -26,7 +26,6 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
-import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
@@ -48,8 +47,8 @@ import org.springframework.security.core.Authentication;
  * exception or log line; neither does its hash.
  *
  * <p>A key that signs in returns a {@link WhoAuthenticationToken} with {@link SignInMethod#API_KEY}
- * and publishes {@link SignInSucceeded}. API keys sign in on every request and save no session, so
- * the sign-in is complete here and this provider, not a success handler, publishes it.
+ * and publishes no who event: a key authenticates every request, and Spring Security's {@code
+ * AuthenticationSuccessEvent} already reports each one.
  *
  * <p>Every refusal is the same {@link BadCredentialsException} ({@value #INVALID_API_KEY}). It
  * publishes {@link SignInFailed} with {@link SignInFailureReason#UNKNOWN_KEY} when the key is
@@ -75,7 +74,7 @@ public class ApiKeyAuthenticationProvider implements AuthenticationProvider {
    *
    * @param apiKeyCredentialRepository repository for looking up hashed API keys
    * @param whoService service for resolving a credential to a principal
-   * @param eventPublisher where {@link SignInSucceeded} and {@link SignInFailed} are published
+   * @param eventPublisher where {@link SignInFailed} is published
    * @param clock stamps the events
    */
   public ApiKeyAuthenticationProvider(
@@ -119,10 +118,7 @@ public class ApiKeyAuthenticationProvider implements AuthenticationProvider {
     };
   }
 
-  private WhoAuthenticationToken succeeded(WhoPrincipal principal, UUID credentialId) {
-    eventPublisher.publish(
-        new SignInSucceeded(
-            clock.instant(), SignInMethod.API_KEY, principal.identity().id(), credentialId));
+  private static WhoAuthenticationToken succeeded(WhoPrincipal principal, UUID credentialId) {
     return new WhoAuthenticationToken(principal, credentialId, SignInMethod.API_KEY);
   }
 

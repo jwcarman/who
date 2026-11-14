@@ -89,15 +89,9 @@ class ApiKeySignInIT {
 
         assertThat(response.status()).isEqualTo(200);
         assertThat(response.body()).contains(key.get("identityId"));
-        TestEndpoints.awaitEvent(
-            client,
-            Map.of(
-                "type",
-                "SignInSucceeded",
-                "method",
-                "API_KEY",
-                "identityId",
-                key.get("identityId")));
+        // a valid key publishes no who event; Spring's AuthenticationSuccessEvent covers it
+        assertThat(TestEndpoints.events(client))
+            .noneMatch(event -> "SignInSucceeded".equals(event.get("type")));
       }
     }
 

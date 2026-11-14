@@ -46,7 +46,6 @@ import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
-import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.Resolution.Inactive;
@@ -175,7 +174,7 @@ class JwtEventsTest {
     }
 
     @Test
-    void a_known_jwt_publishes_sign_in_succeeded() throws Exception {
+    void a_known_jwt_publishes_no_sign_in_succeeded() throws Exception {
       JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
       Identity identity = Identity.create();
       when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
@@ -185,10 +184,8 @@ class JwtEventsTest {
       // 404 from the empty app: the filter let the request through, so the sign-in succeeded
       assertThat(statusOf(jwt(Map.of("iss", ISSUER, "sub", SUBJECT)))).isEqualTo(404);
 
-      // one per request: the chain calls the converter once
-      assertThat(events)
-          .containsExactly(
-              new SignInSucceeded(NOW, SignInMethod.JWT, identity.id(), credential.id()));
+      // a JWT authenticates every request; Spring's AuthenticationSuccessEvent covers that
+      assertThat(events).isEmpty();
     }
 
     @Test
@@ -290,10 +287,8 @@ class JwtEventsTest {
 
     @Test
     void the_token_appears_in_no_event() throws Exception {
-      JwtCredential credential = JwtCredential.create(ISSUER, SUBJECT);
-      when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.of(credential));
-      when(whoService.resolveDetailed(credential))
-          .thenReturn(new Resolved(new WhoPrincipal(Identity.create(), Set.of())));
+      // an unknown subject: refused, so it publishes the one event a JWT request can
+      when(repository.findByIssuerAndSubject(ISSUER, SUBJECT)).thenReturn(Optional.empty());
 
       statusOf(jwt(Map.of("iss", ISSUER, "sub", SUBJECT)));
 

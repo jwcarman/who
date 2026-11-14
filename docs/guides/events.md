@@ -45,8 +45,8 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 
 | Event | Module | Fires when | Fields |
 |---|---|---|---|
-| `SignInSucceeded` | who-core | A sign-in is complete. Email link and code, and passkey: after the session is saved. API keys and JWTs: on every request that carries a valid key or token. | `method`, `identityId`, `credentialId` |
-| `SignInFailed` | who-core | A sign-in attempt fails. The client still gets the same `401`. | `method`, `reason`, `address` or null, `identityId` or null, `credentialId` or null |
+| `SignInSucceeded` | who-core | A sign-in is complete: email link, email code or passkey, after the session is saved. API-key and JWT requests publish none; see [Spring's own sign-in events](#springs-own-sign-in-events). | `method`, `identityId`, `credentialId` |
+| `SignInFailed` | who-core | A sign-in attempt fails, for every method, including each refused API-key or JWT request. The client still gets the same `401`. | `method`, `reason`, `address` or null, `identityId` or null, `credentialId` or null |
 | `SignedOut` | who-core | A caller signs out of a who session. | `identityId`, `credentialId` |
 | `SessionEnded` | who-core | who drops a session because its identity is no longer active or its credential was revoked. | `identityId`, `credentialId`, `reason` |
 | `SignInEmailRequested` | who-email-link | A request to `POST /ott/generate` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
@@ -246,6 +246,11 @@ for email, passkey and API-key sign-ins, among others. They do not carry who's r
 credential, and a sign-in can produce more than one. Use who's events for an audit trail and
 leave Spring's alone, or you will record each sign-in twice.
 
+API keys and JWTs authenticate every request, so who publishes no `SignInSucceeded` for them: it
+would be one event per API call, not a sign-in. Refusals still publish `SignInFailed` with the
+reason. To see each authenticated API request, listen for Spring's `AuthenticationSuccessEvent`
+(API keys) or use Spring Security's request observations.
+
 ## Compatibility
 
 Events are public API. New event types, and new values in the enums above, may appear in a minor
@@ -262,5 +267,5 @@ patterns, which break when a component is added.
 `SignInSucceeded` for email links, email codes and passkeys is published by who's JSON success
 handler. If your application defines its own `JsonAuthenticationHandlers` bean with the old
 two-argument constructor, it publishes no `SignInSucceeded`. See
-[Upgrading](upgrading.md#upgrading-to-0170). API keys and JWTs publish from their authentication
-provider and converter, so they are not affected.
+[Upgrading](upgrading.md#upgrading-to-0170). API keys and JWTs publish only `SignInFailed`, from
+their authentication provider and converter, so they are not affected.

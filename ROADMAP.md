@@ -44,7 +44,8 @@ metrics at all.
 
 ## 0.19: API keys that are ready for production
 
-- An expiry date, and a last-used time to find stale keys.
+- An expiry date, and a last-used time to find stale keys, recorded by the API-key sign-in itself
+  (throttled), not from events: a valid key publishes no event.
 - A recognizable prefix (such as `who_…`) so secret scanners can spot a leaked key.
 - Scopes: a key holds a subset of its identity's permissions.
 - Rotation with an overlap window.

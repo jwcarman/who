@@ -30,9 +30,9 @@ The `401` is the same answer every who sign-in gives: the filter hands a `SignIn
 
 ## Events
 
-Every request that carries a key publishes a who sign-in event:
+A request whose key is refused publishes a who sign-in event; a valid key publishes none, since
+it authenticates every request (Spring's `AuthenticationSuccessEvent` still reports each one):
 
-- `SignInSucceeded` with method `API_KEY`, the identity and the key's credential id.
 - `SignInFailed` with method `API_KEY` and reason `UNKNOWN_KEY` (unknown, revoked, or linked to no identity) or `INACTIVE_IDENTITY`, with the identity and credential ids when they are known.
 
 `ApiKeyService.create` publishes `CredentialAdded` and `revoke` publishes `CredentialRevoked`, both with kind `API_KEY` and the key's name as the label.

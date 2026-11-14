@@ -13,7 +13,8 @@ change breaks clients, and a few things affect applications that build who's ser
     - A database fault during the key check now surfaces as the original `RuntimeException`
       rather than a `ServletException`. The answer is still a `500`.
     - When a valid key signs in, an anonymous HTTP session's id is rotated.
-    - Each request that carries a key publishes `SignInSucceeded`.
+    - Each request with an unknown, revoked or inactive key publishes `SignInFailed`; a valid key
+      publishes no who event (Spring's `AuthenticationSuccessEvent` still fires).
     - A filter you pass to `WhoApiKeySecurity.apiKey(filter)` has its authentication manager and
       failure handler set by who.
 - **Link JWT credentials with `JwtCredentialService`.** `link` and `unlink` publish

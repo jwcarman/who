@@ -66,4 +66,4 @@ JwtCredential credential = jwtCredentialService.link(identity, "https://your-aut
 jwtCredentialService.unlink(credential.id());   // publishes CredentialRevoked
 ```
 
-`JwtCredentialService` is auto-configured by `who-autoconfigure`. Each request with a valid token publishes `SignInSucceeded` or `SignInFailed` (method `JWT`; reasons `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`). The token itself is never published or logged. A token Spring rejects before Who sees it (bad signature, expired) publishes nothing.
+`JwtCredentialService` is auto-configured by `who-autoconfigure`. Each request with a token Who refuses publishes `SignInFailed` (method `JWT`; reasons `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`). A token that signs in publishes no who event, since it authenticates every request. The token itself is never published or logged. A token Spring rejects before Who sees it (bad signature, expired) publishes nothing.

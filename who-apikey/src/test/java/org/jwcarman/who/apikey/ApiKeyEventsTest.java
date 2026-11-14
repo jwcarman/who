@@ -42,7 +42,6 @@ import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
-import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -162,16 +161,14 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
   class Signing_in {
 
     @Test
-    void each_request_publishes_sign_in_succeeded_with_api_key() throws Exception {
+    void a_valid_key_publishes_no_sign_in_succeeded() throws Exception {
       String key = apiKeyService.create(identity, "events");
-      SignInSucceeded expected =
-          new SignInSucceeded(NOW, SignInMethod.API_KEY, identity.id(), credentialIdOf(key));
 
       assertThat(statusOf(key)).isEqualTo(200);
       assertThat(statusOf(key)).isEqualTo(200);
 
-      // one per request, and nothing else in the chain publishes a second one
-      assertThat(publishedEvents()).containsExactly(expected, expected);
+      // a key authenticates every request; Spring's AuthenticationSuccessEvent covers that
+      assertThat(publishedEvents()).isEmpty();
     }
 
     @Test
@@ -376,7 +373,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
         published.add(failure.getException().toString());
         assertThat(failure.getException().getAuthenticationRequest().getCredentials()).isNull();
       }
-      assertThat(publishedEvents()).hasSize(2);
+      // who publishes only the refusal; Spring reports both the success and the refusal
+      assertThat(publishedEvents()).hasSize(1);
       assertThat(springEvents).hasSize(2);
 
       for (String secret : keys) {

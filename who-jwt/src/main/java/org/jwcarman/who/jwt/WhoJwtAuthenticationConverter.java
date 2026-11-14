@@ -26,7 +26,6 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
-import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
@@ -59,13 +58,14 @@ import org.springframework.security.oauth2.jwt.JwtClaimNames;
  * registered before access is granted.
  *
  * <p>JWTs sign in on every request and save no session, and do not pass through the form-login
- * handlers, so this converter publishes the sign-in events itself: {@link SignInSucceeded} for a
- * JWT that signs in, and {@link SignInFailed} with {@link SignInFailureReason#MISSING_CLAIMS},
- * {@link SignInFailureReason#UNKNOWN_CREDENTIAL} or {@link SignInFailureReason#INACTIVE_IDENTITY}
- * for one that does not. Each failure also logs one DEBUG line. The token is never published or
- * logged; the subject appears only in that DEBUG line. Spring calls the converter once per request,
- * so a request publishes one event. A JWT that Spring rejects before conversion (bad signature,
- * expired) never reaches it and publishes nothing.
+ * handlers, so this converter publishes failures itself: {@link SignInFailed} with {@link
+ * SignInFailureReason#MISSING_CLAIMS}, {@link SignInFailureReason#UNKNOWN_CREDENTIAL} or {@link
+ * SignInFailureReason#INACTIVE_IDENTITY}, and one DEBUG line. A JWT that signs in publishes no who
+ * event: it authenticates every request, and Spring Security's {@code AuthenticationSuccessEvent}
+ * already reports each one. The token is never published or logged; the subject appears only in
+ * that DEBUG line. Spring calls the converter once per request, so a refused request publishes one
+ * event. A JWT that Spring rejects before conversion (bad signature, expired) never reaches it and
+ * publishes nothing.
  */
 public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
@@ -92,7 +92,7 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
    *
    * @param jwtCredentialRepository repository for looking up registered JWT credentials
    * @param whoService service for resolving a credential to a principal
-   * @param eventPublisher where {@link SignInSucceeded} and {@link SignInFailed} are published
+   * @param eventPublisher where {@link SignInFailed} is published
    * @param clock stamps the events
    */
   public WhoJwtAuthenticationConverter(
@@ -141,10 +141,7 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
     };
   }
 
-  private WhoAuthenticationToken succeeded(WhoPrincipal principal, UUID credentialId) {
-    eventPublisher.publish(
-        new SignInSucceeded(
-            clock.instant(), SignInMethod.JWT, principal.identity().id(), credentialId));
+  private static WhoAuthenticationToken succeeded(WhoPrincipal principal, UUID credentialId) {
     return new WhoAuthenticationToken(principal, credentialId, SignInMethod.JWT);
   }
 
