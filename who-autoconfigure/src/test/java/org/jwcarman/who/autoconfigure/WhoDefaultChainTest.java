@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -117,6 +118,36 @@ class WhoDefaultChainTest {
                 assertThat(status(context, "/assets/app.js")).isNotEqualTo(401);
                 assertThat(status(context, "/private")).isEqualTo(401);
               });
+    }
+  }
+
+  /**
+   * CSRF guards a session against forged requests. Only a browser sign-in method gives a request a
+   * session, so without one the default chain has nothing for CSRF to guard.
+   */
+  @Nested
+  class Csrf {
+
+    private int postStatus(AssertableWebApplicationContext context, String path) throws Exception {
+      return mvc(context).perform(post(path)).andReturn().getResponse().getStatus();
+    }
+
+    @Test
+    void without_a_browser_method_a_signed_out_post_to_a_public_path_needs_no_csrf_token() {
+      runner()
+          .withPropertyValues("who.security.public-paths=/signup")
+          .run(context -> assertThat(postStatus(context, "/signup")).isNotEqualTo(403));
+    }
+
+    @Test
+    void with_a_browser_method_a_signed_out_post_without_a_csrf_token_is_forbidden() {
+      runner()
+          .withPropertyValues(
+              "who.security.public-paths=/signup",
+              "who.passkey.enabled=true",
+              "who.passkey.rp-id=localhost",
+              "who.passkey.allowed-origins=http://localhost")
+          .run(context -> assertThat(postStatus(context, "/signup")).isEqualTo(403));
     }
   }
 

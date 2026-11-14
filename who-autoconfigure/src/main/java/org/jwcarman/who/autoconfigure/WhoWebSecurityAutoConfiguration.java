@@ -17,8 +17,10 @@ package org.jwcarman.who.autoconfigure;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.endpoint.web.WebServerNamespace;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -31,14 +33,15 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.util.ClassUtils;
 
 /**
  * who's default {@link SecurityFilterChain}, in place of Spring Boot's: every sign-in method on the
  * classpath ({@link WhoSecurity#all()}), the {@linkplain WhoPublicPaths public paths} open to
- * signed-out requests, Actuator's health endpoint open as Boot's own chain leaves it, and every
- * other request signed in. It backs off as soon as the application defines a {@link
- * SecurityFilterChain} of its own.
+ * signed-out requests, CSRF only where a browser sign-in method gives requests a session,
+ * Actuator's health endpoint open as Boot's own chain leaves it, and every other request signed in.
+ * It backs off as soon as the application defines a {@link SecurityFilterChain} of its own.
  */
 @AutoConfiguration(
     after = {
@@ -66,14 +69,27 @@ public class WhoWebSecurityAutoConfiguration {
   /**
    * The default chain.
    *
+   * <p>Without a browser sign-in method nothing gives a request a session, so there is no session
+   * for CSRF to guard: CSRF then ignores every request, and a signed-out client may post to a
+   * public path.
+   *
    * @param http the chain builder
    * @param publicPaths the paths open to signed-out requests
+   * @param browserMethods the browser sign-in methods
    * @return the chain
    */
   @Bean
   @Order(SecurityFilterProperties.BASIC_AUTH_ORDER)
-  public SecurityFilterChain whoSecurityFilterChain(HttpSecurity http, WhoPublicPaths publicPaths) {
+  public SecurityFilterChain whoSecurityFilterChain(
+      HttpSecurity http,
+      WhoPublicPaths publicPaths,
+      ObjectProvider<PasswordlessLoginMethod> browserMethods) {
     boolean actuator = ClassUtils.isPresent(ACTUATOR, getClass().getClassLoader());
+    if (browserMethods.stream().findAny().isEmpty()) {
+      // Ignore rather than disable: WhoSecurity.all() customizes CSRF when the chain is built, and
+      // that would bring a disabled CSRF back.
+      http.csrf(csrf -> csrf.ignoringRequestMatchers(AnyRequestMatcher.INSTANCE));
+    }
     http.with(WhoSecurity.all(), withDefaults())
         .authorizeHttpRequests(
             requests -> {
