@@ -84,8 +84,10 @@ public class WhoPasskeyAutoConfiguration {
     WhoProperties.Passkey passkey = properties.getPasskey();
     String rpId = passkey.getRpId();
     if (!StringUtils.hasText(rpId)) {
-      throw new IllegalStateException(
-          "who.passkey.rp-id must be set to the application's host, such as app.example.com");
+      throw new WhoConfigurationException(
+          "who.passkey.rp-id",
+          "must be set to the application's host",
+          "Set it to the host passkeys are bound to, such as app.example.com.");
     }
     Set<String> allowedOrigins =
         passkey.getAllowedOrigins().isEmpty()

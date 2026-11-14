@@ -85,35 +85,45 @@ public class WhoEmailLinkAutoConfiguration {
   public EmailLinkSettings emailLinkSettings(WhoProperties properties) {
     WhoProperties.EmailLink emailLink = properties.getEmailLink();
     if (!StringUtils.hasText(emailLink.getLinkBaseUrl())) {
-      throw new IllegalStateException(
-          "who.email-link.link-base-url must be set to the page that receives sign-in links");
+      throw new WhoConfigurationException(
+          "who.email-link.link-base-url",
+          "must be set to the page that receives sign-in links",
+          "Set it to the URL of your sign-in page, such as https://app.example.com/signin.");
     }
     Duration tokenTtl = emailLink.getTokenTtl();
     Duration resendInterval = emailLink.getResendInterval();
     if (resendInterval.compareTo(tokenTtl) > 0) {
-      throw new IllegalStateException(
-          "who.email-link.resend-interval ("
+      throw new WhoConfigurationException(
+          "who.email-link.resend-interval",
+          "("
               + resendInterval
               + ") must not be longer than who.email-link.token-ttl ("
               + tokenTtl
-              + "), or an expired link would block a new one");
+              + "), or an expired link would block a new one",
+          "Shorten who.email-link.resend-interval or lengthen who.email-link.token-ttl.");
     }
     String codeSecret = emailLink.getCodeSecret();
     // Spring binds an unresolvable ${VAR} as literal text; a long enough name would otherwise
     // pass the length check and key every code with a value printed in the app's own config.
     if (codeSecret != null && codeSecret.contains("${")) {
-      throw new IllegalStateException(
-          "who.email-link.code-secret is an unresolved placeholder; set the variable it names");
+      throw new WhoConfigurationException(
+          "who.email-link.code-secret",
+          "is an unresolved placeholder",
+          "Set the environment variable or property it names.");
     }
     if (codeSecret == null || codeSecret.isBlank() || codeSecret.length() < 32) {
-      throw new IllegalStateException(
-          "who.email-link.code-secret must be set to at least 32 characters");
+      throw new WhoConfigurationException(
+          "who.email-link.code-secret",
+          "must be set to at least 32 characters",
+          "Set it to a random secret of at least 32 characters, kept out of source control.");
     }
     if (emailLink.getCodeLength() < 6) {
-      throw new IllegalStateException("who.email-link.code-length must be at least 6");
+      throw new WhoConfigurationException(
+          "who.email-link.code-length", "must be at least 6", "Set it to 6 or more.");
     }
     if (emailLink.getCodeMaxAttempts() < 1) {
-      throw new IllegalStateException("who.email-link.code-max-attempts must be at least 1");
+      throw new WhoConfigurationException(
+          "who.email-link.code-max-attempts", "must be at least 1", "Set it to 1 or more.");
     }
     return new EmailLinkSettings(
         emailLink.getLinkBaseUrl(),
@@ -201,9 +211,10 @@ public class WhoEmailLinkAutoConfiguration {
       ObjectProvider<ObservationRegistry> observationRegistry) {
     EmailLinkSender sender = emailLinkSender.getIfAvailable();
     if (sender == null) {
-      throw new IllegalStateException(
-          "who.email-link.link-base-url is set but sign-in links cannot be sent: register an"
-              + " EmailLinkSender bean, or set spring.mail.host and who.email-link.from");
+      throw new WhoConfigurationException(
+          "spring.mail.host",
+          "is not set, so sign-in emails cannot be sent",
+          "Set spring.mail.host and who.email-link.from, or register an EmailLinkSender bean.");
     }
     return new EmailLinkIssuer(
         emailCredentialService,
@@ -295,8 +306,10 @@ public class WhoEmailLinkAutoConfiguration {
         JavaMailSender javaMailSender, WhoProperties properties, Clock clock) {
       WhoProperties.EmailLink emailLink = properties.getEmailLink();
       if (!StringUtils.hasText(emailLink.getFrom())) {
-        throw new IllegalStateException(
-            "who.email-link.from must be set to the sender address of sign-in emails");
+        throw new WhoConfigurationException(
+            "who.email-link.from",
+            "must be set to the sender address of sign-in emails",
+            "Set it to the address sign-in emails come from, such as no-reply@example.com.");
       }
       return new MailEmailLinkSender(
           javaMailSender, emailLink.getFrom(), emailLink.getSubject(), clock);
