@@ -26,5 +26,7 @@ public enum SignInMethod {
   /** An API key. Appears on {@link SignInFailed} only: a valid key publishes no success event. */
   API_KEY,
   /** A JSON Web Token. Appears on {@link SignInFailed} only: a valid token publishes none. */
-  JWT
+  JWT,
+  /** An account at an identity provider, through OpenID Connect or OAuth 2.0 sign-in. */
+  OIDC
 }

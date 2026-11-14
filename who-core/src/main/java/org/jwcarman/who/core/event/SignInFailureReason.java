@@ -36,5 +36,9 @@ public enum SignInFailureReason {
   /** The credential is not linked to any identity. */
   UNKNOWN_CREDENTIAL,
   /** The identity is inactive. */
-  INACTIVE_IDENTITY
+  INACTIVE_IDENTITY,
+  /** The sign-up policy refused to create an identity for an unknown credential. */
+  SIGN_UP_REFUSED,
+  /** The identity provider reported an error, or its response failed validation. */
+  PROVIDER_ERROR
 }
