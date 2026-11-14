@@ -48,6 +48,8 @@ import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.oidc.PendingSignUp;
+import org.jwcarman.who.oidc.PendingSignUps;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
@@ -67,6 +69,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -223,6 +226,31 @@ class SpringSessionJdbcTest {
             .addFilters(sessionFilter)
             .apply(springSecurity())
             .build();
+  }
+
+  @Test
+  void pendingSignUpSurvivesSpringSessionJdbc() {
+    PendingSignUp pending =
+        new PendingSignUp(
+            "google",
+            "https://accounts.google.com",
+            "alice-sub",
+            "alice@example.com",
+            "alice@example.com",
+            Map.of("hd", "example.com", "email_verified", true),
+            identity.id(),
+            NOW.plusSeconds(600));
+    Session stored = storedAndReadBack(sessions, PendingSignUps.ATTRIBUTE, pending);
+
+    assertThat(stored.<PendingSignUp>getAttribute(PendingSignUps.ATTRIBUTE)).isEqualTo(pending);
+  }
+
+  private static <S extends Session> S storedAndReadBack(
+      SessionRepository<S> repository, String name, Object value) {
+    S session = repository.createSession();
+    session.setAttribute(name, value);
+    repository.save(session);
+    return repository.findById(session.getId());
   }
 
   @Test

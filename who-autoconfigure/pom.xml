@@ -94,6 +94,17 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-oidc</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-oauth2-client</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
             <optional>true</optional>
