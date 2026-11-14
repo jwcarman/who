@@ -1,12 +1,15 @@
 spring:
   application:
     name: native-passkey
-  # spring.datasource.*, who.email-link.link-base-url and who.passkey.allowed-origins come from
-  # the test's arguments
+  # spring.datasource.* come from the test's arguments; it overrides link-base-url and
+  # allowed-origins
 
 who:
   initialize-schema: never
   email-link:
+    # Set here, not only as an argument: Spring AOT decides at build time which beans exist, and
+    # who's email-link beans exist only when this property does. The test overrides the value.
+    link-base-url: http://localhost:8080/signin
     from: sign-in@example.test
     # a fixed secret is fine: this app exists only for tests
     code-secret: native-tests-only-code-secret-0123456789

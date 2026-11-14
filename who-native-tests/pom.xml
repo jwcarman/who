@@ -53,12 +53,15 @@
         <!-- Spring Boot 4.1.2's native-build-tools-plugin.version; who-parent imports Boot's BOM,
              which manages dependencies only, so the plugin version is pinned here. -->
         <native-build-tools.version>1.1.14</native-build-tools.version>
+        <!-- Off here and in native-test-support, which have no main class; each app turns both on. -->
+        <spring-boot.aot.skip>true</spring-boot.aot.skip>
+        <skipNativeBuild>true</skipNativeBuild>
     </properties>
 
     <profiles>
         <!-- -Dnative: Spring AOT, then GraalVM compiles the app at package, and each *IT drives the
              binary (app.binary) instead of starting the app in its own JVM. Needs GraalVM 25 as JAVA_HOME.
-             Apps set start-class; native-test-support has no main class and opts out. -->
+             Apps set start-class and turn spring-boot.aot.skip and skipNativeBuild off. -->
         <profile>
             <id>native</id>
             <activation>

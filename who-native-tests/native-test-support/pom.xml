@@ -34,11 +34,6 @@
     <name>Who - Native Tests - Support</name>
     <description>What the native test apps' tests share: a database, a launcher, an HTTP client and a passkey device.</description>
 
-    <properties>
-        <!-- A library for the tests, not an app: nothing to process ahead of time or compile native. -->
-        <spring-boot.aot.skip>true</spring-boot.aot.skip>
-        <skipNativeBuild>true</skipNativeBuild>
-    </properties>
 
     <dependencies>
         <dependency>

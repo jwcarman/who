@@ -36,6 +36,8 @@
 
     <properties>
         <start-class>org.jwcarman.who.nativetests.emaillink.NativeEmailLinkApplication</start-class>
+        <spring-boot.aot.skip>false</spring-boot.aot.skip>
+        <skipNativeBuild>false</skipNativeBuild>
     </properties>
 
     <dependencies>

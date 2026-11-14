@@ -1,8 +1,14 @@
 spring:
   application:
     name: native-jwt
-  # spring.datasource.* and spring.security.oauth2.resourceserver.jwt.public-key-location come
-  # from the test's arguments
+  # spring.datasource.* come from the test's arguments, and it overrides public-key-location
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Set here, not only as an argument: Spring AOT decides at build time which beans exist,
+          # and Spring Boot's JwtDecoder exists only when this property does.
+          public-key-location: file:target/jwt-public-key.pem
 
 who:
   # who's own schema scripts, not Liquibase: the other path native.md documents
