@@ -84,6 +84,7 @@ nav:
       - API Keys: guides/api-keys.md
       - Email Links: guides/email-links.md
       - Passkeys: guides/passkeys.md
+      - Social Login: guides/social-login.md
       - Sessions: guides/sessions.md
       - Events: guides/events.md
       - Observability: guides/observability.md

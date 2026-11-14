@@ -15,7 +15,7 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_who&metric=coverage)](https://sonarcloud.io/summary/new_code?id=jwcarman_who)
 
 Identity, sign-in and permissions for Spring Boot applications. Who signs people in
-without passwords (by email, with a link or a typed code, and by passkey, with a session), and maps every credential a
+without passwords (by email, with a link or a typed code, by passkey, and with Google, GitHub or any OpenID Connect provider, with a session), and maps every credential a
 caller presents (a session, a JWT, an API key) to one stable internal identity. It resolves
 that identity's permissions and lets your controllers check permission strings without
 knowing which credential the caller used. Who formats no errors of its own: it throws, and
@@ -41,8 +41,8 @@ your application answers in its own format.
 </dependency>
 ```
 
-Add each sign-in method you use beside it (`who-email-link`, `who-passkey`, `who-apikey`,
-`who-jwt`); its jar turns it on. With no `SecurityFilterChain` of your own, who's default chain
+Add each sign-in method you use beside it (`who-email-link`, `who-passkey`, `who-oidc`,
+`who-apikey`, `who-jwt`); its jar turns it on. With no `SecurityFilterChain` of your own, who's default chain
 mounts them all. See [Getting Started](https://jwcarman.github.io/who/guides/getting-started/).
 
 ### 2. Create the tables
@@ -92,7 +92,9 @@ foreign key and revoked pending enrollment tokens. See
 | `who-core` | Domain types (`Identity`, `WhoPrincipal`), service and SPI interfaces. Needs no Spring at runtime; `WhoService`'s `@Transactional` applies when Spring's transaction support is present (always, with who's starter) |
 | `who-jdbc` | JDBC repositories, using Spring `JdbcClient` |
 | `who-rbac` | `RbacService` and a `PermissionsResolver` backed by roles and permissions |
-| `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` |
+| `who-federated` | `FederatedCredential`, the `(issuer, subject)` credential that JWT and provider sign-in share, and `FederatedCredentialService` |
+| `who-jwt` | `WhoJwtAuthenticationConverter` |
+| `who-oidc` | Sign-in with Google, GitHub or any OpenID Connect provider, on Spring's `oauth2Login`: `WhoSignUpPolicy` decides who may sign up |
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
 | `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |

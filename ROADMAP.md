@@ -34,6 +34,11 @@ is a tag.
   applications add `who-email-link`, `who-passkey`, `who-apikey` or `who-jwt`, and each turns on
   with its jar, with `who.<module>.enabled=false` to turn it off. With no chain of its own, an
   application gets who's default chain with every method on the classpath.
+- **Sign in with an identity provider.** (Done in 0.18.0: see [Social
+  Login](docs/guides/social-login.md).) Google, GitHub and any OpenID Connect provider through
+  `who-oidc`, on Spring's `oauth2Login`, sharing the `(issuer, subject)` credential with JWT
+  sign-in (`JwtCredential` became `FederatedCredential`). Sign-up is closed until a
+  `WhoSignUpPolicy` opens it, and linking is an explicit, confirmed step. Never by email address.
 - **Actuator `info` contributor** naming the sign-in methods that are on (moved from 0.17). Each
   method now has its own switch, so this can report them.
 - **Recent sign-in (step-up).** Require a sign-in within the last N minutes before adding a
@@ -53,17 +58,12 @@ is a tag.
 - Scopes: a key holds a subset of its identity's permissions.
 - Rotation with an overlap window.
 
-## 0.20: sign in with an identity provider
+## 0.20: more identity providers
 
-- Google, Apple, GitHub and any OIDC provider as a `PasswordlessLoginMethod`, on Spring's
-  `oauth2Login`, linked to a who identity the way email and passkeys are.
-- Reuse the `(issuer, subject)` credential that JWT sign-in already keys on, so a browser sign-in
-  and an API call from the same provider reach the same identity. Rename `JwtCredential` to fit
-  both uses (a breaking change, made in this release). Providers without OIDC, such as GitHub,
-  need a fixed issuer string by convention.
-- Linking a provider account to an identity that already exists, and unlinking it, only as an
-  explicit step by someone already signed in. Never link automatically by email address.
-- Serialization hints for `oauth2Login`'s session state, proven with a native build.
+- Sign in with Apple. Its callback is a cross-site `form_post`, which needs a CSRF-exempt callback
+  or a cookie-backed authorization-request store.
+- Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
+- Sign-up through `WhoSignUpPolicy` for email links.
 
 ## 0.21: organizations
 

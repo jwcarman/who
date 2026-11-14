@@ -27,6 +27,7 @@ spring:
         jwt:
           jwk-set-uri: https://your-auth-provider.com/.well-known/jwks.json
           # or: issuer-uri: https://your-auth-provider.com
+          audiences: https://api.example.com   # required; see below
 ```
 
 ## Validate the issuer
@@ -45,6 +46,28 @@ JwtDecoder jwtDecoder() {
 ```
 
 A token with no `iss` or no `sub` claim gets 401.
+
+## Validate the audience
+
+Spring's resource server does not check a token's `aud` claim unless told to. Without that check,
+any token your authorization server issued for any other application would sign in here, and
+since [social login](social-login.md) shares the `(issuer, subject)` credential, so would an ID
+token a provider issued to another site for the same person. When Spring Boot builds the decoder
+from `issuer-uri`, `jwk-set-uri` or `public-key-location`, who therefore refuses to mount JWT
+sign-in, and startup fails, until the audience is set:
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://your-auth-provider.com
+          audiences: https://api.example.com
+```
+
+A `JwtDecoder` bean of your own owns the check: add a validator for `aud` to it, beside the issuer
+validator above.
 
 ## Wire the converter
 
@@ -78,13 +101,13 @@ public SecurityFilterChain apiSecurityFilterChain(
 
 ## Link a token to an identity
 
-Who does not create identities from tokens. Link an issuer/subject pair to an existing identity with `JwtCredentialService`, which saves the credential, links it, and publishes a `CredentialAdded` event labelled with the issuer:
+Who does not create identities from tokens. Link an issuer/subject pair to an existing identity with `FederatedCredentialService`, which saves the credential, links it, and publishes a `CredentialAdded` event labelled with the issuer:
 
 ```java
-JwtCredential credential = jwtCredentialService.link(identity, "https://your-auth-provider.com", "user-123");
+FederatedCredential credential = federatedCredentialService.link(identity, "https://your-auth-provider.com", "user-123");
 
 // later
-jwtCredentialService.unlink(credential.id());   // publishes CredentialRevoked
+federatedCredentialService.unlink(credential.id());   // publishes CredentialRevoked
 ```
 
-`JwtCredentialService` is auto-configured by `who-autoconfigure`. Each request with a token Who refuses publishes `SignInFailed` (method `JWT`; reasons `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`). A token that signs in publishes no who event, since it authenticates every request. The token itself is never published or logged. A token Spring rejects before Who sees it (bad signature, expired) publishes nothing.
+`FederatedCredentialService` comes from `who-federated`, which `who-jwt` and `who-oidc` both bring, and is auto-configured by `who-autoconfigure`. A provider account linked by [social login](social-login.md) is the same credential, so a token with the same issuer and subject reaches the same identity. Each request with a token Who refuses publishes `SignInFailed` (method `JWT`; reasons `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`). A token that signs in publishes no who event, since it authenticates every request. The token itself is never published or logged. A token Spring rejects before Who sees it (bad signature, expired) publishes nothing.

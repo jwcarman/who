@@ -87,6 +87,7 @@ sign-in method is its own module, and adding its jar turns it on:
 | Passkey | `who-passkey` | [Passkeys](passkeys.md) |
 | API key | `who-apikey` | [API Keys](api-keys.md) |
 | JWT from your authorization server | `who-jwt` | [JWT](jwt.md) |
+| Google, GitHub or any OpenID Connect provider | `who-oidc` | [Social Login](social-login.md) |
 
 `who-enrollment` adds [enrollment tokens](enrollment.md). The BOM manages only who's own
 artifacts, not Spring Boot's versions.

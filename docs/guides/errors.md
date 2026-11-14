@@ -12,7 +12,17 @@ who formats no error responses. When something goes wrong it throws an exception
 | `InvalidPasskeyRegistrationException` | 400 | A passkey registration failed verification. It carries no cause, because WebAuthn details must not travel. |
 | `AccessDeniedException` (Spring Security's own) | 403 | A signed-in caller lacks a permission. Spring Security 7 raises its subclass `AuthorizationDeniedException`. |
 
-All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException`.
+Provider sign-in adds three, for its [confirm endpoints](social-login.md#sign-up):
+
+| Exception | Status if unmapped | When |
+|---|---|---|
+| `SignUpRefusedException` | 403 | `POST /who/oidc/sign-up` refused by the sign-up policy, or sent by a browser that is signed in. |
+| `PendingSignUpNotFoundException` | 404 | No pending sign-up, or an expired or used one, at `GET /who/oidc/pending`, `POST /who/oidc/sign-up` or `POST /who/oidc/link`. |
+| `AlreadyLinkedException` | 409 | `POST /who/oidc/link` for an account linked to another identity. |
+
+`POST /who/oidc/link` also answers `NotSignedInException` and `ReauthenticationRequiredException`, after `who.oidc.link-window`.
+
+All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException` and the three provider sign-in exceptions, which are in `org.jwcarman.who.oidc`.
 
 ## How errors raised in filters reach your advice
 

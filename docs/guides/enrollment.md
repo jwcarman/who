@@ -1,6 +1,6 @@
 # Enrollment
 
-Before a JWT can authenticate, a `JwtCredential` row must exist for the `(issuer, subject)` pair and must be linked to an active `Identity`. Who does not auto-provision — access is denied for unknown credentials.
+Before a JWT can authenticate, a `FederatedCredential` row must exist for the `(issuer, subject)` pair and must be linked to an active `Identity`. Who does not auto-provision — access is denied for unknown credentials.
 
 Take the `issuer` and `subject` from the authenticated redeemer's own validated JWT. Never take them from the request body.
 
@@ -18,9 +18,9 @@ notifyUser(token.value()); // email, admin console, etc.
 //    redeemer's validated JWT. Do this in one @Transactional method: find the
 //    credential or create it, then enroll. A failed enroll then leaves no credential
 //    row behind, and a retry finds the existing one.
-JwtCredential credential = jwtCredentialRepository
+FederatedCredential credential = federatedCredentialRepository
     .findByIssuerAndSubject(issuer, subject)
-    .orElseGet(() -> jwtCredentialRepository.save(JwtCredential.create(issuer, subject)));
+    .orElseGet(() -> federatedCredentialRepository.save(FederatedCredential.create(issuer, subject)));
 Identity enrolled = enrollmentService.enroll(token.value(), credential);
 
 // To cancel a token before it is redeemed:
@@ -42,8 +42,8 @@ A token can be redeemed once, even if two requests race. `enroll` throws:
 INSERT INTO who_identity (id, status, created_at, updated_at)
 VALUES (gen_random_uuid(), 'ACTIVE', NOW(), NOW());
 
--- Create JWT credential
-INSERT INTO who_jwt_credential (id, issuer, subject)
+-- Create a federated (issuer, subject) credential
+INSERT INTO who_federated_credential (id, issuer, subject)
 VALUES (gen_random_uuid(), 'https://your-issuer.com', 'alice');
 
 -- Link credential to identity

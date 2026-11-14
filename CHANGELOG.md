@@ -12,9 +12,20 @@ All notable changes to this project are documented here. The format follows
 - A module on the classpath is on. `who.email-link.link-base-url` and `who.passkey.rp-id` no longer turn their method on; a module whose required settings are missing fails startup instead of staying off. Turn a module off with `who.<module>.enabled=false`.
 - An application with no `SecurityFilterChain` gets who's default chain instead of Spring Boot's form login and HTTP Basic: every sign-in method on the classpath, `401` for signed-out requests, and only `/error`, the sign-in endpoints, Actuator's health endpoint and `who.security.public-paths` open. An application with its own chain is unaffected.
 - The `jsonOneTimeTokenAuthenticationConverter` bean is gone; the converter is built with the `EmailLinkLoginMethod` bean.
+- `who-jwt` fails startup when Spring Boot builds the decoder and `spring.security.oauth2.resourceserver.jwt.audiences` is not set, since a token minted for any other application of the same issuer would otherwise sign in.
+- `JwtCredential`, `JwtCredentialRepository`, `JdbcJwtCredentialRepository` and `JwtCredentialService` are `FederatedCredential`, `FederatedCredentialRepository`, `JdbcFederatedCredentialRepository` and `FederatedCredentialService` in the new `who-federated` module (package `org.jwcarman.who.federated`), which `who-jwt` brings.
+- The table `who_jwt_credential` is renamed `who_federated_credential`. The bundled schema script and the Liquibase changelog rename it when the old table exists; Flyway users add the `ALTER TABLE`. No rolling upgrade.
+- `CredentialKind.JWT` is `CredentialKind.FEDERATED`, and the metrics' `kind` tag is `federated`.
 
 ### Added
 
+- `who-oidc`: sign in with Google, GitHub or any OpenID Connect provider on Spring's `oauth2Login`, into a who session. The issuer always comes from configuration; an account who does not know becomes a pending sign-up that the person confirms (`GET /who/oidc/pending`, `POST /who/oidc/sign-up`), and a signed-in person links an account only by confirming it (`POST /who/oidc/link`). Nothing links or signs in by email address. GitHub's primary verified address is read with the `user:email` scope. See [Social Login](docs/guides/social-login.md).
+- `WhoSignUpPolicy`, `SignUpRequest` and `SignUpDecision` in who-core, and `ClosedSignUpPolicy`, who's default, which refuses every sign-up.
+- `who.oidc.*` settings: `enabled`, `success-url`, `failure-url`, `sign-up-window`, `link-window`, and `providers.<id>.enabled`, `issuer`, `subject-attribute`, `trust-email`.
+- `SignInMethod.OIDC`; `SignInFailureReason.SIGN_UP_REFUSED` and `PROVIDER_ERROR`.
+- The `who_last_sign_in` cookie, naming the method of the last browser sign-in for a "Last used" badge; `who.security.last-sign-in-cookie.enabled=false` turns it off.
+- `StubOidcProvider` in `who-test`, an OpenID Connect (or GitHub-like) provider for integration tests.
+- A native-image test app for provider sign-in, and serialization hints for the pending sign-up.
 - `who.email-link.enabled`, `who.passkey.enabled`, `who.api-key.enabled`, `who.jwt.enabled` and `who.enrollment.enabled`, each `true` by default.
 - `WhoSecurity.all()`, which mounts every sign-in method on the classpath into a chain of your own, and `WhoPublicPaths` with the paths a signed-out request must reach. Each module contributes a `PasswordlessLoginMethod` or `StatelessLoginMethod` bean.
 - `who.security.public-paths`, the application's own paths open to signed-out requests.

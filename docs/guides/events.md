@@ -53,7 +53,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `SignInEmailRequested` | who-email-link | A request to `POST /ott/generate` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
 | `PasskeyRegistrationRefused` | who-passkey | A signed-in identity tries to add a passkey, but signed in longer ago than the registration window allows. | `identityId`, `reason` |
 
-`SignInMethod`: `EMAIL_LINK`, `EMAIL_CODE`, `PASSKEY`, `API_KEY`, `JWT`.
+`SignInMethod`: `EMAIL_LINK`, `EMAIL_CODE`, `PASSKEY`, `API_KEY`, `JWT`, `OIDC`.
 
 `SignInFailureReason`, as fine as each path can tell without an extra database call:
 
@@ -64,6 +64,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `PASSKEY` | `INVALID_ASSERTION` (signature, origin or unknown credential; they cannot be told apart), `INACTIVE_IDENTITY` |
 | `API_KEY` | `UNKNOWN_KEY` (unknown, revoked, or linked to no identity), `INACTIVE_IDENTITY` |
 | `JWT` | `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY` |
+| `OIDC` | `PROVIDER_ERROR` (cancelled, refused by the provider, a state mismatch, a bad ID token or one from the wrong issuer), `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`, `SIGN_UP_REFUSED` (the sign-up policy said no) |
 
 A JWT that Spring rejects before who sees it (bad signature, expired) publishes no who event;
 Spring publishes its own. The same goes for a malformed passkey assertion that Spring rejects
@@ -83,16 +84,16 @@ been answered with `202`.
 
 | Event | Module | Fires when | Fields |
 |---|---|---|---|
-| `IdentityCreated` | who-core | `WhoService.createIdentity` | `identityId` |
+| `IdentityCreated` | who-core | `WhoService.createIdentity`, or a confirmed provider sign-up | `identityId` |
 | `IdentityDeactivated` | who-core | An active identity is deactivated. Nothing is published if it already was. | `identityId` |
 | `IdentityReactivated` | who-core | An inactive identity is reactivated. | `identityId` |
 | `IdentityDeleted` | who-core | `WhoService.deleteIdentity` | `identityId` |
 | `OrphanedCredentialsPurged` | who-core | Credentials linked to no identity are purged, including when registering an email address replaces an orphaned credential (count 1). | `count` |
-| `CredentialAdded` | who-core | A credential is linked to an identity: an email address registered, a passkey registered, an API key created, a JWT credential linked, or an enrollment completed. | `identityId`, `credentialId`, `kind`, `label` or null |
-| `CredentialRevoked` | who-core | A credential is removed: an email address, passkey (including Spring's `DELETE /webauthn/register/{id}`) or API key revoked, a JWT credential unlinked, or an identity deleted (one event for each of its credentials). | `identityId`, `credentialId`, `kind`, `label` or null |
+| `CredentialAdded` | who-core | A credential is linked to an identity: an email address registered, a passkey registered, an API key created, a provider account linked or signed up with, or an enrollment completed. | `identityId`, `credentialId`, `kind`, `label` or null |
+| `CredentialRevoked` | who-core | A credential is removed: an email address, passkey (including Spring's `DELETE /webauthn/register/{id}`) or API key revoked, a provider account unlinked, or an identity deleted (one event for each of its credentials). | `identityId`, `credentialId`, `kind`, `label` or null |
 
-`CredentialKind`: `EMAIL`, `PASSKEY`, `API_KEY`, `JWT`, `OTHER`. The label is the email address,
-the passkey's label, the API key's name, or the JWT issuer.
+`CredentialKind`: `EMAIL`, `PASSKEY`, `API_KEY`, `FEDERATED`, `OTHER`. The label is the email
+address, the passkey's label, the API key's name, or the issuer of an `(issuer, subject)` credential.
 
 Events fire only on a real change. Two concurrent calls that deactivate the same identity publish
 one `IdentityDeactivated`, and registering an email address the identity already owns publishes no
@@ -103,9 +104,9 @@ removes its permissions and assignments, and deleting an identity removes its ro
 enrollment tokens, with only `RoleDeleted` or `IdentityDeleted` (and a `CredentialRevoked` for each
 credential of the identity).
 
-To link JWT credentials so that events fire, use `JwtCredentialService.link` and `unlink`
-([JWT](jwt.md#link-a-token-to-an-identity)). Saving through `JwtCredentialRepository`
-directly publishes nothing. `unlink` takes a JWT credential id.
+To link `(issuer, subject)` credentials so that events fire, use `FederatedCredentialService.link`
+and `unlink` ([JWT](jwt.md#link-a-token-to-an-identity)). Saving through
+`FederatedCredentialRepository` directly publishes nothing. `unlink` takes the credential's id.
 
 ### Enrollment
 

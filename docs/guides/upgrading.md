@@ -3,8 +3,9 @@
 ## Upgrading to 0.18.0
 
 0.18.0 makes who work like any Spring Boot starter: add a module's jar and it is on, and an
-application with no security configuration of its own gets a working chain. There are no schema
-changes.
+application with no security configuration of its own gets a working chain. It adds
+[social login](social-login.md), and renames the JWT credential, and its table, so JWT and
+provider sign-in can share it.
 
 - **The starter no longer brings every module.** `who-spring-boot-starter` now brings the base
   only: identities, sessions, permissions (`who-core`, `who-spring-security`, `who-jdbc`,
@@ -17,6 +18,7 @@ changes.
     | Passkeys | `who-passkey` |
     | API keys | `who-apikey` |
     | JWTs | `who-jwt` |
+    | Google, GitHub or OpenID Connect sign-in | `who-oidc` |
     | Enrollment tokens | `who-enrollment` |
 
 - **A module on the classpath is on.** Setting `who.email-link.link-base-url` or
@@ -28,10 +30,12 @@ changes.
     |---|---|
     | `who-email-link` | `who.email-link.link-base-url`, `who.email-link.code-secret`, and an `EmailLinkSender` bean, or `spring-boot-starter-mail` with `spring.mail.host` and `who.email-link.from` |
     | `who-passkey` | `who.passkey.rp-id` |
-    | `who-jwt` (when who mounts it) | `spring.security.oauth2.resourceserver.jwt.issuer-uri`, `jwk-set-uri`, `public-key-location`, or a `JwtDecoder` bean |
+    | `who-jwt` (when who mounts it) | `spring.security.oauth2.resourceserver.jwt.issuer-uri`, `jwk-set-uri`, `public-key-location`, or a `JwtDecoder` bean; and, unless the decoder is your own bean, `spring.security.oauth2.resourceserver.jwt.audiences` |
+    | `who-oidc` | a `spring.security.oauth2.client.registration` with the `authorization_code` grant |
 
     To keep a module's jar but turn it off, set `who.email-link.enabled`, `who.passkey.enabled`,
-    `who.api-key.enabled`, `who.jwt.enabled` or `who.enrollment.enabled` to `false`.
+    `who.api-key.enabled`, `who.jwt.enabled`, `who.oidc.enabled` or `who.enrollment.enabled` to
+    `false`.
 
 - **An application with no `SecurityFilterChain` gets who's chain instead of Spring Boot's.**
   Boot's default chains (form login and HTTP Basic, and the resource server's, Actuator's,
@@ -57,6 +61,37 @@ changes.
   `jsonOneTimeTokenAuthenticationConverter` bean is gone: Spring's resource server took it as its
   own, so an application with email links and its own `oauth2ResourceServer` refused every bearer
   token. If you replaced that bean, replace the `EmailLinkLoginMethod` bean instead.
+- **`who-jwt` requires the audience.** When Spring Boot builds the decoder, startup fails until
+  `spring.security.oauth2.resourceserver.jwt.audiences` is set: without it, a token the same issuer
+  minted for any other application, such as a provider's ID token, would sign in. Set it to the
+  audience your API's tokens carry. A `JwtDecoder` bean of your own owns that check. See
+  [JWT](jwt.md#validate-the-audience).
+- **`JwtCredential` is now `FederatedCredential`, in the new `who-federated` module.**
+  `JwtCredential`, `JwtCredentialRepository`, `JdbcJwtCredentialRepository` and
+  `JwtCredentialService` become `FederatedCredential`, `FederatedCredentialRepository`,
+  `JdbcFederatedCredentialRepository` and `FederatedCredentialService`, in package
+  `org.jwcarman.who.federated`. `who-jwt` brings `who-federated`, so no dependency changes. The
+  methods are the same.
+- **The table `who_jwt_credential` is renamed `who_federated_credential`.** Same columns, same
+  rows. The bundled schema script and the Liquibase changelog rename it for you when the old table
+  exists. With Flyway, add a migration:
+
+    ```sql
+    ALTER TABLE who_jwt_credential RENAME TO who_federated_credential;
+    ```
+
+    The rename is not compatible with a rolling upgrade: stop every instance on 0.17 before the
+    first 0.18 instance starts.
+
+- **`CredentialKind.JWT` is now `FEDERATED`.** `CredentialAdded` and `CredentialRevoked` for an
+  `(issuer, subject)` credential carry `FEDERATED`, and the `kind` tag on `who.credentials.added`
+  and `who.credentials.revoked` is `federated`, not `jwt`. Update listeners and dashboards.
+  `SignInMethod.JWT` is unchanged.
+- **New enum values.** `SignInMethod.OIDC`, and `SignInFailureReason.SIGN_UP_REFUSED` and
+  `PROVIDER_ERROR`. An exhaustive `switch` over either needs the new cases.
+- **who sets the `who_last_sign_in` cookie** after every browser sign-in, naming the method used.
+  Turn it off with `who.security.last-sign-in-cookie.enabled=false`. See
+  [Sessions](sessions.md#the-last-sign-in-cookie).
 - **The "passkey added" startup warning moved logger.** It is now logged by
   `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`, not `WhoAutoConfiguration`.
 

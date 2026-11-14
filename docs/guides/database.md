@@ -53,7 +53,9 @@ CREATE TABLE IF NOT EXISTS who_identity_role (
     FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS who_jwt_credential (
+ALTER TABLE IF EXISTS who_jwt_credential RENAME TO who_federated_credential;
+
+CREATE TABLE IF NOT EXISTS who_federated_credential (
     id      UUID         PRIMARY KEY,
     issuer  VARCHAR(255) NOT NULL,
     subject VARCHAR(255) NOT NULL,
@@ -135,4 +137,4 @@ Then set `who.initialize-schema: never`. Modules that are not on the classpath a
 
 The `classpath:` includes inside `who-changelog.xml` need Spring Boot's Liquibase integration. The Liquibase CLI and the Liquibase Maven plugin may skip them without a warning, so run the changelog through Spring Boot.
 
-The changelogs have no preconditions. Use them on a fresh schema. If the tables already exist because the bundled schema files created them, run Liquibase `changelog-sync` once before the first update, so Liquibase records the change sets as applied and does not try to create the tables again.
+The changelogs have no preconditions, except the one that renames `who_jwt_credential` to `who_federated_credential` and runs only when the old table exists. Use them on a fresh schema. If the tables already exist because the bundled schema files created them, run Liquibase `changelog-sync` once before the first update, so Liquibase records the change sets as applied and does not try to create the tables again.

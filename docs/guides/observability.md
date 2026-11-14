@@ -31,20 +31,21 @@ or role is ever a tag. A series appears the first time it counts.
 
 Tag values:
 
-- `method`: `email-link`, `email-code`, `passkey`, `api-key`, `jwt`.
+- `method`: `email-link`, `email-code`, `passkey`, `api-key`, `jwt`, `oidc`.
 - `outcome` on `who.sign-ins`: `success` or `failure`.
 - `reason` on `who.sign-ins`: `none` for a success; for a failure, `malformed`, `invalid-link`,
   `no-live-code`, `wrong-code`, `code-already-used`, `invalid-assertion`, `unknown-key`,
-  `missing-claims`, `unknown-credential` or `inactive-identity`.
+  `missing-claims`, `unknown-credential`, `inactive-identity`, `sign-up-refused` or
+  `provider-error`.
 - `outcome` on `who.sign-in.emails`: `sent`, `unknown-address`, `inactive-identity`,
   `resend-suppressed`, `send-failed`.
 - `reason` on `who.sessions.ended`: `identity-inactive`, `credential-revoked`.
-- `kind`: `email`, `passkey`, `api-key`, `jwt`, `other`.
+- `kind`: `email`, `passkey`, `api-key`, `federated`, `other`.
 
-Successes count only real sign-ins (email link, email code, passkey). API keys and JWTs
+Successes count only real sign-ins (email link, email code, passkey, identity provider). API keys and JWTs
 authenticate every request, so they count only failures here; Spring Security's
 `spring.security.authentications` counts every authenticated API-key request. `who.sign-ins`
-has at most 53 series.
+has at most 76 series.
 
 The meters are built from who's [events](events.md), so they count exactly what the events
 report.

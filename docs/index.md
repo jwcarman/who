@@ -64,6 +64,14 @@ by creating them yourself.
     `WhoJwtAuthenticationConverter` turns a validated JWT into a `WhoPrincipal`.
     See [JWT](guides/jwt.md).
 
+-   **Social login**
+
+    ---
+
+    Sign in with Google, GitHub or any OpenID Connect provider. Sign-up is
+    closed until your policy opens it, and nothing links by email. See
+    [Social Login](guides/social-login.md).
+
 -   **API keys**
 
     ---
@@ -94,7 +102,9 @@ by creating them yourself.
 | `who-core` | Domain types (`Identity`, `WhoPrincipal`), service and SPI interfaces. Needs no Spring at runtime; `WhoService`'s `@Transactional` applies when Spring's transaction support is present (always, with who's starter) |
 | `who-jdbc` | JDBC repositories, using Spring `JdbcClient` |
 | `who-rbac` | `RbacService` and a `PermissionsResolver` backed by roles and permissions |
-| `who-jwt` | `WhoJwtAuthenticationConverter` and `JwtCredential` |
+| `who-federated` | `FederatedCredential`, the `(issuer, subject)` credential that JWT and provider sign-in share, and `FederatedCredentialService` |
+| `who-jwt` | `WhoJwtAuthenticationConverter` |
+| `who-oidc` | Sign-in with Google, GitHub or any OpenID Connect provider, on Spring's `oauth2Login`: `WhoSignUpPolicy` decides who may sign up |
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
 | `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |

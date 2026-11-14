@@ -133,6 +133,10 @@ Use `secure: false` only for local development over plain HTTP. See [Email Links
 
 The passkey registration window (`who.passkey.registration-window`) is separate. It limits how long after sign-in a passkey may be added, however long the session lasts.
 
+## The last sign-in cookie
+
+After every browser sign-in, who sets the cookie `who_last_sign_in` to the method used: `email-link` (a link or a typed code), `passkey`, or a provider's registration id such as `github`. Your sign-in page can read it from script and mark that button "Last used", so someone who forgot how they signed up does not create a second account another way. It holds nothing secret, is `Secure` and `SameSite=Lax`, lasts 30 days, and signing out leaves it. Turn it off with `who.security.last-sign-in-cookie.enabled=false`.
+
 ## Native images
 
-Spring Session JDBC serializes attributes with Java serialization, and a native image needs a hint for each class that is serialized. Who ships them. `who-spring-security` registers `WhoSession`, `UUID`, `Instant` and `java.time.Ser`, and `who-passkey` registers the WebAuthn option types and the JDK types a ceremony stores. Your app needs no hints of its own for sessions. See [Native Images](native.md).
+Spring Session JDBC serializes attributes with Java serialization, and a native image needs a hint for each class that is serialized. Who ships them. `who-spring-security` registers `WhoSession`, `UUID`, `Instant` and `java.time.Ser`, `who-passkey` registers the WebAuthn option types and the JDK types a ceremony stores, and `who-oidc` registers the pending sign-up a provider sign-in keeps. Your app needs no hints of its own for sessions. See [Native Images](native.md).

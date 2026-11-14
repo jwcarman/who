@@ -7,9 +7,11 @@
 | `who.email-link.enabled` | `true` | Turns email-link sign-in off when `false`, with `who-email-link` still on the classpath |
 | `who.passkey.enabled` | `true` | Turns passkeys off when `false`, with `who-passkey` still on the classpath |
 | `who.api-key.enabled` | `true` | Turns API keys off when `false`, with `who-apikey` still on the classpath |
-| `who.jwt.enabled` | `true` | Turns JWT sign-in off when `false`, with `who-jwt` still on the classpath |
+| `who.jwt.enabled` | `true` | Turns JWT sign-in off when `false`, with `who-jwt` still on the classpath. When Spring Boot builds the decoder, `spring.security.oauth2.resourceserver.jwt.audiences` is required |
+| `who.oidc.enabled` | `true` | Turns provider sign-in off when `false`, with `who-oidc` still on the classpath |
 | `who.enrollment.enabled` | `true` | Turns enrollment tokens off when `false`, with `who-enrollment` still on the classpath |
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
+| `who.security.last-sign-in-cookie.enabled` | `true` | Sets the `who_last_sign_in` cookie after a browser sign-in. See [Sessions](sessions.md#the-last-sign-in-cookie) |
 | `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off |
 | `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |
 | `who.email-link.link-base-url` | none | Page of your app that receives sign-in links. The token is appended as `#token=...`. Required with `who-email-link`: a missing or blank value fails startup. List the page in `who.security.public-paths` |
@@ -25,5 +27,13 @@
 | `who.passkey.allowed-origins` | `https://<rp-id>` | Origins a registration or sign-in response may come from: each a scheme (`http` or `https`), a host and an optional port, with no path, such as `http://localhost:8080`. Startup fails on anything else |
 | `who.passkey.registration-window` | `10m` | How recently the session must have signed in to register a passkey |
 | `who.passkey.from` | none | Sender address of the "passkey added" email. The email is sent only when this is set, `who-email-link` is on and a `JavaMailSender` exists. It does not fall back to `who.email-link.from`. When the email cannot be sent, who logs a warning at startup |
+| `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
+| `who.oidc.failure-url` | `/` | Where every other provider sign-in outcome lands, with `error=no-account`, `already-linked` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
+| `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
+| `who.oidc.link-window` | `10m` | How recently the identity must have signed in to link a provider account |
+| `who.oidc.providers.<id>.enabled` | `true` | Leaves one client registration out of sign-in when `false` |
+| `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints, or an OAuth 2 provider |
+| `who.oidc.providers.<id>.subject-attribute` | none | The user-info attribute holding the account's immutable id, for an OAuth 2 provider other than github.com |
+| `who.oidc.providers.<id>.trust-email` | `true` for Google and github.com, else `false` | Whether a verified address from this provider reaches the sign-up policy |
 
-See [Email Links](email-links.md) and [Passkeys](passkeys.md) for how these fit together.
+See [Email Links](email-links.md), [Passkeys](passkeys.md) and [Social Login](social-login.md) for how these fit together.
