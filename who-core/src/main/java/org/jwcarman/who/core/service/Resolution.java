@@ -26,6 +26,10 @@ import org.jwcarman.who.core.spi.Credential;
 /**
  * The outcome of {@link WhoService#resolveDetailed(Credential)}: either the resolved principal or
  * the reason the credential did not resolve.
+ *
+ * <p>New outcomes may be added in minor releases, so a {@code switch} over a {@code Resolution}
+ * should have a default branch (treat an unknown outcome as not resolved) rather than rely on being
+ * exhaustive.
  */
 public sealed interface Resolution
     permits Resolution.Resolved, Resolution.NotLinked, Resolution.NoIdentity, Resolution.Inactive {

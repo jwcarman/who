@@ -21,7 +21,9 @@ import java.time.Instant;
  * A security-relevant occurrence inside who, published through {@link WhoEventPublisher}.
  *
  * <p>Compatibility policy: new event types and new enum values may appear in minor releases.
- * Listeners must tolerate unknown values and ignore event types they do not recognise.
+ * Listeners must tolerate unknown values and ignore event types they do not recognise. Event
+ * records may also gain components in minor releases, so read fields through their accessors: do
+ * not construct who's events or match them with record deconstruction patterns.
  */
 public interface WhoEvent {
 

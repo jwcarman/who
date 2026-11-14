@@ -15,7 +15,15 @@
  */
 package org.jwcarman.who.core.event;
 
-/** Publishes {@link WhoEvent}s to whatever listener mechanism the host application uses. */
+/**
+ * Publishes {@link WhoEvent}s to whatever listener mechanism the host application uses.
+ *
+ * <p>Implementations must not throw: who publishes from inside its own operations (sign-in
+ * handlers, transactional changes), so an exception from a publisher can change who's responses or
+ * fail the surrounding operation. Implementations should also defer delivery until after the
+ * surrounding transaction commits, so a listener never sees a change that is later rolled back.
+ * who's Spring publisher does both; a replacement that does not can change who's behavior.
+ */
 @FunctionalInterface
 public interface WhoEventPublisher {
 

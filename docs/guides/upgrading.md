@@ -21,7 +21,12 @@ change breaks clients, and a few things affect applications that build who's ser
   does not. `unlink` takes a JWT credential id. See [JWT](jwt.md#link-a-token-to-an-identity).
 - **Application tests that mock `WhoService` must stub `resolveDetailed`.** who's sign-in and
   session code now calls `WhoService.resolveDetailed` instead of `resolve`, so a mock that stubs
-  only `resolve` answers "not linked".
+  only `resolve` answers `null` from `resolveDetailed`, which who treats as "not linked". Stub
+  `resolveDetailed` to return the outcome you mean. `Resolution` may gain outcomes in a minor
+  release, so a `switch` over it should have a `default`.
+- **Use the autoconfigured `RbacService`.** `RbacService` is a `@Service`, so a component scan
+  that finds it builds a second one without a publisher, which publishes no role events. Use the
+  autoconfigured bean and keep it out of your scan.
 - **Apps that build who's services themselves get events by passing a publisher.** Each public
   constructor you already use still works and publishes nothing. To get events, use the
   constructor that takes a `WhoEventPublisher` (and a `Clock`). With the autoconfiguration, nothing

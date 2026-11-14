@@ -25,8 +25,9 @@ class AuditLog {
   }
 
   @EventListener
-  void on(WhoEvent event) {   // everything else, for a catch-all record
-    log.debug("who event: {}", event);
+  void on(WhoEvent event) {   // receives every event, including the two above
+    // keep it to counts and metrics: logging the event here would record the two above twice
+    log.debug("who event: {}", event.getClass().getSimpleName());
   }
 }
 ```
@@ -64,9 +65,12 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `JWT` | `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY` |
 
 A JWT that Spring rejects before who sees it (bad signature, expired) publishes no who event;
-Spring publishes its own.
+Spring publishes its own. The same goes for a malformed passkey assertion that Spring rejects
+before who's provider runs: no `SignInFailed`.
 
-`SessionEndReason`: `IDENTITY_INACTIVE`, `CREDENTIAL_REVOKED`.
+`SessionEndReason`: `IDENTITY_INACTIVE` when the session's credential now resolves to another
+identity, or its identity is inactive; `CREDENTIAL_REVOKED` when the credential is no longer
+linked, or its identity was deleted.
 
 `EmailLinkOutcome`: `SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,
 `SEND_FAILED`. `SignInEmailRequested` is published on the email thread, after the caller has
@@ -90,7 +94,13 @@ been answered with `202`.
 the passkey's label, the API key's name, or the JWT issuer.
 
 Events fire only on a real change. Two concurrent calls that deactivate the same identity publish
-one `IdentityDeactivated`.
+one `IdentityDeactivated`, and registering an email address the identity already owns publishes no
+`CredentialAdded`.
+
+Removals that cascade publish nothing of their own: the parent event implies them. Deleting a role
+removes its permissions and assignments, and deleting an identity removes its role assignments and
+enrollment tokens, with only `RoleDeleted` or `IdentityDeleted` (and a `CredentialRevoked` for each
+credential of the identity).
 
 To link JWT credentials so that events fire, use `JwtCredentialService.link` and `unlink`
 ([JWT](jwt.md#link-a-token-to-an-identity)). Saving through `JwtCredentialRepository`
@@ -147,9 +157,9 @@ Two limits to know:
 - Addresses are normalized (trimmed, lower-cased). An address is in an event only when it is safe
   to carry (bounded length, no control characters, `EmailAddresses.isSafe`). Otherwise the field
   is null, and a failed sign-in's reason is `MALFORMED`.
-- A passkey's label is the user's own text and is not validated. A role name or permission may
-  also come from your own admin screens. Treat these as untrusted when you log them: escape them,
-  or log them as structured fields.
+- A passkey's label, an API key's name and a JWT issuer label are text that callers supply, and
+  are not validated. A role name or permission may also come from your own admin screens. Treat
+  these as untrusted when you log them: escape them, or log them as structured fields.
 - No event ever carries a link token, a code, an API key, an enrollment token value or a hash.
 
 ## Reading the actor and the client
@@ -207,6 +217,10 @@ Events are public API. New event types, and new values in the enums above, may a
 release, so a listener must tolerate values it does not know (a `switch` needs a `default`, and
 a catch-all `WhoEvent` listener should ignore what it cannot handle). Removing or renaming an
 event, a field or an enum value is a breaking change and comes with an upgrade note.
+
+New record components may also be added to events in a minor release. Read fields through their
+accessors, and do not construct who's events or take them apart with record deconstruction
+patterns, which break when a component is added.
 
 ## Sign-in events and custom handlers
 

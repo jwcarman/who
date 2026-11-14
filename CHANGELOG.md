@@ -16,15 +16,20 @@ All notable changes to this project are documented here. The format follows
 - Public security events, published as Spring application events after the surrounding transaction commits: `SignInSucceeded`, `SignInFailed` (with a server-side reason that never reaches the client), `SignedOut`, `SessionEnded`, `SignInEmailRequested`, `PasskeyRegistrationRefused`, `IdentityCreated`, `IdentityDeactivated`, `IdentityReactivated`, `IdentityDeleted`, `OrphanedCredentialsPurged`, `CredentialAdded`, `CredentialRevoked`, `EnrollmentTokenCreated`, `EnrollmentTokenRevoked`, `RoleCreated`, `RoleDeleted`, `RolePermissionAdded`, `RolePermissionRemoved`, `RoleAssigned` and `RoleUnassigned`. A listener that throws is logged and never changes who's answer.
 - `WhoEvent` and `WhoEventPublisher` in `who-core`; services take a publisher, and their existing constructors keep publishing nothing.
 - `JwtCredentialService` with `link` and `unlink`, so linking JWT credentials publishes events.
-- `WhoService.resolveDetailed`, which says why a credential did not resolve (not linked, no such identity, inactive).
+- `WhoService.resolveDetailed`, which says why a credential did not resolve (not linked, no such identity, inactive). `Resolution` may gain outcomes in a minor release, so a `switch` over it needs a default branch; a `null` answer, such as from a mock, is treated as not linked.
 - One DEBUG log line for each failed sign-in, with its reason.
 
 ### Changed
 
-- who's sign-in and session code calls `WhoService.resolveDetailed` instead of `resolve`; application tests that mock `WhoService` must stub it.
-- New default methods keep existing SPI implementations compiling: `CredentialRemover.find`, `IdentityRepository.changeStatus`, `ApiKeyCredentialRepository.findById`, `JwtCredentialRepository.findById`, `EnrollmentTokenRepository.revokePendingForIdentity`, and the RBAC `...IfAbsent` and `...IfPresent` methods. An implementation that keeps the defaults publishes events with a `null` label, and no `EnrollmentTokenRevoked` for a replaced token.
+- who's sign-in and session code calls `WhoService.resolveDetailed` instead of `resolve`; application tests that mock `WhoService` should stub it, because a mock that stubs only `resolve` answers `null` from `resolveDetailed`, which who treats as not linked.
+- New default methods keep existing SPI implementations compiling: `CredentialRemover.find`, `IdentityRepository.changeStatus`, `ApiKeyCredentialRepository.findById`, `JwtCredentialRepository.findById`, `EnrollmentTokenRepository.revokePendingForIdentity`, and `RoleRepository.deleteByIdIfPresent`, and the RBAC `...IfAbsent` and `...IfPresent` methods. An implementation that keeps the defaults publishes events with a `null` label, and no `EnrollmentTokenRevoked` for a replaced token.
 - `SignInSucceeded` for email link, email code and passkey sign-ins is published by who's JSON success handler; an application that defines its own `JsonAuthenticationHandlers` with the old two-argument constructor publishes none.
-- Enrollment uses a `Clock` instead of `Instant.now()`.
+- `WhoEnrollmentService` stamps new tokens (`createdAt`, `expiresAt`) and events from its `Clock`, through the new `EnrollmentToken.create(identity, expiration, now)`. The two-argument `create` is unchanged and still uses `Instant.now()`.
+- `PasskeyCredential` gained a `passkeyLabel` component, so record deconstruction patterns on it need the second component and equality now includes the label. The one-argument constructor remains.
+- `WhoPasskeyAuthenticationProvider` has a new constructor `(rpOperations, credentialRepository, whoService, WhoEventPublisher, Clock)` that publishes `SignInFailed` stamped from the clock; the existing three-argument constructor keeps publishing nothing.
+- Event records may gain components in minor releases: read fields through accessors, and do not construct who's events or take them apart with record patterns.
+- `RbacService` is a `@Service`: a component scan builds one without a publisher, which publishes no role events. Use the autoconfigured bean.
+- Deleting a role publishes `RoleDeleted` once, even when two deletes race.
 
 ### Documentation
 
