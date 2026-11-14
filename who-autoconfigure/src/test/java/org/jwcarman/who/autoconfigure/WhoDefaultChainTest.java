@@ -27,11 +27,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.springframework.boot.actuate.autoconfigure.endpoint.EndpointAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointAutoConfiguration;
@@ -53,6 +55,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -230,6 +233,29 @@ class WhoDefaultChainTest {
                 assertThat(status(context, "/error")).isEqualTo(401);
               });
     }
+
+    /**
+     * Spring's resource server takes any {@code AuthenticationConverter} bean in the context when
+     * the chain names none, so who must not publish one.
+     */
+    @Test
+    void an_application_resource_server_beside_email_links_reads_bearer_tokens() {
+      runner()
+          .withUserConfiguration(Decoder.class, Mail.class, ResourceServerChain.class)
+          .withPropertyValues(
+              "who.email-link.enabled=true",
+              "who.email-link.link-base-url=https://app.example.com/signin",
+              "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij")
+          .run(
+              context ->
+                  assertThat(
+                          mvc(context)
+                              .perform(get("/app/private").header("Authorization", "Bearer good"))
+                              .andReturn()
+                              .getResponse()
+                              .getStatus())
+                      .isNotEqualTo(401));
+    }
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -245,6 +271,31 @@ class WhoDefaultChainTest {
         Instant now = Instant.now();
         return new Jwt(token, now, now.plusSeconds(60), Map.of("alg", "none"), Map.of("sub", "x"));
       };
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class Mail {
+    @Bean
+    EmailLinkSender emailLinkSender() {
+      return message -> {};
+    }
+
+    @Bean
+    Executor whoEmailLinkExecutor() {
+      return Runnable::run;
+    }
+  }
+
+  /** A resource server the application writes itself, naming no authentication converter. */
+  @Configuration(proxyBeanMethods = false)
+  static class ResourceServerChain {
+    @Bean
+    SecurityFilterChain resourceServerChain(HttpSecurity http) {
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
+          .oauth2ResourceServer(
+              rs -> rs.jwt(jwt -> jwt.jwtAuthenticationConverter(JwtAuthenticationToken::new)));
+      return http.build();
     }
   }
 

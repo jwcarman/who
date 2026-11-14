@@ -183,13 +183,6 @@ public class WhoEmailLinkAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  public JsonOneTimeTokenAuthenticationConverter jsonOneTimeTokenAuthenticationConverter(
-      ObjectProvider<JsonMapper> jsonMapper) {
-    return new JsonOneTimeTokenAuthenticationConverter(jsonMapper(jsonMapper));
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
   public JsonAuthenticationHandlers jsonAuthenticationHandlers(
       ObjectProvider<JsonMapper> jsonMapper,
       ObjectProvider<WhoExceptionHandoff> handoff,
@@ -262,9 +255,10 @@ public class WhoEmailLinkAutoConfiguration {
   }
 
   /**
-   * The provider is built here rather than published as a bean: a lone {@code
+   * The provider and the converter are built here rather than published as beans: a lone {@code
    * AuthenticationProvider} bean would become Spring Security's global one and switch off the
-   * application's {@code UserDetailsService}.
+   * application's {@code UserDetailsService}, and Spring's resource server takes any {@code
+   * AuthenticationConverter} bean as its own, so bearer requests would be read as sign-in codes.
    */
   @Bean
   @ConditionalOnMissingBean
@@ -272,7 +266,7 @@ public class WhoEmailLinkAutoConfiguration {
       WhoOneTimeTokenService tokenService,
       JsonGenerateOneTimeTokenRequestResolver generateRequestResolver,
       EmailLinkGenerationSuccessHandler generationSuccessHandler,
-      JsonOneTimeTokenAuthenticationConverter authenticationConverter,
+      ObjectProvider<JsonMapper> jsonMapper,
       JsonAuthenticationHandlers handlers,
       WhoService whoService,
       EmailLinkTokenRepository emailLinkTokenRepository,
@@ -283,7 +277,7 @@ public class WhoEmailLinkAutoConfiguration {
         tokenService,
         generateRequestResolver,
         generationSuccessHandler,
-        authenticationConverter,
+        new JsonOneTimeTokenAuthenticationConverter(jsonMapper(jsonMapper)),
         new EmailLinkAuthenticationProvider(
             emailLinkTokenRepository, settings, whoService, clock, whoEventPublisher),
         handlers.success(),
