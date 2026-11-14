@@ -39,6 +39,9 @@ spring:
         jwt:
           # Use explicit JWK set URI instead of issuer-uri to avoid OIDC discovery at startup
           jwk-set-uri: http://localhost:8080/oauth2/jwks
+          # who-jwt refuses to start without it; the authorization server issues demo-client's
+          # access tokens for the demo-client audience
+          audiences: demo-client
 
 logging:
   level:

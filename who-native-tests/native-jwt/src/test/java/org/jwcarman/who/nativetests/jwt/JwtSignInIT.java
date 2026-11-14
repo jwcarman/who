@@ -54,6 +54,7 @@ import com.nimbusds.jwt.SignedJWT;
 class JwtSignInIT {
 
   private static final String ISSUER = "https://issuer.example.test";
+  private static final String AUDIENCE = "native-jwt-api";
 
   static TestDatabase database;
   static RunningApp app;
@@ -99,9 +100,15 @@ class JwtSignInIT {
 
   /** A signed RS256 token from {@link #ISSUER}, with that subject, or no {@code sub} if null. */
   static String token(String subject) {
+    return token(subject, AUDIENCE);
+  }
+
+  /** A signed RS256 token from {@link #ISSUER} for that audience. */
+  static String token(String subject, String audience) {
     JWTClaimsSet.Builder claims =
         new JWTClaimsSet.Builder()
             .issuer(ISSUER)
+            .audience(audience)
             .expirationTime(Date.from(Instant.now().plusSeconds(300)));
     if (subject != null) {
       claims.subject(subject);
@@ -146,6 +153,21 @@ class JwtSignInIT {
         // a valid JWT publishes no who event; Spring's AuthenticationSuccessEvent covers it
         assertThat(TestEndpoints.events(client))
             .noneMatch(event -> "SignInSucceeded".equals(event.get("type")));
+      }
+    }
+
+    @Test
+    void a_token_for_another_audience_is_401() {
+      try (WhoClient client = client()) {
+        Map<String, String> linked = linkedSubject(client, false);
+
+        WhoClient.Response response =
+            client.get(
+                "/api/hello",
+                "Authorization",
+                "Bearer " + token(linked.get("subject"), "some-other-app"));
+
+        assertThat(response.status()).isEqualTo(401);
       }
     }
 

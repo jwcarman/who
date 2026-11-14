@@ -9,6 +9,8 @@ spring:
           # Set here, not only as an argument: Spring AOT decides at build time which beans exist,
           # and Spring Boot's JwtDecoder exists only when this property does.
           public-key-location: file:target/jwt-public-key.pem
+          # who-jwt refuses to start without it: the audience every token must carry
+          audiences: native-jwt-api
 
 who:
   security:

@@ -17,6 +17,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import java.time.Clock;
+import java.util.List;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
@@ -30,7 +31,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.util.StringUtils;
 
 /** Registers JWT beans when {@code who-jwt} is on the classpath. */
 @AutoConfiguration(after = {WhoAutoConfiguration.class, WhoFederatedAutoConfiguration.class})
@@ -38,6 +41,14 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 @ConditionalOnClass(name = "org.jwcarman.who.jwt.WhoJwtAuthenticationConverter")
 @ConditionalOnBooleanProperty(name = "who.jwt.enabled", matchIfMissing = true)
 public class WhoJwtAutoConfiguration {
+
+  private static final String JWT_PROPERTIES = "spring.security.oauth2.resourceserver.jwt.";
+  private static final String AUDIENCES = JWT_PROPERTIES + "audiences";
+  private static final List<String> DECODER_PROPERTIES =
+      List.of(
+          JWT_PROPERTIES + "issuer-uri",
+          JWT_PROPERTIES + "jwk-set-uri",
+          JWT_PROPERTIES + "public-key-location");
 
   /**
    * The converter that signs JWTs in, publishing the sign-in events.
@@ -67,22 +78,45 @@ public class WhoJwtAutoConfiguration {
    *
    * @param converter signs a verified JWT in
    * @param decoders the application's decoder
+   * @param environment where Spring Boot's resource-server properties are read
    * @return the login method
    */
   @Bean
   @ConditionalOnMissingBean
   public JwtLoginMethod jwtLoginMethod(
-      WhoJwtAuthenticationConverter converter, ObjectProvider<JwtDecoder> decoders) {
+      WhoJwtAuthenticationConverter converter,
+      ObjectProvider<JwtDecoder> decoders,
+      Environment environment) {
     return new JwtLoginMethod(
         converter,
-        () ->
-            decoders.getIfAvailable(
-                () -> {
-                  throw new WhoConfigurationException(
-                      "spring.security.oauth2.resourceserver.jwt.issuer-uri",
-                      "is not set and there is no JwtDecoder bean, so JWTs cannot be verified",
-                      "Set it, or spring.security.oauth2.resourceserver.jwt.jwk-set-uri, or register"
-                          + " a JwtDecoder bean. Or turn JWT sign-in off with who.jwt.enabled=false.");
-                }));
+        () -> {
+          requireAudiences(environment);
+          return decoders.getIfAvailable(
+              () -> {
+                throw new WhoConfigurationException(
+                    "spring.security.oauth2.resourceserver.jwt.issuer-uri",
+                    "is not set and there is no JwtDecoder bean, so JWTs cannot be verified",
+                    "Set it, or spring.security.oauth2.resourceserver.jwt.jwk-set-uri, or register"
+                        + " a JwtDecoder bean. Or turn JWT sign-in off with who.jwt.enabled=false.");
+              });
+        });
+  }
+
+  /**
+   * Fails when Spring Boot builds the decoder from its properties but no audience is configured:
+   * Spring's resource server does not check {@code aud} by default, so a token the same issuer
+   * minted for any other application, such as a provider's ID token, would sign in. A decoder the
+   * application registers itself owns that check.
+   */
+  private static void requireAudiences(Environment environment) {
+    boolean bootBuildsTheDecoder =
+        DECODER_PROPERTIES.stream().map(environment::getProperty).anyMatch(StringUtils::hasText);
+    if (bootBuildsTheDecoder && !StringUtils.hasText(environment.getProperty(AUDIENCES))) {
+      throw new WhoConfigurationException(
+          AUDIENCES,
+          "is not set, so who-jwt would accept a token issued to any audience",
+          "Set it to the audience your API's tokens carry. Or turn JWT sign-in off with"
+              + " who.jwt.enabled=false.");
+    }
   }
 }

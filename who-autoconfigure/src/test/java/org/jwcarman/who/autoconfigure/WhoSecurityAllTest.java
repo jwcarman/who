@@ -412,6 +412,83 @@ class WhoSecurityAllTest {
     }
   }
 
+  /** A JWT module whose tokens would be accepted whatever audience they were issued to. */
+  @Nested
+  class Without_audience_validation {
+
+    private final WebApplicationContextRunner runner =
+        new WebApplicationContextRunner()
+            .withConfiguration(
+                WhoTestAutoConfigurations.who(
+                    SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
+            .withUserConfiguration(Database.class, OwnChain.class)
+            .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false");
+
+    @Test
+    void issuer_uri_without_audiences_fails_startup() {
+      runner
+          .withPropertyValues(
+              "spring.security.oauth2.resourceserver.jwt.issuer-uri=https://issuer.example.com")
+          .run(context -> assertAudienceFailure(context.getStartupFailure()));
+    }
+
+    @Test
+    void jwk_set_uri_without_audiences_fails_startup() {
+      runner
+          .withPropertyValues(
+              "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://issuer.example.com/jwks")
+          .run(context -> assertAudienceFailure(context.getStartupFailure()));
+    }
+
+    @Test
+    void public_key_location_without_audiences_fails_startup() {
+      runner
+          .withPropertyValues(
+              "spring.security.oauth2.resourceserver.jwt.public-key-location=classpath:key.pem")
+          .run(context -> assertAudienceFailure(context.getStartupFailure()));
+    }
+
+    @Test
+    void audiences_set_starts() {
+      runner
+          .withUserConfiguration(Decoder.class)
+          .withPropertyValues(
+              "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://issuer.example.com/jwks",
+              "spring.security.oauth2.resourceserver.jwt.audiences=api://who")
+          .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    void an_application_decoder_without_the_properties_starts() {
+      runner
+          .withUserConfiguration(Decoder.class)
+          .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    private static void assertAudienceFailure(Throwable failure) {
+      assertThat(failure)
+          .isNotNull()
+          .rootCause()
+          .isInstanceOfSatisfying(
+              WhoConfigurationException.class,
+              e -> {
+                assertThat(e.property())
+                    .isEqualTo("spring.security.oauth2.resourceserver.jwt.audiences");
+                assertThat(e.action()).contains("who.jwt.enabled=false");
+              });
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class Decoder {
+    @Bean
+    JwtDecoder jwtDecoder() {
+      return token -> {
+        throw new BadJwtException("not used");
+      };
+    }
+  }
+
   @Configuration(proxyBeanMethods = false)
   static class Database {
     @Bean
