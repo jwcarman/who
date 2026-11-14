@@ -118,6 +118,28 @@ class WhoAutoConfigurationTest {
   }
 
   @Test
+  void twoObservationRegistriesLeaveWhoUnobservedInsteadOfFailingStartup() {
+    EmailCredentialService emailCredentials = mock(EmailCredentialService.class);
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(MailDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
+        .withBean("first", ObservationRegistry.class, ObservationRegistry::create)
+        .withBean("second", ObservationRegistry.class, ObservationRegistry::create)
+        .withBean(IdentityRepository.class, () -> mock(IdentityRepository.class))
+        .withBean(
+            CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
+        .withBean(EmailCredentialService.class, () -> emailCredentials)
+        .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context).hasSingleBean(WhoService.class);
+              assertThat(context).hasSingleBean(EmailLinkIssuer.class);
+            });
+  }
+
+  @Test
   void whoServiceResolvesWithoutAnObservationRegistry() {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))

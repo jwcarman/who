@@ -30,8 +30,12 @@ import io.micrometer.observation.ObservationRegistry;
  *
  * <p>Micrometer calls handlers on the observed thread and does not catch what they throw. who
  * catches it here: a handler failure is logged at WARN (exception class only) and the work's
- * result, or the work's own exception, is what the caller gets. Used by who's modules; applications
- * observe who through the observation names who documents, not through this class.
+ * result, or the work's own exception, is what the caller gets.
+ *
+ * <p><strong>Internal to who.</strong> This class is public only so that who's own modules can
+ * share it. It is not part of who's supported API and may change or disappear in any release,
+ * including a patch release; applications observe who through the observation names who documents,
+ * not through this class.
  */
 public final class WhoObservations {
 

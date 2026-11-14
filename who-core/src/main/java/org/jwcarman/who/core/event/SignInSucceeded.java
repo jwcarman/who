@@ -20,7 +20,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * A sign-in succeeded.
+ * A sign-in succeeded: an email link, an email code or a passkey, published once the session is
+ * saved. API keys and JWTs authenticate every request and publish no {@code SignInSucceeded}; a
+ * refused key or token publishes {@link SignInFailed}. Spring Security's {@code
+ * AuthenticationSuccessEvent} reports each authenticated API-key request.
  *
  * @param occurredAt when it happened
  * @param method the sign-in mechanism

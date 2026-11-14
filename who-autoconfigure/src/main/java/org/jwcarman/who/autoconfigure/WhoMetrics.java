@@ -24,6 +24,8 @@ import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.SignedOut;
 import org.jwcarman.who.core.event.WhoEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
 import io.micrometer.core.instrument.Counter;
@@ -32,7 +34,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 /**
  * Counts who's events as Micrometer meters: {@value #SIGN_INS}, {@value #SIGN_OUTS}, {@value
  * #SESSIONS_ENDED}, {@value #CREDENTIALS_ADDED} and {@value #CREDENTIALS_REVOKED}. Every tag value
- * comes from one of who's enums; no address or id is ever a tag. Other events are ignored.
+ * comes from one of who's enums; no address or id is ever a tag. Other events are ignored. A
+ * registry that fails is logged and never keeps the event from other listeners.
  */
 public final class WhoMetrics {
 
@@ -54,6 +57,8 @@ public final class WhoMetrics {
   private static final String KIND = "kind";
   private static final String REASON = "reason";
 
+  private static final Logger log = LoggerFactory.getLogger(WhoMetrics.class);
+
   private final MeterRegistry registry;
 
   /**
@@ -72,6 +77,15 @@ public final class WhoMetrics {
    */
   @EventListener
   public void on(WhoEvent event) {
+    try {
+      count(event);
+    } catch (RuntimeException e) {
+      // A failing registry must not keep the event from the application's own listeners.
+      log.warn("Failed to count {}: {}", event.getClass().getSimpleName(), e.getClass().getName());
+    }
+  }
+
+  private void count(WhoEvent event) {
     switch (event) {
       case SignInSucceeded succeeded -> signIn(tagValue(succeeded.method()), "success", "none");
       case SignInFailed failed ->

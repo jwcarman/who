@@ -196,7 +196,7 @@ public class WhoAutoConfiguration {
    * @param credentialRemovers every credential module's remover, used to delete identities
    * @param whoEventPublisher where who's events are published
    * @param whoClock the clock events are stamped with
-   * @param observationRegistry the application's observation registry, if it has one
+   * @param observationRegistry the application's observation registry, if it has exactly one
    * @return a configured {@link WhoService}
    */
   @Bean
@@ -216,7 +216,7 @@ public class WhoAutoConfiguration {
         credentialRemovers.orderedStream().toList(),
         whoEventPublisher,
         whoClock,
-        observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP));
+        observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
   }
 
   /** Registers JDBC repository beans when {@code who-jdbc} is on the classpath. */
@@ -656,7 +656,7 @@ public class WhoAutoConfiguration {
           settings,
           clock,
           whoEventPublisher,
-          observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP));
+          observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
     }
 
     /**

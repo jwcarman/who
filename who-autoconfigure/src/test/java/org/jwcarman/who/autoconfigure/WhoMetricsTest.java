@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -38,6 +39,9 @@ import org.jwcarman.who.core.event.SignedOut;
 import org.jwcarman.who.emaillink.EmailLinkOutcome;
 import org.jwcarman.who.emaillink.SignInEmailRequested;
 
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -126,7 +130,7 @@ class WhoMetricsTest {
           .satisfies(
               meter ->
                   assertThat(meter.getId().getTags())
-                      .extracting(tag -> tag.getKey())
+                      .extracting(Tag::getKey)
                       .containsExactlyInAnyOrder("method", "outcome", "reason"));
     }
   }
@@ -176,6 +180,53 @@ class WhoMetricsTest {
     @Test
     void no_meter_exists_before_its_first_event() {
       assertThat(registry.getMeters()).isEmpty();
+    }
+  }
+
+  @Nested
+  class A_failing_registry {
+
+    private SimpleMeterRegistry failing() {
+      SimpleMeterRegistry failing = new SimpleMeterRegistry();
+      failing
+          .config()
+          .meterFilter(
+              new MeterFilter() {
+                @Override
+                public Meter.Id map(Meter.Id id) {
+                  throw new IllegalStateException("registry down");
+                }
+              });
+      return failing;
+    }
+
+    @Test
+    void never_reaches_the_events_other_listeners() {
+      WhoMetrics broken = new WhoMetrics(failing());
+
+      assertThatCode(
+              () ->
+                  broken.on(
+                      new SignInFailed(
+                          NOW,
+                          SignInMethod.API_KEY,
+                          SignInFailureReason.UNKNOWN_KEY,
+                          null,
+                          null,
+                          null)))
+          .doesNotThrowAnyException();
+    }
+
+    @Test
+    void never_reaches_the_email_events_other_listeners() {
+      WhoEmailLinkMetrics broken = new WhoEmailLinkMetrics(failing());
+
+      assertThatCode(
+              () ->
+                  broken.on(
+                      new SignInEmailRequested(
+                          NOW, "someone@example.com", EmailLinkOutcome.SENT, IDENTITY)))
+          .doesNotThrowAnyException();
     }
   }
 

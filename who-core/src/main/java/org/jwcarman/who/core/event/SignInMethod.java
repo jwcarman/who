@@ -23,8 +23,8 @@ public enum SignInMethod {
   EMAIL_CODE,
   /** A WebAuthn passkey. */
   PASSKEY,
-  /** An API key. */
+  /** An API key. Appears on {@link SignInFailed} only: a valid key publishes no success event. */
   API_KEY,
-  /** A JSON Web Token. */
+  /** A JSON Web Token. Appears on {@link SignInFailed} only: a valid token publishes none. */
   JWT
 }

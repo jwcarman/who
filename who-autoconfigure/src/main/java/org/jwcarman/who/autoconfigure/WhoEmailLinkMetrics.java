@@ -18,6 +18,8 @@ package org.jwcarman.who.autoconfigure;
 import static org.jwcarman.who.core.observation.WhoObservations.tagValue;
 
 import org.jwcarman.who.emaillink.SignInEmailRequested;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
 import io.micrometer.core.instrument.Counter;
@@ -31,6 +33,8 @@ public final class WhoEmailLinkMetrics {
 
   /** Sign-in email requests, tagged {@code outcome}. */
   public static final String SIGN_IN_EMAILS = "who.sign-in.emails";
+
+  private static final Logger log = LoggerFactory.getLogger(WhoEmailLinkMetrics.class);
 
   private final MeterRegistry registry;
 
@@ -50,10 +54,15 @@ public final class WhoEmailLinkMetrics {
    */
   @EventListener
   public void on(SignInEmailRequested event) {
-    Counter.builder(SIGN_IN_EMAILS)
-        .description("Sign-in email requests by outcome")
-        .tag("outcome", tagValue(event.outcome()))
-        .register(registry)
-        .increment();
+    try {
+      Counter.builder(SIGN_IN_EMAILS)
+          .description("Sign-in email requests by outcome")
+          .tag("outcome", tagValue(event.outcome()))
+          .register(registry)
+          .increment();
+    } catch (RuntimeException e) {
+      // A failing registry must not keep the event from the application's own listeners.
+      log.warn("Failed to count a sign-in email request: {}", e.getClass().getName());
+    }
   }
 }

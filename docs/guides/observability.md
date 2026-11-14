@@ -70,6 +70,10 @@ The autoconfiguration passes your `ObservationRegistry` to `WhoService` and `Ema
 you construct them yourself, use the constructors that take an `ObservationRegistry`; the
 existing constructors observe nothing.
 
+Meter names, tag keys and values, and observation names are public API, with the same
+compatibility rules as [events](events.md#compatibility). `WhoObservations` in who-core is
+internal to who and has no compatibility promise.
+
 ## Example alerts
 
 PromQL, with the Prometheus registry's naming:
