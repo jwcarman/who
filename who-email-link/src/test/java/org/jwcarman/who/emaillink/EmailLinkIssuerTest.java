@@ -47,6 +47,7 @@ import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.WhoEvent;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.Resolved;
@@ -59,6 +60,12 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.micrometer.common.KeyValue;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.observation.tck.TestObservationRegistry;
+import io.micrometer.observation.tck.TestObservationRegistryAssert;
 
 class EmailLinkIssuerTest {
 
@@ -442,5 +449,122 @@ class EmailLinkIssuerTest {
     }
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
+  }
+
+  private EmailLinkIssuer observedBy(ObservationRegistry observations) {
+    return new EmailLinkIssuer(
+        credentials,
+        whoService,
+        repository,
+        sender,
+        new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
+        Clock.fixed(NOW, ZoneOffset.UTC),
+        WhoEventPublisher.NOOP,
+        observations);
+  }
+
+  private static ObservationRegistry handledBy(ObservationHandler<Observation.Context> handler) {
+    ObservationRegistry registry = ObservationRegistry.create();
+    registry.observationConfig().observationHandler(handler);
+    return registry;
+  }
+
+  private void assertObservedOnce(TestObservationRegistry registry, String outcome) {
+    TestObservationRegistryAssert.assertThat(registry)
+        .hasNumberOfObservationsWithNameEqualTo(EmailLinkIssuer.ISSUE_OBSERVATION, 1)
+        .hasObservationWithNameEqualTo(EmailLinkIssuer.ISSUE_OBSERVATION)
+        .that()
+        .hasContextualNameEqualTo("who issue sign-in email")
+        .hasLowCardinalityKeyValue("outcome", outcome)
+        .hasBeenStarted()
+        .hasBeenStopped();
+  }
+
+  @Test
+  void sendingAnEmailIsOneObservationWithOutcomeSent() {
+    known(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
+    TestObservationRegistry registry = TestObservationRegistry.create();
+
+    assertThat(observedBy(registry).issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
+
+    assertObservedOnce(registry, "sent");
+  }
+
+  @Test
+  void anUnknownAddressIsObservedAsUnknownAddress() {
+    TestObservationRegistry registry = TestObservationRegistry.create();
+
+    observedBy(registry).issue(ADDRESS, TOKEN);
+
+    assertObservedOnce(registry, "unknown-address");
+  }
+
+  @Test
+  void aFailedSendIsObservedAsSendFailed() {
+    known(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
+    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
+    TestObservationRegistry registry = TestObservationRegistry.create();
+
+    assertThat(observedBy(registry).issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
+
+    assertObservedOnce(registry, "send-failed");
+  }
+
+  @Test
+  void theObservationCarriesOnlyTheOutcomeAndNeverTheAddress() {
+    known(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
+    List<Observation.Context> stopped = new ArrayList<>();
+
+    observedBy(
+            handledBy(
+                new ObservationHandler<>() {
+                  @Override
+                  public boolean supportsContext(Observation.Context context) {
+                    return true;
+                  }
+
+                  @Override
+                  public void onStop(Observation.Context context) {
+                    stopped.add(context);
+                  }
+                }))
+        .issue(ADDRESS, TOKEN);
+
+    assertThat(stopped).hasSize(1);
+    Observation.Context context = stopped.getFirst();
+    assertThat(context.getLowCardinalityKeyValues().stream().map(KeyValue::getKey))
+        .containsExactly("outcome");
+    assertThat(context.getHighCardinalityKeyValues()).isEmpty();
+    assertThat(context.toString()).doesNotContain(ADDRESS).doesNotContain(TOKEN);
+  }
+
+  @Test
+  void aFailingObservationHandlerLeavesTheOutcomeAlone() {
+    known(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
+    ObservationRegistry failing =
+        handledBy(
+            new ObservationHandler<>() {
+              @Override
+              public boolean supportsContext(Observation.Context context) {
+                return true;
+              }
+
+              @Override
+              public void onStart(Observation.Context context) {
+                throw new IllegalStateException("handler start");
+              }
+
+              @Override
+              public void onStop(Observation.Context context) {
+                throw new IllegalStateException("handler stop");
+              }
+            });
+
+    assertThat(observedBy(failing).issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
+    verify(sender).send(any(EmailLinkMessage.class));
   }
 }

@@ -19,8 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -37,6 +39,8 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredentialRepository;
+import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
@@ -158,6 +162,29 @@ class WhoAutoConfigurationTest {
               assertThat(context).hasNotFailed();
               assertThat(context).doesNotHaveBean(MailEmailLinkSender.class);
               assertThat(context).doesNotHaveBean(EmailLinkLoginMethod.class);
+            });
+  }
+
+  @Test
+  void emailLinkIssuerObservesWithTheApplicationsObservationRegistry() {
+    TestObservationRegistry observations = TestObservationRegistry.create();
+    EmailCredentialService emailCredentials = mock(EmailCredentialService.class);
+    when(emailCredentials.findByAddress("nobody@example.com")).thenReturn(Optional.empty());
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoAutoConfiguration.class))
+        .withUserConfiguration(MailDataSourceConfig.class)
+        .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
+        .withBean(ObservationRegistry.class, () -> observations)
+        .withBean(EmailCredentialService.class, () -> emailCredentials)
+        .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+        .run(
+            context -> {
+              context.getBean(EmailLinkIssuer.class).issue("nobody@example.com", "token");
+
+              TestObservationRegistryAssert.assertThat(observations)
+                  .hasObservationWithNameEqualTo(EmailLinkIssuer.ISSUE_OBSERVATION)
+                  .that()
+                  .hasLowCardinalityKeyValue("outcome", "unknown-address");
             });
   }
 

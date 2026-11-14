@@ -84,6 +84,16 @@ class WhoObservationsTest {
     }
   }
 
+  @Nested
+  class Tag_values {
+
+    @Test
+    void are_the_constant_in_lower_case_with_hyphens() {
+      assertThat(WhoObservations.tagValue(Phase.SCOPE_OPENED)).isEqualTo("scope-opened");
+      assertThat(WhoObservations.tagValue(Phase.START)).isEqualTo("start");
+    }
+  }
+
   enum Phase {
     START,
     SCOPE_OPENED,

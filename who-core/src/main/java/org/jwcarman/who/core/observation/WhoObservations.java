@@ -17,6 +17,7 @@ package org.jwcarman.who.core.observation;
 
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -81,6 +82,17 @@ public final class WhoObservations {
         attempt(observation::stop);
       }
     }
+  }
+
+  /**
+   * Returns the tag value who uses for an enum constant: its name in lower case, with {@code _}
+   * replaced by {@code -} ({@code EMAIL_CODE} is {@code email-code}).
+   *
+   * @param value the constant
+   * @return its tag value
+   */
+  public static String tagValue(Enum<?> value) {
+    return value.name().toLowerCase(Locale.ROOT).replace('_', '-');
   }
 
   private static Observation.Scope openScope(Observation observation) {

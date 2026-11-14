@@ -640,7 +640,8 @@ public class WhoAutoConfiguration {
         ObjectProvider<EmailLinkSender> emailLinkSender,
         EmailLinkSettings settings,
         Clock clock,
-        WhoEventPublisher whoEventPublisher) {
+        WhoEventPublisher whoEventPublisher,
+        ObjectProvider<ObservationRegistry> observationRegistry) {
       EmailLinkSender sender = emailLinkSender.getIfAvailable();
       if (sender == null) {
         throw new IllegalStateException(
@@ -654,7 +655,8 @@ public class WhoAutoConfiguration {
           sender,
           settings,
           clock,
-          whoEventPublisher);
+          whoEventPublisher,
+          observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP));
     }
 
     /**

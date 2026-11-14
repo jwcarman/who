@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.crypto.Secrets;
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.observation.WhoObservations;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
@@ -33,6 +34,8 @@ import org.jwcarman.who.core.service.Resolution.NotLinked;
 import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micrometer.observation.ObservationRegistry;
 
 /**
  * Does the real work behind {@code POST /ott/generate}, off the request thread: looks up the
@@ -47,6 +50,9 @@ import org.slf4j.LoggerFactory;
  */
 public class EmailLinkIssuer {
 
+  /** The name of the observation around each {@link #issue}. */
+  public static final String ISSUE_OBSERVATION = "who.sign-in.email.issue";
+
   private static final Logger log = LoggerFactory.getLogger(EmailLinkIssuer.class);
 
   private final EmailCredentialService credentialService;
@@ -57,6 +63,7 @@ public class EmailLinkIssuer {
   private final Clock clock;
   private final WhoEventPublisher eventPublisher;
   private final EmailCodeHasher codeHasher;
+  private final ObservationRegistry observations;
 
   /**
    * Creates a new issuer that publishes no events.
@@ -80,7 +87,7 @@ public class EmailLinkIssuer {
   }
 
   /**
-   * Creates a new issuer.
+   * Creates a new issuer that publishes events and records no observations.
    *
    * @param credentialService finds email credentials
    * @param whoService resolves credentials to active identities
@@ -98,6 +105,38 @@ public class EmailLinkIssuer {
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher eventPublisher) {
+    this(
+        credentialService,
+        whoService,
+        repository,
+        sender,
+        settings,
+        clock,
+        eventPublisher,
+        ObservationRegistry.NOOP);
+  }
+
+  /**
+   * Creates a new issuer that observes each {@link #issue} as {@value #ISSUE_OBSERVATION}.
+   *
+   * @param credentialService finds email credentials
+   * @param whoService resolves credentials to active identities
+   * @param repository stores token hashes
+   * @param sender sends the link
+   * @param settings the link settings
+   * @param clock the clock
+   * @param eventPublisher where {@link SignInEmailRequested} is published
+   * @param observations records an observation for each request, tagged with its outcome
+   */
+  public EmailLinkIssuer(
+      EmailCredentialService credentialService,
+      WhoService whoService,
+      EmailLinkTokenRepository repository,
+      EmailLinkSender sender,
+      EmailLinkSettings settings,
+      Clock clock,
+      WhoEventPublisher eventPublisher,
+      ObservationRegistry observations) {
     this.credentialService =
         requireNonNull(credentialService, "credentialService must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
@@ -107,6 +146,7 @@ public class EmailLinkIssuer {
     this.clock = requireNonNull(clock, "clock must not be null");
     this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
     this.codeHasher = new EmailCodeHasher(settings.codeSecret());
+    this.observations = requireNonNull(observations, "observations must not be null");
   }
 
   /**
@@ -125,6 +165,15 @@ public class EmailLinkIssuer {
    * @return what became of the request
    */
   public EmailLinkOutcome issue(String address, String tokenValue) {
+    return WhoObservations.observe(
+        observations,
+        ISSUE_OBSERVATION,
+        "who issue sign-in email",
+        () -> issueUnobserved(address, tokenValue),
+        WhoObservations::tagValue);
+  }
+
+  private EmailLinkOutcome issueUnobserved(String address, String tokenValue) {
     Issued issued = issueIfKnown(address, tokenValue);
     String reported = looksLikeAnAddress(address) ? EmailCredential.normalize(address) : null;
     try {
