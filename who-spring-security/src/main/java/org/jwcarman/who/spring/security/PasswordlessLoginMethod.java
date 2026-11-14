@@ -15,12 +15,14 @@
  */
 package org.jwcarman.who.spring.security;
 
+import java.util.Set;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 /**
  * A way to sign in to a browser session, contributed as a bean by a credential module (email links,
- * passkeys, ...). {@link WhoWebSecurity#passwordless()} applies every such bean, in {@code @Order}
- * order, to the chain it configures.
+ * passkeys, ...). {@link WhoWebSecurity#passwordless()} and {@link WhoSecurity#all()} apply every
+ * such bean, in {@code @Order} order, to the chain they configure.
  */
 @FunctionalInterface
 public interface PasswordlessLoginMethod {
@@ -31,4 +33,15 @@ public interface PasswordlessLoginMethod {
    * @param http the browser chain being built
    */
   void configure(HttpSecurity http);
+
+  /**
+   * Returns the paths a signed-out browser must reach to sign in this way, such as the endpoint
+   * that sends a sign-in link. {@link WhoPublicPaths} collects them for the chain's {@code
+   * permitAll()}.
+   *
+   * @return path patterns, empty by default
+   */
+  default Set<String> publicPaths() {
+    return Set.of();
+  }
 }

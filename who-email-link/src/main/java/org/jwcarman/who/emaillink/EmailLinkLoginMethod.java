@@ -17,6 +17,8 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Set;
+
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
@@ -71,6 +73,12 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
         requireNonNull(authenticationProvider, "authenticationProvider must not be null");
     this.successHandler = requireNonNull(successHandler, "successHandler must not be null");
     this.failureHandler = requireNonNull(failureHandler, "failureHandler must not be null");
+  }
+
+  /** The endpoints that send a sign-in email and sign a link or code in. */
+  @Override
+  public Set<String> publicPaths() {
+    return Set.of("/ott/generate", "/login/ott");
   }
 
   @Override

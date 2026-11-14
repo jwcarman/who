@@ -48,8 +48,8 @@ public class PasswordlessConfigurer
   private static final Logger log = LoggerFactory.getLogger(PasswordlessConfigurer.class);
 
   static final String NO_METHODS =
-      "WhoWebSecurity.passwordless() found no sign-in methods; set who.email-link.link-base-url"
-          + " to enable email-link sign-in, or who.passkey.rp-id to enable passkeys";
+      "WhoWebSecurity.passwordless() found no sign-in methods; add who-email-link or who-passkey"
+          + " to the application";
   static final String CSRF_REQUIRED =
       "WhoWebSecurity.passwordless() requires CSRF protection; remove csrf.disable() from this chain";
   static final String SESSIONS_REQUIRED =

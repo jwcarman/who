@@ -16,7 +16,9 @@
 package org.jwcarman.who.autoconfigure;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -38,6 +40,7 @@ public class WhoProperties {
   private EmailLink emailLink = new EmailLink();
   private Passkey passkey = new Passkey();
   private Jwt jwt = new Jwt();
+  private Security security = new Security();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -650,6 +653,53 @@ public class WhoProperties {
      */
     public void setEnabled(boolean enabled) {
       this.enabled = enabled;
+    }
+  }
+
+  /**
+   * Returns the security chain properties.
+   *
+   * @return security properties
+   */
+  public Security getSecurity() {
+    return security;
+  }
+
+  /**
+   * Sets the security chain properties.
+   *
+   * @param security security properties
+   */
+  public void setSecurity(Security security) {
+    this.security = security;
+  }
+
+  /** Properties for who's security chain. */
+  public static class Security {
+
+    /**
+     * Paths of the application a signed-out request may reach, such as its sign-in page and the
+     * assets that page loads ({@code /signin}, {@code /assets/**}). who's own sign-in endpoints and
+     * {@code /error} are public already.
+     */
+    private List<String> publicPaths = new ArrayList<>();
+
+    /**
+     * Returns the application's public paths.
+     *
+     * @return path patterns
+     */
+    public List<String> getPublicPaths() {
+      return publicPaths;
+    }
+
+    /**
+     * Sets the application's public paths.
+     *
+     * @param publicPaths path patterns
+     */
+    public void setPublicPaths(List<String> publicPaths) {
+      this.publicPaths = publicPaths;
     }
   }
 }

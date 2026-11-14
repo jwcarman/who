@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
@@ -115,6 +116,12 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     this.clock = requireNonNull(clock, "clock must not be null");
     this.registrationWindow =
         requireNonNull(registrationWindow, "registrationWindow must not be null");
+  }
+
+  /** The endpoints a signed-out browser uses to sign in with a passkey. */
+  @Override
+  public Set<String> publicPaths() {
+    return Set.of("/webauthn/authenticate/options", "/login/webauthn");
   }
 
   @Override

@@ -20,6 +20,8 @@ import java.time.Clock;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
@@ -52,6 +54,22 @@ public class WhoSpringSecurityAutoConfiguration {
   public WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
       WhoService whoService, Clock clock, WhoEventPublisher whoEventPublisher) {
     return new WhoSessionSecurityContextRepository(whoService, clock, whoEventPublisher);
+  }
+
+  /**
+   * The paths a signed-out request may reach: the error page, each sign-in method's endpoints and
+   * {@code who.security.public-paths}.
+   *
+   * @param methods the browser sign-in methods
+   * @param properties the application's own public paths
+   * @return the paths
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public WhoPublicPaths whoPublicPaths(
+      ObjectProvider<PasswordlessLoginMethod> methods, WhoProperties properties) {
+    return new WhoPublicPaths(
+        methods.orderedStream().toList(), properties.getSecurity().getPublicPaths());
   }
 
   /** Registers {@code GET /who/me} in servlet web applications that have Spring MVC. */

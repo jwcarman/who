@@ -21,6 +21,7 @@ import java.time.Clock;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationProvider;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
+import org.jwcarman.who.apikey.ApiKeyLoginMethod;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.event.WhoEventPublisher;
@@ -99,6 +100,21 @@ public class WhoApiKeyAutoConfiguration {
         new ApiKeyAuthenticationProvider(
             apiKeyCredentialRepository, whoService, whoEventPublisher, clock),
         properties.getApiKey().getHeaderName());
+  }
+
+  /**
+   * Mounts the filter in a chain built with {@code WhoSecurity.all()}, and exempts requests that
+   * carry a key from CSRF.
+   *
+   * @param filter the API key filter
+   * @param properties the header name
+   * @return the login method
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public ApiKeyLoginMethod apiKeyLoginMethod(
+      ApiKeyAuthenticationFilter filter, WhoProperties properties) {
+    return new ApiKeyLoginMethod(filter, properties.getApiKey().getHeaderName());
   }
 
   /**

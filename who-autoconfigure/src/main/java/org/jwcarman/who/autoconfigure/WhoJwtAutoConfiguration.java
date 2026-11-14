@@ -25,7 +25,9 @@ import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.jwt.JdbcJwtCredentialRepository;
 import org.jwcarman.who.jwt.JwtCredentialRepository;
 import org.jwcarman.who.jwt.JwtCredentialService;
+import org.jwcarman.who.jwt.JwtLoginMethod;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -33,6 +35,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 /** Registers JWT beans when {@code who-jwt} is on the classpath. */
 @AutoConfiguration(after = WhoAutoConfiguration.class)
@@ -72,6 +75,33 @@ public class WhoJwtAutoConfiguration {
       Clock clock) {
     return new WhoJwtAuthenticationConverter(
         jwtCredentialRepository, whoService, whoEventPublisher, clock);
+  }
+
+  /**
+   * Mounts JWT sign-in in a chain built with {@code WhoSecurity.all()}. The {@link JwtDecoder} is
+   * looked up when the chain is built: Spring Boot makes one from {@code
+   * spring.security.oauth2.resourceserver.jwt.issuer-uri} or {@code jwk-set-uri}, and without one
+   * the chain fails to start.
+   *
+   * @param converter signs a verified JWT in
+   * @param decoders the application's decoder
+   * @return the login method
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public JwtLoginMethod jwtLoginMethod(
+      WhoJwtAuthenticationConverter converter, ObjectProvider<JwtDecoder> decoders) {
+    return new JwtLoginMethod(
+        converter,
+        () ->
+            decoders.getIfAvailable(
+                () -> {
+                  throw new WhoConfigurationException(
+                      "spring.security.oauth2.resourceserver.jwt.issuer-uri",
+                      "is not set and there is no JwtDecoder bean, so JWTs cannot be verified",
+                      "Set it, or spring.security.oauth2.resourceserver.jwt.jwk-set-uri, or register"
+                          + " a JwtDecoder bean. Or turn JWT sign-in off with who.jwt.enabled=false.");
+                }));
   }
 
   /**
