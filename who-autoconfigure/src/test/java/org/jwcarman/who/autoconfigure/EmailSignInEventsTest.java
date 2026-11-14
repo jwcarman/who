@@ -164,7 +164,7 @@ class EmailSignInEventsTest {
     volatile boolean throwOnFailure;
 
     @EventListener
-    void record(WhoEvent event) {
+    void onEvent(WhoEvent event) {
       events.add(event);
       if (event instanceof SignInSucceeded) {
         sessionIdentityAtSuccess.add(sessionIdentity());

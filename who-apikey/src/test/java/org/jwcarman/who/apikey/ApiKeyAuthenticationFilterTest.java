@@ -170,7 +170,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
       String key = keyFor(suspended);
 
       assertRefused(perform(get(OPEN).header(HEADER, key)));
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SignInFailed(
                   NOW,
@@ -205,7 +205,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
 
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       assertThat(result.getResponse().getContentAsString()).isEqualTo(ANONYMOUS);
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
 
     @Test
@@ -214,7 +214,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
 
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       assertThat(result.getResponse().getContentAsString()).isEqualTo(ANONYMOUS);
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
   }
 
@@ -232,7 +232,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
 
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       assertThat(result.getResponse().getContentAsString()).isEqualTo("alice");
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
       assertThat(HANDED_OFF).isEmpty();
     }
   }
@@ -272,8 +272,9 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
       MockHttpServletRequest request = new MockHttpServletRequest();
       request.addHeader(HEADER, "who_any");
       MockFilterChain chain = new MockFilterChain();
+      MockHttpServletResponse response = new MockHttpServletResponse();
 
-      assertThatThrownBy(() -> filter.doFilter(request, new MockHttpServletResponse(), chain))
+      assertThatThrownBy(() -> filter.doFilter(request, response, chain))
           .isInstanceOf(IllegalStateException.class);
       assertThat(chain.getRequest()).isNull();
       assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();

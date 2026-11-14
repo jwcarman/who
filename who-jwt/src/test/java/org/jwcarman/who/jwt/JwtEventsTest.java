@@ -98,8 +98,8 @@ class JwtEventsTest {
       verify(links).link(credential.id(), identity.id());
       assertThat(events)
           .containsExactly(
-              new CredentialAdded(NOW, identity.id(), credential.id(), CredentialKind.JWT, ISSUER));
-      assertThat(events).noneMatch(event -> event.toString().contains(SUBJECT));
+              new CredentialAdded(NOW, identity.id(), credential.id(), CredentialKind.JWT, ISSUER))
+          .noneMatch(event -> event.toString().contains(SUBJECT));
     }
 
     @Test
@@ -245,8 +245,8 @@ class JwtEventsTest {
       assertThat(events)
           .containsExactly(
               new SignInFailed(
-                  NOW, SignInMethod.JWT, SignInFailureReason.UNKNOWN_CREDENTIAL, null, null, null));
-      assertThat(events).noneMatch(event -> event.toString().contains(SUBJECT));
+                  NOW, SignInMethod.JWT, SignInFailureReason.UNKNOWN_CREDENTIAL, null, null, null))
+          .noneMatch(event -> event.toString().contains(SUBJECT));
     }
 
     @Test

@@ -115,7 +115,9 @@ class RbacEventsTest extends AbstractRbacTest {
 
     @Test
     void deleting_a_missing_role_publishes_nothing() {
-      assertThatThrownBy(() -> service.deleteRole(Role.create("GHOST")))
+      Role ghost = Role.create("GHOST");
+
+      assertThatThrownBy(() -> service.deleteRole(ghost))
           .isInstanceOf(IllegalArgumentException.class);
 
       assertThat(events).isEmpty();

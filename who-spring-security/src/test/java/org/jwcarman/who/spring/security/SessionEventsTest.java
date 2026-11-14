@@ -80,6 +80,11 @@ class SessionEventsTest {
   /** Every event the chain published, in order. */
   static final List<WhoEvent> EVENTS = new CopyOnWriteArrayList<>();
 
+  /** What who published so far, in order. */
+  static List<WhoEvent> publishedEvents() {
+    return List.copyOf(EVENTS);
+  }
+
   @Configuration
   @EnableAutoConfiguration
   @Import(WhoMeController.class)
@@ -165,7 +170,8 @@ class SessionEventsTest {
 
       assertThat(logout(signedIn())).isEqualTo(204);
 
-      assertThat(EVENTS).containsExactly(new SignedOut(NOW, identity.id(), credentialId));
+      assertThat(publishedEvents())
+          .containsExactly(new SignedOut(NOW, identity.id(), credentialId));
     }
 
     @Test
@@ -174,7 +180,7 @@ class SessionEventsTest {
 
       assertThat(logout(session)).isEqualTo(204);
 
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
 
     @Test
@@ -193,7 +199,7 @@ class SessionEventsTest {
                   .header("X-XSRF-TOKEN", xsrf.getValue()))
           .andExpect(status().isNoContent());
 
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
   }
 
@@ -209,7 +215,7 @@ class SessionEventsTest {
       // an API-key request carries no who session, so there is nothing of ours to sign out of
       repository.onLogout(new MockHttpServletRequest(), apiKey);
 
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
   }
 
@@ -222,7 +228,7 @@ class SessionEventsTest {
 
       mvc.perform(get("/who/me").session(signedIn())).andExpect(status().isOk());
 
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
 
     @Test
@@ -232,7 +238,7 @@ class SessionEventsTest {
 
       mvc.perform(get("/who/me").session(session)).andExpect(status().isUnauthorized());
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SessionEnded(
                   NOW, identity.id(), credentialId, SessionEndReason.IDENTITY_INACTIVE));
@@ -246,7 +252,7 @@ class SessionEventsTest {
 
       mvc.perform(get("/who/me").session(signedIn())).andExpect(status().isUnauthorized());
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SessionEnded(
                   NOW, identity.id(), credentialId, SessionEndReason.IDENTITY_INACTIVE));
@@ -258,7 +264,7 @@ class SessionEventsTest {
 
       mvc.perform(get("/who/me").session(signedIn())).andExpect(status().isUnauthorized());
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SessionEnded(
                   NOW, identity.id(), credentialId, SessionEndReason.CREDENTIAL_REVOKED));
@@ -270,7 +276,7 @@ class SessionEventsTest {
 
       mvc.perform(get("/who/me").session(signedIn())).andExpect(status().isUnauthorized());
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SessionEnded(
                   NOW, identity.id(), credentialId, SessionEndReason.CREDENTIAL_REVOKED));
@@ -284,7 +290,7 @@ class SessionEventsTest {
       mvc.perform(get("/who/me").session(session)).andExpect(status().isUnauthorized());
 
       assertThat(session.isInvalid()).isTrue();
-      assertThat(EVENTS).isEmpty();
+      assertThat(publishedEvents()).isEmpty();
     }
 
     @Test
@@ -295,7 +301,7 @@ class SessionEventsTest {
       mvc.perform(get("/who/me").session(session)).andExpect(status().isUnauthorized());
       mvc.perform(get("/who/me").session(session)).andExpect(status().isUnauthorized());
 
-      assertThat(EVENTS).hasSize(1);
+      assertThat(publishedEvents()).hasSize(1);
     }
   }
 }

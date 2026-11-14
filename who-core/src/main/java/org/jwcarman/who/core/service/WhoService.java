@@ -63,6 +63,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class WhoService {
 
+  private static final String IDENTITY_ID_REQUIRED = "identityId must not be null";
+
   private final IdentityRepository identityRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final PermissionsResolver permissionsResolver;
@@ -194,7 +196,7 @@ public class WhoService {
    */
   @Transactional
   public boolean deactivate(UUID identityId) {
-    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(identityId, IDENTITY_ID_REQUIRED);
     if (identityRepository.changeStatus(identityId, IdentityStatus.DISABLED)) {
       events.publish(new IdentityDeactivated(clock.instant(), identityId));
       return true;
@@ -211,7 +213,7 @@ public class WhoService {
    */
   @Transactional
   public boolean reactivate(UUID identityId) {
-    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(identityId, IDENTITY_ID_REQUIRED);
     if (identityRepository.changeStatus(identityId, IdentityStatus.ACTIVE)) {
       events.publish(new IdentityReactivated(clock.instant(), identityId));
       return true;
@@ -233,7 +235,7 @@ public class WhoService {
    */
   @Transactional
   public boolean deleteIdentity(UUID identityId) {
-    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(identityId, IDENTITY_ID_REQUIRED);
     if (!identityRepository.existsById(identityId)) {
       return false;
     }

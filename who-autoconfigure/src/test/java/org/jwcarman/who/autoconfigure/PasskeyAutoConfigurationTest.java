@@ -154,8 +154,8 @@ class PasskeyAutoConfigurationTest {
               assertThat(context).hasSingleBean(JdbcWhoPasskeyUserRepository.class);
               assertThat(context).hasSingleBean(JdbcWhoPasskeyCredentialRepository.class);
               assertThat(context).hasSingleBean(PasskeyService.class);
-              assertThat(context.getBeansOfType(CredentialRemover.class).values())
-                  .contains(context.getBean(PasskeyCredentialRemover.class));
+              assertThat(context.getBeansOfType(CredentialRemover.class))
+                  .containsValue(context.getBean(PasskeyCredentialRemover.class));
               assertThat(context.getBean(PasskeyService.class).list(UUID.randomUUID())).isEmpty();
               assertThat(context).hasSingleBean(PasskeyNameResolver.class);
               assertThat(context).hasSingleBean(PasskeyAddedNotifier.class);

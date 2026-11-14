@@ -60,6 +60,11 @@ abstract class AbstractApiKeySignInTest extends AbstractApiKeyTest {
   /** The events the API key filter published, in order. */
   static final List<WhoEvent> EVENTS = new CopyOnWriteArrayList<>();
 
+  /** What who published so far, in order. */
+  static List<WhoEvent> publishedEvents() {
+    return List.copyOf(EVENTS);
+  }
+
   /** What who handed to the application, in order. */
   static final List<Exception> HANDED_OFF = new CopyOnWriteArrayList<>();
 

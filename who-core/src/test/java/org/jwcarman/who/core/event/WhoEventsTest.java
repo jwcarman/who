@@ -39,7 +39,7 @@ class WhoEventsTest {
   class Records {
 
     @Test
-    void records_reject_null_required_fields() {
+    void sign_in_events_reject_null_required_fields() {
       assertNpe("occurredAt", () -> new SignInSucceeded(null, SignInMethod.JWT, ID, CRED));
       assertNpe("method", () -> new SignInSucceeded(NOW, null, ID, CRED));
       assertNpe("identityId", () -> new SignInSucceeded(NOW, SignInMethod.JWT, null, CRED));
@@ -54,7 +54,10 @@ class WhoEventsTest {
           "method",
           () -> new SignInFailed(NOW, null, SignInFailureReason.MALFORMED, null, null, null));
       assertNpe("reason", () -> new SignInFailed(NOW, SignInMethod.JWT, null, null, null, null));
+    }
 
+    @Test
+    void session_events_reject_null_required_fields() {
       assertNpe("occurredAt", () -> new SignedOut(null, ID, CRED));
       assertNpe("identityId", () -> new SignedOut(NOW, null, CRED));
       assertNpe("credentialId", () -> new SignedOut(NOW, ID, null));
@@ -64,7 +67,10 @@ class WhoEventsTest {
       assertNpe("identityId", () -> new SessionEnded(NOW, null, CRED, why));
       assertNpe("credentialId", () -> new SessionEnded(NOW, ID, null, why));
       assertNpe("reason", () -> new SessionEnded(NOW, ID, CRED, null));
+    }
 
+    @Test
+    void identity_events_reject_null_required_fields() {
       assertNpe("occurredAt", () -> new IdentityCreated(null, ID));
       assertNpe("identityId", () -> new IdentityCreated(NOW, null));
       assertNpe("occurredAt", () -> new IdentityDeactivated(null, ID));
@@ -75,7 +81,10 @@ class WhoEventsTest {
       assertNpe("identityId", () -> new IdentityDeleted(NOW, null));
 
       assertNpe("occurredAt", () -> new OrphanedCredentialsPurged(null, 1));
+    }
 
+    @Test
+    void credential_events_reject_null_required_fields() {
       CredentialKind kind = CredentialKind.PASSKEY;
       assertNpe("occurredAt", () -> new CredentialAdded(null, ID, CRED, kind, null));
       assertNpe("identityId", () -> new CredentialAdded(NOW, null, CRED, kind, null));

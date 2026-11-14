@@ -85,6 +85,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   private static final String COL_IDENTITY_ID = "identity_id";
 
   private static final String TRANSPORT_SEPARATOR = ",";
+  private static final String WHERE_CREDENTIAL_ID = " WHERE credential_id = :credential_id";
 
   /** Bound while a passkey is being registered: the only time {@link #save} inserts. */
   private static final ScopedValue<Boolean> REGISTERING = ScopedValue.newInstance();
@@ -245,7 +246,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
   @Override
   public CredentialRecord findByCredentialId(Bytes credentialId) {
     return jdbcClient
-        .sql(SELECT + " WHERE credential_id = :credential_id")
+        .sql(SELECT + WHERE_CREDENTIAL_ID)
         .param(COL_CREDENTIAL_ID, credentialId.toBase64UrlString())
         .query(ROW_MAPPER)
         .optional()
@@ -329,9 +330,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
 
   private Optional<PasskeyCredential> findPasskeyByCredentialId(String credentialId) {
     return jdbcClient
-        .sql(
-            "SELECT credential_uuid, label FROM who_passkey_credential"
-                + " WHERE credential_id = :credential_id")
+        .sql("SELECT credential_uuid, label FROM who_passkey_credential" + WHERE_CREDENTIAL_ID)
         .param(COL_CREDENTIAL_ID, credentialId)
         .query(PASSKEY_MAPPER)
         .optional();
@@ -339,9 +338,7 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
 
   private Optional<UUID> findCredentialUuid(String credentialId) {
     return jdbcClient
-        .sql(
-            "SELECT credential_uuid FROM who_passkey_credential"
-                + " WHERE credential_id = :credential_id")
+        .sql("SELECT credential_uuid FROM who_passkey_credential" + WHERE_CREDENTIAL_ID)
         .param(COL_CREDENTIAL_ID, credentialId)
         .query(UUID.class)
         .optional();

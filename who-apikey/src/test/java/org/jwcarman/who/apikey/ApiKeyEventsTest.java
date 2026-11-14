@@ -170,14 +170,14 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
       assertThat(statusOf(key)).isEqualTo(200);
 
       // one per request, and nothing else in the chain publishes a second one
-      assertThat(EVENTS).containsExactly(expected, expected);
+      assertThat(publishedEvents()).containsExactly(expected, expected);
     }
 
     @Test
     void an_unknown_key_publishes_sign_in_failed_with_unknown_key() throws Exception {
       assertThat(statusOf("who_unknown")).isEqualTo(401);
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SignInFailed(
                   NOW, SignInMethod.API_KEY, SignInFailureReason.UNKNOWN_KEY, null, null, null));
@@ -191,7 +191,7 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
       assertThat(statusOf(key)).isEqualTo(401);
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .singleElement()
           .isInstanceOfSatisfying(
               SignInFailed.class,
@@ -207,7 +207,7 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
       assertThat(statusOf(key)).isEqualTo(401);
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SignInFailed(
                   NOW,
@@ -346,7 +346,7 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
         published.add(failure.getException().toString());
         assertThat(failure.getException().getAuthenticationRequest().getCredentials()).isNull();
       }
-      assertThat(EVENTS).hasSize(2);
+      assertThat(publishedEvents()).hasSize(2);
       assertThat(springEvents).hasSize(2);
 
       for (String secret : keys) {
@@ -388,8 +388,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
               new CredentialAdded(
                   NOW, identity.id(), credentialId, CredentialKind.API_KEY, "CI pipeline"),
               new CredentialRevoked(
-                  NOW, identity.id(), credentialId, CredentialKind.API_KEY, "CI pipeline"));
-      assertThat(events).noneMatch(event -> event.toString().contains(key));
+                  NOW, identity.id(), credentialId, CredentialKind.API_KEY, "CI pipeline"))
+          .noneMatch(event -> event.toString().contains(key));
     }
 
     @Test

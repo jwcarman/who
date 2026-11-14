@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.Serial;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 
@@ -67,6 +68,22 @@ public final class ApiKeyAuthenticationToken extends AbstractAuthenticationToken
   @Override
   public Object getPrincipal() {
     return null;
+  }
+
+  /**
+   * Two requests are equal when Spring's token fields are, and they hold the same key (or both have
+   * erased it).
+   */
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof ApiKeyAuthenticationToken that
+        && super.equals(that)
+        && Objects.equals(key, that.key);
+  }
+
+  @Override
+  public int hashCode() {
+    return 31 * super.hashCode() + Objects.hashCode(key);
   }
 
   /** Forgets the raw key. */

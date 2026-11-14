@@ -185,7 +185,9 @@ class EnrollmentEventsTest extends AbstractEnrollmentTest {
       WhoEnrollmentService later =
           serviceAt(Clock.fixed(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
 
-      assertThatThrownBy(() -> later.enroll(token.value(), UUID::randomUUID))
+      String value = token.value();
+
+      assertThatThrownBy(() -> later.enroll(value, UUID::randomUUID))
           .isInstanceOf(EnrollmentTokenExpiredException.class);
     }
 
@@ -197,8 +199,9 @@ class EnrollmentEventsTest extends AbstractEnrollmentTest {
       UUID credentialId = UUID.randomUUID();
       service.enroll(token.value(), () -> credentialId);
       events.clear();
+      String value = token.value();
 
-      assertThatThrownBy(() -> service.enroll(token.value(), () -> credentialId))
+      assertThatThrownBy(() -> service.enroll(value, () -> credentialId))
           .isInstanceOf(EnrollmentTokenNotPendingException.class);
 
       assertThat(events).isEmpty();

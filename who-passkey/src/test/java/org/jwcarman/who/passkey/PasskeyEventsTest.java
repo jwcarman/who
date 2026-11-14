@@ -99,6 +99,11 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
   /** Every event who published, in order. */
   static final List<WhoEvent> EVENTS = new CopyOnWriteArrayList<>();
 
+  /** What who published so far, in order. */
+  static List<WhoEvent> publishedEvents() {
+    return List.copyOf(EVENTS);
+  }
+
   /** The application's clock; a test moves it forward. */
   static final MutableClock CLOCK = new MutableClock();
 
@@ -322,7 +327,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
 
     @Test
     void registering_publishes_credential_added_with_the_label() {
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new CredentialAdded(
                   NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
@@ -339,7 +344,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
                   .with(csrf()));
 
       assertThat(deleted.getStatus()).isEqualTo(204);
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new CredentialRevoked(
                   NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
@@ -355,7 +360,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
 
       userRepository.delete(registered.getUserEntityUserId());
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new CredentialRevoked(
                   NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
@@ -371,7 +376,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
 
       whoService.deleteIdentity(identity.id());
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .filteredOn(CredentialRevoked.class::isInstance)
           .containsExactly(
               new CredentialRevoked(
@@ -389,7 +394,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
 
       assertThat(signIn().getStatus()).isEqualTo(200);
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new SignInSucceeded(NOW, SignInMethod.PASSKEY, identity.id(), credentialUuid));
     }
@@ -400,7 +405,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
 
       assertThat(signIn(forged()).getStatus()).isEqualTo(401);
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .singleElement()
           .isInstanceOfSatisfying(
               SignInFailed.class,
@@ -420,7 +425,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
 
       assertThat(signIn().getStatus()).isEqualTo(401);
 
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .singleElement()
           .isInstanceOfSatisfying(
               SignInFailed.class,
@@ -447,7 +452,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
       MockHttpServletResponse refused = perform(post("/webauthn/register/options").with(csrf()));
 
       assertThat(refused.getStatus()).isEqualTo(401);
-      assertThat(EVENTS)
+      assertThat(publishedEvents())
           .containsExactly(
               new PasskeyRegistrationRefused(
                   later,
