@@ -114,19 +114,28 @@ spring:
 ```
 
 A provider configured by its endpoints instead of `issuer-uri` needs its issuer from you, since
-Spring would otherwise check none:
+Spring would otherwise check none. Without discovery, the registration also names its grant type
+and callback:
 
 ```yaml
 spring:
   security:
     oauth2:
       client:
+        registration:
+          keycloak:
+            client-id: app
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            scope: openid,email,profile
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           keycloak:
             authorization-uri: https://sso.example.com/realms/main/protocol/openid-connect/auth
             token-uri: https://sso.example.com/realms/main/protocol/openid-connect/token
             jwk-set-uri: https://sso.example.com/realms/main/protocol/openid-connect/certs
             user-info-uri: https://sso.example.com/realms/main/protocol/openid-connect/userinfo
+            user-name-attribute: sub
 who:
   oidc:
     providers:

@@ -16,16 +16,25 @@
 package org.jwcarman.who.oidc.aot;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponseType;
 
 /**
- * Lets a native image keep a {@link PendingSignUp} in a session store that serializes its
- * attributes, such as Spring Session JDBC.
+ * Lets a native image keep a {@link PendingSignUp}, and Spring's {@link OAuth2AuthorizationRequest}
+ * that crosses the redirect to the provider, in a session store that serializes its attributes,
+ * such as Spring Session JDBC. Spring Security registers no serialization hints for the request
+ * itself.
  */
 public class OidcRuntimeHints implements RuntimeHintsRegistrar {
 
@@ -41,13 +50,27 @@ public class OidcRuntimeHints implements RuntimeHintsRegistrar {
           Number.class,
           Long.class,
           Integer.class,
-          Double.class
+          Double.class,
+          OAuth2AuthorizationRequest.class,
+          AuthorizationGrantType.class,
+          OAuth2AuthorizationResponseType.class,
+          LinkedHashSet.class,
+          HashSet.class,
+          LinkedHashMap.class,
+          HashMap.class
         }) {
       hints.reflection().registerJavaSerialization(type);
     }
-    // package-private: Instant serializes through java.time.Ser, Map.copyOf's maps through
-    // java.util.CollSer
-    for (String type : new String[] {"java.time.Ser", "java.util.CollSer"}) {
+    // not public: Instant serializes through java.time.Ser, Map.copyOf's maps through
+    // java.util.CollSer, and the request's scopes and parameters are unmodifiable views
+    for (String type :
+        new String[] {
+          "java.time.Ser",
+          "java.util.CollSer",
+          "java.util.Collections$UnmodifiableCollection",
+          "java.util.Collections$UnmodifiableSet",
+          "java.util.Collections$UnmodifiableMap"
+        }) {
       hints
           .reflection()
           .registerType(TypeReference.of(type), builder -> builder.withJavaSerialization(true));

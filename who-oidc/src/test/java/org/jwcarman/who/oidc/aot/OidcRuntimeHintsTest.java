@@ -17,7 +17,13 @@ package org.jwcarman.who.oidc.aot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -29,6 +35,7 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
 import org.springframework.core.io.support.SpringFactoriesLoader;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class OidcRuntimeHintsTest {
@@ -60,6 +67,43 @@ class OidcRuntimeHintsTest {
           .as(type)
           .accepts(hints);
     }
+  }
+
+  @Test
+  void the_authorization_request_kept_across_the_redirect_can_be_serialized() throws IOException {
+    RuntimeHints hints = new RuntimeHints();
+    new OidcRuntimeHints().registerHints(hints, getClass().getClassLoader());
+    OAuth2AuthorizationRequest request =
+        OAuth2AuthorizationRequest.authorizationCode()
+            .authorizationUri("https://provider.example.com/authorize")
+            .clientId("client")
+            .redirectUri("https://app.example.com/login/oauth2/code/test")
+            .scopes(Set.of("openid", "email"))
+            .state("state")
+            .additionalParameters(Map.of("nonce", "hashed-nonce", "prompt", "select_account"))
+            .attributes(Map.of("registration_id", "test", "nonce", "nonce"))
+            .build();
+
+    for (Class<?> type : classesWritten(request)) {
+      assertThat(RuntimeHintsPredicates.reflection().onJavaSerialization(type, true))
+          .as(type.getName())
+          .accepts(hints);
+    }
+  }
+
+  /** Every class Java serialization writes for the object, as a session store would. */
+  private static Set<Class<?>> classesWritten(Object value) throws IOException {
+    Set<Class<?>> classes = new LinkedHashSet<>();
+    try (ObjectOutputStream out =
+        new ObjectOutputStream(new ByteArrayOutputStream()) {
+          @Override
+          protected void annotateClass(Class<?> type) {
+            classes.add(type);
+          }
+        }) {
+      out.writeObject(value);
+    }
+    return classes;
   }
 
   @Test

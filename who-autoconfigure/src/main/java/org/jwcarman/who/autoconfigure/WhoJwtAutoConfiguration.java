@@ -30,6 +30,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProp
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -111,7 +113,12 @@ public class WhoJwtAutoConfiguration {
   private static void requireAudiences(Environment environment) {
     boolean bootBuildsTheDecoder =
         DECODER_PROPERTIES.stream().map(environment::getProperty).anyMatch(StringUtils::hasText);
-    if (bootBuildsTheDecoder && !StringUtils.hasText(environment.getProperty(AUDIENCES))) {
+    boolean audiencesSet =
+        Binder.get(environment)
+            .bind(AUDIENCES, Bindable.listOf(String.class))
+            .map(audiences -> audiences.stream().anyMatch(StringUtils::hasText))
+            .orElse(false);
+    if (bootBuildsTheDecoder && !audiencesSet) {
       throw new WhoConfigurationException(
           AUDIENCES,
           "is not set, so who-jwt would accept a token issued to any audience",

@@ -459,6 +459,17 @@ class WhoSecurityAllTest {
     }
 
     @Test
+    void audiences_as_a_list_starts() {
+      runner
+          .withUserConfiguration(Decoder.class)
+          .withPropertyValues(
+              "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://issuer.example.com/jwks",
+              "spring.security.oauth2.resourceserver.jwt.audiences[0]=api://who",
+              "spring.security.oauth2.resourceserver.jwt.audiences[1]=api://other")
+          .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
     void an_application_decoder_without_the_properties_starts() {
       runner
           .withUserConfiguration(Decoder.class)
