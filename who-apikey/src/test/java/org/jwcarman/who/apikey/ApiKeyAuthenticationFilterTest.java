@@ -19,6 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,20 +30,28 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.RequestDispatcher;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.web.SignInFailedException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -328,6 +339,83 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
           .isInstanceOf(BadCredentialsException.class);
       verifyNoInteractions(repository);
       assertThat(events).isEmpty();
+    }
+  }
+
+  /**
+   * A later dispatch of the same request (an error page, async processing) carries the same header
+   * but signs in no one: it restores the first dispatch's sign-in, if any, and never checks the key
+   * again, so a key is checked, and its event published, once per request.
+   */
+  @Nested
+  class Later_dispatches_of_the_same_request {
+
+    private final ApiKeyCredentialRepository repository = mock(ApiKeyCredentialRepository.class);
+    private final WhoService whoService = mock(WhoService.class);
+    private final ApiKeyAuthenticationFilter filter =
+        new ApiKeyAuthenticationFilter(repository, whoService, HEADER);
+
+    @AfterEach
+    void clearContext() {
+      SecurityContextHolder.clearContext();
+    }
+
+    /**
+     * Makes the request look like the container's later dispatch: an error dispatch carries the
+     * error attributes, which is how Spring's filters recognize one.
+     */
+    private static void redispatch(MockHttpServletRequest request, DispatcherType dispatch) {
+      request.setDispatcherType(dispatch);
+      if (dispatch == DispatcherType.ERROR) {
+        request.setAttribute(RequestDispatcher.ERROR_REQUEST_URI, "/secure/whoami");
+      }
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = DispatcherType.class,
+        names = {"ERROR", "ASYNC"})
+    void restore_the_first_dispatchs_sign_in_without_checking_the_key_again(DispatcherType dispatch)
+        throws Exception {
+      Identity identity = Identity.create();
+      when(repository.findByKeyHash(any()))
+          .thenReturn(Optional.of(new ApiKeyCredential(UUID.randomUUID(), "k", "hash")));
+      when(whoService.resolveDetailed(any()))
+          .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.addHeader(HEADER, "who_valid");
+      filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+      SecurityContextHolder.clearContext();
+
+      redispatch(request, dispatch);
+      MockFilterChain chain = new MockFilterChain();
+      filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+      assertThat(chain.getRequest()).isSameAs(request);
+      assertThat(SecurityContextHolder.getContext().getAuthentication())
+          .extracting(a -> ((WhoPrincipal) a.getPrincipal()).identity())
+          .isEqualTo(identity);
+      verify(repository, times(1)).findByKeyHash(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = DispatcherType.class,
+        names = {"ERROR", "ASYNC"})
+    void continue_without_a_sign_in_when_the_first_made_none(DispatcherType dispatch)
+        throws Exception {
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.addHeader(HEADER, "who_unknown");
+      redispatch(request, dispatch);
+      MockHttpServletResponse response = new MockHttpServletResponse();
+      MockFilterChain chain = new MockFilterChain();
+
+      filter.doFilter(request, response, chain);
+
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(chain.getRequest()).isSameAs(request);
+      assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+      verify(repository, never()).findByKeyHash(any());
     }
   }
 }

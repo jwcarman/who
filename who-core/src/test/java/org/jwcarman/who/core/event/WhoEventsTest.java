@@ -108,6 +108,35 @@ class WhoEventsTest {
       assertThat(event.occurredAt()).isEqualTo(NOW);
     }
 
+    @Test
+    void events_keep_what_they_were_given() {
+      assertThat(new SignInSucceeded(NOW, SignInMethod.PASSKEY, ID, CRED))
+          .extracting(
+              SignInSucceeded::occurredAt,
+              SignInSucceeded::method,
+              SignInSucceeded::identityId,
+              SignInSucceeded::credentialId)
+          .containsExactly(NOW, SignInMethod.PASSKEY, ID, CRED);
+      assertThat(new SignedOut(NOW, ID, CRED))
+          .extracting(SignedOut::occurredAt, SignedOut::identityId, SignedOut::credentialId)
+          .containsExactly(NOW, ID, CRED);
+      assertThat(new SessionEnded(NOW, ID, CRED, SessionEndReason.CREDENTIAL_REVOKED))
+          .extracting(
+              SessionEnded::occurredAt,
+              SessionEnded::identityId,
+              SessionEnded::credentialId,
+              SessionEnded::reason)
+          .containsExactly(NOW, ID, CRED, SessionEndReason.CREDENTIAL_REVOKED);
+      assertThat(new CredentialAdded(NOW, ID, CRED, CredentialKind.API_KEY, "laptop"))
+          .extracting(
+              CredentialAdded::occurredAt,
+              CredentialAdded::identityId,
+              CredentialAdded::credentialId,
+              CredentialAdded::kind,
+              CredentialAdded::label)
+          .containsExactly(NOW, ID, CRED, CredentialKind.API_KEY, "laptop");
+    }
+
     private static void assertNpe(String name, Runnable construction) {
       assertThatNullPointerException()
           .isThrownBy(construction::run)

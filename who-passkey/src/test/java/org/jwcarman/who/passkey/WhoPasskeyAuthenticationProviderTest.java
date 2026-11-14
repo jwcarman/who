@@ -40,6 +40,7 @@ import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
@@ -149,6 +150,56 @@ class WhoPasskeyAuthenticationProviderTest {
     assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class)
         .hasMessage("invalid_credential");
+  }
+
+  @Test
+  void aCredentialWhoseIdentityIsGoneIsAnInvalidAssertion() {
+    Instant now = Instant.parse("2026-11-13T10:00:00Z");
+    List<WhoEvent> events = new ArrayList<>();
+    WhoPasskeyAuthenticationProvider stamping =
+        new WhoPasskeyAuthenticationProvider(
+            rpOperations,
+            credentialRepository,
+            whoService,
+            events::add,
+            Clock.fixed(now, ZoneOffset.UTC));
+    UUID deletedIdentity = UUID.randomUUID();
+    verifiedAssertion();
+    when(credentialRepository.credentialUuid(rawId)).thenReturn(Optional.of(credentialUuid));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new NoIdentity(deletedIdentity));
+
+    assertThatThrownBy(() -> stamping.authenticate(token))
+        .isInstanceOf(BadCredentialsException.class)
+        .hasMessage("invalid_credential");
+
+    assertThat(events)
+        .containsExactly(
+            new SignInFailed(
+                now,
+                SignInMethod.PASSKEY,
+                SignInFailureReason.INVALID_ASSERTION,
+                null,
+                deletedIdentity,
+                credentialUuid));
+  }
+
+  @Test
+  void aFaultResolvingTheCredentialIsTheUniformAnswerAndReportsNoReason() {
+    List<WhoEvent> events = new ArrayList<>();
+    WhoPasskeyAuthenticationProvider stamping =
+        new WhoPasskeyAuthenticationProvider(
+            rpOperations, credentialRepository, whoService, events::add, Clock.systemUTC());
+    verifiedAssertion();
+    when(credentialRepository.credentialUuid(rawId)).thenReturn(Optional.of(credentialUuid));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenThrow(new DataRetrievalFailureException("database down"));
+
+    assertThatThrownBy(() -> stamping.authenticate(token))
+        .isInstanceOf(BadCredentialsException.class)
+        .hasMessage("invalid_credential")
+        .hasNoCause();
+    assertThat(events).isEmpty();
   }
 
   @Test

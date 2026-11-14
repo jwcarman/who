@@ -44,6 +44,7 @@ import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
@@ -209,6 +210,34 @@ class EmailLinkAuthenticationProviderTest {
         .thenReturn(new Inactive(UUID.randomUUID()));
 
     assertInvalid(new LinkToken("value"));
+  }
+
+  @Test
+  void aLinkWhoseIdentityIsGoneIsAnInvalidLink() {
+    List<WhoEvent> events = new ArrayList<>();
+    EmailLinkAuthenticationProvider publishing =
+        new EmailLinkAuthenticationProvider(
+            repository, SETTINGS, whoService, Clock.fixed(NOW, ZoneOffset.UTC), events::add);
+    UUID deletedIdentity = UUID.randomUUID();
+    when(repository.consume(anyString(), any())).thenReturn(Optional.of(credentialId));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new NoIdentity(deletedIdentity));
+    EmailSignInAuthenticationToken token = signIn(new LinkToken("value"));
+
+    assertThatThrownBy(() -> publishing.authenticate(token))
+        .isInstanceOf(InvalidOneTimeTokenException.class)
+        .hasMessage("invalid_token");
+
+    assertThat(events)
+        .singleElement()
+        .isInstanceOfSatisfying(
+            SignInFailed.class,
+            failed -> {
+              assertThat(failed.method()).isEqualTo(SignInMethod.EMAIL_LINK);
+              assertThat(failed.reason()).isEqualTo(SignInFailureReason.INVALID_LINK);
+              assertThat(failed.identityId()).isEqualTo(deletedIdentity);
+              assertThat(failed.credentialId()).isEqualTo(credentialId);
+            });
   }
 
   @Test

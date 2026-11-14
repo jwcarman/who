@@ -46,6 +46,7 @@ import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -244,6 +245,35 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
   @Nested
   class Resolving_a_key {
+
+    @Test
+    void a_key_whose_identity_is_gone_is_an_unknown_key_with_both_ids() {
+      ApiKeyCredentialRepository repository = mock(ApiKeyCredentialRepository.class);
+      ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "events", "hash");
+      when(repository.findByKeyHash(ApiKeyService.sha256Hex("who_key")))
+          .thenReturn(Optional.of(credential));
+      WhoService whoService = mock(WhoService.class);
+      UUID deletedIdentity = UUID.randomUUID();
+      when(whoService.resolveDetailed(credential)).thenReturn(new NoIdentity(deletedIdentity));
+      List<WhoEvent> published = new ArrayList<>();
+      ApiKeyAuthenticationProvider provider =
+          new ApiKeyAuthenticationProvider(
+              repository, whoService, published::add, Clock.fixed(NOW, ZoneOffset.UTC));
+      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken("who_key");
+
+      assertThatThrownBy(() -> provider.authenticate(token))
+          .isInstanceOf(BadCredentialsException.class);
+
+      assertThat(published)
+          .containsExactly(
+              new SignInFailed(
+                  NOW,
+                  SignInMethod.API_KEY,
+                  SignInFailureReason.UNKNOWN_KEY,
+                  null,
+                  deletedIdentity,
+                  credential.id()));
+    }
 
     @Test
     void a_missing_resolution_is_treated_as_not_linked() {

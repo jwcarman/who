@@ -139,6 +139,33 @@ class JdbcEnrollmentTokenRepositoryTest extends AbstractEnrollmentTest {
   }
 
   @Test
+  void revokeAllPendingForIdentityRevokesOnlyThatIdentitysPendingTokens() {
+    Identity other = identityRepository.save(Identity.create());
+    EnrollmentToken pending =
+        repository.save(EnrollmentToken.create(identity, Duration.ofHours(24)));
+    EnrollmentToken redeemed =
+        repository.save(EnrollmentToken.create(identity, Duration.ofHours(24)));
+    repository.redeem(redeemed.id(), Instant.now());
+    EnrollmentToken othersPending =
+        repository.save(EnrollmentToken.create(other, Duration.ofHours(24)));
+
+    repository.revokeAllPendingForIdentity(identity.id());
+
+    assertThat(repository.findById(pending.id()))
+        .get()
+        .extracting(EnrollmentToken::status)
+        .isEqualTo(EnrollmentTokenStatus.REVOKED);
+    assertThat(repository.findById(redeemed.id()))
+        .get()
+        .extracting(EnrollmentToken::status)
+        .isEqualTo(EnrollmentTokenStatus.REDEEMED);
+    assertThat(repository.findById(othersPending.id()))
+        .get()
+        .extracting(EnrollmentToken::status)
+        .isEqualTo(EnrollmentTokenStatus.PENDING);
+  }
+
+  @Test
   void revokeOnlyAffectsPending() {
     EnrollmentToken pending = EnrollmentToken.create(identity, Duration.ofHours(24));
     EnrollmentToken redeemed = EnrollmentToken.create(identity, Duration.ofHours(24));

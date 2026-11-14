@@ -30,6 +30,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -44,7 +46,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.service.Resolution.Inactive;
+import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
@@ -324,6 +328,73 @@ class EmailLinkIssuerTest {
     known(false);
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.INACTIVE_IDENTITY);
+  }
+
+  private EmailLinkIssuer publishingTo(List<WhoEvent> events) {
+    return new EmailLinkIssuer(
+        credentials,
+        whoService,
+        repository,
+        sender,
+        new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
+        Clock.fixed(NOW, ZoneOffset.UTC),
+        events::add);
+  }
+
+  @Test
+  void anAddressWhoseIdentityIsGoneSendsNothingAndReportsTheIdentity() {
+    UUID deletedIdentity = UUID.randomUUID();
+    when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new NoIdentity(deletedIdentity));
+    List<WhoEvent> events = new ArrayList<>();
+
+    assertThat(publishingTo(events).issue(ADDRESS, TOKEN))
+        .isEqualTo(EmailLinkOutcome.INACTIVE_IDENTITY);
+
+    verify(sender, never()).send(any());
+    assertThat(events)
+        .containsExactly(
+            new SignInEmailRequested(
+                NOW, ADDRESS, EmailLinkOutcome.INACTIVE_IDENTITY, deletedIdentity));
+  }
+
+  @Test
+  void anInactiveIdentityIsReportedWithItsId() {
+    UUID inactiveIdentity = UUID.randomUUID();
+    when(credentials.findByAddress(ADDRESS)).thenReturn(Optional.of(credential));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Inactive(inactiveIdentity));
+    List<WhoEvent> events = new ArrayList<>();
+
+    publishingTo(events).issue(ADDRESS, TOKEN);
+
+    assertThat(events)
+        .containsExactly(
+            new SignInEmailRequested(
+                NOW, ADDRESS, EmailLinkOutcome.INACTIVE_IDENTITY, inactiveIdentity));
+  }
+
+  @Test
+  void aListenerThatThrowsLeavesTheOutcomeAloneAndIsLoggedSafely() {
+    known(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
+    EmailLinkIssuer throwing =
+        new EmailLinkIssuer(
+            credentials,
+            whoService,
+            repository,
+            sender,
+            new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            event -> {
+              throw new IllegalStateException("secret-detail");
+            });
+
+    assertThat(throwing.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
+
+    verify(sender).send(any());
+    assertOneSafeWarning("IllegalStateException", false);
   }
 
   @Test

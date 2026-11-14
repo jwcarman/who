@@ -34,6 +34,7 @@ import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.authentication.ott.InvalidOneTimeTokenException;
 
 import tools.jackson.databind.JsonNode;
@@ -107,6 +108,23 @@ class JsonAuthenticationHandlersTest {
     assertThat(published)
         .containsExactly(
             new SignInSucceeded(NOW, SignInMethod.EMAIL_CODE, identity.id(), credentialId));
+  }
+
+  @Test
+  void successFromAnotherKindOfAuthenticationAnswersButPublishesNothing() throws Exception {
+    Identity identity = Identity.create();
+
+    publishing
+        .success()
+        .onAuthenticationSuccess(
+            new MockHttpServletRequest(),
+            response,
+            new TestingAuthenticationToken(new WhoPrincipal(identity, Set.of()), null));
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(mapper.readTree(response.getContentAsString()).get("identityId").asString())
+        .isEqualTo(identity.id().toString());
+    assertThat(published).isEmpty();
   }
 
   @Test
