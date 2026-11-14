@@ -31,6 +31,7 @@ import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyService;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -107,6 +108,29 @@ class ModuleActivationTest {
           .withUserConfiguration(Database.class)
           .withPropertyValues(LINK, SECRET, RP_ID)
           .run(context -> assertMissing(context, "spring.mail.host", "email-link"));
+    }
+
+    @Test
+    void without_the_mail_starter_the_failure_names_it() {
+      new ApplicationContextRunner()
+          .withConfiguration(WhoTestAutoConfigurations.who())
+          .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
+          .withUserConfiguration(Database.class)
+          .withPropertyValues(
+              LINK,
+              SECRET,
+              RP_ID,
+              "spring.mail.host=smtp.example.com",
+              "who.email-link.from=sign-in@example.com")
+          .run(
+              context -> {
+                assertMissing(context, "spring.mail.host", "email-link");
+                assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOfSatisfying(
+                        WhoConfigurationException.class,
+                        e -> assertThat(e.action()).contains("spring-boot-starter-mail"));
+              });
     }
   }
 

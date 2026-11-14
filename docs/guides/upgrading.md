@@ -26,7 +26,7 @@ changes.
 
     | Module | Fails startup without |
     |---|---|
-    | `who-email-link` | `who.email-link.link-base-url`, `who.email-link.code-secret`, and an `EmailLinkSender` or `spring.mail.host` with `who.email-link.from` |
+    | `who-email-link` | `who.email-link.link-base-url`, `who.email-link.code-secret`, and an `EmailLinkSender` bean, or `spring-boot-starter-mail` with `spring.mail.host` and `who.email-link.from` |
     | `who-passkey` | `who.passkey.rp-id` |
     | `who-jwt` (when who mounts it) | `spring.security.oauth2.resourceserver.jwt.issuer-uri`, `jwk-set-uri`, `public-key-location`, or a `JwtDecoder` bean |
 
@@ -34,7 +34,8 @@ changes.
     `who.api-key.enabled`, `who.jwt.enabled` or `who.enrollment.enabled` to `false`.
 
 - **An application with no `SecurityFilterChain` gets who's chain instead of Spring Boot's.**
-  Boot's default chain (form login, HTTP Basic, a generated password) is replaced by who's: every
+  Boot's default chains (form login and HTTP Basic, and the resource server's, Actuator's,
+  `oauth2Login`'s and the authorization server's) are replaced by who's: every
   sign-in method on the classpath, `401` for a signed-out request, and no redirect to `/login`.
   Only `/error`, the sign-in endpoints, Actuator's health endpoint and the paths in
   `who.security.public-paths` are open to signed-out requests. List your own sign-in page and its

@@ -113,7 +113,8 @@ Set it to the URL of your sign-in page, such as https://app.example.com/signin. 
 
 ## Secure the app
 
-With no `SecurityFilterChain` of your own, who registers one in place of Spring Boot's. It mounts
+With no `SecurityFilterChain` of your own, who registers one in place of each default chain
+Spring Boot would register (form login, the resource server's, Actuator's, `oauth2Login`'s). It mounts
 every sign-in method on the classpath and answers a signed-out request with `401` (as a
 `NotSignedInException`, so your `@RestControllerAdvice` can shape it; see [Errors](errors.md)).
 There is no login page and no redirect. Signed-out requests may reach only:
@@ -135,9 +136,11 @@ who:
 ```
 
 When a browser sign-in method (email link or passkey) is present, the chain protects against
-CSRF with Spring's `csrf.spa()`; requests that carry an API key or a bearer token are exempt,
-because they bring their own credential. With only API keys or JWTs, nothing gives a request a
-session, so the chain does not check CSRF.
+CSRF with Spring's `csrf.spa()`. A request with a bearer token is exempt: the token signs it in
+or it gets `401`. A request with an API key is exempt when it has no session; a request with a
+session ignores the key and keeps its CSRF check. With only API keys or JWTs, who gives no request
+a session, so the chain checks CSRF only on requests that bring one, and a signed-out client can
+post to a public path.
 
 ### Your own chain
 

@@ -24,7 +24,7 @@ who:
     code-secret: <at least 32 random characters>
 ```
 
-The application also needs a way to send mail. Either register an `EmailLinkSender` bean, or set `spring.mail.host` and `who.email-link.from` to send through Spring Boot's `JavaMailSender`:
+The application also needs a way to send mail. Either register an `EmailLinkSender` bean, or send through Spring Boot's `JavaMailSender`: add `spring-boot-starter-mail` (who-email-link does not bring it) and set `spring.mail.host` and `who.email-link.from`:
 
 ```yaml
 spring:
@@ -43,7 +43,7 @@ Startup fails, and the message names the fix, if:
 - `who.email-link.code-length` is below 6;
 - `who.email-link.code-max-attempts` is below 1;
 - `who.email-link.code-secret` is missing, shorter than 32 characters, or an unresolved placeholder such as `${CODE_SECRET}` (Spring binds an unset variable as that literal text);
-- there is no `EmailLinkSender` and no `JavaMailSender` with `who.email-link.from`;
+- there is no `EmailLinkSender`, and no `JavaMailSender` (from `spring-boot-starter-mail` and `spring.mail.host`) with `who.email-link.from`;
 - `who.email-link.resend-interval` is longer than `who.email-link.token-ttl`.
 
 Each message also says how to turn email links off without removing the jar:

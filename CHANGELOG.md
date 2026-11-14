@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The format follows
 - The "passkey added" startup warning is logged by `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`.
 - who's autoconfiguration is split into one class per module (`WhoAutoConfiguration`, `WhoSpringSecurityAutoConfiguration`, `WhoEmailLinkAutoConfiguration`, `WhoPasskeyAutoConfiguration`, `WhoApiKeyAutoConfiguration`, `WhoJwtAutoConfiguration`, `WhoEnrollmentAutoConfiguration`, `WhoWebSecurityAutoConfiguration`), so `@ImportAutoConfiguration` and exclusions can name one module.
 - The native test apps use the starter and who's default chain, with no security configuration of their own.
+- When email links have no `EmailLinkSender` and Spring's mail support is not on the classpath, the startup failure says to add `spring-boot-starter-mail` (who-email-link does not bring it).
 
 ### Fixed
 

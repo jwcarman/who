@@ -52,11 +52,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.core.task.support.CompositeTaskDecorator;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 import io.micrometer.observation.ObservationRegistry;
@@ -80,6 +82,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class WhoEmailLinkAutoConfiguration {
 
   static final String EXECUTOR_BEAN_NAME = "whoEmailLinkExecutor";
+
+  private static final String JAVA_MAIL_SENDER = "org.springframework.mail.javamail.JavaMailSender";
 
   @Bean
   @ConditionalOnMissingBean
@@ -205,8 +209,19 @@ public class WhoEmailLinkAutoConfiguration {
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher whoEventPublisher,
-      ObjectProvider<ObservationRegistry> observationRegistry) {
+      ObjectProvider<ObservationRegistry> observationRegistry,
+      ResourceLoader resourceLoader) {
     EmailLinkSender sender = emailLinkSender.getIfAvailable();
+    if (sender == null
+        && !ClassUtils.isPresent(JAVA_MAIL_SENDER, resourceLoader.getClassLoader())) {
+      throw new WhoConfigurationException(
+          "spring.mail.host",
+          "cannot be used, because Spring's mail support is not on the classpath, so sign-in emails"
+              + " cannot be sent",
+          "Add spring-boot-starter-mail and set spring.mail.host and who.email-link.from, or"
+              + " register an EmailLinkSender bean."
+              + " Or turn email-link sign-in off with who.email-link.enabled=false.");
+    }
     if (sender == null) {
       throw new WhoConfigurationException(
           "spring.mail.host",

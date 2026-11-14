@@ -26,9 +26,21 @@ Two code choices keep who native-friendly:
 
 ## Set who's switches at build time
 
-Spring AOT decides at build time which beans the image contains, so it evaluates `@ConditionalOnProperty` then, not when the binary starts. who switches email links on with `who.email-link.link-base-url` and passkeys with `who.passkey.rp-id`. If a property is missing when the image is built, the feature is missing from the binary, even if you pass the property when it starts, and startup fails with a missing bean (such as `EmailCredentialService`).
+Spring AOT decides at build time which beans the image contains, so it evaluates who's conditions
+then, not when the binary starts:
 
-Put both in `application.yml`, with the value you use most or a placeholder with a default, and override it at run time as usual:
+- **The jars on the classpath.** Each sign-in module the image is built with is on.
+- **The `enabled` flags.** `who.email-link.enabled`, `who.passkey.enabled`, `who.api-key.enabled`,
+  `who.jwt.enabled` and `who.enrollment.enabled` are read at build time. Passing
+  `--who.passkey.enabled=false` to the binary does not turn passkeys off; set it in
+  `application.yml` before building, or leave the module's jar out.
+- **who's default chain.** Whether the application has a `SecurityFilterChain` of its own, and so
+  whether who's chain exists, is decided at build time too.
+
+A module's required settings, such as `who.email-link.link-base-url` or `who.passkey.rp-id`, are
+read when its beans are created, so the binary still fails startup without them. Put them in
+`application.yml`, with the value you use most or a placeholder with a default, and override them
+at run time as usual:
 
 ```yaml
 who:
@@ -38,7 +50,9 @@ who:
     rp-id: ${RP_ID:localhost}
 ```
 
-The same applies to Spring Boot's own switches, such as `spring.security.oauth2.resourceserver.jwt.public-key-location` or `jwk-set-uri` for a JWT resource server.
+Spring Boot's own switches are build-time conditions as well, such as
+`spring.security.oauth2.resourceserver.jwt.public-key-location` or `jwk-set-uri`, which decide
+whether Boot creates the `JwtDecoder` that who's JWT sign-in needs.
 
 ## Liquibase
 
