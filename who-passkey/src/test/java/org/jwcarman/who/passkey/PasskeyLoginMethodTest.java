@@ -47,6 +47,7 @@ import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
+import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -318,6 +319,8 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     ObjectProvider<WhoEventPublisher> publishers = mock();
     when(context.getBeanProvider(WhoEventPublisher.class)).thenReturn(publishers);
     when(publishers.getIfAvailable(any())).thenReturn(WhoEventPublisher.NOOP);
+    ObjectProvider<LastSignInCookie> cookies = mock();
+    when(context.getBeanProvider(LastSignInCookie.class)).thenReturn(cookies);
     when(http.getSharedObject(ApplicationContext.class)).thenReturn(context);
     when(http.getSharedObject(UserDetailsService.class)).thenReturn(shared);
     when(context.getBeanProvider(UserDetailsService.class)).thenReturn(beans);
