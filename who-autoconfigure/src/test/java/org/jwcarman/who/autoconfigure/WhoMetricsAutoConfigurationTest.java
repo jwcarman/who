@@ -29,6 +29,9 @@ import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.emaillink.SignInEmailRequested;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -105,6 +108,35 @@ class WhoMetricsAutoConfigurationTest {
                 SpringWhoEventPublisher publisher = new SpringWhoEventPublisher(context);
 
                 assertThatCode(() -> publisher.publish(FAILED)).doesNotThrowAnyException();
+              });
+    }
+  }
+
+  @Nested
+  class With_spring_boots_metrics_autoconfiguration {
+
+    @Test
+    void finds_the_registry_boot_creates_and_counts() {
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  WhoMetricsAutoConfiguration.class,
+                  MetricsAutoConfiguration.class,
+                  SimpleMetricsExportAutoConfiguration.class,
+                  CompositeMeterRegistryAutoConfiguration.class))
+          .run(
+              context -> {
+                assertThat(context).hasSingleBean(WhoMetrics.class);
+                context.publishEvent(FAILED);
+
+                assertThat(
+                        context
+                            .getBean(MeterRegistry.class)
+                            .get("who.sign-ins")
+                            .tags("method", "passkey", "outcome", "failure")
+                            .counter()
+                            .count())
+                    .isEqualTo(1.0);
               });
     }
   }
