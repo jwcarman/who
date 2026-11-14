@@ -5,10 +5,14 @@ spring:
   # allowed-origins
 
 who:
+  security:
+    # who's default chain opens these to signed-out requests
+    public-paths:
+      - "/test/**"
   initialize-schema: never
   email-link:
-    # Set here, not only as an argument: Spring AOT decides at build time which beans exist, and
-    # who's email-link beans exist only when this property does. The test overrides the value.
+    # Set here, not only as an argument: Spring AOT builds the beans at build time, and email-link
+    # sign-in fails startup without it. The test overrides the value.
     link-base-url: http://localhost:8080/signin
     from: sign-in@example.test
     # a fixed secret is fine: this app exists only for tests

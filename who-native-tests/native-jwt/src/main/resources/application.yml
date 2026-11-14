@@ -11,5 +11,10 @@ spring:
           public-key-location: file:target/jwt-public-key.pem
 
 who:
+  security:
+    # who's default chain opens these to signed-out requests
+    public-paths:
+      - "/api/open"
+      - "/test/**"
   # who's own schema scripts, not Liquibase: the other path native.md documents
   initialize-schema: always
