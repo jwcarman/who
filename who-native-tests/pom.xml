@@ -37,6 +37,7 @@
     <modules>
         <module>native-test-support</module>
         <module>native-email-link</module>
+        <module>native-passkey</module>
     </modules>
 
     <properties>

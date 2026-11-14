@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: native-passkey
+  # spring.datasource.*, who.email-link.link-base-url and who.passkey.allowed-origins come from
+  # the test's arguments
+
+who:
+  initialize-schema: never
+  email-link:
+    from: sign-in@example.test
+    # a fixed secret is fine: this app exists only for tests
+    code-secret: native-tests-only-code-secret-0123456789
+  passkey:
+    rp-id: localhost
+    rp-name: Native Passkey
