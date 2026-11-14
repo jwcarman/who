@@ -35,8 +35,6 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.event.CredentialRevoked;
-import org.jwcarman.who.core.event.SignInMethod;
-import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
@@ -102,7 +100,7 @@ class ApiKeyEventsAutoConfigurationTest {
   class The_autoconfigured_beans {
 
     @Test
-    void publish_creation_sign_in_and_revocation_of_a_key() {
+    void publish_creation_and_revocation_of_a_key_but_not_its_sign_in() {
       runner.run(
           context -> {
             Identity identity = context.getBean(WhoService.class).createIdentity();
@@ -119,7 +117,6 @@ class ApiKeyEventsAutoConfigurationTest {
                 .containsExactly(
                     new CredentialAdded(
                         NOW, identity.id(), credentialId, CredentialKind.API_KEY, "Laptop"),
-                    new SignInSucceeded(NOW, SignInMethod.API_KEY, identity.id(), credentialId),
                     new CredentialRevoked(
                         NOW, identity.id(), credentialId, CredentialKind.API_KEY, "Laptop"));
           });

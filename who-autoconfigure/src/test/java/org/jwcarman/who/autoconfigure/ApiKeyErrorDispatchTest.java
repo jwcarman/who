@@ -42,10 +42,10 @@ import org.jwcarman.who.autoconfigure.EmailLinkSignInTest.RecordingSender;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInMethod;
-import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -54,9 +54,14 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.webmvc.error.DefaultErrorAttributes;
 import org.springframework.boot.webmvc.error.ErrorAttributes;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
+import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -93,6 +98,9 @@ class ApiKeyErrorDispatchTest {
   /** Every event who published, in order. */
   static final List<WhoEvent> EVENTS = new CopyOnWriteArrayList<>();
 
+  /** Every authentication Spring reported as successful, in order. */
+  static final List<AuthenticationSuccessEvent> SPRING_SUCCESSES = new CopyOnWriteArrayList<>();
+
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
@@ -107,6 +115,16 @@ class ApiKeyErrorDispatchTest {
     @Bean
     WhoEventPublisher whoEventPublisher() {
       return EVENTS::add;
+    }
+
+    @Bean
+    AuthenticationEventPublisher authenticationEventPublisher(ApplicationEventPublisher events) {
+      return new DefaultAuthenticationEventPublisher(events);
+    }
+
+    @Bean
+    ApplicationListener<AuthenticationSuccessEvent> springSuccesses() {
+      return SPRING_SUCCESSES::add;
     }
 
     @Bean
@@ -225,9 +243,7 @@ class ApiKeyErrorDispatchTest {
     return EVENTS.stream()
         .filter(
             event ->
-                event instanceof SignInFailed failed && failed.method() == SignInMethod.API_KEY
-                    || event instanceof SignInSucceeded succeeded
-                        && succeeded.method() == SignInMethod.API_KEY)
+                event instanceof SignInFailed failed && failed.method() == SignInMethod.API_KEY)
         .toList();
   }
 
@@ -255,13 +271,24 @@ class ApiKeyErrorDispatchTest {
       Identity identity = whoService.createIdentity();
       String key = apiKeyService.create(identity, "error-dispatch");
       EVENTS.clear();
+      SPRING_SUCCESSES.clear();
 
       HttpResponse<String> missing = get("/secure/missing", key);
 
       assertThat(missing.statusCode()).isEqualTo(404);
       assertThat(json.readTree(missing.body()).path("who").asString())
           .isEqualTo(identity.id().toString());
-      assertThat(apiKeyEvents()).singleElement().isInstanceOf(SignInSucceeded.class);
+      // a valid key publishes no who event; Spring reports the one authentication
+      assertThat(apiKeyEvents()).isEmpty();
+      assertThat(SPRING_SUCCESSES)
+          .singleElement()
+          .satisfies(
+              success ->
+                  assertThat(success.getAuthentication())
+                      .isInstanceOfSatisfying(
+                          WhoAuthenticationToken.class,
+                          token ->
+                              assertThat(token.signInMethod()).hasValue(SignInMethod.API_KEY)));
     }
   }
 }
