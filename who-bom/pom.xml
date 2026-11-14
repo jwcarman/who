@@ -88,6 +88,11 @@
             </dependency>
             <dependency>
                 <groupId>org.jwcarman.who</groupId>
+                <artifactId>who-oidc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jwcarman.who</groupId>
                 <artifactId>who-test</artifactId>
                 <version>${project.version}</version>
             </dependency>
