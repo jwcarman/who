@@ -1,6 +1,6 @@
 # Roadmap
 
-Where who is going after 0.16.0. Each release below is a theme, not a promise: order and scope
+Where who is going after 0.17.0. Each release below is a theme, not a promise: order and scope
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 

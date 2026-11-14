@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-14
+
 ### Breaking changes
 
 - An API key that is unknown, revoked, or belongs to an inactive identity gets the uniform `401` at once, even on endpoints that permit anonymous access. Before, the request continued as anonymous. No header, or a blank header, behaves as before.
@@ -319,7 +321,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.16.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.17.0...HEAD
+[0.17.0]: https://github.com/jwcarman/who/releases/tag/0.17.0
 [0.16.0]: https://github.com/jwcarman/who/releases/tag/0.16.0
 [0.15.0]: https://github.com/jwcarman/who/releases/tag/0.15.0
 [0.14.0]: https://github.com/jwcarman/who/releases/tag/0.14.0
