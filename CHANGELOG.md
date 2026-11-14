@@ -19,6 +19,9 @@ All notable changes to this project are documented here. The format follows
 - `WhoService.resolveDetailed`, which says why a credential did not resolve (not linked, no such identity, inactive). `Resolution` may gain outcomes in a minor release, so a `switch` over it needs a default branch; a `null` answer, such as from a mock, is treated as not linked.
 - One DEBUG log line for each failed sign-in, with its reason.
 - A native test bed in who's own build: `who-native-tests` has one small app per sign-in method (email link and code, passkey, API key, JWT), each depending only on the who modules that method needs, and each compiled as a GraalVM native image and driven over HTTP against PostgreSQL, events included. The Native workflow runs them on `main` and weekly. The apps are never published.
+- Micrometer meters built from who's events, registered when the application has a `MeterRegistry` (for example with Actuator): `who.sign-ins{method, outcome, reason}`, `who.sign-in.emails{outcome}`, `who.sign-outs`, `who.sessions.ended{reason}`, `who.credentials.added{kind}` and `who.credentials.revoked{kind}`. Tag values come only from who's enums; no address or id is a tag.
+- Micrometer observations `who.principal.resolve` (every credential resolution, so every authenticated request) and `who.sign-in.email.issue` (looking up the address, storing the code and sending the mail), each tagged with its `outcome`. A failing observation handler is logged and never changes who's answer.
+- `WhoService` and `EmailLinkIssuer` constructors that take an `ObservationRegistry`; the existing constructors observe nothing.
 
 ### Changed
 
@@ -41,7 +44,12 @@ All notable changes to this project are documented here. The format follows
 - An [Events](https://jwcarman.github.io/who/guides/events/) guide: every event, when listeners run, personal data, reading the actor and client, and the compatibility policy.
 - The security model guide gains an audit trail section and the logging rule.
 - An upgrading section for 0.17.0.
+- An [Observability](https://jwcarman.github.io/who/guides/observability/) guide: every meter and tag value, the observations, and example alerts.
 - Native Images: properties that switch who's features on (`who.email-link.link-base-url`, `who.passkey.rp-id`) must be present when the image is built, because Spring AOT evaluates conditions at build time; set them in `application.yml` and override the value at run time.
+
+### Requirements
+
+- `who-core` depends on `io.micrometer:micrometer-observation` (managed by Spring Boot's dependency management).
 
 ## [0.16.0] - 2026-11-13
 

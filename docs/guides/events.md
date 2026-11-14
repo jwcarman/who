@@ -3,6 +3,7 @@
 who publishes an event for every sign-in (success and failure), sign-out, ended session, sign-in
 email, and every change to identities, credentials, enrollment tokens and roles. Use them for an
 audit log, alerts and metrics. who does not store events; your application decides what to keep.
+who already counts them as Micrometer meters; see [Observability](observability.md).
 
 Events are ordinary Spring application events. Listen with `@EventListener`:
 

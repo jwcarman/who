@@ -12,17 +12,20 @@ who publishes what happens, so applications can measure, alert on and audit it.
   method and a server-side reason: unknown address, wrong code, burnt code, expired, malformed),
   email sent or failed, credential added or revoked, identity deactivated or deleted, and role
   granted or revoked. The reason never reaches the client.
-- **Metrics.** With a `MeterRegistry` present, counters built from those events, such as
-  `who.sign-in{method, outcome, reason}` and `who.email.sent{outcome}`. Tags are bounded; no
+- **Metrics.** (Done in 0.17.0: see the [Observability guide](docs/guides/observability.md).)
+  With a `MeterRegistry` present, counters built from those events, such as
+  `who.sign-ins{method, outcome, reason}` and `who.sign-in.emails{outcome}`. Tags are bounded; no
   addresses or identity ids.
-- **Tracing.** Micrometer `Observation`s around issuing a link, redeeming a code, the mail send
-  and resolving permissions.
+- **Tracing.** (Done in 0.17.0.) Micrometer `Observation`s around resolving a principal (every
+  authenticated request) and issuing a sign-in email, including the mail send. Redeeming a code
+  is already timed by Spring Security's `spring.security.authentications`.
 - **Logging.** (Done in 0.17.0.) A DEBUG line with the reason for each failed sign-in, and a written rule that
   addresses, codes and tokens never appear at INFO or above.
-- **Actuator.** An `info` contributor naming the sign-in methods that are on.
+- **Actuator.** Moved to 0.18: who cannot yet tell whether API-key and JWT sign-in are really in
+  use, since they switch on from a class check alone.
 
-Events are stable public API from 0.17.0. Open question: whether the failure reason belongs in
-metrics at all.
+Events, meter names and observation names are stable public API from 0.17.0. The failure reason
+is a tag.
 
 ## 0.18: sensitive actions and self-service accounts
 
@@ -33,6 +36,8 @@ metrics at all.
   whenever their classes are present, and the starter always brings them. First establish what an
   application that never configured them exposes today, for the upgrade notes. The native test
   apps already use this shape.
+- **Actuator `info` contributor** naming the sign-in methods that are on, once each method has
+  its explicit switch (moved from 0.17).
 - **Recent sign-in (step-up).** Require a sign-in within the last N minutes before adding a
   passkey, changing an address, creating an API key or deleting an account, for example
   `@RequiresRecentSignIn(minutes = 5)` beside `@RequiresPermission`.
