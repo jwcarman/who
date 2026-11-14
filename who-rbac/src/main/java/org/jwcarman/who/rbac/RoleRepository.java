@@ -68,4 +68,22 @@ public interface RoleRepository {
    * @param id the role UUID
    */
   void deleteById(UUID id);
+
+  /**
+   * Deletes the role with the given id and reports whether this call removed it.
+   *
+   * <p>The default implementation checks that the role exists before deleting, so an implementation
+   * should override it with a single delete that reports the rows it affected: two concurrent
+   * deletes then report {@code true} once.
+   *
+   * @param id the role UUID
+   * @return {@code true} if the role existed and this call deleted it
+   */
+  default boolean deleteByIdIfPresent(UUID id) {
+    if (!existsById(id)) {
+      return false;
+    }
+    deleteById(id);
+    return true;
+  }
 }

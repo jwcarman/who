@@ -93,4 +93,9 @@ public class JdbcRoleRepository implements RoleRepository {
   public void deleteById(UUID id) {
     jdbcClient.sql("DELETE FROM who_role WHERE id = :id").param(COL_ID, id).update();
   }
+
+  @Override
+  public boolean deleteByIdIfPresent(UUID id) {
+    return jdbcClient.sql("DELETE FROM who_role WHERE id = :id").param(COL_ID, id).update() > 0;
+  }
 }

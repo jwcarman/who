@@ -67,7 +67,18 @@ public record EnrollmentToken(
    * @return a new {@code PENDING} token
    */
   public static EnrollmentToken create(Identity identity, Duration expiration) {
-    Instant now = Instant.now();
+    return create(identity, expiration, Instant.now());
+  }
+
+  /**
+   * Creates a new PENDING enrollment token for the given identity, stamped from the given instant.
+   *
+   * @param identity the identity this token is for
+   * @param expiration how long until the token expires
+   * @param now the creation time; the token expires at {@code now + expiration}
+   * @return a new {@code PENDING} token
+   */
+  public static EnrollmentToken create(Identity identity, Duration expiration, Instant now) {
     return new EnrollmentToken(
         Identifiers.uuid(),
         identity.id(),

@@ -892,7 +892,7 @@ public class WhoAutoConfiguration {
           userRepository,
           credentialRepository,
           new WhoPasskeyAuthenticationProvider(
-              rpOperations, credentialRepository, whoService, whoEventPublisher),
+              rpOperations, credentialRepository, whoService, whoEventPublisher, clock),
           sessionRepository,
           jsonMapper.getIfAvailable(JsonMapper::new),
           clock,

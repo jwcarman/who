@@ -23,6 +23,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -30,7 +35,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInFailed;
+import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
@@ -141,6 +149,36 @@ class WhoPasskeyAuthenticationProviderTest {
     assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class)
         .hasMessage("invalid_credential");
+  }
+
+  @Test
+  void aMissingResolutionIsTreatedAsNotLinked() {
+    Instant now = Instant.parse("2026-11-13T10:00:00Z");
+    List<WhoEvent> events = new ArrayList<>();
+    WhoPasskeyAuthenticationProvider stamping =
+        new WhoPasskeyAuthenticationProvider(
+            rpOperations,
+            credentialRepository,
+            whoService,
+            events::add,
+            Clock.fixed(now, ZoneOffset.UTC));
+    verifiedAssertion();
+    when(credentialRepository.credentialUuid(rawId)).thenReturn(Optional.of(credentialUuid));
+
+    // the mocked WhoService stubs nothing, so resolveDetailed answers null
+    assertThatThrownBy(() -> stamping.authenticate(token))
+        .isInstanceOf(BadCredentialsException.class)
+        .hasMessage("invalid_credential");
+
+    assertThat(events)
+        .containsExactly(
+            new SignInFailed(
+                now,
+                SignInMethod.PASSKEY,
+                SignInFailureReason.INVALID_ASSERTION,
+                null,
+                null,
+                credentialUuid));
   }
 
   @Test

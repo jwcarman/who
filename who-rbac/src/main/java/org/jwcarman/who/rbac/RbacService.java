@@ -198,8 +198,9 @@ public class RbacService {
     if (!roleRepository.existsById(role.id())) {
       throw new IllegalArgumentException("Role not found: " + role.id());
     }
-    roleRepository.deleteById(role.id());
-    eventPublisher.publish(new RoleDeleted(clock.instant(), role.id(), role.name()));
+    if (roleRepository.deleteByIdIfPresent(role.id())) {
+      eventPublisher.publish(new RoleDeleted(clock.instant(), role.id(), role.name()));
+    }
   }
 
   /**

@@ -18,6 +18,7 @@ package org.jwcarman.who.passkey;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,7 +65,7 @@ public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider 
   private final JdbcWhoPasskeyCredentialRepository credentialRepository;
   private final WhoService whoService;
   private final WhoEventPublisher eventPublisher;
-  private final Clock clock = Clock.systemUTC();
+  private final Clock clock;
 
   /**
    * Creates a provider that publishes no events.
@@ -77,7 +78,7 @@ public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider 
       WebAuthnRelyingPartyOperations rpOperations,
       JdbcWhoPasskeyCredentialRepository credentialRepository,
       WhoService whoService) {
-    this(rpOperations, credentialRepository, whoService, WhoEventPublisher.NOOP);
+    this(rpOperations, credentialRepository, whoService, WhoEventPublisher.NOOP, Clock.systemUTC());
   }
 
   /**
@@ -87,17 +88,20 @@ public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider 
    * @param credentialRepository maps WebAuthn credential ids to who's credential ids
    * @param whoService resolves credentials to principals
    * @param eventPublisher where {@link SignInFailed} is published
+   * @param clock stamps the published events
    */
   public WhoPasskeyAuthenticationProvider(
       WebAuthnRelyingPartyOperations rpOperations,
       JdbcWhoPasskeyCredentialRepository credentialRepository,
       WhoService whoService,
-      WhoEventPublisher eventPublisher) {
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     this.rpOperations = requireNonNull(rpOperations, "rpOperations must not be null");
     this.credentialRepository =
         requireNonNull(credentialRepository, "credentialRepository must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
   }
 
   @Override
@@ -126,7 +130,7 @@ public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider 
       // a fault in who, not a refused sign-in: no reason to report, and the answer stays uniform
       throw new BadCredentialsException(INVALID_CREDENTIAL);
     }
-    return switch (resolution) {
+    return switch (Objects.requireNonNullElse(resolution, new NotLinked())) {
       case Resolved(WhoPrincipal principal) ->
           new WhoAuthenticationToken(principal, uuid, SignInMethod.PASSKEY);
       case Inactive(UUID identityId) ->

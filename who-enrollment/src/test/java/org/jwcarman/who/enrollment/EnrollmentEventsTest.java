@@ -102,6 +102,16 @@ class EnrollmentEventsTest extends AbstractEnrollmentTest {
     }
 
     @Test
+    void create_token_stamps_the_token_from_the_clock() {
+      Identity identity = savedIdentity();
+
+      EnrollmentToken token = service.createToken(identity);
+
+      assertThat(token.createdAt()).isEqualTo(NOW);
+      assertThat(token.expiresAt()).isEqualTo(NOW.plus(Duration.ofHours(24)));
+    }
+
+    @Test
     void revoke_token_publishes_revoked() {
       Identity identity = savedIdentity();
       EnrollmentToken token = service.createToken(identity);

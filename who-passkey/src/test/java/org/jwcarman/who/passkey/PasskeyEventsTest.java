@@ -225,7 +225,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
           userRepository,
           credentialRepository,
           new WhoPasskeyAuthenticationProvider(
-              relyingPartyOperations, credentialRepository, whoService, events),
+              relyingPartyOperations, credentialRepository, whoService, events, clock),
           sessionRepository,
           jsonMapper,
           clock,

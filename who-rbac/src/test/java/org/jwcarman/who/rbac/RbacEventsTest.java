@@ -17,6 +17,8 @@ package org.jwcarman.who.rbac;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -88,6 +90,27 @@ class RbacEventsTest extends AbstractRbacTest {
       service.deleteRole(role);
 
       assertThat(events).containsExactly(new RoleDeleted(NOW, role.id(), "AUDITOR"));
+    }
+
+    @Test
+    void losing_a_concurrent_delete_publishes_nothing() {
+      Role role = service.createRole("AUDITOR");
+      events.clear();
+      // the other delete wins between the existence check and this delete
+      RoleRepository raced = mock(RoleRepository.class);
+      when(raced.existsById(role.id())).thenReturn(true);
+      when(raced.deleteByIdIfPresent(role.id())).thenReturn(false);
+      RbacService racing =
+          new RbacService(
+              raced,
+              rolePermissionRepository,
+              identityRoleRepository,
+              events::add,
+              Clock.fixed(NOW, ZoneOffset.UTC));
+
+      racing.deleteRole(role);
+
+      assertThat(events).isEmpty();
     }
 
     @Test

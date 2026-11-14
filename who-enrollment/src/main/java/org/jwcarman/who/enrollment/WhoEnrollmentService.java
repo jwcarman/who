@@ -111,7 +111,7 @@ public class WhoEnrollmentService {
     for (UUID revokedId : enrollmentTokenRepository.revokePendingForIdentity(identity.id())) {
       eventPublisher.publish(new EnrollmentTokenRevoked(clock.instant(), identity.id(), revokedId));
     }
-    EnrollmentToken rawToken = EnrollmentToken.create(identity, tokenExpiration);
+    EnrollmentToken rawToken = EnrollmentToken.create(identity, tokenExpiration, clock.instant());
     EnrollmentToken hashedToken =
         new EnrollmentToken(
             rawToken.id(),
