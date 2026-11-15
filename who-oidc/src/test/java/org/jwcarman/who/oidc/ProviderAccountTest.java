@@ -37,13 +37,13 @@ class ProviderAccountTest {
 
   private static final SignInRegistration GOOGLE =
       new SignInRegistration(
-          "google", "https://accounts.google.com", SignInRegistration.Kind.OIDC, null, true);
+          "google", "https://accounts.google.com", SignInRegistration.Kind.OIDC, null, true, false);
   private static final SignInRegistration ACME =
       new SignInRegistration(
-          "acme", "https://idp.example.com", SignInRegistration.Kind.OIDC, null, false);
+          "acme", "https://idp.example.com", SignInRegistration.Kind.OIDC, null, false, true);
   private static final SignInRegistration GITHUB =
       new SignInRegistration(
-          "github", "https://github.com", SignInRegistration.Kind.GITHUB, "id", true);
+          "github", "https://github.com", SignInRegistration.Kind.GITHUB, "id", true, false);
 
   private static OAuth2User oidcUser(Map<String, Object> claims) {
     OidcIdToken.Builder token =
@@ -150,7 +150,7 @@ class ProviderAccountTest {
           .contains("octocat@github.com");
       SignInRegistration untrusted =
           new SignInRegistration(
-              "github", "https://github.com", SignInRegistration.Kind.GITHUB, "id", false);
+              "github", "https://github.com", SignInRegistration.Kind.GITHUB, "id", false, false);
       assertThat(ProviderAccount.from(gitHubUser(attributes), untrusted).verifiedEmail()).isEmpty();
     }
 
@@ -158,7 +158,7 @@ class ProviderAccountTest {
     void missing_subject_attribute_is_an_error() {
       SignInRegistration custom =
           new SignInRegistration(
-              "acme", "https://acme.com", SignInRegistration.Kind.OAUTH2, "user_id", false);
+              "acme", "https://acme.com", SignInRegistration.Kind.OAUTH2, "user_id", false, false);
 
       assertThatThrownBy(() -> ProviderAccount.from(gitHubUser(Map.of("id", 1)), custom))
           .isInstanceOf(IllegalStateException.class)

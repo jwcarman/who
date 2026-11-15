@@ -67,7 +67,7 @@ class IssuerValidatingIdTokenDecoderFactoryTest {
     SignInRegistrations registrations =
         SignInRegistrations.of(
             List.of(registration),
-            Map.of("acme", new ProviderSettings(true, provider.issuer(), null, null)));
+            Map.of("acme", new ProviderSettings(true, provider.issuer(), null, null, null)));
     decoder = new IssuerValidatingIdTokenDecoderFactory(registrations).createDecoder(registration);
   }
 

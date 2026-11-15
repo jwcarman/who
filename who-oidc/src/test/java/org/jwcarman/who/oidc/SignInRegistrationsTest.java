@@ -64,7 +64,7 @@ class SignInRegistrationsTest {
   }
 
   private static ProviderSettings settings(String issuer, String subjectAttribute) {
-    return new ProviderSettings(true, issuer, subjectAttribute, null);
+    return new ProviderSettings(true, issuer, subjectAttribute, null, null);
   }
 
   @Nested
@@ -131,12 +131,44 @@ class SignInRegistrationsTest {
     void configured_trust_email_wins() {
       SignInRegistration acme =
           of(
-                  Map.of("acme", new ProviderSettings(true, null, null, true)),
+                  Map.of("acme", new ProviderSettings(true, null, null, true, null)),
                   oidc("acme").issuerUri("https://idp.example.com").build())
               .find("acme")
               .orElseThrow();
 
       assertThat(acme.trustEmail()).isTrue();
+    }
+
+    @Test
+    void a_link_asks_for_a_fresh_login_by_default() {
+      SignInRegistration acme =
+          of(Map.of(), oidc("acme").issuerUri("https://idp.example.com").build())
+              .find("acme")
+              .orElseThrow();
+
+      assertThat(acme.freshLogin()).isTrue();
+    }
+
+    @Test
+    void google_reports_no_auth_time_so_links_through_it_do_not_ask_for_a_fresh_login() {
+      SignInRegistration google =
+          of(Map.of(), oidc("google").issuerUri("https://accounts.google.com").build())
+              .find("google")
+              .orElseThrow();
+
+      assertThat(google.freshLogin()).isFalse();
+    }
+
+    @Test
+    void configured_fresh_login_wins() {
+      SignInRegistration acme =
+          of(
+                  Map.of("acme", new ProviderSettings(true, null, null, null, false)),
+                  oidc("acme").issuerUri("https://idp.example.com").build())
+              .find("acme")
+              .orElseThrow();
+
+      assertThat(acme.freshLogin()).isFalse();
     }
 
     @Test
@@ -168,6 +200,7 @@ class SignInRegistrationsTest {
       assertThat(github.oidc()).isFalse();
       assertThat(github.subjectAttribute()).isEqualTo("id");
       assertThat(github.trustEmail()).isTrue();
+      assertThat(github.freshLogin()).isFalse();
     }
 
     @Test
@@ -220,6 +253,19 @@ class SignInRegistrationsTest {
       assertThat(acme.issuer()).isEqualTo("https://acme.com");
       assertThat(acme.subjectAttribute()).isEqualTo("user_id");
       assertThat(acme.trustEmail()).isFalse();
+      assertThat(acme.freshLogin()).isFalse();
+    }
+
+    @Test
+    void fresh_login_without_openid_connect_is_invalid() {
+      ClientRegistration acme = oauth2("acme", "auth.acme.com", "api.acme.com").build();
+      Map<String, ProviderSettings> settings =
+          Map.of("acme", new ProviderSettings(true, "https://acme.com", "user_id", null, true));
+
+      assertThatThrownBy(() -> of(settings, acme))
+          .isInstanceOfSatisfying(
+              InvalidRegistrationException.class,
+              e -> assertThat(e.property()).isEqualTo("who.oidc.providers.acme.fresh-login"));
     }
   }
 
@@ -256,7 +302,7 @@ class SignInRegistrationsTest {
     void disabled_registration_is_ignored() {
       SignInRegistrations registrations =
           of(
-              Map.of("acme", new ProviderSettings(false, null, null, null)),
+              Map.of("acme", new ProviderSettings(false, null, null, null, null)),
               oidc("acme").build(),
               oidc("google").issuerUri("https://accounts.google.com").build());
 

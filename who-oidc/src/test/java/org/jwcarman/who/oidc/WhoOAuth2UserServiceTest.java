@@ -65,7 +65,7 @@ class WhoOAuth2UserServiceTest {
             .build();
     SignInRegistration signIn =
         new SignInRegistration(
-            "github", "https://github.com", SignInRegistration.Kind.GITHUB, "id", true);
+            "github", "https://github.com", SignInRegistration.Kind.GITHUB, "id", true, false);
     service =
         new WhoOAuth2UserService(
             id -> "github".equals(id) ? Optional.of(signIn) : Optional.empty());

@@ -84,4 +84,15 @@ record LinkIntent(UUID identityId, Instant startedAt) implements Serializable {
   boolean freshLogin(Instant authenticatedAt) {
     return authenticatedAt != null && !authenticatedAt.isBefore(startedAt.minus(SKEW));
   }
+
+  /**
+   * Whether the link was started too long ago to finish now.
+   *
+   * @param now when the provider called back
+   * @param lifetime how long a started link lasts
+   * @return whether it has expired
+   */
+  boolean expired(Instant now, Duration lifetime) {
+    return now.isAfter(startedAt.plus(lifetime));
+  }
 }

@@ -61,12 +61,19 @@ public class OidcRuntimeHints implements RuntimeHintsRegistrar {
         }) {
       hints.reflection().registerJavaSerialization(type);
     }
-    // not public: Instant serializes through java.time.Ser, Map.copyOf's maps through
-    // java.util.CollSer, and the request's scopes and parameters are unmodifiable views
+    // not public: Instant serializes through java.time.Ser, and Map.copyOf's maps through
+    // java.util.CollSer, by a writeReplace a native image calls only on a registered class; the
+    // request's scopes and parameters are unmodifiable views
     for (String type :
         new String[] {
           "java.time.Ser",
           "java.util.CollSer",
+          "java.util.ImmutableCollections$Map1",
+          "java.util.ImmutableCollections$MapN",
+          "java.util.ImmutableCollections$List12",
+          "java.util.ImmutableCollections$ListN",
+          "java.util.ImmutableCollections$Set12",
+          "java.util.ImmutableCollections$SetN",
           "java.util.Collections$UnmodifiableCollection",
           "java.util.Collections$UnmodifiableSet",
           "java.util.Collections$UnmodifiableMap"

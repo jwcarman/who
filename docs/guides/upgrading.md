@@ -87,8 +87,8 @@ provider sign-in can share it.
   `(issuer, subject)` credential carry `FEDERATED`, and the `kind` tag on `who.credentials.added`
   and `who.credentials.revoked` is `federated`, not `jwt`. Update listeners and dashboards.
   `SignInMethod.JWT` is unchanged.
-- **New enum values.** `SignInMethod.OIDC`, and `SignInFailureReason.SIGN_UP_REFUSED` and
-  `PROVIDER_ERROR`. An exhaustive `switch` over either needs the new cases.
+- **New enum values.** `SignInMethod.OIDC`, and `SignInFailureReason.SIGN_UP_REFUSED`,
+  `PROVIDER_ERROR` and `LINK_REFUSED`. An exhaustive `switch` over either needs the new cases.
 - **who sets the `who_last_sign_in` cookie** after every browser sign-in, naming the method used.
   Turn it off with `who.security.last-sign-in-cookie.enabled=false`. See
   [Sessions](sessions.md#the-last-sign-in-cookie).

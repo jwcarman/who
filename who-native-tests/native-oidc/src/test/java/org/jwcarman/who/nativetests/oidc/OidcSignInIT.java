@@ -22,6 +22,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -92,13 +96,6 @@ class OidcSignInIT {
     return finishAtProvider(client, location(client.get("/oauth2/authorization/test")));
   }
 
-  /** Starts a link at the app, lets the provider redirect back, and returns where it lands. */
-  static String linkAtProvider(WhoClient client, String subject)
-      throws IOException, InterruptedException {
-    provider.nextUser(subject, Map.of("email", subject + "@example.test"));
-    return finishAtProvider(client, location(client.post("/who/oidc/link/test", null)));
-  }
-
   static String finishAtProvider(WhoClient client, String authorize)
       throws IOException, InterruptedException {
     assertThat(authorize).startsWith(provider.issuer() + "/authorize");
@@ -118,6 +115,22 @@ class OidcSignInIT {
           .isEqualTo(200);
     }
     return subject;
+  }
+
+  /** How many sessions in Spring Session's table hold a saved authorization request. */
+  static int storedAuthorizationRequests() throws SQLException {
+    try (Connection connection =
+            DriverManager.getConnection(
+                database.jdbcUrl(), database.username(), database.password());
+        ResultSet rows =
+            connection
+                .createStatement()
+                .executeQuery(
+                    "SELECT count(*) FROM spring_session_attributes"
+                        + " WHERE attribute_name LIKE '%AuthorizationRequestRepository%'")) {
+      rows.next();
+      return rows.getInt(1);
+    }
   }
 
   static void openSignUp(boolean open) {
@@ -178,7 +191,11 @@ class OidcSignInIT {
     try (WhoClient client = client()) {
       signInAtProvider(client, linked);
       assertThat(signInAtProvider(client, another)).endsWith("/?error=signed-in");
-      assertThat(linkAtProvider(client, another)).endsWith("/?error=no-account");
+      provider.nextUser(another, Map.of("email", another + "@example.test"));
+      String authorize = location(client.post("/who/oidc/link/test", null));
+      // in Postgres, so the link's intent went through serialization in the native image
+      assertThat(storedAuthorizationRequests()).isPositive();
+      assertThat(finishAtProvider(client, authorize)).endsWith("/?error=no-account");
       assertThat(client.get("/who/oidc/pending").json().path("canLink").asBoolean()).isTrue();
 
       WhoClient.Response link = client.post("/who/oidc/link", null);

@@ -16,6 +16,7 @@
 package org.jwcarman.who.oidc;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -96,22 +97,30 @@ final class OidcAuthorizationRequests implements OAuth2AuthorizationRequestResol
                   new DefaultOAuth2AuthorizationRequestResolver(clients, BASE_URI);
               LinkIntent intent = new LinkIntent(identityId, now);
               resolver.setAuthorizationRequestCustomizer(
-                  builder -> {
-                    builder.attributes(intent::writeTo);
-                    if (registration.oidc()) {
-                      // max_age=0 obliges the provider to report auth_time; prompt=login asks the
-                      // ones that skip their login screen anyway to show it
-                      builder.additionalParameters(
-                          p -> {
-                            p.put("max_age", "0");
-                            p.put("prompt", "login");
-                          });
-                    }
-                  });
+                  builder ->
+                      builder
+                          .attributes(intent::writeTo)
+                          .additionalParameters(p -> p.putAll(linkParameters(registration))));
               // the sign-in callback: Boot's default redirect URI has an {action}, which the
               // two-argument resolve would fill with "authorize"
               return resolver.resolve(new SignInAction(request), registrationId);
             });
+  }
+
+  /**
+   * What a link asks the provider for. A fresh login: {@code max_age=0} obliges the provider to
+   * report {@code auth_time}, and {@code prompt=login} asks one that skips its login screen anyway
+   * to show it. Otherwise, where the provider supports it, a choice of account, so a remembered
+   * account is not linked without the person seeing which one it is.
+   */
+  private static Map<String, Object> linkParameters(SignInRegistration registration) {
+    if (registration.freshLogin()) {
+      return Map.of("max_age", "0", "prompt", "login");
+    }
+    if (registration.oidc() || registration.kind() == SignInRegistration.Kind.GITHUB) {
+      return Map.of("prompt", "select_account");
+    }
+    return Map.of();
   }
 
   /** The request, saying the redirect URI's {@code {action}} is a sign-in. */

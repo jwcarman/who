@@ -76,6 +76,7 @@ public final class OidcSignInHandler
   private final LastSignInCookie lastSignInCookie;
   private final Clock clock;
   private final Duration signUpWindow;
+  private final Duration linkWindow;
   private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
   /**
@@ -92,6 +93,7 @@ public final class OidcSignInHandler
    * @param lastSignInCookie remembers the provider used, or null when turned off
    * @param clock stamps events and expiries
    * @param signUpWindow how long a pending sign-up lasts
+   * @param linkWindow how long a started link lasts
    */
   public OidcSignInHandler(
       SignInRegistrations registrations,
@@ -104,7 +106,8 @@ public final class OidcSignInHandler
       WhoEventPublisher eventPublisher,
       LastSignInCookie lastSignInCookie,
       Clock clock,
-      Duration signUpWindow) {
+      Duration signUpWindow,
+      Duration linkWindow) {
     this.registrations = requireNonNull(registrations, "registrations must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.credentials = requireNonNull(credentials, "credentials must not be null");
@@ -116,6 +119,7 @@ public final class OidcSignInHandler
     this.lastSignInCookie = lastSignInCookie;
     this.clock = requireNonNull(clock, "clock must not be null");
     this.signUpWindow = requireNonNull(signUpWindow, "signUpWindow must not be null");
+    this.linkWindow = requireNonNull(linkWindow, "linkWindow must not be null");
   }
 
   @Override
@@ -159,10 +163,11 @@ public final class OidcSignInHandler
       return;
     }
     UUID signedIn = sessions.currentSession(request).map(WhoSession::identityId).orElse(null);
-    boolean link = token instanceof LinkingAuthenticationToken;
-    if (token instanceof LinkingAuthenticationToken linking
-        && !linkStillHolds(linking.intent(), signedIn, registration.get(), token)) {
-      fail(request, response, SignInFailureReason.PROVIDER_ERROR, null, null);
+    LinkIntent intent =
+        token instanceof LinkingAuthenticationToken linking ? linking.intent() : null;
+    boolean link = intent != null;
+    if (link && !linkStillHolds(intent, signedIn, registration.get(), token)) {
+      fail(request, response, SignInFailureReason.LINK_REFUSED, intent.identityId(), null);
       return;
     }
     Optional<FederatedCredential> credential =
@@ -175,11 +180,15 @@ public final class OidcSignInHandler
     switch (whoService.resolveDetailed(credential.get())) {
       case Resolution.Resolved(WhoPrincipal principal)
           when signedIn != null && !signedIn.equals(principal.identity().id()) ->
-          redirect(request, response, redirects.failure(OidcRedirects.ALREADY_LINKED));
+          alreadyLinked(request, response);
       case Resolution.Resolved _ when link -> alreadyYours(request, response);
       case Resolution.Resolved(WhoPrincipal principal) ->
           signIn(request, response, principal, credentialId, account);
       case Resolution.NotLinked _ -> unknownAccount(request, response, account, signedIn, link);
+      // a link to an account another identity holds, active or not, is already linked; a sign-in
+      // with one is a failed sign-in by that identity
+      case Resolution.Inactive _ when link -> alreadyLinked(request, response);
+      case Resolution.NoIdentity _ when link -> alreadyLinked(request, response);
       case Resolution.Inactive(UUID identityId) ->
           fail(request, response, SignInFailureReason.INACTIVE_IDENTITY, identityId, credentialId);
       case Resolution.NoIdentity(UUID identityId) ->
@@ -188,23 +197,30 @@ public final class OidcSignInHandler
   }
 
   /**
-   * A link answers only the identity that started it, still signed in, and through an OpenID
-   * Connect provider only after a login at the provider that happened after the link started.
+   * A link answers only the identity that started it, still signed in, within {@code
+   * who.oidc.link-window} of starting, and, where the provider demands a fresh login, only after a
+   * login at the provider that happened after the link started.
    */
-  private static boolean linkStillHolds(
+  private boolean linkStillHolds(
       LinkIntent intent,
       UUID signedIn,
       SignInRegistration registration,
       OAuth2AuthenticationToken token) {
-    if (!intent.identityId().equals(signedIn)) {
+    if (!intent.identityId().equals(signedIn) || intent.expired(clock.instant(), linkWindow)) {
       return false;
     }
-    if (!registration.oidc()) {
-      // no auth_time without OpenID Connect; who.oidc.link-window is the check
+    if (!registration.freshLogin()) {
+      // no auth_time to check; the confirmation's who.oidc.link-window is the check
       return true;
     }
     return token.getPrincipal() instanceof OidcUser user
         && intent.freshLogin(user.getAuthenticatedAt());
+  }
+
+  private void alreadyLinked(HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    pendingSignUps.consume(request);
+    redirect(request, response, redirects.failure(OidcRedirects.ALREADY_LINKED));
   }
 
   /**

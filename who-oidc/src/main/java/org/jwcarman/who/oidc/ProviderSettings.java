@@ -24,10 +24,17 @@ package org.jwcarman.who.oidc;
  * @param subjectAttribute the user-info attribute that identifies the account, for a provider that
  *     is not OpenID Connect; may be null
  * @param trustEmail whether the provider's verified email may be used; null takes the default
+ * @param freshLogin whether a link through this OpenID Connect provider demands a fresh login there
+ *     ({@code max_age=0} and a recent {@code auth_time}); null takes the default
  */
 public record ProviderSettings(
-    boolean enabled, String issuer, String subjectAttribute, Boolean trustEmail) {
+    boolean enabled,
+    String issuer,
+    String subjectAttribute,
+    Boolean trustEmail,
+    Boolean freshLogin) {
 
   /** Settings for a registration with nothing configured. */
-  public static final ProviderSettings DEFAULTS = new ProviderSettings(true, null, null, null);
+  public static final ProviderSettings DEFAULTS =
+      new ProviderSettings(true, null, null, null, null);
 }

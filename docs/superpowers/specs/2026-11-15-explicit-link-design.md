@@ -90,6 +90,16 @@ For an OAuth 2 provider without OpenID Connect (GitHub), there is no `auth_time`
 `who.oidc.link-window` (sign-in recency of the who session) remains the check there. The builder
 confirms whether GitHub honours a parameter that forces its login screen and adds it if so.
 
+Decided after review (2026-11-15): GitHub documents `prompt=select_account`, and a link sends it.
+Google honours neither `max_age` nor `prompt=login` and reports no `auth_time`, so a fresh login is
+a per-provider setting, `who.oidc.providers.<id>.fresh-login`: true for OpenID Connect providers
+but Google, false for the rest, and true on a non-OpenID Connect provider fails startup. Without
+it, a link sends `prompt=select_account` (OpenID Connect and GitHub) and `link-window` is the
+check. A started link expires after `link-window`. A refused link publishes `SignInFailed` with
+the new reason `LINK_REFUSED`, naming the identity that started it. A link to an account held by an
+inactive or missing identity is `already-linked`. The start endpoint requires a browser session
+for the signed-in identity, and its 404 is `UnknownProviderException` through the handoff.
+
 ### Confirming
 
 Unchanged: `GET /who/oidc/pending` shows `canLink`, `POST /who/oidc/link` links after the

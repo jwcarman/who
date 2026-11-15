@@ -40,5 +40,10 @@ public enum SignInFailureReason {
   /** The sign-up policy refused to create an identity for an unknown credential. */
   SIGN_UP_REFUSED,
   /** The identity provider reported an error, or its response failed validation. */
-  PROVIDER_ERROR
+  PROVIDER_ERROR,
+  /**
+   * A link to a provider account was refused: no fresh login at the provider, started too long ago,
+   * or answered while the identity that started it was no longer the one signed in.
+   */
+  LINK_REFUSED
 }

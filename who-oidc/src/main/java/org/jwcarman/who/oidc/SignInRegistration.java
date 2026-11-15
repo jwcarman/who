@@ -24,9 +24,16 @@ package org.jwcarman.who.oidc;
  * @param subjectAttribute the user-info attribute that identifies the account; null for OpenID
  *     Connect, where it is the ID token's {@code sub}
  * @param trustEmail whether the provider's verified email may be used
+ * @param freshLogin whether a link demands a fresh login at the provider, proven by the ID token's
+ *     {@code auth_time}; only an OpenID Connect provider can prove one
  */
 public record SignInRegistration(
-    String registrationId, String issuer, Kind kind, String subjectAttribute, boolean trustEmail) {
+    String registrationId,
+    String issuer,
+    Kind kind,
+    String subjectAttribute,
+    boolean trustEmail,
+    boolean freshLogin) {
 
   /** What kind of provider a registration signs in with. */
   public enum Kind {

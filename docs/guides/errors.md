@@ -17,6 +17,7 @@ Provider sign-in adds three, for its [confirm endpoints](social-login.md#sign-up
 | Exception | Status if unmapped | When |
 |---|---|---|
 | `SignUpRefusedException` | 403 | `POST /who/oidc/sign-up` refused by the sign-up policy, or sent by a browser that is signed in. |
+| `UnknownProviderException` | 404 | `POST /who/oidc/link/{registrationId}` named a registration who does not sign in with. |
 | `PendingSignUpNotFoundException` | 404 | No pending sign-up, or an expired or used one, at `GET /who/oidc/pending`, `POST /who/oidc/sign-up` or `POST /who/oidc/link`. |
 | `AlreadyLinkedException` | 409 | `POST /who/oidc/link` for an account linked to another identity. |
 

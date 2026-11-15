@@ -49,6 +49,7 @@ import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
+import org.jwcarman.who.oidc.UnknownProviderException;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
@@ -60,7 +61,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProp
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
@@ -74,6 +77,8 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -94,13 +99,22 @@ import org.testcontainers.junit.jupiter.Testcontainers;
           + "org.springframework.boot.session.jdbc.autoconfigure.JdbcSessionAutoConfiguration",
       "spring.security.oauth2.client.registration.test.client-id=client",
       "spring.security.oauth2.client.registration.test.client-secret=secret",
-      "spring.security.oauth2.client.registration.test.scope=openid,email,profile"
+      "spring.security.oauth2.client.registration.test.scope=openid,email,profile",
+      // a plain OAuth 2 provider, with no ID token and so no auth_time
+      "spring.security.oauth2.client.registration.plain.client-id=client",
+      "spring.security.oauth2.client.registration.plain.client-secret=secret",
+      "spring.security.oauth2.client.registration.plain.authorization-grant-type=authorization_code",
+      "spring.security.oauth2.client.registration.plain.scope=read:user",
+      "spring.security.oauth2.client.registration.plain.redirect-uri={baseUrl}/{action}/oauth2/code/{registrationId}",
+      "spring.security.oauth2.client.provider.plain.user-name-attribute=id",
+      "who.oidc.providers.plain.subject-attribute=id"
     })
 @Testcontainers
 @RecordApplicationEvents
 abstract class AbstractOidcTest {
 
   static final StubOidcProvider PROVIDER = StubOidcProvider.start();
+  static final StubOidcProvider PLAIN = StubOidcProvider.startGitHub();
   static final String SUCCESS_URL = "/home";
   static final String FAILURE_URL = "/signin";
   static final Duration LINK_WINDOW = Duration.ofMinutes(10);
@@ -114,6 +128,15 @@ abstract class AbstractOidcTest {
     registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
     registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
     registry.add("spring.security.oauth2.client.provider.test.issuer-uri", PROVIDER::issuer);
+    registry.add(
+        "spring.security.oauth2.client.provider.plain.authorization-uri",
+        () -> PLAIN.issuer() + "/authorize");
+    registry.add(
+        "spring.security.oauth2.client.provider.plain.token-uri", () -> PLAIN.issuer() + "/token");
+    registry.add(
+        "spring.security.oauth2.client.provider.plain.user-info-uri",
+        () -> PLAIN.issuer() + "/user");
+    registry.add("who.oidc.providers.plain.issuer", PLAIN::issuer);
   }
 
   /** The sign-up policy, which a test may swap; closed unless it does. */
@@ -156,6 +179,11 @@ abstract class AbstractOidcTest {
       return new RecordingAuthorizedClients();
     }
 
+    @Bean
+    UnknownProviderAdvice unknownProviderAdvice() {
+      return new UnknownProviderAdvice();
+    }
+
     /** An application chain in place of who's default one, when a test asks for it. */
     @Bean
     @ConditionalOnBooleanProperty("test.application-chain")
@@ -163,6 +191,16 @@ abstract class AbstractOidcTest {
       http.authorizeHttpRequests(a -> a.anyRequest().authenticated())
           .with(WhoWebSecurity.passwordless(), withDefaults());
       return http.build();
+    }
+  }
+
+  /** The application's own answer to an unknown provider, which shows the exception reached it. */
+  @RestControllerAdvice
+  static final class UnknownProviderAdvice {
+
+    @ExceptionHandler(UnknownProviderException.class)
+    ProblemDetail unknownProvider(UnknownProviderException e) {
+      return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "from the advice");
     }
   }
 
@@ -238,12 +276,16 @@ abstract class AbstractOidcTest {
 
   /** Follows an authorization URL at the provider and returns the app's callback. */
   MvcResult finishAtProvider(String authorize) throws Exception {
+    return browser.perform(get(URI.create(callbackFrom(authorize)))).andReturn();
+  }
+
+  /** Follows an authorization URL at the provider and returns where it sends the browser back. */
+  String callbackFrom(String authorize) throws Exception {
     HttpResponse<Void> atProvider =
         HTTP.send(
             HttpRequest.newBuilder(URI.create(authorize)).build(),
             HttpResponse.BodyHandlers.discarding());
-    String callback = atProvider.headers().firstValue("Location").orElseThrow();
-    return browser.perform(get(URI.create(callback))).andReturn();
+    return atProvider.headers().firstValue("Location").orElseThrow();
   }
 
   /** Starts a link at the app, lets the provider redirect back, and returns the callback. */
@@ -253,9 +295,14 @@ abstract class AbstractOidcTest {
   }
 
   String startLink() throws Exception {
-    MvcResult start = browser.perform(post("/who/oidc/link/test")).andReturn();
+    return startLink("test", PROVIDER);
+  }
+
+  /** Starts a link through {@code registrationId}, served by {@code provider}. */
+  String startLink(String registrationId, StubOidcProvider provider) throws Exception {
+    MvcResult start = browser.perform(post("/who/oidc/link/" + registrationId)).andReturn();
     String authorize = start.getResponse().getRedirectedUrl();
-    assertThat(authorize).startsWith(PROVIDER.issuer() + "/authorize");
+    assertThat(authorize).startsWith(provider.issuer() + "/authorize");
     return authorize;
   }
 

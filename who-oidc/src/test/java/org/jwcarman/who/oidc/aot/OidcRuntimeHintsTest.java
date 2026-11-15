@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.time.Instant;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -65,6 +66,25 @@ class OidcRuntimeHintsTest {
       assertThat(
               RuntimeHintsPredicates.reflection().onJavaSerialization(TypeReference.of(type), true))
           .as(type)
+          .accepts(hints);
+    }
+  }
+
+  @Test
+  void immutable_collections_can_replace_themselves_when_written() {
+    RuntimeHints hints = new RuntimeHints();
+    new OidcRuntimeHints().registerHints(hints, getClass().getClassLoader());
+
+    // Map.of and Map.copyOf (a pending sign-up's claims) write themselves as java.util.CollSer
+    // through writeReplace, which a native image calls only for a class registered for it
+    for (Object value :
+        new Object[] {
+          Map.of(), Map.of("a", 1), Map.of("a", 1, "b", 2), List.of(), List.of(1), Set.of(1, 2, 3)
+        }) {
+      assertThat(
+              RuntimeHintsPredicates.reflection()
+                  .onJavaSerialization(TypeReference.of(value.getClass().getName()), true))
+          .as(value.getClass().getName())
           .accepts(hints);
     }
   }

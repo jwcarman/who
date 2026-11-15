@@ -1,6 +1,9 @@
 spring:
   application:
     name: native-oidc
+  session:
+    jdbc:
+      initialize-schema: always
   # spring.datasource.* and the provider's issuer-uri come from the test's arguments
   security:
     oauth2:

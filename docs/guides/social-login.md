@@ -268,14 +268,29 @@ your own pages can start a link:
 who answers with a redirect to the provider. The request it sends there remembers, on the server
 and for that one round trip only, that it is a link and which identity asked. Nothing in the URL
 says so, so no other site can turn a sign-in into a link. Signed out is `401`
-(`NotSignedInException`); a registration who does not sign in with is `404`.
+(`NotSignedInException`), and so is a caller signed in without a browser session (an API key or a
+bearer token), since the callback has no session to finish the link in. A registration who does
+not sign in with is `404` (`UnknownProviderException`). A link lasts `who.oidc.link-window`: a
+provider that answers later is refused.
 
 For an OpenID Connect provider, a link asks for a fresh login: who sends `max_age=0` and
 `prompt=login`, and accepts the answer only if the ID token's `auth_time` is no older than the
 link (allowing a minute of clock skew). A provider that just remembered the person, or sends no
-`auth_time`, is refused with `error=signin-failed` (reason `PROVIDER_ERROR`). An OAuth 2 provider
-without OpenID Connect, such as GitHub, has no `auth_time`; `who.oidc.link-window` is the check
-there.
+`auth_time`, is refused with `error=signin-failed` (reason `LINK_REFUSED`).
+
+Not every provider can prove a fresh login:
+
+| Provider | What a link asks for | The check |
+|---|---|---|
+| OpenID Connect (Keycloak, Okta, Auth0, …) | `max_age=0`, `prompt=login` | a recent `auth_time`, then `who.oidc.link-window` at confirmation |
+| Google | `prompt=select_account` | `who.oidc.link-window` at confirmation |
+| github.com | `prompt=select_account` | `who.oidc.link-window` at confirmation |
+| Any other OAuth 2 provider | nothing extra | `who.oidc.link-window` at confirmation |
+
+Google honours neither `max_age` nor `prompt=login` and reports no `auth_time`, so who asks it to
+let the person choose the account instead. An OpenID Connect provider that leaves `auth_time` out
+of its ID tokens (Microsoft Entra does, unless you add it as an optional claim) refuses every link;
+add the claim, or set `who.oidc.providers.<id>.fresh-login=false` to treat it like Google.
 
 The callback lands on `error=no-account` with a pending sign-up for which `canLink` is `true`.
 Show which account it is, and on confirmation:
@@ -298,7 +313,8 @@ user's identity. Always show the account and wait for a click.
 passkeys. Listen for `CredentialAdded` with kind `FEDERATED` (see [Events](events.md)).
 
 A link answers only the identity that started it. If someone else is signed in when the provider
-calls back, or no one is, nothing is linked or kept (`error=signin-failed`). A pending link is
+calls back, or no one is, nothing is linked or kept (`error=signin-failed`). An account that
+belongs to another identity, active or not, is `error=already-linked`. A pending link is
 also dropped when anyone else signs in. Linking an account the identity already has changes
 nothing and redirects to `who.oidc.success-url`: a link is not a sign-in, so the session keeps the
 credential and sign-in time it had.
@@ -384,7 +400,7 @@ person's identity. See [JWT](jwt.md#validate-the-audience).
 | The policy refused a sign-up | `SignInFailed`, reason `SIGN_UP_REFUSED` |
 | A sign-up | `IdentityCreated` and `CredentialAdded` (kind `FEDERATED`, labelled with the issuer) |
 | A link | `CredentialAdded` (kind `FEDERATED`) |
-| A link without a fresh provider login, or answered while another identity (or none) is signed in | `SignInFailed`, reason `PROVIDER_ERROR` |
+| A link without a fresh provider login, started more than `who.oidc.link-window` ago, or answered while another identity (or none) is signed in | `SignInFailed`, reason `LINK_REFUSED`, naming the identity that started it |
 
 Starting a pending sign-up, `already-linked` and `signed-in` publish nothing. The `who.sign-ins` meter counts
 these with `method=oidc` (see [Observability](observability.md)).
@@ -426,8 +442,9 @@ those requests.
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
 | `who.oidc.failure-url` | `/` | Where every other outcome lands, with `error=<code>`. A path on this site; list it in `who.security.public-paths` |
 | `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
-| `who.oidc.link-window` | `10m` | How recently the identity must have signed in to link an account |
+| `who.oidc.link-window` | `10m` | How recently the identity must have signed in to link an account, and how long a started link lasts |
 | `who.oidc.providers.<id>.enabled` | `true` | Leaves one registration out of sign-in when `false` |
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints or an OAuth 2 provider |
 | `who.oidc.providers.<id>.subject-attribute` | none | The user-info attribute holding the account's immutable id, for an OAuth 2 provider other than github.com |
 | `who.oidc.providers.<id>.trust-email` | `true` for Google and github.com, else `false` | Whether a verified address from this provider reaches your sign-up policy |
+| `who.oidc.providers.<id>.fresh-login` | `true` for OpenID Connect providers but Google, else `false` | Whether a link demands a fresh login there (`max_age=0` and a recent `auth_time`); `true` on a provider without OpenID Connect fails startup |

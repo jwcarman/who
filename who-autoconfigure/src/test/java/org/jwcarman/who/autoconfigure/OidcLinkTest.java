@@ -16,23 +16,32 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Map;
+
+import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
+import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.test.web.servlet.MvcResult;
 
 /** Linking starts only from {@code POST /who/oidc/link/{registrationId}}. */
@@ -77,6 +86,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
       assertThat(result.getResponse().getStatus()).isEqualTo(404);
       assertThat(result.getResponse().getRedirectedUrl()).isNull();
+      assertThat(result.getResponse().getContentAsString()).contains("from the advice");
     }
   }
 
@@ -114,7 +124,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
     @Test
     void a_login_the_provider_only_remembered_is_refused() throws Exception {
-      signedInIdentity("https://other.example.com", "bob");
+      Identity bob = signedInIdentity("https://other.example.com", "bob");
       long anHourAgo = Instant.now().minusSeconds(3600).getEpochSecond();
 
       MvcResult result = linkAtProvider("carol", Map.of("auth_time", anHourAgo));
@@ -124,7 +134,11 @@ class OidcLinkTest extends AbstractOidcTest {
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
       assertThat(events.stream(SignInFailed.class))
           .singleElement()
-          .satisfies(e -> assertThat(e.reason()).isEqualTo(SignInFailureReason.PROVIDER_ERROR));
+          .satisfies(
+              e -> {
+                assertThat(e.reason()).isEqualTo(SignInFailureReason.LINK_REFUSED);
+                assertThat(e.identityId()).isEqualTo(bob.id());
+              });
       assertThat(me()).isEqualTo(200);
     }
 
@@ -152,7 +166,124 @@ class OidcLinkTest extends AbstractOidcTest {
       assertThat(result.getResponse().getRedirectedUrl())
           .isEqualTo(FAILURE_URL + "?error=signin-failed");
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
-      assertThat(dave).isNotNull();
+      assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
+          .isEmpty();
+      assertThat(sessionAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+          .isInstanceOfSatisfying(
+              WhoSession.class, w -> assertThat(w.identityId()).isEqualTo(dave.id()));
+    }
+
+    @Test
+    void signed_out_by_the_time_the_provider_answers_links_nothing() throws Exception {
+      Identity bob = signedInIdentity("https://other.example.com", "bob");
+      PROVIDER.nextUser("carol", Map.of());
+      String authorize = startLink();
+      browser.session().removeAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE);
+
+      MvcResult result = finishAtProvider(authorize);
+
+      assertThat(result.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?error=signin-failed");
+      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
+      assertThat(events.stream(SignInFailed.class))
+          .singleElement()
+          .satisfies(e -> assertThat(e.identityId()).isEqualTo(bob.id()));
+    }
+
+    @Test
+    void a_link_started_too_long_ago_links_nothing() throws Exception {
+      signedInIdentity("https://other.example.com", "bob");
+      PROVIDER.nextUser("carol", Map.of());
+      String authorize = startLink();
+      ageSavedLink(LINK_WINDOW.plusMinutes(1));
+
+      MvcResult result = finishAtProvider(authorize);
+
+      assertThat(result.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?error=signin-failed");
+      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
+      assertThat(events.stream(SignInFailed.class))
+          .singleElement()
+          .satisfies(e -> assertThat(e.reason()).isEqualTo(SignInFailureReason.LINK_REFUSED));
+    }
+
+    @Test
+    void an_abandoned_link_finished_after_a_newer_sign_in_started_links_nothing() throws Exception {
+      signedInIdentity("https://other.example.com", "bob");
+      PROVIDER.nextUser("carol", Map.of());
+      String abandoned = startLink();
+      startAuthorization();
+
+      MvcResult result = finishAtProvider(abandoned);
+
+      assertThat(result.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?error=signin-failed");
+      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    void a_callback_cannot_be_replayed() throws Exception {
+      signedInIdentity("https://other.example.com", "bob");
+      PROVIDER.nextUser("carol", Map.of());
+      String callback = callbackFrom(startLink());
+      browser.perform(get(URI.create(callback)));
+
+      MvcResult replay = browser.perform(get(URI.create(callback))).andReturn();
+
+      assertThat(replay.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?error=signin-failed");
+      assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
+          .isEmpty();
+    }
+
+    @Test
+    void an_identity_deactivated_meanwhile_links_nothing() throws Exception {
+      Identity bob = signedInIdentity("https://other.example.com", "bob");
+      PROVIDER.nextUser("carol", Map.of());
+      String authorize = startLink();
+      whoService.deactivate(bob.id());
+
+      MvcResult result = finishAtProvider(authorize);
+
+      assertThat(result.getResponse().getRedirectedUrl()).startsWith(FAILURE_URL + "?error=");
+      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
+      assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
+          .isEmpty();
+    }
+
+    @Test
+    void an_account_whose_identity_is_inactive_is_already_linked() throws Exception {
+      signedInIdentity("https://other.example.com", "bob");
+      Identity erin = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
+      federatedCredentialService.link(erin, PROVIDER.issuer(), "erin");
+      whoService.deactivate(erin.id());
+
+      MvcResult result = linkAtProvider("erin", Map.of());
+
+      assertThat(result.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?error=already-linked");
+      assertThat(events.stream(SignInFailed.class)).isEmpty();
+      assertThat(me()).isEqualTo(200);
+    }
+
+    @Test
+    void through_a_provider_without_auth_time_links_after_confirming() throws Exception {
+      Identity bob = signedInIdentity("https://other.example.com", "bob");
+      PLAIN.nextUser("4242", Map.of("login", "carol"));
+      String authorize = startLink("plain", PLAIN);
+
+      MvcResult result = finishAtProvider(authorize);
+      browser.perform(post("/who/oidc/link"));
+
+      assertThat(result.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?error=no-account");
+      assertThat(authorize).doesNotContain("max_age").doesNotContain("prompt=login");
+      FederatedCredential carol =
+          federatedCredentialRepository
+              .findByIssuerAndSubject(PLAIN.issuer(), "4242")
+              .orElseThrow();
+      assertThat(whoService.resolve(carol))
+          .hasValueSatisfying(p -> assertThat(p.identity().id()).isEqualTo(bob.id()));
     }
 
     @Test
@@ -179,6 +310,24 @@ class OidcLinkTest extends AbstractOidcTest {
           .isEqualTo(before);
       assertThat(events.stream(SignInSucceeded.class)).isEmpty();
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
+    }
+  }
+
+  /** Moves the saved link's start back by {@code age}, as if it had been started that long ago. */
+  private void ageSavedLink(Duration age) {
+    HttpSession session = browser.session();
+    for (String name : Collections.list(session.getAttributeNames())) {
+      if (session.getAttribute(name) instanceof OAuth2AuthorizationRequest saved) {
+        session.setAttribute(
+            name,
+            OAuth2AuthorizationRequest.from(saved)
+                .attributes(
+                    a ->
+                        a.put(
+                            "org.jwcarman.who.oidc.link.started-at",
+                            Instant.now().minus(age).toString()))
+                .build());
+      }
     }
   }
 

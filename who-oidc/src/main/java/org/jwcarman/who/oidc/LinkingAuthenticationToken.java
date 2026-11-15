@@ -24,6 +24,11 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 /**
  * Spring's sign-in result for a callback that answers a link, carrying the {@link LinkIntent} to
  * who's handler. Never stored: the handler clears the security context.
+ *
+ * <p>It declares no {@code toBuilder()} on purpose. Spring's login filter rebuilds a result through
+ * {@code toBuilder()} when the result's class declares one, which would hand the handler a plain
+ * {@link OAuth2AuthenticationToken} and drop the intent. If that ever happens anyway, the link
+ * fails safe: the callback is a plain sign-in, which never links.
  */
 final class LinkingAuthenticationToken extends OAuth2AuthenticationToken {
 
