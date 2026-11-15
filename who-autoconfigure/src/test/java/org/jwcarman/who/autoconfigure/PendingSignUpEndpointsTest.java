@@ -123,7 +123,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
     @Test
     void a_linkable_one_says_so() throws Exception {
       signedInIdentity("https://other.example.com", "bob");
-      signInAtProvider("carol", Map.of());
+      linkAtProvider("carol", Map.of());
 
       JsonNode body = body(send("GET", "/who/oidc/pending"));
 
@@ -252,7 +252,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
     @Test
     void link_adds_the_account_to_the_signed_in_identity() throws Exception {
       Identity bob = signedInIdentity("https://other.example.com", "bob");
-      signInAtProvider("carol", Map.of());
+      linkAtProvider("carol", Map.of());
 
       MvcResult result = send("POST", "/who/oidc/link");
 
@@ -275,7 +275,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       FederatedCredential bobs =
           federatedCredentialService.link(bob, "https://other.example.com", "bob");
       browser.signedInAs(bob.id(), bobs.id(), Instant.now().minus(LINK_WINDOW).minusSeconds(60));
-      signInAtProvider("carol", Map.of());
+      linkAtProvider("carol", Map.of());
 
       assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(401);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
@@ -285,7 +285,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
     @Test
     void link_without_csrf_is_403() throws Exception {
       signedInIdentity("https://other.example.com", "bob");
-      signInAtProvider("carol", Map.of());
+      linkAtProvider("carol", Map.of());
 
       MvcResult result = browser.performWithoutCsrf(post("/who/oidc/link")).andReturn();
 

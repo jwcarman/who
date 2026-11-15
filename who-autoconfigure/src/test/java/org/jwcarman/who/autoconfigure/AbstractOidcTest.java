@@ -26,6 +26,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,6 +49,8 @@ import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
+import org.jwcarman.who.spring.security.WhoSession;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.test.StubOidcProvider;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
@@ -217,6 +220,7 @@ abstract class AbstractOidcTest {
     jdbcClient.sql("DELETE FROM who_credential_identity").update();
     jdbcClient.sql("DELETE FROM who_identity").update();
     PROVIDER.nextIssuerClaim(null);
+    PROVIDER.sendAuthTime(true);
     policy.set(new ClosedSignUpPolicy());
     recordingAuthorizedClients.calls.set(0);
     sender.sent.clear();
@@ -229,13 +233,30 @@ abstract class AbstractOidcTest {
   /** Starts sign-in at the app, lets the provider redirect back, and returns the callback. */
   MvcResult signInAtProvider(String subject, Map<String, Object> claims) throws Exception {
     PROVIDER.nextUser(subject, claims);
-    String authorize = startAuthorization();
+    return finishAtProvider(startAuthorization());
+  }
+
+  /** Follows an authorization URL at the provider and returns the app's callback. */
+  MvcResult finishAtProvider(String authorize) throws Exception {
     HttpResponse<Void> atProvider =
         HTTP.send(
             HttpRequest.newBuilder(URI.create(authorize)).build(),
             HttpResponse.BodyHandlers.discarding());
     String callback = atProvider.headers().firstValue("Location").orElseThrow();
     return browser.perform(get(URI.create(callback))).andReturn();
+  }
+
+  /** Starts a link at the app, lets the provider redirect back, and returns the callback. */
+  MvcResult linkAtProvider(String subject, Map<String, Object> claims) throws Exception {
+    PROVIDER.nextUser(subject, claims);
+    return finishAtProvider(startLink());
+  }
+
+  String startLink() throws Exception {
+    MvcResult start = browser.perform(post("/who/oidc/link/test")).andReturn();
+    String authorize = start.getResponse().getRedirectedUrl();
+    assertThat(authorize).startsWith(PROVIDER.issuer() + "/authorize");
+    return authorize;
   }
 
   String startAuthorization() throws Exception {
@@ -270,6 +291,19 @@ abstract class AbstractOidcTest {
     Identity identity = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
     FederatedCredential credential = federatedCredentialService.link(identity, issuer, subject);
     browser.signedInAs(identity.id(), credential.id());
+    return identity;
+  }
+
+  /** Signs another identity in on the same browser session, keeping what the session holds. */
+  Identity signedInIdentityKeepingSession(String issuer, String subject) {
+    Identity identity = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
+    FederatedCredential credential = federatedCredentialService.link(identity, issuer, subject);
+    HttpSession session = browser.session();
+    session.setAttribute(
+        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+        new WhoSession(identity.id(), credential.id(), Instant.now()));
+    session.setAttribute(
+        WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE, identity.id().toString());
     return identity;
   }
 

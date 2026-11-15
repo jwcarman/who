@@ -32,10 +32,15 @@ import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeAuthenticationProvider;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
@@ -59,6 +64,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
   private final Duration signUpWindow;
   private final Duration linkWindow;
   private final PendingSignUps pendingSignUps = new PendingSignUps();
+  private final AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequests =
+      new HttpSessionOAuth2AuthorizationRequestRepository();
 
   /**
    * Creates the login method.
@@ -122,6 +129,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
     // application's own oauth2Client() keeps Spring Boot's
     OAuth2AuthorizedClientRepository shared =
         http.getSharedObject(OAuth2AuthorizedClientRepository.class);
+    OidcAuthorizationRequests resolver = new OidcAuthorizationRequests(clients, registrations);
     http.oauth2Login(
         login ->
             login
@@ -130,13 +138,28 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
                 .authorizedClientRepository(new NothingStoredAuthorizedClientRepository())
                 .authorizationEndpoint(
                     endpoint ->
-                        endpoint.authorizationRequestResolver(
-                            new SelectAccountWhenSignedIn(clients, registrations, sessions)))
+                        endpoint
+                            .authorizationRequestResolver(resolver)
+                            .authorizationRequestRepository(authorizationRequests))
                 .userInfoEndpoint(
                     userInfo -> userInfo.userService(new WhoOAuth2UserService(registrations::find)))
                 .withObjectPostProcessor(idTokenIssuerCheck())
-                .withObjectPostProcessor(signInPostProcessor(http, context)));
+                .withObjectPostProcessor(signInPostProcessor(http, context, resolver)));
     http.setSharedObject(OAuth2AuthorizedClientRepository.class, shared);
+  }
+
+  private static OAuth2AuthenticationToken signInResult(OAuth2LoginAuthenticationToken result) {
+    String registrationId = result.getClientRegistration().getRegistrationId();
+    return LinkIntent.readFrom(
+            result.getAuthorizationExchange().getAuthorizationRequest().getAttributes())
+        .<OAuth2AuthenticationToken>map(
+            intent ->
+                new LinkingAuthenticationToken(
+                    result.getPrincipal(), result.getAuthorities(), registrationId, intent))
+        .orElseGet(
+            () ->
+                new OAuth2AuthenticationToken(
+                    result.getPrincipal(), result.getAuthorities(), registrationId));
   }
 
   // Anonymous classes, not lambdas, so Spring can tell which type each post-processes.
@@ -151,7 +174,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
   }
 
   private ObjectPostProcessor<OAuth2LoginAuthenticationFilter> signInPostProcessor(
-      HttpSecurity http, ApplicationContext context) {
+      HttpSecurity http, ApplicationContext context, OidcAuthorizationRequests resolver) {
     return new ObjectPostProcessor<>() {
       @Override
       public <O extends OAuth2LoginAuthenticationFilter> O postProcess(O filter) {
@@ -182,8 +205,15 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
                 lastSignInCookie,
                 clock,
                 signUpWindow);
+        WhoExceptionHandoff handoff =
+            context
+                .getBeanProvider(WhoExceptionHandoff.class)
+                .getIfAvailable(() -> new WhoExceptionHandoff(null));
         // added here, where the session strategy is known; sorts before authorization, as
         // passkeys' guard filter does
+        http.addFilterAfter(
+            new LinkStartFilter(resolver, authorizationRequests, handoff, clock),
+            ExceptionTranslationFilter.class);
         http.addFilterAfter(
             new PendingSignUpFilter(
                 signUpService,
@@ -191,9 +221,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
                 sessions,
                 sessionStrategy,
                 pendingSignUps,
-                context
-                    .getBeanProvider(WhoExceptionHandoff.class)
-                    .getIfAvailable(() -> new WhoExceptionHandoff(null)),
+                handoff,
                 eventPublisher,
                 lastSignInCookie,
                 clock,
@@ -202,6 +230,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
         // Spring's token is not a who sign-in: no session strategy for it, and no saving it
         filter.setSessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy());
         filter.setSecurityContextRepository(new NullSecurityContextRepository());
+        // keep a link's intent, which Spring drops with the authorization request
+        filter.setAuthenticationResultConverter(OidcLoginMethod::signInResult);
         filter.setAuthenticationSuccessHandler(handler);
         filter.setAuthenticationFailureHandler(handler);
         return filter;

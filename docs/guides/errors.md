@@ -20,7 +20,7 @@ Provider sign-in adds three, for its [confirm endpoints](social-login.md#sign-up
 | `PendingSignUpNotFoundException` | 404 | No pending sign-up, or an expired or used one, at `GET /who/oidc/pending`, `POST /who/oidc/sign-up` or `POST /who/oidc/link`. |
 | `AlreadyLinkedException` | 409 | `POST /who/oidc/link` for an account linked to another identity. |
 
-`POST /who/oidc/link` also answers `NotSignedInException` and `ReauthenticationRequiredException`, after `who.oidc.link-window`.
+`POST /who/oidc/link` also answers `NotSignedInException` and `ReauthenticationRequiredException`, after `who.oidc.link-window`. `POST /who/oidc/link/{registrationId}`, which starts a link, answers `NotSignedInException` when signed out.
 
 All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException` and the three provider sign-in exceptions, which are in `org.jwcarman.who.oidc`.
 

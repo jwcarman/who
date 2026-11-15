@@ -46,6 +46,8 @@ $('passkey').addEventListener('click', async () => {
 const error = new URLSearchParams(location.search).get('error');
 if (error === 'already-linked') {
   showError('That account is already linked to someone else. Nothing was changed.');
+} else if (error === 'signed-in') {
+  showError('You are already signed in. To link that account, use Link on your profile; to use it to sign in, sign out first.');
 } else if (error === 'signin-failed') {
   showError('Signing in with the provider did not work. Try again, or sign in another way.');
 } else if (error === 'no-account') {

@@ -197,6 +197,7 @@ The provider sends the person back to who, and who redirects:
 | Signed in | `who.oidc.success-url` (default `/`) |
 | An account who does not know | `who.oidc.failure-url?error=no-account` |
 | An account linked to another identity, reached while signed in | `who.oidc.failure-url?error=already-linked` |
+| An account who does not know, reached by someone signed in who did not ask to [link](#link-an-account-to-someone-signed-in) | `who.oidc.failure-url?error=signed-in` |
 | Anything else: cancelled, refused by the provider, a bad token, an inactive identity | `who.oidc.failure-url?error=signin-failed` |
 
 The default for `who.oidc.failure-url` is `/`. Point it at your sign-in page and list that page in
@@ -253,17 +254,31 @@ If two requests confirm the same account at once, one identity is created and bo
 
 ### Link an account to someone signed in
 
-A signed-in person links a provider account by starting the same sign-in, from your account
-settings:
+Linking starts only when the person asks for it. Your account settings post to
+`POST /who/oidc/link/{registrationId}`, a form, so the chain's CSRF protection applies and only
+your own pages can start a link:
 
 ```html
-<a href="/oauth2/authorization/github">Link your GitHub account</a>
+<form method="post" action="/who/oidc/link/github">
+  <input type="hidden" name="_csrf" value="...">   <!-- or let your template engine add it -->
+  <button>Link your GitHub account</button>
+</form>
 ```
 
-who asks OpenID Connect providers to show their account chooser (`prompt=select_account`), so the
-person picks the account rather than being signed in with whichever one the provider remembers.
-The callback lands on `error=no-account` with a pending sign-up for which `canLink` is `true`. Show
-which account it is, and on confirmation:
+who answers with a redirect to the provider. The request it sends there remembers, on the server
+and for that one round trip only, that it is a link and which identity asked. Nothing in the URL
+says so, so no other site can turn a sign-in into a link. Signed out is `401`
+(`NotSignedInException`); a registration who does not sign in with is `404`.
+
+For an OpenID Connect provider, a link asks for a fresh login: who sends `max_age=0` and
+`prompt=login`, and accepts the answer only if the ID token's `auth_time` is no older than the
+link (allowing a minute of clock skew). A provider that just remembered the person, or sends no
+`auth_time`, is refused with `error=signin-failed` (reason `PROVIDER_ERROR`). An OAuth 2 provider
+without OpenID Connect, such as GitHub, has no `auth_time`; `who.oidc.link-window` is the check
+there.
+
+The callback lands on `error=no-account` with a pending sign-up for which `canLink` is `true`.
+Show which account it is, and on confirmation:
 
 ```js
 const response = await post('/who/oidc/link');   // { "credentialId": "..." }
@@ -275,24 +290,27 @@ have signed in within `who.oidc.link-window` (default 10 minutes), or it answers
 another identity is `409` with `AlreadyLinkedException`. Signed out is `401`; no pending sign-up
 is `404`.
 
-**Never confirm a link without asking.** The confirmation is what stops a planted account: someone
-who gets your user's browser to complete a provider sign-in with the attacker's account would
-otherwise attach it to your user's identity, and then sign in as them. Always show the account and
-wait for a click.
+**Never confirm a link without asking.** The confirmation still matters with a fresh login: it is
+what stops an account someone else signed in to at the provider from being attached to your
+user's identity. Always show the account and wait for a click.
 
 **Notify the person when a credential is added**, by email, as `PasskeyAddedNotifier` does for
 passkeys. Listen for `CredentialAdded` with kind `FEDERATED` (see [Events](events.md)).
 
-A pending sign-up remembers who was signed in when it started, and is dropped when anyone else
-signs in, including someone signing in where no one was. An account started in a shared browser
-cannot be linked or signed up by the next person.
+A link answers only the identity that started it. If someone else is signed in when the provider
+calls back, or no one is, nothing is linked or kept (`error=signin-failed`). A pending link is
+also dropped when anyone else signs in. Linking an account the identity already has changes
+nothing and redirects to `who.oidc.success-url`: a link is not a sign-in, so the session keeps the
+credential and sign-in time it had.
 
-Reaching an account that is already linked to someone else while signed in redirects with
-`error=already-linked` and changes nothing: the session stays as it was. To switch accounts, sign
-out first.
+A plain sign-in (`/oauth2/authorization/{id}`) never links. Someone signed in who reaches an
+account who does not know that way lands on `error=signed-in`, and nothing is kept: to use another
+account, sign out first. One that is already linked to someone else redirects with
+`error=already-linked` and changes nothing.
 
 To remove a provider account from an identity, call `FederatedCredentialService.unlink` with the
-credential's id from your own endpoint; it publishes `CredentialRevoked`.
+credential's id from your own endpoint, after checking that the credential belongs to the caller
+(it checks no ownership); it publishes `CredentialRevoked`.
 
 ## Open sign-up
 
@@ -366,8 +384,9 @@ person's identity. See [JWT](jwt.md#validate-the-audience).
 | The policy refused a sign-up | `SignInFailed`, reason `SIGN_UP_REFUSED` |
 | A sign-up | `IdentityCreated` and `CredentialAdded` (kind `FEDERATED`, labelled with the issuer) |
 | A link | `CredentialAdded` (kind `FEDERATED`) |
+| A link without a fresh provider login, or answered while another identity (or none) is signed in | `SignInFailed`, reason `PROVIDER_ERROR` |
 
-Starting a pending sign-up and `already-linked` publish nothing. The `who.sign-ins` meter counts
+Starting a pending sign-up, `already-linked` and `signed-in` publish nothing. The `who.sign-ins` meter counts
 these with `method=oidc` (see [Observability](observability.md)).
 
 ## Test it

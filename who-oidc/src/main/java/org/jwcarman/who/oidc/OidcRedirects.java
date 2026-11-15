@@ -34,6 +34,9 @@ public final class OidcRedirects {
   /** The provider account belongs to another identity than the one signed in. */
   public static final String ALREADY_LINKED = "already-linked";
 
+  /** A provider sign-in by someone already signed in, for an account who does not know. */
+  public static final String SIGNED_IN = "signed-in";
+
   private final String successUrl;
   private final String failureUrl;
 

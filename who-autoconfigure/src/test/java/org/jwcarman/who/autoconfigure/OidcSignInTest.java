@@ -149,20 +149,6 @@ class OidcSignInTest extends AbstractOidcTest {
     }
 
     @Test
-    void while_signed_in_is_linkable_only() throws Exception {
-      Identity bob = signedInIdentity("https://other.example.com", "bob");
-
-      MvcResult result = signInAtProvider("carol", Map.of());
-
-      assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=no-account");
-      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE))
-          .isInstanceOfSatisfying(
-              PendingSignUp.class, p -> assertThat(p.createdFor()).isEqualTo(bob.id()));
-      assertThat(me()).isEqualTo(200);
-    }
-
-    @Test
     void linked_to_another_identity_while_signed_in_redirects_already_linked() throws Exception {
       Identity bob = signedInIdentity("https://other.example.com", "bob");
 
@@ -234,15 +220,6 @@ class OidcSignInTest extends AbstractOidcTest {
           .satisfies(e -> assertThat(e.reason()).isEqualTo(SignInFailureReason.PROVIDER_ERROR));
       assertThat(me()).isEqualTo(401);
     }
-  }
-
-  @Test
-  void select_account_is_requested_only_when_signed_in() throws Exception {
-    assertThat(startAuthorization()).doesNotContain("prompt=");
-
-    signedInIdentity("https://other.example.com", "bob");
-
-    assertThat(startAuthorization()).contains("prompt=select_account");
   }
 
   @Test

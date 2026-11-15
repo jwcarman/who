@@ -22,3 +22,4 @@ button.link { background: none; border: 0; color: var(--accent); padding: 0; }
 .message { padding: .75rem 1rem; border-radius: 6px; background: #eef2ff; margin-bottom: 1.25rem; }
 .message.warn { background: #fff4ed; color: var(--warn); }
 [hidden] { display: none !important; }
+.inline { display: flex; gap: .5rem; flex-wrap: wrap; }

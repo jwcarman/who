@@ -37,14 +37,15 @@ Then open <http://localhost:8080>.
 4. **Sign up with Keycloak.** Sign out, choose Sign in with Keycloak, and sign in as `alice`. who
    does not know the account, so it asks whether to create one. The app's sign-up policy allows
    accounts from this Keycloak only, and makes them members.
-5. **Link an account.** Signed in as the admin, choose Link Keycloak on Profile and sign in as
-   `bob` (sign out of Keycloak first if it remembers alice). Confirm, and bob's Keycloak account
-   now signs in as the admin. An account that already belongs to someone else, such as alice's,
-   is refused with `already-linked` and changes nothing.
+5. **Link an account.** Signed in as the admin, choose Link Keycloak on Profile. Keycloak asks
+   for a password even if it remembers someone: who asks for a fresh login when linking. Sign in
+   as `bob` and confirm, and bob's Keycloak account now signs in as the admin. An account that
+   already belongs to someone else, such as alice's, is refused with `already-linked` and changes
+   nothing. Choosing Sign in with Keycloak while signed in never links; it says to sign out first.
 
    Signing out of the app does not sign you out of Keycloak: it remembers who signed in last, and
-   the next Sign in with Keycloak goes straight through as that user. To be someone else, sign out
-   at <http://localhost:8280/realms/who-example/account> or use a private window.
+   the next Sign in with Keycloak (not a link) goes straight through as that user. To be someone
+   else, sign out at <http://localhost:8280/realms/who-example/account> or use a private window.
 6. **See a closed provider.** With Google or GitHub turned on, sign in with an account no one has
    linked: sign-up is refused, because the policy opens only Keycloak.
 

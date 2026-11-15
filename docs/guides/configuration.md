@@ -28,7 +28,7 @@
 | `who.passkey.registration-window` | `10m` | How recently the session must have signed in to register a passkey |
 | `who.passkey.from` | none | Sender address of the "passkey added" email. The email is sent only when this is set, `who-email-link` is on and a `JavaMailSender` exists. It does not fall back to `who.email-link.from`. When the email cannot be sent, who logs a warning at startup |
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
-| `who.oidc.failure-url` | `/` | Where every other provider sign-in outcome lands, with `error=no-account`, `already-linked` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
+| `who.oidc.failure-url` | `/` | Where every other provider sign-in outcome lands, with `error=no-account`, `already-linked`, `signed-in` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
 | `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
 | `who.oidc.link-window` | `10m` | How recently the identity must have signed in to link a provider account |
 | `who.oidc.providers.<id>.enabled` | `true` | Leaves one client registration out of sign-in when `false` |

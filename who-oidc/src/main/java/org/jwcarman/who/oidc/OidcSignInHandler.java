@@ -47,6 +47,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -55,8 +56,9 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 
 /**
  * Turns a provider sign-in into a who session, or into a pending sign-up for an account who does
- * not know. Spring Security's own token never reaches the session: the security context is cleared
- * after every outcome.
+ * not know. A provider sign-in links only when it answers {@code POST /who/oidc/link/{id}}: a plain
+ * one by someone already signed in never offers to. Spring Security's own token never reaches the
+ * session: the security context is cleared after every outcome.
  */
 public final class OidcSignInHandler
     implements AuthenticationSuccessHandler, AuthenticationFailureHandler {
@@ -157,10 +159,16 @@ public final class OidcSignInHandler
       return;
     }
     UUID signedIn = sessions.currentSession(request).map(WhoSession::identityId).orElse(null);
+    boolean link = token instanceof LinkingAuthenticationToken;
+    if (token instanceof LinkingAuthenticationToken linking
+        && !linkStillHolds(linking.intent(), signedIn, registration.get(), token)) {
+      fail(request, response, SignInFailureReason.PROVIDER_ERROR, null, null);
+      return;
+    }
     Optional<FederatedCredential> credential =
         credentials.findByIssuerAndSubject(registration.get().issuer(), account.subject());
     if (credential.isEmpty()) {
-      startPendingSignUp(request, response, account, signedIn);
+      unknownAccount(request, response, account, signedIn, link);
       return;
     }
     UUID credentialId = credential.get().id();
@@ -168,14 +176,64 @@ public final class OidcSignInHandler
       case Resolution.Resolved(WhoPrincipal principal)
           when signedIn != null && !signedIn.equals(principal.identity().id()) ->
           redirect(request, response, redirects.failure(OidcRedirects.ALREADY_LINKED));
+      case Resolution.Resolved _ when link -> alreadyYours(request, response);
       case Resolution.Resolved(WhoPrincipal principal) ->
           signIn(request, response, principal, credentialId, account);
-      case Resolution.NotLinked _ -> startPendingSignUp(request, response, account, signedIn);
+      case Resolution.NotLinked _ -> unknownAccount(request, response, account, signedIn, link);
       case Resolution.Inactive(UUID identityId) ->
           fail(request, response, SignInFailureReason.INACTIVE_IDENTITY, identityId, credentialId);
       case Resolution.NoIdentity(UUID identityId) ->
           fail(request, response, SignInFailureReason.UNKNOWN_CREDENTIAL, identityId, credentialId);
     }
+  }
+
+  /**
+   * A link answers only the identity that started it, still signed in, and through an OpenID
+   * Connect provider only after a login at the provider that happened after the link started.
+   */
+  private static boolean linkStillHolds(
+      LinkIntent intent,
+      UUID signedIn,
+      SignInRegistration registration,
+      OAuth2AuthenticationToken token) {
+    if (!intent.identityId().equals(signedIn)) {
+      return false;
+    }
+    if (!registration.oidc()) {
+      // no auth_time without OpenID Connect; who.oidc.link-window is the check
+      return true;
+    }
+    return token.getPrincipal() instanceof OidcUser user
+        && intent.freshLogin(user.getAuthenticatedAt());
+  }
+
+  /**
+   * An account who does not know: a pending link when the person asked to link, a pending sign-up
+   * when no one is signed in, and nothing at all for a plain sign-in by someone signed in.
+   */
+  private void unknownAccount(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      ProviderAccount account,
+      UUID signedIn,
+      boolean link)
+      throws IOException {
+    if (signedIn != null && !link) {
+      pendingSignUps.consume(request);
+      redirect(request, response, redirects.failure(OidcRedirects.SIGNED_IN));
+      return;
+    }
+    startPendingSignUp(request, response, account, signedIn);
+  }
+
+  /**
+   * A link to an account the signed-in identity already has: nothing to do. The session keeps the
+   * credential and sign-in time it had; a link is not a sign-in.
+   */
+  private void alreadyYours(HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    pendingSignUps.consume(request);
+    redirect(request, response, redirects.success());
   }
 
   private void signIn(

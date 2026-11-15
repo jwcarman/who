@@ -89,7 +89,18 @@ class OidcSignInIT {
   static String signInAtProvider(WhoClient client, String subject)
       throws IOException, InterruptedException {
     provider.nextUser(subject, Map.of("email", subject + "@example.test"));
-    String authorize = location(client.get("/oauth2/authorization/test"));
+    return finishAtProvider(client, location(client.get("/oauth2/authorization/test")));
+  }
+
+  /** Starts a link at the app, lets the provider redirect back, and returns where it lands. */
+  static String linkAtProvider(WhoClient client, String subject)
+      throws IOException, InterruptedException {
+    provider.nextUser(subject, Map.of("email", subject + "@example.test"));
+    return finishAtProvider(client, location(client.post("/who/oidc/link/test", null)));
+  }
+
+  static String finishAtProvider(WhoClient client, String authorize)
+      throws IOException, InterruptedException {
     assertThat(authorize).startsWith(provider.issuer() + "/authorize");
     HttpResponse<Void> atProvider =
         AT_PROVIDER.send(
@@ -166,7 +177,8 @@ class OidcSignInIT {
     String another = "another-" + UUID.randomUUID();
     try (WhoClient client = client()) {
       signInAtProvider(client, linked);
-      assertThat(signInAtProvider(client, another)).endsWith("/?error=no-account");
+      assertThat(signInAtProvider(client, another)).endsWith("/?error=signed-in");
+      assertThat(linkAtProvider(client, another)).endsWith("/?error=no-account");
       assertThat(client.get("/who/oidc/pending").json().path("canLink").asBoolean()).isTrue();
 
       WhoClient.Response link = client.post("/who/oidc/link", null);
