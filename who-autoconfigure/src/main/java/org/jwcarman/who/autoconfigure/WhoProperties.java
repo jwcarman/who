@@ -929,15 +929,6 @@ public class WhoProperties {
       private Boolean trustEmail;
 
       /**
-       * Whether linking an account through this OpenID Connect provider demands a fresh login there
-       * ({@code max_age=0}, and an ID token whose {@code auth_time} is recent). Defaults to true
-       * for every OpenID Connect provider but Google, which reports no {@code auth_time}; without
-       * it, a link asks the provider to let the person choose the account. Only OpenID Connect can
-       * prove a fresh login, so true for any other provider fails startup.
-       */
-      private Boolean freshLogin;
-
-      /**
        * Returns whether who signs people in with this registration.
        *
        * @return {@code true} unless turned off
@@ -1007,24 +998,6 @@ public class WhoProperties {
        */
       public void setTrustEmail(Boolean trustEmail) {
         this.trustEmail = trustEmail;
-      }
-
-      /**
-       * Returns whether a link through this provider demands a fresh login.
-       *
-       * @return the setting, or null for the default
-       */
-      public Boolean getFreshLogin() {
-        return freshLogin;
-      }
-
-      /**
-       * Sets whether a link through this provider demands a fresh login.
-       *
-       * @param freshLogin the setting
-       */
-      public void setFreshLogin(Boolean freshLogin) {
-        this.freshLogin = freshLogin;
       }
     }
   }

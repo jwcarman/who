@@ -16,7 +16,7 @@ security library and wants the secure way first; breaking changes are acceptable
 
 - A link starts only from an explicit, CSRF-protected request naming the provider.
 - A plain provider sign-in never links and never offers to.
-- A link makes the provider authenticate the person again, where the provider supports it.
+- A link asks the provider to show the person which account they are linking.
 - The link intent cannot be forged, reused, or carried over to another sign-in or another
   identity.
 
@@ -44,8 +44,8 @@ security library and wants the secure way first; breaking changes are acceptable
    `resolve(request, registrationId)`, with a link customizer that:
    - puts two **attributes** on the `OAuth2AuthorizationRequest`: the intent `link` and the
      signed-in identity id. Attributes stay on the server; they are never sent to the provider;
-   - for an OpenID Connect provider, adds `max_age=0` and `prompt=login` to the parameters sent
-     to the provider.
+   - adds a `prompt` the provider understands (see "Which account" below) to the parameters
+     sent to the provider.
 2. Save it with Spring's `AuthorizationRequestRepository` (the session, as today).
 3. Answer with a redirect to the request's authorization URI.
 
@@ -78,7 +78,21 @@ resolve would otherwise fill Boot's default redirect URI with `authorize`.
 | link | someone else's | same identity | `already-linked`, nothing changed |
 | link | any | a different identity, or signed out | `signin-failed`, nothing kept |
 
-### The fresh login
+### Which account
+
+Revised on 2026-11-15, replacing the fresh login below: the owner found a per-provider
+`fresh-login` setting odd, and on a second look a fresh provider login protects against nothing
+the rest of the design does not. Someone using a victim's who session links their own account,
+whose password they know; a cross-site start is stopped by the POST and CSRF. The one real case is
+linking an account the provider remembers by mistake, such as another person's on a shared
+computer, and showing the account handles that. So a link sends a hint and checks nothing at the
+provider: `prompt=select_account` for Google and GitHub (the only value they understand),
+`prompt=login` for any other OpenID Connect provider (Keycloak and Okta honour it; Okta has no
+`select_account`), nothing for a plain OAuth 2 provider. No `max_age`, no `auth_time` check, no
+setting. who's check is its own and the same for every provider: `link-window`, both from start
+to callback and since the who sign-in at confirmation.
+
+The original design, kept for the record:
 
 For a link through an OpenID Connect provider, who sends `max_age=0` and requires the ID token's
 `auth_time` to be recent (within a minute or two of the callback, allowing clock skew). The OIDC
@@ -119,7 +133,7 @@ explicit link instead. Compared with the unreleased code:
 - A link starts from `POST /who/oidc/link/{registrationId}`, not from a plain link to
   `/oauth2/authorization/{id}` while signed in.
 - A signed-in plain provider sign-in with an unknown account answers `error=signed-in`.
-- Links through OpenID Connect providers require a fresh provider login.
+- A link asks the provider to show the person which account it is.
 
 ## Tests (who-autoconfigure, against `StubOidcProvider`)
 

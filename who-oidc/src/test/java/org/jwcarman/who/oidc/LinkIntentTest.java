@@ -71,30 +71,6 @@ class LinkIntentTest {
   }
 
   @Nested
-  class Fresh_login {
-
-    @Test
-    void after_the_link_started_is_fresh() {
-      assertThat(INTENT.freshLogin(STARTED.plusSeconds(5))).isTrue();
-    }
-
-    @Test
-    void within_the_skew_before_it_is_fresh() {
-      assertThat(INTENT.freshLogin(STARTED.minus(LinkIntent.SKEW))).isTrue();
-    }
-
-    @Test
-    void past_the_skew_is_not() {
-      assertThat(INTENT.freshLogin(STARTED.minus(LinkIntent.SKEW).minusSeconds(1))).isFalse();
-    }
-
-    @Test
-    void no_auth_time_is_not() {
-      assertThat(INTENT.freshLogin(null)).isFalse();
-    }
-  }
-
-  @Nested
   class Expiry {
 
     private static final Duration LIFETIME = Duration.ofMinutes(10);

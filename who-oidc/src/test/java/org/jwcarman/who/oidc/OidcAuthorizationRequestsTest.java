@@ -58,7 +58,7 @@ class OidcAuthorizationRequestsTest {
               CLIENTS,
               Map.of(
                   "plain",
-                  new ProviderSettings(true, "https://plain.example.com", "user_id", null, null))));
+                  new ProviderSettings(true, "https://plain.example.com", "user_id", null))));
 
   private static ClientRegistration oidc(String id, String issuer) {
     return ClientRegistration.withRegistrationId(id)
@@ -112,14 +112,14 @@ class OidcAuthorizationRequestsTest {
     }
 
     @Test
-    void through_openid_connect_asks_for_a_fresh_login() {
+    void through_openid_connect_asks_the_person_to_sign_in_again() {
       assertThat(link("acme").getAdditionalParameters())
-          .containsEntry("max_age", "0")
-          .containsEntry("prompt", "login");
+          .containsEntry("prompt", "login")
+          .doesNotContainKey("max_age");
     }
 
     @Test
-    void through_a_provider_without_fresh_login_asks_which_account() {
+    void through_google_asks_which_account() {
       assertThat(link("google").getAdditionalParameters())
           .containsEntry("prompt", "select_account")
           .doesNotContainKey("max_age");

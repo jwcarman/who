@@ -79,8 +79,6 @@ public final class StubOidcProvider implements AutoCloseable {
   private volatile Map<String, Object> claims = Map.of();
   private volatile String issuerClaim;
   private volatile String nonce;
-  private volatile boolean maxAgeRequested;
-  private volatile boolean sendAuthTime = true;
   private volatile String clientId;
   private volatile List<Map<String, Object>> emails = List.of();
   private volatile int emailsStatus = 200;
@@ -143,17 +141,6 @@ public final class StubOidcProvider implements AutoCloseable {
   public void nextUser(String subject, Map<String, Object> claims) {
     this.subject = subject;
     this.claims = Map.copyOf(claims);
-  }
-
-  /**
-   * Whether ID tokens carry {@code auth_time} when the authorization request asked for {@code
-   * max_age}, as the OpenID Connect spec requires. On by default; turn it off to act as a provider
-   * that ignores {@code max_age}. A claim given to {@link #nextUser} wins either way.
-   *
-   * @param send whether to send it
-   */
-  public void sendAuthTime(boolean send) {
-    this.sendAuthTime = send;
   }
 
   /**
@@ -262,7 +249,6 @@ public final class StubOidcProvider implements AutoCloseable {
   private void authorize(HttpExchange exchange) throws IOException {
     Map<String, String> query = form(exchange.getRequestURI().getRawQuery());
     this.nonce = query.get("nonce");
-    this.maxAgeRequested = query.containsKey("max_age");
     this.clientId = query.get("client_id");
     String location =
         query.get("redirect_uri")
@@ -310,10 +296,6 @@ public final class StubOidcProvider implements AutoCloseable {
         .expirationTime(Date.from(now.plusSeconds(300)));
     if (nonce != null) {
       builder.claim("nonce", nonce);
-    }
-    if (maxAgeRequested && sendAuthTime && !claims.containsKey("auth_time")) {
-      // max_age asks for a fresh login, which a stub always has
-      builder.claim("auth_time", now.getEpochSecond());
     }
     SignedJWT jwt =
         new SignedJWT(

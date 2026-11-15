@@ -34,8 +34,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 /**
  * Builds the authorization requests who sends people to a provider with: a plain sign-in, only for
  * the registrations who signs in with, and a link, which carries its {@link LinkIntent} in the
- * request's attributes (kept on the server, never sent) and, for an OpenID Connect provider, asks
- * for a fresh login.
+ * request's attributes (kept on the server, never sent) and asks the provider to show the person
+ * which account they are linking.
  */
 final class OidcAuthorizationRequests implements OAuth2AuthorizationRequestResolver {
 
@@ -84,7 +84,7 @@ final class OidcAuthorizationRequests implements OAuth2AuthorizationRequestResol
    * @param request the request starting the link
    * @param registrationId the provider registration
    * @param identityId the identity signed in, which the account will be linked to
-   * @param now when the link starts; a fresh login must be no older
+   * @param now when the link starts
    * @return the request, or empty for a registration who does not sign in with
    */
   Optional<OAuth2AuthorizationRequest> link(
@@ -108,17 +108,21 @@ final class OidcAuthorizationRequests implements OAuth2AuthorizationRequestResol
   }
 
   /**
-   * What a link asks the provider for. A fresh login: {@code max_age=0} obliges the provider to
-   * report {@code auth_time}, and {@code prompt=login} asks one that skips its login screen anyway
-   * to show it. Otherwise, where the provider supports it, a choice of account, so a remembered
-   * account is not linked without the person seeing which one it is.
+   * What a link asks the provider for, so an account the provider remembers (perhaps someone
+   * else's, on a shared computer) is not linked without the person seeing which one it is. A hint,
+   * not a check: who cannot tell whether the provider honoured it, and the check is {@code
+   * who.oidc.link-window}. Google and GitHub understand only {@code prompt=select_account}; any
+   * other OpenID Connect provider is asked to sign the person in again ({@code prompt=login}),
+   * which the spec defines and providers without an account chooser (Keycloak, Okta) honour. A
+   * plain OAuth 2 provider has no standard parameter, so it is sent nothing.
    */
   private static Map<String, Object> linkParameters(SignInRegistration registration) {
-    if (registration.freshLogin()) {
-      return Map.of("max_age", "0", "prompt", "login");
-    }
-    if (registration.oidc() || registration.kind() == SignInRegistration.Kind.GITHUB) {
+    if (registration.kind() == SignInRegistration.Kind.GITHUB
+        || SignInRegistrations.GOOGLE_ISSUER.equals(registration.issuer())) {
       return Map.of("prompt", "select_account");
+    }
+    if (registration.oidc()) {
+      return Map.of("prompt", "login");
     }
     return Map.of();
   }

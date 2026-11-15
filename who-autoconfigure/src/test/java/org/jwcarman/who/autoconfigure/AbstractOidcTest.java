@@ -100,7 +100,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
       "spring.security.oauth2.client.registration.test.client-id=client",
       "spring.security.oauth2.client.registration.test.client-secret=secret",
       "spring.security.oauth2.client.registration.test.scope=openid,email,profile",
-      // a plain OAuth 2 provider, with no ID token and so no auth_time
+      // a plain OAuth 2 provider, with no ID token
       "spring.security.oauth2.client.registration.plain.client-id=client",
       "spring.security.oauth2.client.registration.plain.client-secret=secret",
       "spring.security.oauth2.client.registration.plain.authorization-grant-type=authorization_code",
@@ -258,7 +258,6 @@ abstract class AbstractOidcTest {
     jdbcClient.sql("DELETE FROM who_credential_identity").update();
     jdbcClient.sql("DELETE FROM who_identity").update();
     PROVIDER.nextIssuerClaim(null);
-    PROVIDER.sendAuthTime(true);
     policy.set(new ClosedSignUpPolicy());
     recordingAuthorizedClients.calls.set(0);
     sender.sent.clear();

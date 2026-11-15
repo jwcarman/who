@@ -35,6 +35,5 @@
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints, or an OAuth 2 provider |
 | `who.oidc.providers.<id>.subject-attribute` | none | The user-info attribute holding the account's immutable id, for an OAuth 2 provider other than github.com |
 | `who.oidc.providers.<id>.trust-email` | `true` for Google and github.com, else `false` | Whether a verified address from this provider reaches the sign-up policy |
-| `who.oidc.providers.<id>.fresh-login` | `true` for OpenID Connect providers but Google, else `false` | Whether a link demands a fresh login at the provider (`max_age=0` and a recent `auth_time`) |
 
 See [Email Links](email-links.md), [Passkeys](passkeys.md) and [Social Login](social-login.md) for how these fit together.

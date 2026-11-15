@@ -52,12 +52,12 @@ class OidcLinkTest extends AbstractOidcTest {
   class Starting_a_link {
 
     @Test
-    void asks_the_provider_for_a_fresh_login() throws Exception {
+    void asks_the_provider_to_sign_the_person_in_again() throws Exception {
       signedInIdentity("https://other.example.com", "bob");
 
       String authorize = startLink();
 
-      assertThat(authorize).contains("max_age=0").contains("prompt=login");
+      assertThat(authorize).contains("prompt=login").doesNotContain("max_age");
     }
 
     @Test
@@ -123,35 +123,16 @@ class OidcLinkTest extends AbstractOidcTest {
     }
 
     @Test
-    void a_login_the_provider_only_remembered_is_refused() throws Exception {
-      Identity bob = signedInIdentity("https://other.example.com", "bob");
+    void a_login_the_provider_only_remembered_still_waits_to_be_confirmed() throws Exception {
+      signedInIdentity("https://other.example.com", "bob");
       long anHourAgo = Instant.now().minusSeconds(3600).getEpochSecond();
 
+      // prompt=login is a hint; who's check is its own link window, not the provider's auth_time
       MvcResult result = linkAtProvider("carol", Map.of("auth_time", anHourAgo));
 
       assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=signin-failed");
-      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
-      assertThat(events.stream(SignInFailed.class))
-          .singleElement()
-          .satisfies(
-              e -> {
-                assertThat(e.reason()).isEqualTo(SignInFailureReason.LINK_REFUSED);
-                assertThat(e.identityId()).isEqualTo(bob.id());
-              });
-      assertThat(me()).isEqualTo(200);
-    }
-
-    @Test
-    void a_login_with_no_auth_time_is_refused() throws Exception {
-      signedInIdentity("https://other.example.com", "bob");
-      PROVIDER.sendAuthTime(false);
-
-      MvcResult result = linkAtProvider("carol", Map.of());
-
-      assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=signin-failed");
-      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
+          .isEqualTo(FAILURE_URL + "?error=no-account");
+      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNotNull();
     }
 
     @Test
@@ -192,7 +173,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
     @Test
     void a_link_started_too_long_ago_links_nothing() throws Exception {
-      signedInIdentity("https://other.example.com", "bob");
+      Identity bob = signedInIdentity("https://other.example.com", "bob");
       PROVIDER.nextUser("carol", Map.of());
       String authorize = startLink();
       ageSavedLink(LINK_WINDOW.plusMinutes(1));
@@ -204,7 +185,12 @@ class OidcLinkTest extends AbstractOidcTest {
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
       assertThat(events.stream(SignInFailed.class))
           .singleElement()
-          .satisfies(e -> assertThat(e.reason()).isEqualTo(SignInFailureReason.LINK_REFUSED));
+          .satisfies(
+              e -> {
+                assertThat(e.reason()).isEqualTo(SignInFailureReason.LINK_REFUSED);
+                assertThat(e.identityId()).isEqualTo(bob.id());
+              });
+      assertThat(me()).isEqualTo(200);
     }
 
     @Test
@@ -267,7 +253,7 @@ class OidcLinkTest extends AbstractOidcTest {
     }
 
     @Test
-    void through_a_provider_without_auth_time_links_after_confirming() throws Exception {
+    void through_a_plain_oauth2_provider_links_after_confirming() throws Exception {
       Identity bob = signedInIdentity("https://other.example.com", "bob");
       PLAIN.nextUser("4242", Map.of("login", "carol"));
       String authorize = startLink("plain", PLAIN);
@@ -277,7 +263,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
       assertThat(result.getResponse().getRedirectedUrl())
           .isEqualTo(FAILURE_URL + "?error=no-account");
-      assertThat(authorize).doesNotContain("max_age").doesNotContain("prompt=login");
+      assertThat(authorize).doesNotContain("prompt=");
       FederatedCredential carol =
           federatedCredentialRepository
               .findByIssuerAndSubject(PLAIN.issuer(), "4242")

@@ -32,12 +32,9 @@ import java.util.UUID;
  * can set it, and it cannot outlive the round trip.
  *
  * @param identityId the identity that asked, the only one the account may be linked to
- * @param startedAt when the link started; a fresh provider login must be no older
+ * @param startedAt when the link started, so it can expire
  */
 record LinkIntent(UUID identityId, Instant startedAt) implements Serializable {
-
-  /** Clock skew allowed between who and the provider when comparing {@code auth_time}. */
-  static final Duration SKEW = Duration.ofSeconds(60);
 
   private static final String IDENTITY = "org.jwcarman.who.oidc.link.identity";
   private static final String STARTED_AT = "org.jwcarman.who.oidc.link.started-at";
@@ -73,16 +70,6 @@ record LinkIntent(UUID identityId, Instant startedAt) implements Serializable {
     } catch (IllegalArgumentException | DateTimeParseException _) {
       return Optional.empty();
     }
-  }
-
-  /**
-   * Whether the provider's login happened after the link started.
-   *
-   * @param authenticatedAt the ID token's {@code auth_time}, or null
-   * @return whether it is fresh
-   */
-  boolean freshLogin(Instant authenticatedAt) {
-    return authenticatedAt != null && !authenticatedAt.isBefore(startedAt.minus(SKEW));
   }
 
   /**

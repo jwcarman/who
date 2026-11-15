@@ -113,8 +113,7 @@ public class WhoOidcAutoConfiguration {
                         provider.isEnabled(),
                         provider.getIssuer(),
                         provider.getSubjectAttribute(),
-                        provider.getTrustEmail(),
-                        provider.getFreshLogin())));
+                        provider.getTrustEmail())));
     SignInRegistrations signIn;
     try {
       signIn = SignInRegistrations.of(registrations, settings);

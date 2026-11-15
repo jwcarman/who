@@ -48,14 +48,13 @@
         </form>
       </li>
     </ul>
-    <!-- A form, not a link: who starts a link only from a CSRF-protected POST, and asks the
-         provider for a fresh login. -->
+    <!-- A form, not a link: who starts a link only from a CSRF-protected POST. -->
     <div class="inline">
       <form method="post" th:each="p : ${providers}" th:action="@{/who/oidc/link/{id}(id=${p.id})}">
         <button type="submit" class="secondary" th:text="'Link ' + ${p.name}">Link Keycloak</button>
       </form>
     </div>
-    <p class="muted">The provider asks you to sign in again. Link within 10 minutes of signing in here.</p>
+    <p class="muted">The provider asks you to sign in again, or to choose the account. Link within 10 minutes of signing in here.</p>
   </section>
 </main>
 <script type="module" src="/js/profile.js"></script>

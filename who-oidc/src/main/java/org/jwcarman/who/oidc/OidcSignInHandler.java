@@ -47,7 +47,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -166,7 +165,7 @@ public final class OidcSignInHandler
     LinkIntent intent =
         token instanceof LinkingAuthenticationToken linking ? linking.intent() : null;
     boolean link = intent != null;
-    if (link && !linkStillHolds(intent, signedIn, registration.get(), token)) {
+    if (link && !linkStillHolds(intent, signedIn)) {
       fail(request, response, SignInFailureReason.LINK_REFUSED, intent.identityId(), null);
       return;
     }
@@ -198,23 +197,10 @@ public final class OidcSignInHandler
 
   /**
    * A link answers only the identity that started it, still signed in, within {@code
-   * who.oidc.link-window} of starting, and, where the provider demands a fresh login, only after a
-   * login at the provider that happened after the link started.
+   * who.oidc.link-window} of starting.
    */
-  private boolean linkStillHolds(
-      LinkIntent intent,
-      UUID signedIn,
-      SignInRegistration registration,
-      OAuth2AuthenticationToken token) {
-    if (!intent.identityId().equals(signedIn) || intent.expired(clock.instant(), linkWindow)) {
-      return false;
-    }
-    if (!registration.freshLogin()) {
-      // no auth_time to check; the confirmation's who.oidc.link-window is the check
-      return true;
-    }
-    return token.getPrincipal() instanceof OidcUser user
-        && intent.freshLogin(user.getAuthenticatedAt());
+  private boolean linkStillHolds(LinkIntent intent, UUID signedIn) {
+    return intent.identityId().equals(signedIn) && !intent.expired(clock.instant(), linkWindow);
   }
 
   private void alreadyLinked(HttpServletRequest request, HttpServletResponse response)

@@ -273,24 +273,18 @@ bearer token), since the callback has no session to finish the link in. A regist
 not sign in with is `404` (`UnknownProviderException`). A link lasts `who.oidc.link-window`: a
 provider that answers later is refused.
 
-For an OpenID Connect provider, a link asks for a fresh login: who sends `max_age=0` and
-`prompt=login`, and accepts the answer only if the ID token's `auth_time` is no older than the
-link (allowing a minute of clock skew). A provider that just remembered the person, or sends no
-`auth_time`, is refused with `error=signin-failed` (reason `LINK_REFUSED`).
+who also asks the provider to show the person which account they are linking, so an account the
+provider remembers (perhaps someone else's, on a shared computer) is not linked unseen:
 
-Not every provider can prove a fresh login:
+| Provider | What a link asks for |
+|---|---|
+| Google, github.com | `prompt=select_account`: choose the account |
+| Any other OpenID Connect provider (Keycloak, Okta, Microsoft Entra, …) | `prompt=login`: sign in again |
+| Any other OAuth 2 provider | nothing; there is no standard parameter |
 
-| Provider | What a link asks for | The check |
-|---|---|---|
-| OpenID Connect (Keycloak, Okta, Auth0, …) | `max_age=0`, `prompt=login` | a recent `auth_time`, then `who.oidc.link-window` at confirmation |
-| Google | `prompt=select_account` | `who.oidc.link-window` at confirmation |
-| github.com | `prompt=select_account` | `who.oidc.link-window` at confirmation |
-| Any other OAuth 2 provider | nothing extra | `who.oidc.link-window` at confirmation |
-
-Google honours neither `max_age` nor `prompt=login` and reports no `auth_time`, so who asks it to
-let the person choose the account instead. An OpenID Connect provider that leaves `auth_time` out
-of its ID tokens (Microsoft Entra does, unless you add it as an optional claim) refuses every link;
-add the claim, or set `who.oidc.providers.<id>.fresh-login=false` to treat it like Google.
+That is a request, not a check: who cannot tell whether the provider did it. The check is who's
+own, the same for every provider: the person must have signed in to your application within
+`who.oidc.link-window` when they confirm.
 
 The callback lands on `error=no-account` with a pending sign-up for which `canLink` is `true`.
 Show which account it is, and on confirmation:
@@ -305,8 +299,7 @@ have signed in within `who.oidc.link-window` (default 10 minutes), or it answers
 another identity is `409` with `AlreadyLinkedException`. Signed out is `401`; no pending sign-up
 is `404`.
 
-**Never confirm a link without asking.** The confirmation still matters with a fresh login: it is
-what stops an account someone else signed in to at the provider from being attached to your
+**Never confirm a link without asking.** The confirmation is what stops an account someone else signed in to at the provider from being attached to your
 user's identity. Always show the account and wait for a click.
 
 **Notify the person when a credential is added**, by email, as `PasskeyAddedNotifier` does for
@@ -400,7 +393,7 @@ person's identity. See [JWT](jwt.md#validate-the-audience).
 | The policy refused a sign-up | `SignInFailed`, reason `SIGN_UP_REFUSED` |
 | A sign-up | `IdentityCreated` and `CredentialAdded` (kind `FEDERATED`, labelled with the issuer) |
 | A link | `CredentialAdded` (kind `FEDERATED`) |
-| A link without a fresh provider login, started more than `who.oidc.link-window` ago, or answered while another identity (or none) is signed in | `SignInFailed`, reason `LINK_REFUSED`, naming the identity that started it |
+| A link started more than `who.oidc.link-window` ago, or answered while another identity (or none) is signed in | `SignInFailed`, reason `LINK_REFUSED`, naming the identity that started it |
 
 Starting a pending sign-up, `already-linked` and `signed-in` publish nothing. The `who.sign-ins` meter counts
 these with `method=oidc` (see [Observability](observability.md)).
@@ -447,4 +440,3 @@ those requests.
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints or an OAuth 2 provider |
 | `who.oidc.providers.<id>.subject-attribute` | none | The user-info attribute holding the account's immutable id, for an OAuth 2 provider other than github.com |
 | `who.oidc.providers.<id>.trust-email` | `true` for Google and github.com, else `false` | Whether a verified address from this provider reaches your sign-up policy |
-| `who.oidc.providers.<id>.fresh-login` | `true` for OpenID Connect providers but Google, else `false` | Whether a link demands a fresh login there (`max_age=0` and a recent `auth_time`); `true` on a provider without OpenID Connect fails startup |

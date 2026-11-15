@@ -64,7 +64,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `PASSKEY` | `INVALID_ASSERTION` (signature, origin or unknown credential; they cannot be told apart), `INACTIVE_IDENTITY` |
 | `API_KEY` | `UNKNOWN_KEY` (unknown, revoked, or linked to no identity), `INACTIVE_IDENTITY` |
 | `JWT` | `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY` |
-| `OIDC` | `PROVIDER_ERROR` (cancelled, refused by the provider, a state mismatch, a bad ID token or one from the wrong issuer), `LINK_REFUSED` (a link without a fresh provider login, started too long ago, or answered for another identity; the event names the identity that started it), `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`, `SIGN_UP_REFUSED` (the sign-up policy said no) |
+| `OIDC` | `PROVIDER_ERROR` (cancelled, refused by the provider, a state mismatch, a bad ID token or one from the wrong issuer), `LINK_REFUSED` (a link started too long ago, or answered for another identity; the event names the identity that started it), `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`, `SIGN_UP_REFUSED` (the sign-up policy said no) |
 
 A JWT that Spring rejects before who sees it (bad signature, expired) publishes no who event;
 Spring publishes its own. The same goes for a malformed passkey assertion that Spring rejects

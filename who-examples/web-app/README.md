@@ -38,8 +38,8 @@ Then open <http://localhost:8080>.
    does not know the account, so it asks whether to create one. The app's sign-up policy allows
    accounts from this Keycloak only, and makes them members.
 5. **Link an account.** Signed in as the admin, choose Link Keycloak on Profile. Keycloak asks
-   for a password even if it remembers someone: who asks for a fresh login when linking. Sign in
-   as `bob` and confirm, and bob's Keycloak account now signs in as the admin. An account that
+   for a password even if it remembers someone, because who asks it to, so you see which account
+   you are linking. Sign in as `bob` and confirm, and bob's Keycloak account now signs in as the admin. An account that
    already belongs to someone else, such as alice's, is refused with `already-linked` and changes
    nothing. Choosing Sign in with Keycloak while signed in never links; it says to sign out first.
 

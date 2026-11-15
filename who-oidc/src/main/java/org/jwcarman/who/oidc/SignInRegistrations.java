@@ -123,19 +123,15 @@ public final class SignInRegistrations {
           issuer,
           SignInRegistration.Kind.OIDC,
           null,
-          trustEmail(provider, GOOGLE_ISSUER.equals(issuer)),
-          // Google honours neither max_age nor prompt=login, and reports no auth_time
-          freshLogin(provider, !GOOGLE_ISSUER.equals(issuer)));
+          trustEmail(provider, GOOGLE_ISSUER.equals(issuer)));
     }
-    rejectFreshLogin(id, provider);
     if (isGitHub(client) && provider.issuer() == null && provider.subjectAttribute() == null) {
       return new SignInRegistration(
           id,
           GITHUB_ISSUER,
           SignInRegistration.Kind.GITHUB,
           GITHUB_SUBJECT_ATTRIBUTE,
-          trustEmail(provider, true),
-          false);
+          trustEmail(provider, true));
     }
     String issuer = required(id, provider.issuer(), "issuer");
     String subjectAttribute = required(id, provider.subjectAttribute(), "subject-attribute");
@@ -145,8 +141,7 @@ public final class SignInRegistrations {
         issuer,
         isGitHub(client) ? SignInRegistration.Kind.GITHUB : SignInRegistration.Kind.OAUTH2,
         subjectAttribute,
-        trustEmail(provider, false),
-        false);
+        trustEmail(provider, false));
   }
 
   private static String oidcIssuer(ClientRegistration client, ProviderSettings provider) {
@@ -196,20 +191,6 @@ public final class SignInRegistrations {
                 + "' endpoint, whose tokens carry each tenant's own issuer; use your tenant's"
                 + " issuer, https://login.microsoftonline.com/<tenant-id>/v2.0");
       }
-    }
-  }
-
-  private static boolean freshLogin(ProviderSettings provider, boolean byDefault) {
-    return provider.freshLogin() != null ? provider.freshLogin() : byDefault;
-  }
-
-  private static void rejectFreshLogin(String id, ProviderSettings provider) {
-    if (Boolean.TRUE.equals(provider.freshLogin())) {
-      throw new InvalidRegistrationException(
-          id,
-          property(id, "fresh-login"),
-          "is true, but only an OpenID Connect provider can prove a fresh login (auth_time);"
-              + " remove it, or add the openid scope");
     }
   }
 
