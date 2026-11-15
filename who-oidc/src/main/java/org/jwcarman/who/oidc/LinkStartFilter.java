@@ -19,6 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +33,7 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
+import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -60,19 +63,22 @@ final class LinkStartFilter extends OncePerRequestFilter {
   private final WhoSessionSecurityContextRepository sessions;
   private final WhoExceptionHandoff handoff;
   private final Clock clock;
+  private final Duration recentSignIn;
 
   LinkStartFilter(
       OidcAuthorizationRequests authorizationRequests,
       AuthorizationRequestRepository<OAuth2AuthorizationRequest> repository,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
-      Clock clock) {
+      Clock clock,
+      Duration recentSignIn) {
     this.authorizationRequests =
         requireNonNull(authorizationRequests, "authorizationRequests must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
+    this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
   }
 
   @Override
@@ -84,14 +90,21 @@ final class LinkStartFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    Optional<UUID> identityId = browserSignIn(request);
-    if (identityId.isEmpty()) {
+    Optional<WhoSession> session = browserSignIn(request);
+    if (session.isEmpty()) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    Instant now = clock.instant();
+    // checked again at confirmation; here so a stale session fails before the trip to the provider
+    if (session.get().signedInAt().plus(recentSignIn).isBefore(now)) {
+      handoff.handOff(
+          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
     }
     String registrationId = LINK_START.matcher(request).getVariables().get("registrationId");
     Optional<OAuth2AuthorizationRequest> authorization =
-        authorizationRequests.link(request, registrationId, identityId.get(), clock.instant());
+        authorizationRequests.link(request, registrationId, session.get().identityId(), now);
     if (authorization.isEmpty()) {
       handoff.handOff(request, response, new UnknownProviderException(), HttpStatus.NOT_FOUND);
       return;
@@ -104,7 +117,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
    * The identity signed in to this browser's who session. A caller signed in some other way, an API
    * key or a bearer token, has no session for the provider's callback to finish the link in.
    */
-  private Optional<UUID> browserSignIn(HttpServletRequest request) {
+  private Optional<WhoSession> browserSignIn(HttpServletRequest request) {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (!(authentication instanceof WhoAuthenticationToken token)) {
       return Optional.empty();
@@ -112,7 +125,6 @@ final class LinkStartFilter extends OncePerRequestFilter {
     UUID identityId = token.getPrincipal().identity().id();
     return sessions
         .currentSession(request)
-        .filter(session -> session.identityId().equals(identityId))
-        .map(WhoSession::identityId);
+        .filter(session -> session.identityId().equals(identityId));
   }
 }

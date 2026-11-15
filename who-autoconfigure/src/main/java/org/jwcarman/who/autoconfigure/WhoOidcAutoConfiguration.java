@@ -206,7 +206,7 @@ public class WhoOidcAutoConfiguration {
         new OidcRedirects(successUrl, failureUrl),
         clock,
         oidc.getSignUpWindow(),
-        oidc.getLinkWindow());
+        properties.getSecurity().getRecentSignIn());
   }
 
   private static String localPath(String property, String url) {

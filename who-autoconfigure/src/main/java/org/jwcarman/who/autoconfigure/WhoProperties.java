@@ -193,9 +193,6 @@ public class WhoProperties {
      */
     private Set<String> allowedOrigins = new LinkedHashSet<>();
 
-    /** How recently the session must have signed in to register a passkey. */
-    private Duration registrationWindow = Duration.ofMinutes(10);
-
     /**
      * Sender address of the email that tells the owner a passkey was added. The email is sent only
      * when it is set, {@code who-email-link} is on and a {@code JavaMailSender} exists; otherwise
@@ -255,24 +252,6 @@ public class WhoProperties {
      */
     public void setAllowedOrigins(Set<String> allowedOrigins) {
       this.allowedOrigins = allowedOrigins;
-    }
-
-    /**
-     * Returns the registration window.
-     *
-     * @return the registration window
-     */
-    public Duration getRegistrationWindow() {
-      return registrationWindow;
-    }
-
-    /**
-     * Sets the registration window.
-     *
-     * @param registrationWindow the registration window
-     */
-    public void setRegistrationWindow(Duration registrationWindow) {
-      this.registrationWindow = registrationWindow;
     }
 
     /**
@@ -709,6 +688,31 @@ public class WhoProperties {
     private LastSignInCookie lastSignInCookie = new LastSignInCookie();
 
     /**
+     * How recently the browser session must have signed in to add a way to sign in: registering a
+     * passkey, linking a provider account, or adding or changing an email address. Checked when the
+     * request starts and when it is confirmed.
+     */
+    private Duration recentSignIn = Duration.ofMinutes(10);
+
+    /**
+     * Returns how recently the session must have signed in to add a way to sign in.
+     *
+     * @return the window
+     */
+    public Duration getRecentSignIn() {
+      return recentSignIn;
+    }
+
+    /**
+     * Sets how recently the session must have signed in to add a way to sign in.
+     *
+     * @param recentSignIn the window
+     */
+    public void setRecentSignIn(Duration recentSignIn) {
+      this.recentSignIn = recentSignIn;
+    }
+
+    /**
      * Returns the last-sign-in cookie's settings.
      *
      * @return the settings
@@ -790,9 +794,6 @@ public class WhoProperties {
     /** How long a pending sign-up waits for the person to confirm it. */
     private Duration signUpWindow = Duration.ofMinutes(10);
 
-    /** How recently the identity must have signed in to link a provider account. */
-    private Duration linkWindow = Duration.ofMinutes(10);
-
     /** Per client registration settings, by registration id. */
     private Map<String, Provider> providers = new LinkedHashMap<>();
 
@@ -866,24 +867,6 @@ public class WhoProperties {
      */
     public void setSignUpWindow(Duration signUpWindow) {
       this.signUpWindow = signUpWindow;
-    }
-
-    /**
-     * Returns how recently the identity must have signed in to link an account.
-     *
-     * @return the window
-     */
-    public Duration getLinkWindow() {
-      return linkWindow;
-    }
-
-    /**
-     * Sets how recently the identity must have signed in to link an account.
-     *
-     * @param linkWindow the window
-     */
-    public void setLinkWindow(Duration linkWindow) {
-      this.linkWindow = linkWindow;
     }
 
     /**

@@ -191,7 +191,7 @@ class PasskeyAutoConfigurationTest {
             RP_ID,
             "who.passkey.rp-name=Acme",
             "who.passkey.allowed-origins=https://app.example.com,https://www.example.com",
-            "who.passkey.registration-window=3m")
+            "who.security.recent-sign-in=3m")
         .run(
             context ->
                 assertThat(context.getBean(PasskeySettings.class))

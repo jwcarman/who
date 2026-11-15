@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collections;
@@ -55,6 +56,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 class LinkStartFilterTest {
 
   private static final Instant NOW = Instant.parse("2026-11-15T12:00:00Z");
+  private static final Duration RECENT_SIGN_IN = Duration.ofMinutes(10);
   private static final ClientRegistration ACME =
       ClientRegistration.withRegistrationId("acme")
           .clientId("client")
@@ -79,7 +81,8 @@ class LinkStartFilterTest {
           saved,
           new WhoSessionSecurityContextRepository(mock(WhoService.class), Clock.systemUTC()),
           new WhoExceptionHandoff(null),
-          Clock.fixed(NOW, ZoneOffset.UTC));
+          Clock.fixed(NOW, ZoneOffset.UTC),
+          RECENT_SIGN_IN);
   private final Identity bob = Identity.create(IdentityStatus.ACTIVE);
 
   @AfterEach
@@ -99,11 +102,16 @@ class LinkStartFilterTest {
   }
 
   private static void withWhoSession(MockHttpServletRequest request, Identity identity) {
+    withWhoSession(request, identity, NOW);
+  }
+
+  private static void withWhoSession(
+      MockHttpServletRequest request, Identity identity, Instant signedInAt) {
     request
         .getSession(true)
         .setAttribute(
             WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-            new WhoSession(identity.id(), identity.id(), NOW));
+            new WhoSession(identity.id(), identity.id(), signedInAt));
   }
 
   private static List<OAuth2AuthorizationRequest> savedRequests(MockHttpServletRequest request) {
@@ -134,6 +142,27 @@ class LinkStartFilterTest {
 
     assertThat(response.getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
     assertThat(savedRequests(request)).hasSize(1);
+  }
+
+  @Test
+  void signed_in_just_within_the_window_goes_to_the_provider() throws Exception {
+    signedIn(bob, SignInMethod.EMAIL_LINK);
+    MockHttpServletRequest request = start("acme");
+    withWhoSession(request, bob, NOW.minus(RECENT_SIGN_IN));
+
+    assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
+  }
+
+  @Test
+  void signed_in_longer_ago_than_the_window_is_401_and_starts_none() throws Exception {
+    signedIn(bob, SignInMethod.EMAIL_LINK);
+    MockHttpServletRequest request = start("acme");
+    withWhoSession(request, bob, NOW.minus(RECENT_SIGN_IN).minusSeconds(1));
+
+    MockHttpServletResponse response = filter(request);
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(savedRequests(request)).isEmpty();
   }
 
   @Test

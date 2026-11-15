@@ -61,6 +61,19 @@ class OidcLinkTest extends AbstractOidcTest {
     }
 
     @Test
+    void long_after_signing_in_requires_signing_in_again() throws Exception {
+      Identity bob = identityRepository.save(Identity.create());
+      FederatedCredential bobs =
+          federatedCredentialService.link(bob, "https://other.example.com", "bob");
+      browser.signedInAs(bob.id(), bobs.id(), Instant.now().minus(LINK_WINDOW).minusSeconds(60));
+
+      MvcResult result = browser.perform(post("/who/oidc/link/test")).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(401);
+      assertThat(result.getResponse().getRedirectedUrl()).isNull();
+    }
+
+    @Test
     void signed_out_is_401() throws Exception {
       MvcResult result = browser.perform(post("/who/oidc/link/test")).andReturn();
 

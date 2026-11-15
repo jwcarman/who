@@ -94,7 +94,7 @@ public class WhoPasskeyAutoConfiguration {
             ? Set.of("https://" + rpId)
             : passkey.getAllowedOrigins();
     return new PasskeySettings(
-        rpId, passkey.getRpName(), allowedOrigins, passkey.getRegistrationWindow());
+        rpId, passkey.getRpName(), allowedOrigins, properties.getSecurity().getRecentSignIn());
   }
 
   /** Registered as a bean so its {@code @Transactional} methods are proxied. */

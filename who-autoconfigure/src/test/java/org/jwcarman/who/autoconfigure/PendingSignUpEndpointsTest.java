@@ -44,6 +44,8 @@ import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
+import org.jwcarman.who.spring.security.WhoSession;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.PayloadApplicationEvent;
 import org.springframework.core.NestedExceptionUtils;
@@ -274,8 +276,15 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       Identity bob = identityRepository.save(Identity.create());
       FederatedCredential bobs =
           federatedCredentialService.link(bob, "https://other.example.com", "bob");
-      browser.signedInAs(bob.id(), bobs.id(), Instant.now().minus(LINK_WINDOW).minusSeconds(60));
+      browser.signedInAs(bob.id(), bobs.id());
       linkAtProvider("carol", Map.of());
+      // the sign-in grows old between the provider's answer and the confirmation
+      browser
+          .session()
+          .setAttribute(
+              WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+              new WhoSession(
+                  bob.id(), bobs.id(), Instant.now().minus(LINK_WINDOW).minusSeconds(60)));
 
       assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(401);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))

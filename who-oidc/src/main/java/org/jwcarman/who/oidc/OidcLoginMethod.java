@@ -213,7 +213,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
         // added here, where the session strategy is known; sorts before authorization, as
         // passkeys' guard filter does
         http.addFilterAfter(
-            new LinkStartFilter(resolver, authorizationRequests, sessions, handoff, clock),
+            new LinkStartFilter(
+                resolver, authorizationRequests, sessions, handoff, clock, linkWindow),
             ExceptionTranslationFilter.class);
         http.addFilterAfter(
             new PendingSignUpFilter(
