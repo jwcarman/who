@@ -15,9 +15,12 @@
  */
 package org.jwcarman.who.examples.webapp;
 
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * The sign-in pages. They are listed in {@code who.security.public-paths}; the work is done in the
@@ -32,8 +35,20 @@ class SignInController {
     this.providers = providers;
   }
 
+  /**
+   * The sign-in page. Someone already signed in goes to the board, except on the way back from a
+   * provider ({@code ?error=...}): linking an account lands here while signed in, so the page says
+   * so and offers to sign out.
+   */
   @GetMapping("/signin")
-  String signIn(Model model) {
+  String signIn(
+      @AuthenticationPrincipal WhoPrincipal principal,
+      @RequestParam(required = false) String error,
+      Model model) {
+    if (principal != null && error == null) {
+      return "redirect:/";
+    }
+    model.addAttribute("signedIn", principal != null);
     model.addAttribute("providers", providers.all());
     return "signin";
   }

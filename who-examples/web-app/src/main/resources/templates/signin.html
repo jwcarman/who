@@ -5,6 +5,11 @@
 <main>
   <h1>Sign in to Who Tasks</h1>
 
+  <div class="message" th:if="${signedIn}">
+    You are signed in. To sign in as someone else, sign out first:
+    <button type="button" class="link" id="sign-out">Sign out</button>
+  </div>
+
   <div class="message warn" id="error" hidden></div>
 
   <!-- After a provider sign-in who does not know: the pending account, and what may be done with it. -->
@@ -51,5 +56,6 @@
   </section>
 </main>
 <script type="module" src="/js/signin.js"></script>
+<script type="module" src="/js/nav.js" th:if="${signedIn}"></script>
 </body>
 </html>

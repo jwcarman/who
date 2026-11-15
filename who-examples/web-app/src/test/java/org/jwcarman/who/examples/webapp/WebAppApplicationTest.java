@@ -98,6 +98,28 @@ class WebAppApplicationTest {
   }
 
   @Test
+  void a_signed_in_member_is_sent_from_sign_in_to_the_board() throws Exception {
+    MockHttpSession member = signedInAs("already-in@example.com", TeamRole.MEMBER);
+
+    mockMvc
+        .perform(get("/signin").session(member).accept(MediaType.TEXT_HTML))
+        .andExpect(status().isFound())
+        .andExpect(header().string("Location", "/"));
+  }
+
+  @Test
+  void a_signed_in_member_back_from_a_provider_sees_they_are_signed_in() throws Exception {
+    MockHttpSession member = signedInAs("linking@example.com", TeamRole.MEMBER);
+
+    mockMvc
+        .perform(
+            get("/signin").param("error", "no-account").session(member).accept(MediaType.TEXT_HTML))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("You are signed in")))
+        .andExpect(content().string(containsString("id=\"sign-out\"")));
+  }
+
+  @Test
   void a_stranger_is_sent_to_sign_in() throws Exception {
     mockMvc
         .perform(get("/").accept(MediaType.TEXT_HTML))
