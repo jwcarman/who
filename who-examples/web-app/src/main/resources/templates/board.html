@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Board')}"></head>
+<body>
+<header th:replace="~{fragments :: header}"></header>
+<main>
+  <h1>Board</h1>
+  <section>
+    <form class="inline" method="post" th:action="@{/tasks}" sec:authorize="hasAuthority('task.create')">
+      <input type="text" name="title" maxlength="200" placeholder="What needs doing?" required>
+      <button type="submit">Add</button>
+    </form>
+  </section>
+  <section>
+    <p class="muted" th:if="${#lists.isEmpty(tasks)}">Nothing on the board yet.</p>
+    <ul class="list">
+      <li th:each="task : ${tasks}">
+        <span class="grow" th:text="${task.title}">A task</span>
+        <span class="muted" th:text="${#temporals.format(task.createdAt, 'MMM d, HH:mm')}">Jan 1</span>
+        <form method="post" th:action="@{/tasks/{id}/delete(id=${task.id})}" sec:authorize="hasAuthority('task.delete')">
+          <button type="submit" class="secondary">Delete</button>
+        </form>
+      </li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

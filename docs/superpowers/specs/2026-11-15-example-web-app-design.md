@@ -107,11 +107,11 @@ driver; `who-test` and `spring-boot-starter-test` for tests.
 - **Postgres**, picked up by Boot's service connection.
 - **Mailpit**: SMTP on `localhost:1025`, web inbox on `http://localhost:8025`. `spring.mail.*`
   points at it.
-- **Keycloak** in dev mode on `http://localhost:8180`, importing `keycloak/realm.json`: realm
+- **Keycloak** in dev mode on `http://localhost:8280`, importing `keycloak/realm.json`: realm
   `who-example`, a confidential client `who-example` whose redirect URI is
   `http://localhost:8080/login/oauth2/code/keycloak`, and two users, `alice` and `bob`, password
   `password`, with verified emails `alice@example.com` and `bob@example.com`. The app reaches it
-  at the same `localhost:8180` URL the browser does, so the issuer matches.
+  at the same `localhost:8280` URL the browser does, so the issuer matches.
 
 ### Sign-in configuration (application.yml)
 
@@ -121,14 +121,16 @@ driver; `who-test` and `spring-boot-starter-test` for tests.
 - Email link: `link-base-url: http://localhost:8080/signin/link`, `from: who@example.com`, a
   `code-secret` of 32+ characters marked in a comment as a development value to replace.
 - Passkey: `rp-id: localhost`, `allowed-origins: http://localhost:8080`, `rp-name: Who Tasks`.
-- Providers: registration `keycloak` by `issuer-uri`, always on; `google` and `github`
-  registrations whose client id and secret come from `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
-  and `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`, turned off with
-  `who.oidc.providers.<id>.enabled` when their id is unset. Only enabled providers show a button.
+- Providers: registration `keycloak` by its endpoints with `who.oidc.providers.keycloak.issuer`
+  (built: no discovery at startup, so neither the app nor its tests wait for Keycloak), always
+  on; `google` and `github` in Spring profiles of those names, with client id and secret from
+  `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
+  (built: Boot refuses a registration with an empty client id, so they cannot sit in the default
+  configuration). Only configured providers show a button.
 - `who.oidc.providers.keycloak.trust-email: true`, with a comment: this realm is ours and marks
   addresses verified; never set it for a provider you do not control.
 - `who.oidc.success-url: /`, `failure-url: /signin`; `who.security.public-paths` lists `/signin`,
-  `/signin/**`, `/app.css`, `/who.js`.
+  `/signin/**`, `/app.css`, `/js/**`.
 
 ### Who gets in
 
@@ -142,7 +144,7 @@ driver; `who-test` and `spring-boot-starter-test` for tests.
   realm, decided by issuer, and refuses every other provider, delegating to
   `ClosedSignUpPolicy`. A Google or GitHub account that is not linked therefore lands on
   `/signin?error=no-account`, which says to sign in another way and link it from the profile page.
-  A listener on `IdentityCreated` assigns `member` to identities created by a provider sign-up.
+  The policy's `SignUpDecision.allow(setup)` assigns `member` to identities it creates.
   The policy's javadoc-style comment says why: allow by an issuer or a claim the provider
   vouches for, never by email domain.
 

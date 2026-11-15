@@ -80,7 +80,11 @@ jobs:
         run: |
           mvn -B -q versions:set -DnewVersion="$RELEASE_TAG" -DprocessAllModules=true
           EXCLUDE=""
-          if [ -d who-example ]; then EXCLUDE="-pl !who-example"; fi
+          if [ -d who-example ]; then EXCLUDE="!who-example"; fi
+          for m in who-examples who-examples/*/; do
+            if [ -f "$m/pom.xml" ]; then EXCLUDE="${EXCLUDE:+$EXCLUDE,}!${m%/}"; fi
+          done
+          if [ -n "$EXCLUDE" ]; then EXCLUDE="-pl $EXCLUDE"; fi
           mvn -B -DskipTests $EXCLUDE compile javadoc:aggregate
           APIDOCS=$(find . -type d -name apidocs -path '*/target/*' | head -1)
           test -n "$APIDOCS" || { echo "no apidocs directory produced"; exit 1; }

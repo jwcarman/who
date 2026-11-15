@@ -71,7 +71,7 @@
         <sonar.organization>jwcarman</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.projectKey>jwcarman_who</sonar.projectKey>
-        <sonar.coverage.exclusions>who-example/**</sonar.coverage.exclusions>
+        <sonar.coverage.exclusions>who-example/**,who-examples/**</sonar.coverage.exclusions>
 
         <!-- JaCoCo argLine (overridden by jacoco:prepare-agent when ci profile is active) -->
         <jacocoArgLine></jacocoArgLine>
@@ -123,6 +123,7 @@
         <module>who-autoconfigure</module>
         <module>who-spring-boot-starter</module>
         <module>who-example</module>
+        <module>who-examples</module>
     </modules>
 
     <dependencyManagement>

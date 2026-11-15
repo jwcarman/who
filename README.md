@@ -67,10 +67,20 @@ Method security is on by default. Set up the credentials you accept with the
 user's credential to an identity with
 [Enrollment](https://jwcarman.github.io/who/guides/enrollment/).
 
-### Try the example app
+### Try the examples
+
+[`who-examples/web-app`](who-examples/web-app) is a server-rendered app that signs people in
+with email links, passkeys and an identity provider on who's default chain. With Docker running,
+Spring Boot starts its Postgres, Mailpit and Keycloak for you:
 
 ```bash
 ./mvnw install -DskipTests
+./mvnw spring-boot:run -pl who-examples/web-app
+```
+
+Its [README](who-examples/web-app/README.md) says what to try. The older JWT example runs with:
+
+```bash
 ./mvnw spring-boot:run -pl who-example
 ```
 

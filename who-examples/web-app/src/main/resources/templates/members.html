@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Members')}"></head>
+<body>
+<header th:replace="~{fragments :: header}"></header>
+<main>
+  <h1>Members</h1>
+  <div class="message" th:if="${message}" th:text="${message}">Invited.</div>
+  <section>
+    <h2>Invite someone</h2>
+    <p class="muted">They get an account with the member role, and sign in with an email link.</p>
+    <form class="inline" method="post" th:action="@{/members}">
+      <input type="email" name="email" placeholder="name@example.com" required>
+      <button type="submit">Invite</button>
+    </form>
+  </section>
+  <section>
+    <ul class="list">
+      <li th:each="member : ${members}">
+        <span class="grow">
+          <span th:text="${member.email} ?: 'Signed up with a provider'">ada@example.com</span><br>
+          <span class="muted" th:text="${member.identityId}">id</span>
+        </span>
+        <span class="muted" th:text="${#strings.listJoin(member.roles, ', ')}">MEMBER</span>
+      </li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

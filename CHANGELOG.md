@@ -26,6 +26,7 @@ All notable changes to this project are documented here. The format follows
 - The `who_last_sign_in` cookie, naming the method of the last browser sign-in for a "Last used" badge; `who.security.last-sign-in-cookie.enabled=false` turns it off.
 - `StubOidcProvider` in `who-test`, an OpenID Connect (or GitHub-like) provider for integration tests.
 - A native-image test app for provider sign-in, and serialization hints for the pending sign-up.
+- `who-examples/web-app`, a runnable server-rendered app on who's default chain: email links and codes, passkeys, Keycloak sign-up and linking, Google and GitHub behind profiles, and `@RequiresPermission` pages. Spring Boot's Docker Compose support starts its Postgres, Mailpit and Keycloak.
 - `who.email-link.enabled`, `who.passkey.enabled`, `who.api-key.enabled`, `who.jwt.enabled` and `who.enrollment.enabled`, each `true` by default.
 - `WhoSecurity.all()`, which mounts every sign-in method on the classpath into a chain of your own, and `WhoPublicPaths` with the paths a signed-out request must reach. Each module contributes a `PasswordlessLoginMethod` or `StatelessLoginMethod` bean.
 - `who.security.public-paths`, the application's own paths open to signed-out requests.

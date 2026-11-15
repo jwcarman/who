@@ -95,6 +95,15 @@ by creating them yourself.
 
 </div>
 
+## Examples
+
+Runnable apps, one for each kind of app built on who, in
+[`who-examples`](https://github.com/jwcarman/who/tree/main/who-examples). Each starts what it needs
+with Spring Boot's Docker Compose support.
+
+- [Web app](https://github.com/jwcarman/who/tree/main/who-examples/web-app): server-rendered
+  pages with email links, passkeys and social login on who's default chain.
+
 ## Modules
 
 | Module | What it is |

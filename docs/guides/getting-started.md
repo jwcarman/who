@@ -8,7 +8,12 @@
 
 ## Run the example app
 
-Clone the repository and make authenticated API calls in a few minutes:
+To see every browser sign-in method working together, run the
+[web app example](https://github.com/jwcarman/who/tree/main/who-examples/web-app): with Docker
+running, `./mvnw spring-boot:run -pl who-examples/web-app` starts it with its Postgres, Mailpit and
+Keycloak.
+
+Or clone the repository and make authenticated API calls in a few minutes:
 
 ```bash
 git clone https://github.com/jwcarman/who

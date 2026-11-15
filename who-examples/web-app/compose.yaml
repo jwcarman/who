@@ -1,0 +1,30 @@
+# Spring Boot starts these with the app (spring-boot-docker-compose) and stops them when it stops.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: who
+      POSTGRES_USER: who
+      POSTGRES_PASSWORD: who
+    ports:
+      - "5432"
+
+  # Catches every email the app sends. Read them at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # A real OpenID Connect provider on your machine: realm "who-example", users alice and bob,
+  # password "password". Its admin console is http://localhost:8280 (admin / admin).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.5
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8280:8080"

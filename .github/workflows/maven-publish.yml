@@ -33,7 +33,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: mvn versions:set -DnewVersion="$RELEASE_TAG"
       - name: Publish package
-        run: mvn -P release --batch-mode deploy -DskipTests -pl '!who-example'
+        run: mvn -P release --batch-mode deploy -DskipTests -pl '!who-example,!who-examples,!who-examples/web-app'
         env:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
