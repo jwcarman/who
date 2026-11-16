@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -30,10 +31,13 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.signup.SignUpDecision;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.oidc.OidcSignUpService;
 import org.jwcarman.who.oidc.PendingSignUp;
+import org.jwcarman.who.oidc.SignUpRefusedException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -108,5 +112,36 @@ class OidcSignUpServiceTest extends AbstractOidcTest {
 
     assertThat(signedUp.principal().identity().id()).isEqualTo(alice.id());
     assertThat(signedUp.credentialId()).isEqualTo(aliceCredential.id());
+  }
+
+  @Test
+  void an_account_an_inactive_identity_holds_is_refused() {
+    policy.set(request -> SignUpDecision.allow());
+    whoService.deactivate(alice.id());
+    long before = identities();
+
+    assertThatThrownBy(() -> signUpService.signUp(pending("alice")))
+        .isInstanceOf(SignUpRefusedException.class);
+    assertThat(identities()).isEqualTo(before);
+  }
+
+  @Test
+  void a_link_reuses_a_not_linked_row() {
+    Identity bob = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
+    FederatedCredential orphan =
+        federatedCredentialRepository.save(FederatedCredential.create(PROVIDER.issuer(), "orphan"));
+
+    FederatedCredential linked = signUpService.link(bob, pending("orphan"));
+
+    assertThat(linked.id()).isEqualTo(orphan.id());
+    assertThat(whoService.resolve(orphan))
+        .hasValueSatisfying(p -> assertThat(p.identity().id()).isEqualTo(bob.id()));
+  }
+
+  @Test
+  void a_link_of_an_account_already_yours_is_that_account() {
+    FederatedCredential linked = signUpService.link(alice, pending("alice"));
+
+    assertThat(linked.id()).isEqualTo(aliceCredential.id());
   }
 }

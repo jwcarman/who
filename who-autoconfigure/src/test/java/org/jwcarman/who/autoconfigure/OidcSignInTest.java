@@ -33,6 +33,7 @@ import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.SignInSucceeded;
+import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
 import org.jwcarman.who.spring.security.WhoSession;
@@ -146,6 +147,22 @@ class OidcSignInTest extends AbstractOidcTest {
                 assertThat(p.claims()).containsEntry("hd", "example.com");
                 assertThat(p.createdFor()).isNull();
               });
+    }
+
+    @Test
+    void with_a_credential_row_no_identity_holds_is_a_pending_sign_up() throws Exception {
+      FederatedCredential orphan =
+          federatedCredentialRepository.save(
+              FederatedCredential.create(PROVIDER.issuer(), "orphan"));
+
+      MvcResult result = signInAtProvider("orphan", Map.of());
+
+      assertThat(result.getResponse().getRedirectedUrl())
+          .isEqualTo(FAILURE_URL + "?pending=sign-up");
+      assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE))
+          .isInstanceOfSatisfying(
+              PendingSignUp.class, p -> assertThat(p.subject()).isEqualTo(orphan.subject()));
+      assertThat(me()).isEqualTo(401);
     }
 
     @Test
