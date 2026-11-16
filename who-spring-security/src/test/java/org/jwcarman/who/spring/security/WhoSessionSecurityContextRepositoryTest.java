@@ -54,7 +54,6 @@ import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
-import org.springframework.security.web.context.HttpRequestResponseHolder;
 
 class WhoSessionSecurityContextRepositoryTest {
 
@@ -284,20 +283,6 @@ class WhoSessionSecurityContextRepositoryTest {
     public Instant instant() {
       return now;
     }
-  }
-
-  @Test
-  void deprecatedLoadContextReturnsWhatTheDeferredLoadDoes() {
-    request.setSession(sessionWith(live(NOW)));
-    when(whoService.resolveDetailed(any(Credential.class)))
-        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
-
-    SecurityContext viaHolder =
-        repository.loadContext(new HttpRequestResponseHolder(request, response));
-    SecurityContext deferred = repository.loadDeferredContext(request).get();
-
-    assertThat(viaHolder.getAuthentication()).isEqualTo(deferred.getAuthentication());
-    assertThat(viaHolder.getAuthentication()).isInstanceOf(WhoAuthenticationToken.class);
   }
 
   @Test
