@@ -61,15 +61,9 @@ import tools.jackson.databind.json.JsonMapper;
  */
 final class SessionsFilter extends OncePerRequestFilter {
 
-  static final String SESSIONS_URL = "/who/sessions";
-
-  private static final RequestMatcher LIST =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, SESSIONS_URL);
-  private static final RequestMatcher END_ALL =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.DELETE, SESSIONS_URL);
-  private static final PathPatternRequestMatcher END_ONE =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.DELETE, SESSIONS_URL + "/{id}");
-
+  private final RequestMatcher list;
+  private final RequestMatcher endAll;
+  private final PathPatternRequestMatcher endOne;
   private final WhoSessions sessions;
   private final WhoSessionSecurityContextRepository repository;
   private final WhoExceptionHandoff handoff;
@@ -79,6 +73,7 @@ final class SessionsFilter extends OncePerRequestFilter {
   private final LogoutHandler signOut;
 
   SessionsFilter(
+      WhoPaths paths,
       WhoSessions sessions,
       WhoSessionSecurityContextRepository repository,
       WhoExceptionHandoff handoff,
@@ -86,6 +81,11 @@ final class SessionsFilter extends OncePerRequestFilter {
       Clock clock,
       Duration recentSignIn,
       LogoutHandler signOut) {
+    String url = requireNonNull(paths, "paths must not be null").of("/sessions");
+    PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
+    this.list = matchers.matcher(HttpMethod.GET, url);
+    this.endAll = matchers.matcher(HttpMethod.DELETE, url);
+    this.endOne = matchers.matcher(HttpMethod.DELETE, url + "/{id}");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
@@ -97,7 +97,7 @@ final class SessionsFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !LIST.matches(request) && !END_ALL.matches(request) && !END_ONE.matches(request);
+    return !list.matches(request) && !endAll.matches(request) && !endOne.matches(request);
   }
 
   @Override
@@ -125,9 +125,9 @@ final class SessionsFilter extends OncePerRequestFilter {
           HttpStatus.FORBIDDEN);
       return;
     }
-    if (LIST.matches(request)) {
+    if (list.matches(request)) {
       list(response, identityId, current.get().sessionId());
-    } else if (END_ALL.matches(request)) {
+    } else if (endAll.matches(request)) {
       endOthers(request, response, identityId, current.get());
     } else {
       endOne(request, response, token, identityId, current.get());
@@ -180,7 +180,7 @@ final class SessionsFilter extends OncePerRequestFilter {
       WhoSession current)
       throws IOException {
     Optional<SessionRecord> target =
-        parse(END_ONE.matcher(request).getVariables().get("id"))
+        parse(endOne.matcher(request).getVariables().get("id"))
             .flatMap(sessions::findLive)
             .filter(s -> s.identityId().equals(identityId));
     if (target.isEmpty()) {

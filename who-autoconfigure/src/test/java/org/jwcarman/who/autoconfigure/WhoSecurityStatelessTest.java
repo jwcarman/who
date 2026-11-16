@@ -487,7 +487,7 @@ class WhoSecurityStatelessTest {
           .run(
               context -> {
                 assertThat(context).hasNotFailed();
-                mockMvc(context).perform(get("/logout")).andExpect(status().isUnauthorized());
+                mockMvc(context).perform(get("/who/logout")).andExpect(status().isUnauthorized());
               });
     }
   }

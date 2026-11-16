@@ -209,7 +209,7 @@ class WhoTestSupportTest {
     String before = browser.cookie("XSRF-TOKEN").orElseThrow().getValue();
 
     // an unsafe request needs no manual token: the browser fetches and echoes one
-    browser.perform(post("/logout")).andExpect(status().isNoContent());
+    browser.perform(post("/who/logout")).andExpect(status().isNoContent());
 
     assertThat(browser.cookie("XSRF-TOKEN")).isEmpty();
     browser.perform(get("/who/me")).andExpect(status().isUnauthorized());

@@ -77,13 +77,21 @@ public class SessionEndpoints {
    *
    * @param http the chain
    * @param logout the chain's logout, whose handlers sign this browser out
+   * @param paths where the endpoints live
    */
-  void configure(HttpSecurity http, LogoutConfigurer<HttpSecurity> logout) {
+  void configure(HttpSecurity http, LogoutConfigurer<HttpSecurity> logout, WhoPaths paths) {
     // before authorization, as the email address endpoints, so a signed-out caller gets who's
     // answer
     http.addFilterAfter(
         new SessionsFilter(
-            sessions, repository, handoff, jsonMapper, clock, recentSignIn, signOutHandler(logout)),
+            paths,
+            sessions,
+            repository,
+            handoff,
+            jsonMapper,
+            clock,
+            recentSignIn,
+            signOutHandler(logout)),
         ExceptionTranslationFilter.class);
   }
 

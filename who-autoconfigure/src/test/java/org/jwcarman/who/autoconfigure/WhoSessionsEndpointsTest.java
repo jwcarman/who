@@ -214,7 +214,7 @@ class WhoSessionsEndpointsTest {
             laptop
                 .send(
                     laptop
-                        .to("/logout")
+                        .to("/who/logout")
                         .header("X-XSRF-TOKEN", laptop.csrfToken())
                         .POST(HttpRequest.BodyPublishers.noBody()))
                 .statusCode())

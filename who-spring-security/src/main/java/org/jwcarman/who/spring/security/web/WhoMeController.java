@@ -53,7 +53,7 @@ public class WhoMeController {
    * @return {@code 200} with the identity
    * @throws NotSignedInException when no one is signed in; the application formats it
    */
-  @GetMapping("/who/me")
+  @GetMapping("${who.base-path:/who}/me")
   public ResponseEntity<WhoMeResponse> me(@AuthenticationPrincipal WhoPrincipal principal) {
     if (principal == null) {
       throw new NotSignedInException();

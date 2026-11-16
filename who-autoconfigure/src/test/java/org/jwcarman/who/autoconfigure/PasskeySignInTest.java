@@ -318,7 +318,8 @@ class PasskeySignInTest {
   }
 
   private static void signOut(Browser browser) throws Exception {
-    assertThat(browser.performWithCsrf(post("/logout")).getResponse().getStatus()).isEqualTo(204);
+    assertThat(browser.performWithCsrf(post("/who/logout")).getResponse().getStatus())
+        .isEqualTo(204);
     assertThat(browser.me()).isEqualTo(401);
   }
 

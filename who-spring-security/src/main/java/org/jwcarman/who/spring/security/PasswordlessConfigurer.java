@@ -79,6 +79,8 @@ public class PasswordlessConfigurer
         context
             .getBeanProvider(WhoExceptionHandoff.class)
             .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    // a chain built without Spring Boot has no WhoPaths bean: who's endpoints stay under /who
+    WhoPaths paths = context.getBeanProvider(WhoPaths.class).getIfAvailable(WhoPaths::defaults);
 
     // Spring's SPA setup: script-readable XSRF-TOKEN cookie, token loaded on every request,
     // BREACH-safe rendered tokens and plain header values accepted
@@ -103,7 +105,8 @@ public class PasswordlessConfigurer
                     .accessDeniedHandler(StatelessAnswers.deniedHandler(handoff)))
         .logout(
             l -> {
-              l.addLogoutHandler(
+              l.logoutUrl(paths.of("/logout"))
+                  .addLogoutHandler(
                       (request, response, authentication) ->
                           repository.onLogout(request, authentication))
                   .logoutSuccessHandler(
@@ -112,7 +115,7 @@ public class PasswordlessConfigurer
               // every browser chain lets its signed-in person see and end their sessions
               context
                   .getBeanProvider(SessionEndpoints.class)
-                  .ifAvailable(e -> e.configure(http, l));
+                  .ifAvailable(e -> e.configure(http, l, paths));
             })
         .headers(h -> h.referrerPolicy(r -> r.policy(NO_REFERRER)));
 

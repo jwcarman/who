@@ -262,7 +262,7 @@ class PasswordlessConfigurerTest {
     resolvesTo(Set.of("task.read"));
     MockHttpSession session = signedIn();
 
-    mvc.perform(post("/logout").session(session)).andExpect(status().isForbidden());
+    mvc.perform(post("/who/logout").session(session)).andExpect(status().isForbidden());
     assertThat(session.isInvalid()).isFalse();
 
     // as an SPA does: read the XSRF-TOKEN cookie and echo it in the X-XSRF-TOKEN header
@@ -274,7 +274,10 @@ class PasswordlessConfigurerTest {
     assertThat(xsrf).isNotNull();
 
     mvc.perform(
-            post("/logout").session(session).cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue()))
+            post("/who/logout")
+                .session(session)
+                .cookie(xsrf)
+                .header("X-XSRF-TOKEN", xsrf.getValue()))
         .andExpect(status().isNoContent())
         .andExpect(cookie().maxAge("XSRF-TOKEN", 0));
     assertThat(session.isInvalid()).isTrue();

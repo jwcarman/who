@@ -77,6 +77,7 @@ class SessionsFilterTest {
   private final JsonMapper json = JsonMapper.builder().build();
   private final SessionsFilter filter =
       new SessionsFilter(
+          WhoPaths.defaults(),
           sessions,
           repository,
           new WhoExceptionHandoff(null),

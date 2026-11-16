@@ -171,7 +171,10 @@ class SessionEventsTest {
             .getCookie("XSRF-TOKEN");
     assertThat(xsrf).isNotNull();
     return mvc.perform(
-            post("/logout").session(session).cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue()))
+            post("/who/logout")
+                .session(session)
+                .cookie(xsrf)
+                .header("X-XSRF-TOKEN", xsrf.getValue()))
         .andReturn()
         .getResponse()
         .getStatus();
@@ -209,7 +212,7 @@ class SessionEventsTest {
       assertThat(xsrf).isNotNull();
 
       mvc.perform(
-              post("/logout")
+              post("/who/logout")
                   .with(user("someone"))
                   .cookie(xsrf)
                   .header("X-XSRF-TOKEN", xsrf.getValue()))

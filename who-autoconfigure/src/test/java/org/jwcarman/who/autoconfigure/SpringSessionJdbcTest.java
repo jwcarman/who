@@ -296,7 +296,7 @@ class SpringSessionJdbcTest {
         .andExpect(jsonPath("$.identityId").value(identity.id().toString()));
     assertThat(sessions.findByPrincipalName(identity.id().toString())).hasSize(1);
 
-    browser.perform(post("/logout")).andExpect(status().isNoContent());
+    browser.perform(post("/who/logout")).andExpect(status().isNoContent());
 
     browser.perform(get("/who/me")).andExpect(status().isUnauthorized());
     assertThat(sessions.findByPrincipalName(identity.id().toString())).isEmpty();
