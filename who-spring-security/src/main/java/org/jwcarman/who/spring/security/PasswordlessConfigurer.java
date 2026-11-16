@@ -130,6 +130,7 @@ public class PasswordlessConfigurer
     for (PasswordlessLoginMethod method : methods) {
       method.configure(http);
     }
+    context.getBeanProvider(BrowserEndpoints.class).orderedStream().forEach(e -> e.configure(http));
     if (!methods.isEmpty()) {
       log.info(
           METHODS_LINE,

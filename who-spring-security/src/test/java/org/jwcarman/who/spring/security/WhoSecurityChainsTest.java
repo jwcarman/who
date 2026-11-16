@@ -27,6 +27,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -227,6 +228,25 @@ class WhoSecurityChainsTest {
           .authorizeHttpRequests(a -> a.anyRequest().authenticated());
       return http.build();
     }
+  }
+
+  static final AtomicBoolean ENDPOINTS_APPLIED = new AtomicBoolean();
+
+  @Configuration
+  static class Endpoints {
+    @Bean
+    BrowserEndpoints someEndpoints() {
+      return http -> ENDPOINTS_APPLIED.set(true);
+    }
+  }
+
+  @Test
+  void browser_endpoints_are_applied_but_not_named_as_a_sign_in_method() {
+    ENDPOINTS_APPLIED.set(false);
+
+    assertThat(infoLines(Magic.class, Endpoints.class, PasswordlessChain.class))
+        .containsExactly("who: this chain signs browsers in with magic under /who");
+    assertThat(ENDPOINTS_APPLIED).isTrue();
   }
 
   @Test

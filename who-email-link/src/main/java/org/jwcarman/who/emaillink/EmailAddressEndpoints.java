@@ -21,7 +21,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 
-import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.BrowserEndpoints;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -33,10 +33,9 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Adds the endpoints that let a signed-in person add an email address, or change one, by confirming
  * a link or code sent to it: {@code POST /who/email/addresses} and {@code POST
- * /who/email/addresses/confirm}, under {@code who.base-path}. Not a way to sign in, but contributed
- * to the browser chain the same way; it adds no public path.
+ * /who/email/addresses/confirm}, under {@code who.base-path}, on every browser chain.
  */
-public class EmailAddressEndpoints implements PasswordlessLoginMethod {
+public class EmailAddressEndpoints implements BrowserEndpoints {
 
   private final WhoPaths paths;
   private final EmailAddressChanges changes;

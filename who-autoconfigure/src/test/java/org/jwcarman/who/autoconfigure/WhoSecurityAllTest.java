@@ -45,11 +45,13 @@ import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
+import org.jwcarman.who.spring.security.PasswordlessConfigurer;
 import org.jwcarman.who.spring.security.RequiresPermission;
 import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.jwcarman.who.spring.security.web.InsufficientUserAuthenticationException;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
@@ -57,6 +59,7 @@ import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSec
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -73,6 +76,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * {@link WhoSecurity#all()} mounts every sign-in method on the classpath into one chain. Browser
@@ -274,6 +281,28 @@ class WhoSecurityAllTest {
         .map(HttpCookie::getValue)
         .findFirst()
         .orElseThrow();
+  }
+
+  @Autowired private ApplicationContext applicationContext;
+
+  @Test
+  void the_startup_line_names_only_the_sign_in_methods() throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(PasswordlessConfigurer.class);
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    logger.addAppender(logs);
+    try {
+      // a fresh chain from the application's own beans: every module this test turns on
+      HttpSecurity http = applicationContext.getBean(HttpSecurity.class);
+      http.with(WhoSecurity.all(), withDefaults());
+      http.build();
+    } finally {
+      logger.detachAppender(logs);
+    }
+
+    assertThat(logs.list)
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .containsExactly("who: this chain signs browsers in with email-link, passkey under /who");
   }
 
   @Test

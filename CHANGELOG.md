@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `EmailAddressEndpoints` implements the new `BrowserEndpoints` instead of `PasswordlessLoginMethod`: it is not a way to sign in. A browser chain applies every `BrowserEndpoints` bean after its sign-in methods, so the email-address endpoints work as before; code that looked them up as a `PasswordlessLoginMethod` no longer finds them.
+
 ### Added
 
 - At startup, each who security chain logs at INFO the sign-in methods it accepts, such as `who: this chain signs browsers in with email-link, passkey, oidc (github, google) under /who` and `who: this chain accepts api-key, jwt`. `PasswordlessLoginMethod` and `StatelessLoginMethod` gain `name()`, which defaults to the class's simple name. See [Observability](docs/guides/observability.md#startup-log).

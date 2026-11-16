@@ -40,7 +40,7 @@ methods an application accepts can differ from what its author expects: a missin
 - `OidcLoginMethod.name()` returns `oidc (<registration ids, sorted, comma-separated>)`, read from
   the `SignInRegistrations` it serves; plain `oidc` with none.
 - `PasswordlessConfigurer` logs, after configuring its methods:
-  `who: this chain signs browsers in with email-link, passkey, oidc (google, github) under /who`
+  `who: this chain signs browsers in with email-link, passkey, oidc (github, google) under /who`
   (the base path from `WhoPaths`).
 - `WhoStatelessConfigurer` logs: `who: this chain accepts api-key, jwt`.
 - `WhoSecurityConfigurer` (`WhoSecurity.all()`) logs its stateless methods the same way; its
