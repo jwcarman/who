@@ -293,6 +293,21 @@ class WhoBasePathEndToEndTest {
     assertThat(send("GET", "/auth/me", "").statusCode()).isEqualTo(200);
   }
 
+  /** Spring Boot's own error handling (no advice): the failure still names itself. */
+  @Test
+  void a_failure_names_itself_in_the_header() throws Exception {
+    HttpResponse<String> signedOut =
+        send("POST", "/auth/email/addresses", "{\"address\":\"x@example.com\"}");
+    assertThat(signedOut.statusCode()).isEqualTo(401);
+    assertThat(signedOut.headers().firstValue("Who-Error")).contains("not-signed-in");
+
+    signIn();
+    HttpResponse<String> badCode =
+        send("POST", "/auth/email/addresses/confirm", "{\"code\":\"000000\"}");
+    assertThat(badCode.statusCode()).isEqualTo(400);
+    assertThat(badCode.headers().firstValue("Who-Error")).contains("invalid-confirmation");
+  }
+
   @Test
   void ending_one_s_own_session_answers_under_the_root() throws Exception {
     signIn();

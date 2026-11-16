@@ -17,17 +17,24 @@ package org.jwcarman.who.oidc;
 
 import java.io.Serial;
 
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /** A link named a registration who does not sign in with. */
 @ResponseStatus(HttpStatus.NOT_FOUND)
-public class UnknownProviderException extends RuntimeException {
+public class UnknownProviderException extends RuntimeException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public UnknownProviderException() {
     super("No provider sign-in by that name");
+  }
+
+  /** {@return {@code unknown-provider}} */
+  @Override
+  public String errorCode() {
+    return "unknown-provider";
   }
 }

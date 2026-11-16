@@ -21,6 +21,7 @@ See [Upgrading](docs/guides/upgrading.md#upgrading-to-0190).
 
 ### Added
 
+- Every failure who hands to your application carries a `Who-Error` response header naming it, such as `reauthentication-required`, beside whatever body your application writes. See [Errors](docs/guides/errors.md#the-who-error-header).
 - `who.base-path`: one configurable root for every who endpoint, including the provider callback, and the `WhoPaths` bean that resolves paths under it. See [Configuration](docs/guides/configuration.md#endpoints).
 - People can see where they are signed in and sign any browser out: `GET /who/sessions`, `DELETE /who/sessions/{id}` and `DELETE /who/sessions?others=true` on every browser chain. Ending another session needs a recent sign-in; ending your own never does. The list shows a device label, the sign-in method and times, and who's own id, never the session cookie, and keeps no IP address. See [Sessions](docs/guides/sessions.md#see-and-end-sessions).
 - `WhoSessions`, for your own code: `list`, `end`, `endAll`, `endAllExcept` and `purgeEndedSessions`. Ended sessions publish `SessionEnded` with the new reason `REVOKED`.

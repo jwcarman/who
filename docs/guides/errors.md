@@ -35,6 +35,30 @@ Adding or changing an [email address](email-links.md#adding-or-changing-an-addre
 
 All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException`, the provider sign-in exceptions, which are in `org.jwcarman.who.oidc`, and the email address exceptions, which are in `org.jwcarman.who.emaillink`.
 
+## The `Who-Error` header
+
+Every failure in the tables above, except Spring's own `AccessDeniedException`, also names itself in a `Who-Error` response header, whatever body your application writes. A client can tell failures apart by it without knowing your body's shape; who's TypeScript client does.
+
+| `Who-Error` | Exception |
+|---|---|
+| `not-signed-in` | `NotSignedInException` |
+| `reauthentication-required` | `ReauthenticationRequiredException` |
+| `sign-in-failed` | `SignInFailedException` |
+| `insufficient-user-authentication` | `InsufficientUserAuthenticationException` |
+| `recent-sign-in-unavailable` | `RecentSignInUnavailableException` |
+| `invalid-passkey-registration` | `InvalidPasskeyRegistrationException` |
+| `invalid-confirmation` | `InvalidEmailAddressConfirmationException` |
+| `email-address-not-found` | `EmailCredentialNotFoundException` |
+| `email-address-taken` | `EmailAddressTakenException` |
+| `no-pending-sign-up` | `PendingSignUpNotFoundException` |
+| `sign-up-refused` | `SignUpRefusedException` |
+| `unknown-provider` | `UnknownProviderException` |
+| `already-linked` | `AlreadyLinkedException` |
+
+The codes are a public contract and do not change between releases. Each exception returns its code from `errorCode()` (the `WhoErrorCode` interface).
+
+who sets the header before handing the exception to your application, so your advice's body and the header arrive together. An advice that calls `response.reset()` clears it. A page on another origin can read it only if your CORS configuration lists it in `Access-Control-Expose-Headers`.
+
 ## How errors raised in filters reach your advice
 
 Most of these errors happen inside Spring Security's filters, before Spring MVC runs, and an exception thrown there never reaches a `@RestControllerAdvice`. who therefore hands each one to your application's Spring MVC exception resolvers, the `handlerExceptionResolver` bean, through `WhoExceptionHandoff`. A controller exception travels the same path, so one advice covers both. This needs Spring MVC, which every Spring Boot servlet application has.

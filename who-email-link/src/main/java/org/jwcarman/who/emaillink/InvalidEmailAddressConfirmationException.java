@@ -17,6 +17,7 @@ package org.jwcarman.who.emaillink;
 
 import java.io.Serial;
 
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -26,12 +27,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * never says which.
  */
 @ResponseStatus(HttpStatus.BAD_REQUEST)
-public class InvalidEmailAddressConfirmationException extends RuntimeException {
+public class InvalidEmailAddressConfirmationException extends RuntimeException
+    implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public InvalidEmailAddressConfirmationException() {
     super("Email address confirmation failed");
+  }
+
+  /** {@return {@code invalid-confirmation}} */
+  @Override
+  public String errorCode() {
+    return "invalid-confirmation";
   }
 }

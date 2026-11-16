@@ -17,17 +17,24 @@ package org.jwcarman.who.oidc;
 
 import java.io.Serial;
 
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /** The provider account belongs to another identity. */
 @ResponseStatus(HttpStatus.CONFLICT)
-public class AlreadyLinkedException extends RuntimeException {
+public class AlreadyLinkedException extends RuntimeException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public AlreadyLinkedException() {
     super("The provider account belongs to another identity");
+  }
+
+  /** {@return {@code already-linked}} */
+  @Override
+  public String errorCode() {
+    return "already-linked";
   }
 }

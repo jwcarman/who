@@ -18,17 +18,24 @@ package org.jwcarman.who.emaillink;
 import java.io.Serial;
 
 import org.jwcarman.who.core.exception.WhoException;
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /** Thrown when an email address is already registered. The message never contains the address. */
 @ResponseStatus(HttpStatus.CONFLICT)
-public class EmailAddressTakenException extends WhoException {
+public class EmailAddressTakenException extends WhoException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates a new exception. */
   public EmailAddressTakenException() {
     super("Email address is already registered");
+  }
+
+  /** {@return {@code email-address-taken}} */
+  @Override
+  public String errorCode() {
+    return "email-address-taken";
   }
 }

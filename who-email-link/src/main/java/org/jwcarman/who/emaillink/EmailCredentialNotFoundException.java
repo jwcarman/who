@@ -17,17 +17,24 @@ package org.jwcarman.who.emaillink;
 
 import java.io.Serial;
 
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /** A request named an email address to replace that is not one of the caller's own. */
 @ResponseStatus(HttpStatus.NOT_FOUND)
-public class EmailCredentialNotFoundException extends RuntimeException {
+public class EmailCredentialNotFoundException extends RuntimeException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public EmailCredentialNotFoundException() {
     super("No such email address");
+  }
+
+  /** {@return {@code email-address-not-found}} */
+  @Override
+  public String errorCode() {
+    return "email-address-not-found";
   }
 }

@@ -17,6 +17,7 @@ package org.jwcarman.who.oidc;
 
 import java.io.Serial;
 
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -25,12 +26,18 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * in.
  */
 @ResponseStatus(HttpStatus.FORBIDDEN)
-public class SignUpRefusedException extends RuntimeException {
+public class SignUpRefusedException extends RuntimeException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public SignUpRefusedException() {
     super("Sign-up refused");
+  }
+
+  /** {@return {@code sign-up-refused}} */
+  @Override
+  public String errorCode() {
+    return "sign-up-refused";
   }
 }

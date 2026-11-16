@@ -17,6 +17,7 @@ package org.jwcarman.who.oidc;
 
 import java.io.Serial;
 
+import org.jwcarman.who.spring.security.web.WhoErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -24,12 +25,18 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * There is no pending sign-up this browser may use: none, expired, or created for another identity.
  */
 @ResponseStatus(HttpStatus.NOT_FOUND)
-public class PendingSignUpNotFoundException extends RuntimeException {
+public class PendingSignUpNotFoundException extends RuntimeException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public PendingSignUpNotFoundException() {
     super("No pending sign-up");
+  }
+
+  /** {@return {@code no-pending-sign-up}} */
+  @Override
+  public String errorCode() {
+    return "no-pending-sign-up";
   }
 }
