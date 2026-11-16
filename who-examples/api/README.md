@@ -11,8 +11,8 @@ It shows what the browser examples cannot:
 - who signs a token in, but never creates an identity from one. The app decides which accounts
   exist, and links them (`Setup`).
 - A token must be issued *for this API*: its audience is checked.
-- An API key holds only the permissions it was made with, expires, and is made and revoked only
-  with a person's token.
+- An API key holds only the permissions it was made with, expires, and is made, listed and revoked
+  only with a person's token.
 
 ## Run it
 
@@ -123,6 +123,16 @@ curl -s http://localhost:8080/api/me -H "X-API-Key: $KEY"
 `/api/me` says `"signedInWith":"api-key"` and `"permissions":["task.read"]`: the key's scopes,
 even when its owner can do more. Adding a task with it is `403`.
 
+A key reads only itself, so a machine can see when it expires and rotate in time:
+
+```bash
+curl -s http://localhost:8080/api/keys/self -H "X-API-Key: $KEY"
+```
+
+```json
+{"id":"…","name":"laptop","scopes":["task.read"],"createdAt":"…","expiresAt":"…","lastUsedAt":"…","expired":false}
+```
+
 List your keys, with no secret in them, and revoke one:
 
 ```bash
@@ -135,8 +145,10 @@ The next call with a revoked key is `401`.
 `ApiKeyService` trusts its caller, so [`KeysController`](src/main/java/org/jwcarman/who/examples/api/KeysController.java)
 decides who may manage which key:
 
-- Only a person's token makes or revokes a key. A key gets `403` there, so a leaked key cannot
-  make itself a broader or longer-lived one, or revoke its siblings.
+- Only a person's token makes, lists or revokes keys. A key gets `403` there, so a leaked key
+  cannot make itself a broader or longer-lived one, see which other keys its owner has, or revoke
+  them. `/api/keys/self` is a key's only view of keys, and shows it only itself; with a token it is
+  `404`.
 - A key is revoked only by its owner. Another person's key id is `404`, as if it did not exist.
 
 ## In production

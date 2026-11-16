@@ -16,6 +16,7 @@
 package org.jwcarman.who.examples.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -111,6 +112,39 @@ class ApiKeysTest extends AbstractApiTest {
         .andExpect(jsonPath("$[0].name").value("CI"))
         .andExpect(jsonPath("$[0].expiresAt").exists())
         .andExpect(jsonPath("$[0].key").doesNotExist());
+  }
+
+  @Test
+  void a_key_cannot_list_its_owners_keys() throws Exception {
+    String key = newKey(BOB, "\"task.read\"")[0];
+
+    mockMvc
+        .perform(get("/api/keys").header(KEY_HEADER, key))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.status").value(403));
+  }
+
+  @Test
+  void a_key_reads_only_itself() throws Exception {
+    String[] key = newKey(BOB, "\"task.read\"");
+    newKey(BOB, "\"task.create\"");
+
+    mockMvc
+        .perform(get("/api/keys/self").header(KEY_HEADER, key[0]))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(key[1]))
+        .andExpect(jsonPath("$.name").value("CI"))
+        .andExpect(jsonPath("$.scopes").value(contains("task.read")))
+        .andExpect(jsonPath("$.expiresAt").exists())
+        .andExpect(jsonPath("$.key").doesNotExist());
+  }
+
+  @Test
+  void a_token_has_no_self() throws Exception {
+    mockMvc
+        .perform(get("/api/keys/self").header(HttpHeaders.AUTHORIZATION, bearer(token(BOB))))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404));
   }
 
   @Test

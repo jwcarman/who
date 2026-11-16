@@ -129,6 +129,11 @@ gone or already expired.
   with everything its owner holds. Either refuse key management to requests signed in with a key
   (`WhoAuthenticationToken.signInMethod()` is `API_KEY`), so a leaked key cannot make itself
   permanent, or allow only scopes the request's own principal has.
+- Listing an identity's keys shows what each is for, what it may do and when it was last used: a
+  map for whoever holds a leaked key. Serve the list only to a person, as GitHub and Stripe do. A
+  machine that needs to see its own expiry can read the key it signed in with:
+  `WhoAuthenticationToken.credentialId()` is its id, taken from the sign-in, never from the
+  request.
 
 ## The key's format
 

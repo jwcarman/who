@@ -39,11 +39,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * A person's API keys. {@link ApiKeyService} trusts its caller, so this controller decides who may
- * manage which key: only a person's token makes or revokes one, never a key, so a leaked key cannot
- * make itself permanent or broader; and a key is revoked only by its owner.
+ * manage which key: only a person's token makes, lists or revokes keys, never a key, so a leaked
+ * key cannot make itself permanent or broader, or map out its siblings; a key reads only itself;
+ * and a key is revoked only by its owner.
  */
 @RestController
 class KeysController {
@@ -98,10 +100,31 @@ class KeysController {
                 created.expiresAt()));
   }
 
-  /** The caller's keys, with no secret in them; a key may list its siblings. */
+  /** The caller's keys, with no secret in them: a person's, never a key's to see. */
   @GetMapping("/api/keys")
   List<ApiKey> list(Authentication authentication) {
-    return apiKeys.findByIdentity(principal(authentication).identity().id());
+    return apiKeys.findByIdentity(personSignedInWithToken(authentication).identity().id());
+  }
+
+  /**
+   * The key this request signed in with, so a machine can see its own scopes and expiry, and rotate
+   * in time, without seeing any other key. A request with no key has no self: {@code 404}.
+   */
+  @GetMapping("/api/keys/self")
+  ApiKey self(Authentication authentication) {
+    if (!(authentication instanceof WhoAuthenticationToken who)
+        || who.signInMethod().filter(SignInMethod.API_KEY::equals).isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "This request did not use an API key");
+    }
+    // the id comes from the sign-in, never from the request
+    UUID id =
+        who.credentialId()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such key"));
+    return apiKeys.findByIdentity(principal(authentication).identity().id()).stream()
+        .filter(k -> k.id().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such key"));
   }
 
   @DeleteMapping("/api/keys/{id}")
@@ -129,7 +152,7 @@ class KeysController {
         authentication instanceof WhoAuthenticationToken who
             && who.signInMethod().filter(SignInMethod.JWT::equals).isPresent();
     if (!token) {
-      throw new AccessDeniedException("Keys are made and revoked with a person's token");
+      throw new AccessDeniedException("Keys are made, listed and revoked with a person's token");
     }
     return principal(authentication);
   }
