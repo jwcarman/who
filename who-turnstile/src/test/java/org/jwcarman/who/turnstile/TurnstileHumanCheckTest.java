@@ -128,6 +128,28 @@ class TurnstileHumanCheckTest {
   }
 
   @Test
+  void fails_with_no_hostname_in_the_answer_when_hostnames_are_listed() {
+    cloudflareAnswers("{\"success\":true,\"action\":\"email-send\"}");
+
+    assertThat(check(Set.of("app.example.com"), false).passes(SEND)).isFalse();
+  }
+
+  @Test
+  void compares_hostnames_ignoring_case() {
+    cloudflareAnswers(
+        "{\"success\":true,\"action\":\"email-send\",\"hostname\":\"APP.example.com\"}");
+
+    assertThat(check(Set.of(" App.Example.com "), false).passes(SEND)).isTrue();
+  }
+
+  @Test
+  void fails_when_success_is_not_true() {
+    cloudflareAnswers("{\"success\":\"true\",\"action\":\"email-send\"}");
+
+    assertThat(check(Set.of(), false).passes(SEND)).isFalse();
+  }
+
+  @Test
   void a_missing_token_fails_without_calling_cloudflare() {
     assertThat(
             check(Set.of(), true)

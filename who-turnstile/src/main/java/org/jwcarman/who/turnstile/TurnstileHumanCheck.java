@@ -20,9 +20,11 @@ import static java.util.Objects.requireNonNull;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.jwcarman.who.spring.security.HumanCheckRequest;
 import org.jwcarman.who.spring.security.WhoHumanCheck;
@@ -81,7 +83,11 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
     this.restClient = requireNonNull(restClient, "restClient must not be null");
     this.verifyUrl = requireNonNull(verifyUrl, "verifyUrl must not be null");
     this.secretKey = requireNonNull(secretKey, "secretKey must not be null");
-    this.hostnames = Set.copyOf(requireNonNull(hostnames, "hostnames must not be null"));
+    // hostnames are case-insensitive: compare them lower-cased
+    this.hostnames =
+        requireNonNull(hostnames, "hostnames must not be null").stream()
+            .map(TurnstileHumanCheck::normalized)
+            .collect(Collectors.toUnmodifiableSet());
     this.failOpen = failOpen;
   }
 
@@ -97,7 +103,9 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
     Map<String, Object> verdict = answer.get();
     return Boolean.TRUE.equals(verdict.get("success"))
         && request.action().equals(verdict.get("action"))
-        && (hostnames.isEmpty() || hostnames.contains(verdict.get("hostname")));
+        && (hostnames.isEmpty()
+            || verdict.get("hostname") instanceof String hostname
+                && hostnames.contains(normalized(hostname)));
   }
 
   /** Cloudflare's answer, or empty when it could not be had. */
@@ -123,6 +131,10 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
       log.warn("Cloudflare Turnstile could not be asked: {}", e.getClass().getName());
       return Optional.empty();
     }
+  }
+
+  private static String normalized(String hostname) {
+    return hostname.strip().toLowerCase(Locale.ROOT);
   }
 
   private static String field(String name, String value) {

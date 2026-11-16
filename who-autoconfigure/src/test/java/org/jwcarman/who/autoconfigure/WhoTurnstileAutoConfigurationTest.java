@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -150,10 +151,10 @@ class WhoTurnstileAutoConfigurationTest {
           .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
           .run(
               context -> {
-                long start = System.nanoTime();
-                assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse();
-                assertThat(Duration.ofNanos(System.nanoTime() - start))
-                    .isLessThan(Duration.ofSeconds(1));
+                WhoHumanCheck check = context.getBean(WhoHumanCheck.class);
+                assertThat(
+                        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> check.passes(SEND)))
+                    .isFalse();
               });
     } finally {
       server.stop(0);
