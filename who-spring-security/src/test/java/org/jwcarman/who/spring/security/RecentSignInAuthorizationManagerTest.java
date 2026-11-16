@@ -237,6 +237,22 @@ class RecentSignInAuthorizationManagerTest {
   }
 
   @Test
+  void a_denied_method_call_on_a_watched_response_leaves_the_challenge_for_its_answer() {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    StepUpChallenges.watch(request);
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request, response));
+    RecentSignInDecision decision =
+        decide(signedIn(SignInMethod.JWT, NOW.minus(WINDOW).minusSeconds(1)));
+
+    assertThatThrownBy(
+            () -> decision.handleDeniedInvocation(mock(MethodInvocation.class), decision))
+        .isSameAs(decision.refusal());
+    // the answer may yet be something other than 401: the header waits for it
+    assertThat(response.getHeader("WWW-Authenticate")).isNull();
+  }
+
+  @Test
   void a_stale_jwt_outside_a_request_still_throws() {
     RecentSignInDecision decision =
         decide(signedIn(SignInMethod.JWT, NOW.minus(WINDOW).minusSeconds(1)));

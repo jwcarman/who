@@ -22,7 +22,6 @@ import java.util.Optional;
 
 import org.aopalliance.intercept.MethodInvocation;
 import org.jspecify.annotations.Nullable;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.authorization.method.MethodAuthorizationDeniedHandler;
@@ -88,7 +87,8 @@ public final class RecentSignInDecision extends AuthorizationDecision
   }
 
   /**
-   * Sets the challenge on the current response, if there is one, and throws the refusal.
+   * Offers the challenge for the current response, if there is one, and throws the refusal. On
+   * who's chains the challenge is sent only if the response becomes a {@code 401}.
    *
    * @param invocation the refused call
    * @param result the decision
@@ -100,9 +100,8 @@ public final class RecentSignInDecision extends AuthorizationDecision
     RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
     if (challenge != null
         && attributes instanceof ServletRequestAttributes servlet
-        && servlet.getResponse() != null
-        && !servlet.getResponse().isCommitted()) {
-      servlet.getResponse().setHeader(HttpHeaders.WWW_AUTHENTICATE, challenge);
+        && servlet.getResponse() != null) {
+      StepUpChallenges.offer(servlet.getRequest(), servlet.getResponse(), challenge);
     }
     throw requireNonNull(refusal, "a granted decision is never denied");
   }

@@ -52,6 +52,7 @@ import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
+import org.jwcarman.who.spring.security.web.InsufficientUserAuthenticationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -180,8 +181,13 @@ class WhoRecentSignInTest {
     }
 
     @Bean
-    Actions actions() {
-      return new Actions();
+    Actions actions(Guarded guarded) {
+      return new Actions(guarded);
+    }
+
+    @Bean
+    Guarded guarded() {
+      return new Guarded();
     }
 
     @Bean
@@ -221,6 +227,22 @@ class WhoRecentSignInTest {
   @RestController
   static class Actions {
 
+    private final Guarded guarded;
+
+    Actions(Guarded guarded) {
+      this.guarded = guarded;
+    }
+
+    /** Calls a guarded method and, refused, answers something else, as an app may. */
+    @GetMapping("/api/recover")
+    String recover() {
+      try {
+        return guarded.make();
+      } catch (InsufficientUserAuthenticationException e) {
+        return "recovered";
+      }
+    }
+
     @GetMapping({"/web/keys", "/api/keys"})
     @RequiresRecentSignIn
     String keys() {
@@ -236,6 +258,14 @@ class WhoRecentSignInTest {
     @GetMapping({"/web/plain", "/api/plain", "/web/url", "/api/url"})
     String plain() {
       return "plain";
+    }
+  }
+
+  /** A service method that needs a recent sign-in. */
+  static class Guarded {
+    @RequiresRecentSignIn
+    String make() {
+      return "made";
     }
   }
 
@@ -373,6 +403,15 @@ class WhoRecentSignInTest {
     assertThat(url.headers().allValues("WWW-Authenticate")).containsExactly(STEP_UP);
 
     assertThat(bearer("/api/plain", "stale").statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void a_refusal_the_app_recovers_from_sends_no_challenge() throws Exception {
+    HttpResponse<String> recovered = bearer("/api/recover", "stale");
+
+    assertThat(recovered.statusCode()).isEqualTo(200);
+    assertThat(recovered.body()).isEqualTo("recovered");
+    assertThat(recovered.headers().allValues("WWW-Authenticate")).isEmpty();
   }
 
   @Test

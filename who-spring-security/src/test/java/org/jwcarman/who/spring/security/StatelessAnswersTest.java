@@ -26,6 +26,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -192,6 +195,45 @@ class StatelessAnswersTest {
 
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE)).isEqualTo(STEP_UP);
+  }
+
+  @Test
+  void a_url_rule_refusal_the_app_answers_with_403_gets_no_challenge() throws Exception {
+    Instant now = Instant.parse("2026-11-16T10:00:00Z");
+    RecentSignInDecision decision =
+        new RecentSignInAuthorizationManager(
+                Duration.ofMinutes(10), Clock.fixed(now, ZoneOffset.UTC))
+            .authorize(
+                () ->
+                    WhoAuthenticationToken.signedIn(
+                        new WhoPrincipal(Identity.create(), Set.of()),
+                        UUID.randomUUID(),
+                        SignInMethod.JWT,
+                        now.minusSeconds(3600)),
+                null);
+    // an application whose exception handling answers every refusal with 403
+    WhoExceptionHandoff handoff =
+        new WhoExceptionHandoff(
+            (req, res, e) -> {
+              res.setStatus(403);
+              return true;
+            });
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    new StepUpChallengeFilter()
+        .doFilter(
+            request,
+            response,
+            (req, res) ->
+                StatelessAnswers.deniedHandler(handoff)
+                    .handle(
+                        (HttpServletRequest) req,
+                        (HttpServletResponse) res,
+                        new AuthorizationDeniedException("Access Denied", decision)));
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE)).isNull();
   }
 
   @Test

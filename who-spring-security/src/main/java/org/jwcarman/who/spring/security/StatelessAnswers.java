@@ -30,6 +30,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 
 /**
  * How a chain with no browser sign-in answers: {@code 401} for a signed-out request, naming each
@@ -46,6 +47,8 @@ final class StatelessAnswers {
         context
             .getBeanProvider(WhoExceptionHandoff.class)
             .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    // a recent-sign-in challenge goes only with a 401, whoever answers the refusal
+    http.addFilterBefore(new StepUpChallengeFilter(), ExceptionTranslationFilter.class);
     http.exceptionHandling(
         e ->
             e.authenticationEntryPoint(entryPoint(handoff, methods))
@@ -62,7 +65,7 @@ final class StatelessAnswers {
           && authorization.getAuthorizationResult() instanceof RecentSignInDecision decision) {
         decision
             .challenge()
-            .ifPresent(challenge -> response.setHeader(HttpHeaders.WWW_AUTHENTICATE, challenge));
+            .ifPresent(challenge -> StepUpChallenges.offer(request, response, challenge));
         // Spring Security never puts a granted result in a denial
         handoff.handOff(
             request,

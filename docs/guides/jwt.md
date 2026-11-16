@@ -128,13 +128,15 @@ federatedCredentialService.unlink(credential.id());   // publishes CredentialRev
 An action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) asks when the token's person signed in. who reads the token's `auth_time` claim (OpenID Connect Core, RFC 9470): the time the person last signed in at the authorization server, which stays the same when the token is refreshed.
 
 - `auth_time` within `who.security.recent-sign-in` (10 minutes by default): allowed.
-- `auth_time` older: `401`, with the RFC 9470 step-up challenge, before your advice answers:
+- `auth_time` older: `401`, with the RFC 9470 step-up challenge:
 
     ```text
     WWW-Authenticate: Bearer error="insufficient_user_authentication", error_description="A more recent sign-in is required", max_age=600
     ```
 
     The client has the person sign in again, sending `max_age` (the seconds from the challenge) on its authorization request, so the server asks for the password if the sign-in is older than that, and retries with the new token.
+
+    On who's chains the challenge goes only with a `401`, whoever writes it: who, your advice, or Spring MVC. If your advice answers the refusal with another status, or your code catches it and carries on, the response gets no challenge to contradict it. On a chain you build without who's configurers, who sets the header as it refuses.
 - No `auth_time`: `403`. who cannot tell when the person signed in, and signing in again would bring another token without it.
 
 An `auth_time` a little in the future, from clock skew, counts as now. Tokens without `auth_time` work as before everywhere else; only marked actions refuse them.

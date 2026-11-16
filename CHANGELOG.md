@@ -30,6 +30,7 @@ See [Upgrading](docs/guides/upgrading.md#upgrading-to-0190).
 
 - `WhoSession` records how the session signed in. A session saved before 0.19 still loads, but must sign in again for an action marked `@RequiresRecentSignIn`.
 - who's own recent-sign-in checks (adding a passkey, a provider account or an email address) share the rule, and a sign-in exactly one window old is now too old.
+- A recent-sign-in refusal's step-up challenge (`WWW-Authenticate: Bearer error="insufficient_user_authentication"`) is sent only with a `401`, on who's chains. An application that answers the refusal with another status, or catches it and carries on, no longer sends a challenge that contradicts its answer.
 - A failed email sign-in's DEBUG log names the identity and credential ids, no longer the email address. `SignInFailed` still carries the address for your own handling.
 
 ### Documentation
