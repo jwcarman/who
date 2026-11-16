@@ -1,6 +1,6 @@
 # Roadmap
 
-Where who is going after 0.18.0. Each release below is a theme, not a promise: order and scope
+Where who is going after 0.19.0. Each release below is a theme, not a promise: order and scope
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 
@@ -41,13 +41,15 @@ is a tag.
   `WhoSignUpPolicy` opens it, and linking is an explicit, confirmed step. Never by email address.
 - **Actuator `info` contributor** (moved to 0.19) naming the sign-in methods that are on (moved from 0.17). Each
   method now has its own switch, so this can report them.
-- **Recent sign-in (step-up).** (Partly done in 0.18.0: `who.security.recent-sign-in` guards
-  adding a passkey, a provider account or an email address. The annotation moved to 0.19.) Require a sign-in within the last N minutes before adding a
+- **Recent sign-in (step-up).** (Done in 0.19.0: `who.security.recent-sign-in` guards
+  adding a passkey, a provider account or an email address since 0.18.0, and
+  `@RequiresRecentSignIn` guards your own actions since 0.19.0: see [Recent
+  sign-in](docs/guides/security-model.md#recent-sign-in).) Require a sign-in within the last N minutes before adding a
   passkey, changing an address, creating an API key or deleting an account, for example
   `@RequiresRecentSignIn(minutes = 5)` beside `@RequiresPermission`.
 - **Changing an email address,** confirmed by a link or code sent to the new address. (Done in
   0.18.0: the old address is told of the change.)
-- **Sessions.** (Moved to 0.19.) List an identity's sessions (device, last seen) and sign out one of them, beside
+- **Sessions.** (Done in 0.19.0: see [Sessions](docs/guides/sessions.md#see-and-end-sessions).) List an identity's sessions (device, last seen) and sign out one of them, beside
   today's "sign out everywhere".
 - **Security notifications** (moved to 0.19; a changed address is notified since 0.18.0) for a
   changed address or a new API key, as `PasskeyAddedNotifier`
@@ -57,19 +59,23 @@ is a tag.
   its scopes, never more than its owner has now; keys rotate with an overlap and carry a
   recognizable prefix and checksum for secret scanners.
 
-## 0.19: more identity providers
+## 0.20: more identity providers
+
+0.19.0 shipped sessions, recent sign-in, one endpoint root and the TypeScript client instead, so
+these moved to 0.20.
+
 
 - Sign in with Apple. Its callback is a cross-site `form_post`, which needs a CSRF-exempt callback
   or a cookie-backed authorization-request store.
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
 - Sign-up through `WhoSignUpPolicy` for email links.
 
-## 0.20: organizations
+## 0.21: organizations
 
 - Roles and permissions scoped to an organization ("admin in Acme, member in Globex"),
   invitations to an organization, and permission checks against the current one.
 - This changes the data model more than anything else here, so its design should start early,
-  well before 0.20, even if the code comes last.
+  well before 0.21, even if the code comes last.
 
 ## 1.0: stability
 

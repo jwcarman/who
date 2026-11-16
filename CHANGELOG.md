@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-16
+
 ### Breaking changes
 
 - Every browser session saved before 0.19 is signed out on its next request: each session now has a record in the new `who_session` table, checked on every request. Create the table (`who.initialize-schema`, the `who-session-1` changeSet, or `who-jdbc-schema.sql`).
@@ -425,6 +427,7 @@ before you upgrade.
 - Java 25+ and PostgreSQL 14+, unchanged.
 
 [Unreleased]: https://github.com/jwcarman/who/compare/0.18.0...HEAD
+[0.19.0]: https://github.com/jwcarman/who/releases/tag/0.19.0
 [0.18.0]: https://github.com/jwcarman/who/releases/tag/0.18.0
 [0.17.0]: https://github.com/jwcarman/who/releases/tag/0.17.0
 [0.16.0]: https://github.com/jwcarman/who/releases/tag/0.16.0
