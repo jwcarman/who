@@ -62,7 +62,7 @@ public class PasswordlessConfigurer
 
   @Override
   public void init(HttpSecurity http) {
-    if (http.getConfigurer(CsrfConfigurer.class) == null) {
+    if (CsrfConfigurers.of(http) == null) {
       throw new IllegalStateException(CSRF_REQUIRED);
     }
     // SessionManagementConfigurer.init (which runs before ours on Boot's HttpSecurity) shares a

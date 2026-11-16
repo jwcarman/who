@@ -77,7 +77,7 @@ public class WhoSecurityConfigurer
     }
     // Only adjust CSRF the chain already has: http.csrf(...) would turn it back on in a chain that
     // turned it off.
-    CsrfConfigurer<HttpSecurity> csrf = http.getConfigurer(CsrfConfigurer.class);
+    CsrfConfigurer<HttpSecurity> csrf = CsrfConfigurers.of(http);
     if (csrf != null && !stateless.isEmpty()) {
       csrf.ignoringRequestMatchers(
           new OrRequestMatcher(

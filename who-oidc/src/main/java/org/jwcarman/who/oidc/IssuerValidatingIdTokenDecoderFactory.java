@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.oidc;
 
+import java.util.List;
+
 import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenValidator;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -43,8 +45,9 @@ public final class IssuerValidatingIdTokenDecoderFactory
     delegate.setJwtValidatorFactory(
         client ->
             JwtValidators.createDefaultWithValidators(
-                new OidcIdTokenValidator(client),
-                new JwtIssuerValidator(issuer(registrations, client))));
+                List.of(
+                    new OidcIdTokenValidator(client),
+                    new JwtIssuerValidator(issuer(registrations, client)))));
   }
 
   @Override

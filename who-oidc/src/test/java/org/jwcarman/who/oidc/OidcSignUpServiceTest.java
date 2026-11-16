@@ -98,7 +98,8 @@ class OidcSignUpServiceTest {
   private FederatedCredential lostTheRace(UUID winner) {
     FederatedCredential saved = FederatedCredential.create(ISSUER, "alice");
     when(credentials.findByIssuerAndSubject(ISSUER, "alice"))
-        .thenReturn(Optional.empty(), Optional.of(saved));
+        .thenReturn(Optional.empty())
+        .thenReturn(Optional.of(saved));
     when(credentialService.link(identity, ISSUER, "alice"))
         .thenThrow(new DuplicateKeyException("who_federated_credential_issuer_subject"));
     when(credentialIdentities.findIdentityIdByCredentialId(saved.id()))

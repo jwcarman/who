@@ -67,7 +67,7 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
  * authentication event publisher, observation and exception handoff; it is not registered with the
  * servlet container on its own.
  */
-public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
+public final class ApiKeyAuthenticationFilter extends AuthenticationFilter {
 
   /** How often, at most, the convenience constructor's provider records a key's use. */
   public static final Duration DEFAULT_LAST_USED_INTERVAL = Duration.ofMinutes(5);
