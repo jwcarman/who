@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.NewApiKey;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -52,7 +53,9 @@ class KeysController {
     this.apiKeys = apiKeys;
   }
 
+  /** Makes a key; a key outlives the session, so this needs a sign-in in the last ten minutes. */
   @PostMapping("/keys")
+  @RequiresRecentSignIn
   @ResponseStatus(HttpStatus.CREATED)
   MadeKey make(@AuthenticationPrincipal WhoPrincipal principal) {
     NewApiKey key =

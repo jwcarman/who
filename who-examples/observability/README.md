@@ -40,7 +40,8 @@ On the page, each button makes one request:
 
 1. **Email me a code**, then copy the code from Mailpit and **Sign in with the code**.
 2. **Make a key**, then **Read with the key** (200) and **Write with the key** (403: the key may
-   only read).
+   only read). A key outlives your session, so making one needs a sign-in in the last ten minutes
+   (`@RequiresRecentSignIn`); later, the page says to sign in again.
 3. **Call with an unknown key**, **Revoke the key**, then **Read with the key** again (401).
 4. **Email a code to an unknown address**: the same answer as for a known one, so nobody can probe
    for accounts. Only the meter tells them apart.

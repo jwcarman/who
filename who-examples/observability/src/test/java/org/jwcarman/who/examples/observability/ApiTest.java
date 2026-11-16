@@ -22,6 +22,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -87,6 +89,15 @@ class ApiTest extends AbstractObservabilityTest {
     mockMvc
         .perform(delete("/keys/" + UUID.randomUUID()).session(signedIn()).with(csrf()))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void making_a_key_needs_a_recent_sign_in() throws Exception {
+    MockHttpSession session = signedInAt(Instant.now().minus(Duration.ofMinutes(11)));
+
+    mockMvc
+        .perform(post("/keys").session(session).with(csrf()))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

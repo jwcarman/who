@@ -26,7 +26,7 @@ const logsLink = id => explore('loki', `{service_name="who-example-observability
 
 // --- Showing an answer ---------------------------------------------------------------------------
 
-function show(request, res, says) {
+function show(request, res, says, signedIn = false) {
   document.getElementById('result-none').hidden = true;
   document.getElementById('result-body').hidden = false;
   document.getElementById('result-request').textContent = request;
@@ -34,7 +34,7 @@ function show(request, res, says) {
   status.textContent = `${res.status}`;
   status.className = 'status ' + (res.ok ? 'ok' : 'refused');
   document.getElementById('result-says').textContent =
-    res.status === 401 && !request.includes('X-API-Key') && !request.includes('login')
+    res.status === 401 && !signedIn && !request.includes('X-API-Key') && !request.includes('login')
       ? 'You are not signed in. Email yourself a code and sign in first.'
       : says(res.status);
   const id = res.headers.get('X-Trace-Id');
@@ -94,7 +94,13 @@ const actions = {
       key = await res.clone().json();
       showKey();
     }
-    show('POST /keys', res, s => s === 201 ? 'Made: who.credentials.added counts an api-key.' : 'Not made.');
+    // signed in, yet 401: the sign-in is more than ten minutes old, and a key needs a recent one
+    const stale = res.status === 401 && (await fetch('/who/me', { credentials: 'same-origin' })).ok;
+    show('POST /keys', res, s => s === 201
+      ? 'Made: who.credentials.added counts an api-key.'
+      : stale
+        ? 'Not made: you signed in more than ten minutes ago, and making a key needs a recent sign-in (@RequiresRecentSignIn). Email yourself a code and sign in again.'
+        : 'Not made.', stale);
   },
 
   read: async () => key

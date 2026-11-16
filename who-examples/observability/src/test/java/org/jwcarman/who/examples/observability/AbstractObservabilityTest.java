@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.examples.observability;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
@@ -65,10 +66,20 @@ abstract class AbstractObservabilityTest {
    * @return the session
    */
   MockHttpSession signedIn() {
+    return signedInAt(Instant.now());
+  }
+
+  /**
+   * A browser session for a new person holding the demo role, who signed in at {@code signedInAt}.
+   *
+   * @param signedInAt when they signed in
+   * @return the session
+   */
+  MockHttpSession signedInAt(Instant signedInAt) {
     Identity identity = whoService.createIdentity();
     EmailCredential credential =
         emailCredentials.register(identity, UUID.randomUUID() + "@example.com");
     rbacService.assignRoleByName(identity, Setup.ROLE);
-    return WhoTestSessions.signedIn(identity.id(), credential.id());
+    return WhoTestSessions.signedIn(identity.id(), credential.id(), signedInAt);
   }
 }
