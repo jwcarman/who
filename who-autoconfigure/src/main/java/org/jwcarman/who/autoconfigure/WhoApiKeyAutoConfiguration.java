@@ -47,6 +47,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @ConditionalOnBooleanProperty(name = "who.api-key.enabled", matchIfMissing = true)
 public class WhoApiKeyAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoApiKeyAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
   /**
    * The repository is also this module's {@link CredentialRemover}; its declared type exposes both,
    * so {@link WhoService} finds it without a second bean.
@@ -172,6 +177,9 @@ public class WhoApiKeyAutoConfiguration {
   /**
    * Keeps Spring Boot from also registering the filter with the servlet container; it runs only
    * inside security chains that add it with {@code WhoApiKeySecurity}.
+   *
+   * @param filter the API-key filter
+   * @return a disabled registration
    */
   @Bean
   public FilterRegistrationBean<ApiKeyAuthenticationFilter> apiKeyFilterRegistration(

@@ -20,8 +20,13 @@ public final class InvalidRegistrationException extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
+  /** The client registration. */
   private final String registrationId;
+
+  /** The property to fix. */
   private final String property;
+
+  /** What is wrong, phrased to follow the property name. */
   private final String problem;
 
   /**

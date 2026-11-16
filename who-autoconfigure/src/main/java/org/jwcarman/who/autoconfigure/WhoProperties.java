@@ -32,6 +32,11 @@ import org.springframework.boot.sql.init.DatabaseInitializationMode;
 @ConfigurationProperties(prefix = "who")
 public class WhoProperties {
 
+  /** Creates who's properties with their defaults; Spring Boot binds {@code who.*} onto them. */
+  public WhoProperties() {
+    // defaults are set on the fields
+  }
+
   /**
    * When to run Who's bundled DDL schema scripts: {@code always}, {@code embedded}, or {@code
    * never}.
@@ -158,6 +163,11 @@ public class WhoProperties {
   /** Properties for the {@code who-passkey} module. */
   public static class Passkey {
 
+    /** Creates the settings with their defaults. */
+    public Passkey() {
+      // defaults are set on the fields
+    }
+
     /** Whether passkey sign-in is on. It is on whenever its module is on the classpath. */
     private boolean enabled = true;
 
@@ -277,6 +287,11 @@ public class WhoProperties {
 
   /** Properties for the {@code who-email-link} module. */
   public static class EmailLink {
+
+    /** Creates the settings with their defaults. */
+    public EmailLink() {
+      // defaults are set on the fields
+    }
 
     /** Whether email-link sign-in is on. It is on whenever its module is on the classpath. */
     private boolean enabled = true;
@@ -550,6 +565,11 @@ public class WhoProperties {
   /** Properties for method security. */
   public static class MethodSecurity {
 
+    /** Creates the settings with their defaults. */
+    public MethodSecurity() {
+      // defaults are set on the fields
+    }
+
     /** Whether Who enables method security so {@code @RequiresPermission} is enforced. */
     private boolean enabled = true;
 
@@ -574,6 +594,11 @@ public class WhoProperties {
 
   /** Properties for the {@code who-enrollment} module. */
   public static class Enrollment {
+
+    /** Creates the settings with their defaults. */
+    public Enrollment() {
+      // defaults are set on the fields
+    }
 
     /** Whether enrollment is on. It is on whenever its module is on the classpath. */
     private boolean enabled = true;
@@ -620,6 +645,11 @@ public class WhoProperties {
 
   /** Properties for the {@code who-apikey} module. */
   public static class ApiKey {
+
+    /** Creates the settings with their defaults. */
+    public ApiKey() {
+      // defaults are set on the fields
+    }
 
     /** Whether API-key sign-in is on. It is on whenever its module is on the classpath. */
     private boolean enabled = true;
@@ -753,6 +783,11 @@ public class WhoProperties {
   /** Properties for the {@code who-jwt} module. */
   public static class Jwt {
 
+    /** Creates the settings with their defaults. */
+    public Jwt() {
+      // defaults are set on the fields
+    }
+
     /** Whether JWT sign-in is on. It is on whenever its module is on the classpath. */
     private boolean enabled = true;
 
@@ -813,6 +848,11 @@ public class WhoProperties {
 
   /** Properties for who's security chain. */
   public static class Security {
+
+    /** Creates the settings with their defaults. */
+    public Security() {
+      // defaults are set on the fields
+    }
 
     /**
      * Paths of the application a signed-out request may reach, such as its sign-in page and the
@@ -888,6 +928,11 @@ public class WhoProperties {
     /** Settings for the cookie that remembers which way someone last signed in. */
     public static class LastSignInCookie {
 
+      /** Creates the settings with their defaults. */
+      public LastSignInCookie() {
+        // defaults are set on the fields
+      }
+
       /** Whether who sets the cookie after a browser sign-in. */
       private boolean enabled = true;
 
@@ -915,6 +960,11 @@ public class WhoProperties {
    * Properties for sign-in with Google, GitHub or any OpenID Connect provider ({@code who-oidc}).
    */
   public static class Oidc {
+
+    /** Creates the settings with their defaults. */
+    public Oidc() {
+      // defaults are set on the fields
+    }
 
     /** Whether provider sign-in is on; it is whenever {@code who-oidc} is on the classpath. */
     private boolean enabled = true;
@@ -1051,6 +1101,11 @@ public class WhoProperties {
 
     /** Settings for one client registration. */
     public static class Provider {
+
+      /** Creates the settings with their defaults. */
+      public Provider() {
+        // defaults are set on the fields
+      }
 
       /** Whether who signs people in with this registration. */
       private boolean enabled = true;

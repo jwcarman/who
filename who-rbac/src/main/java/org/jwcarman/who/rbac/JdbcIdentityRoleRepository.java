@@ -31,6 +31,11 @@ public class JdbcIdentityRoleRepository implements IdentityRoleRepository {
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps roles assigned to identities in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcIdentityRoleRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

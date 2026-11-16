@@ -22,8 +22,17 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.id.Identifiers;
 
-/** Stable internal identity record. All application domain objects FK against the {@code id}. */
+/**
+ * Stable internal identity record. All application domain objects FK against the {@code id}.
+ *
+ * @param id the identity's stable id
+ * @param status whether it may sign in
+ * @param createdAt when it was created
+ * @param updatedAt when it last changed
+ */
 public record Identity(UUID id, IdentityStatus status, Instant createdAt, Instant updatedAt) {
+
+  /** Validates that no field is null. */
   public Identity {
     requireNonNull(id, "id must not be null");
     requireNonNull(status, "status must not be null");

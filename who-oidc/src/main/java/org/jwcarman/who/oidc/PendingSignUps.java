@@ -30,6 +30,11 @@ import jakarta.servlet.http.HttpSession;
  */
 public final class PendingSignUps {
 
+  /** Creates the store. It keeps nothing itself: the pending sign-up lives in the session. */
+  public PendingSignUps() {
+    // stateless
+  }
+
   /** The session attribute that holds the pending sign-up. */
   public static final String ATTRIBUTE = "org.jwcarman.who.oidc.pending";
 

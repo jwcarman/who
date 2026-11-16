@@ -39,6 +39,11 @@ import org.springframework.util.ClassUtils;
  */
 public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
 
+  /** Creates the registrar. Spring creates it from {@code aot.factories}. */
+  public PasskeyRuntimeHints() {
+    // stateless: the hints are registered by registerHints
+  }
+
   /** Packages whose every class (nested classes included, subpackages not) is registered. */
   public static final List<String> FAMILIES =
       List.of(

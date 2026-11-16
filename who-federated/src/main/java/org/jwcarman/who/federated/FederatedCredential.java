@@ -37,6 +37,7 @@ import org.jwcarman.who.core.spi.Credential;
  */
 public record FederatedCredential(UUID id, String issuer, String subject) implements Credential {
 
+  /** Validates that no field is null. */
   public FederatedCredential {
     requireNonNull(id, "id must not be null");
     requireNonNull(issuer, "issuer must not be null");

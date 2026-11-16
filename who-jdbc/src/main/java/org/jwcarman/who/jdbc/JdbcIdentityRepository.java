@@ -45,6 +45,11 @@ public class JdbcIdentityRepository implements IdentityRepository {
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps identities in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcIdentityRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

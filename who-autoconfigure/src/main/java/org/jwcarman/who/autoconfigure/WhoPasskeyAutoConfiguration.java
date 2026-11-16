@@ -78,6 +78,18 @@ public class WhoPasskeyAutoConfiguration {
       "org.jwcarman.who.emaillink.EmailCredentialService";
   private static final String JAVA_MAIL_SENDER = "org.springframework.mail.javamail.JavaMailSender";
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoPasskeyAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
+  /**
+   * The relying party passkeys are bound to, from {@code who.passkey.*}. Startup fails without
+   * {@code who.passkey.rp-id}; the allowed origins default to {@code https://} and the RP id.
+   *
+   * @param properties who's properties
+   * @return the settings
+   */
   @Bean
   @ConditionalOnMissingBean
   public PasskeySettings passkeySettings(WhoProperties properties) {
@@ -97,7 +109,16 @@ public class WhoPasskeyAutoConfiguration {
         rpId, passkey.getRpName(), allowedOrigins, properties.getSecurity().getRecentSignIn());
   }
 
-  /** Registered as a bean so its {@code @Transactional} methods are proxied. */
+  /**
+   * Who's WebAuthn user entities. Registered as a bean so its {@code @Transactional} methods are
+   * proxied.
+   *
+   * @param jdbcClient the database
+   * @param credentialIdentityRepository links credentials to identities
+   * @param whoEventPublisher publishes credential events
+   * @param clock stamps records and events
+   * @return the repository
+   */
   @Bean
   @ConditionalOnMissingBean
   public JdbcWhoPasskeyUserRepository whoPasskeyUserRepository(
@@ -109,7 +130,15 @@ public class WhoPasskeyAutoConfiguration {
         jdbcClient, credentialIdentityRepository, whoEventPublisher, clock);
   }
 
-  /** Registered as a bean so its {@code @Transactional} methods are proxied. */
+  /**
+   * Who's passkey records. Registered as a bean so its {@code @Transactional} methods are proxied.
+   *
+   * @param jdbcClient the database
+   * @param credentialIdentityRepository links credentials to identities
+   * @param whoEventPublisher publishes credential events
+   * @param clock stamps records and events
+   * @return the repository
+   */
   @Bean
   @ConditionalOnMissingBean
   public JdbcWhoPasskeyCredentialRepository whoPasskeyCredentialRepository(
@@ -135,6 +164,12 @@ public class WhoPasskeyAutoConfiguration {
     return new PasskeyCredentialRemover(credentialRepository);
   }
 
+  /**
+   * Lists and revokes an identity's passkeys, for the application's account pages.
+   *
+   * @param credentialRepository who's passkey records
+   * @return the service
+   */
   @Bean
   @ConditionalOnMissingBean
   public PasskeyService passkeyService(JdbcWhoPasskeyCredentialRepository credentialRepository) {
@@ -144,6 +179,9 @@ public class WhoPasskeyAutoConfiguration {
   /**
    * Names passkeys by email address when who-email-link is on the classpath, otherwise by identity
    * id.
+   *
+   * @param context the application, to find who-email-link's beans
+   * @return the resolver
    */
   @Bean
   @ConditionalOnMissingBean
@@ -157,6 +195,10 @@ public class WhoPasskeyAutoConfiguration {
   /**
    * Emails the owner when a passkey is added, when who-email-link and Spring's mail support are on
    * the classpath; otherwise sends nothing.
+   *
+   * @param context the application, to find the mail beans
+   * @param properties who's properties, for the email's sender and subject
+   * @return the notifier
    */
   @Bean
   @ConditionalOnMissingBean
@@ -170,6 +212,18 @@ public class WhoPasskeyAutoConfiguration {
     return PasskeyEmails.notifier(context, properties);
   }
 
+  /**
+   * The one relying party: Spring's WebAuthn filters and who's provider verify through it.
+   *
+   * @param settings the relying party's settings
+   * @param userRepository who's WebAuthn user entities
+   * @param credentialRepository who's passkey records
+   * @param nameResolver names a new passkey
+   * @param notifier tells the owner a passkey was added
+   * @param whoEventPublisher publishes credential events
+   * @param clock stamps records and events
+   * @return the relying party
+   */
   @Bean
   @ConditionalOnMissingBean
   public WebAuthnRelyingPartyOperations whoRelyingPartyOperations(
@@ -194,6 +248,17 @@ public class WhoPasskeyAutoConfiguration {
    * The provider is built here rather than published as a bean: a lone {@code
    * AuthenticationProvider} bean would become Spring Security's global one and switch off the
    * application's {@code UserDetailsService}. The login method builds the registration guard.
+   *
+   * @param userRepository who's WebAuthn user entities
+   * @param credentialRepository who's passkey records
+   * @param rpOperations the relying party
+   * @param whoService resolves a passkey to its identity
+   * @param sessionRepository stores the who session a sign-in starts
+   * @param jsonMapper reads WebAuthn requests; a default one when the application has none
+   * @param clock stamps events
+   * @param settings the relying party's settings, for the registration window
+   * @param whoEventPublisher publishes sign-in events
+   * @return the login method
    */
   @Bean
   @ConditionalOnMissingBean

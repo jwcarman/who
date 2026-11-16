@@ -50,6 +50,20 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @ConditionalOnClass(name = "org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository")
 public class WhoSpringSecurityAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoSpringSecurityAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
+  /**
+   * Keeps only who's session ids in the HTTP session and resolves the principal again on every
+   * request, so a suspension or a revoked credential takes effect at once.
+   *
+   * @param whoService resolves the principal
+   * @param clock stamps the sign-in time
+   * @param whoEventPublisher publishes session events
+   * @return the repository
+   */
   @Bean
   @ConditionalOnMissingBean
   public WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(

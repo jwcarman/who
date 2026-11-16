@@ -91,6 +91,18 @@ public class WhoEmailLinkAutoConfiguration {
 
   private static final String JAVA_MAIL_SENDER = "org.springframework.mail.javamail.JavaMailSender";
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoEmailLinkAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
+  /**
+   * Email-link sign-in's settings, from {@code who.email-link.*}. Startup fails when the link's
+   * base URL or the code secret is missing, or a value is out of range.
+   *
+   * @param properties who's properties
+   * @return the settings
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailLinkSettings emailLinkSettings(WhoProperties properties) {
@@ -161,12 +173,27 @@ public class WhoEmailLinkAutoConfiguration {
     return new JdbcEmailCredentialRepository(jdbcClient);
   }
 
+  /**
+   * The issued links and codes, kept as hashes until they are used or expire.
+   *
+   * @param jdbcClient the database
+   * @return the repository
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailLinkTokenRepository emailLinkTokenRepository(JdbcClient jdbcClient) {
     return new JdbcEmailLinkTokenRepository(jdbcClient);
   }
 
+  /**
+   * Adds, finds and revokes the email addresses people sign in with.
+   *
+   * @param emailCredentialRepository the email credentials
+   * @param credentialIdentityRepository links credentials to identities
+   * @param whoEventPublisher publishes credential events
+   * @param clock stamps records and events
+   * @return the service
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailCredentialService emailCredentialService(
@@ -178,12 +205,25 @@ public class WhoEmailLinkAutoConfiguration {
         emailCredentialRepository, credentialIdentityRepository, whoEventPublisher, clock);
   }
 
+  /**
+   * Makes the one-time tokens behind links and codes, valid for {@code who.email-link.token-ttl}.
+   *
+   * @param clock stamps each token's expiry
+   * @param settings the token lifetime
+   * @return the token service
+   */
   @Bean
   @ConditionalOnMissingBean
   public WhoOneTimeTokenService whoOneTimeTokenService(Clock clock, EmailLinkSettings settings) {
     return new WhoOneTimeTokenService(clock, settings.tokenTtl());
   }
 
+  /**
+   * Reads the address from a JSON request for a sign-in link.
+   *
+   * @param jsonMapper reads the request; a default one when the application has none
+   * @return the resolver
+   */
   @Bean
   @ConditionalOnMissingBean
   public JsonGenerateOneTimeTokenRequestResolver jsonGenerateOneTimeTokenRequestResolver(
@@ -191,6 +231,17 @@ public class WhoEmailLinkAutoConfiguration {
     return new JsonGenerateOneTimeTokenRequestResolver(jsonMapper(jsonMapper));
   }
 
+  /**
+   * Answers a JSON sign-in: {@code 200} with the identity, or the failure through the application's
+   * exception handling, with sign-in events and the last-sign-in cookie.
+   *
+   * @param jsonMapper writes the answer; a default one when the application has none
+   * @param handoff hands failures to the application's exception handling, when present
+   * @param whoEventPublisher publishes sign-in events
+   * @param clock stamps events
+   * @param lastSignInCookie remembers the method used, unless turned off
+   * @return the handlers
+   */
   @Bean
   @ConditionalOnMissingBean
   public JsonAuthenticationHandlers jsonAuthenticationHandlers(
@@ -207,6 +258,21 @@ public class WhoEmailLinkAutoConfiguration {
         lastSignInCookie.getIfAvailable());
   }
 
+  /**
+   * Issues a sign-in link and code and sends them, to a known address only. Startup fails when no
+   * {@code EmailLinkSender} can be had.
+   *
+   * @param emailCredentialService finds the address's credential
+   * @param whoService finds the credential's identity
+   * @param emailLinkTokenRepository stores the issued token's hash
+   * @param emailLinkSender sends the email: the application's, or Spring mail's
+   * @param settings the link's base URL and the code secret
+   * @param clock stamps the token and events
+   * @param whoEventPublisher publishes the link-issued event
+   * @param observationRegistry observes each issue, when the application has one
+   * @param resourceLoader checks whether Spring's mail support is on the classpath
+   * @return the issuer
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailLinkIssuer emailLinkIssuer(
@@ -260,6 +326,9 @@ public class WhoEmailLinkAutoConfiguration {
    * <p>Applies the application's {@link TaskDecorator} beans as Spring Boot does to its own
    * executors (one on its own, several in order), so a {@code ContextPropagatingTaskDecorator}
    * carries the request's trace and logging context to the send.
+   *
+   * @param taskDecorators the application's task decorators, in order
+   * @return the executor
    */
   @Bean(name = EXECUTOR_BEAN_NAME, defaultCandidate = false)
   @ConditionalOnMissingBean(name = EXECUTOR_BEAN_NAME)
@@ -275,6 +344,14 @@ public class WhoEmailLinkAutoConfiguration {
     return executor;
   }
 
+  /**
+   * Answers a link request at once and issues the link on {@link #EXECUTOR_BEAN_NAME the executor},
+   * so a known and an unknown address answer alike.
+   *
+   * @param emailLinkIssuer issues and sends the link
+   * @param executor runs the issue off the request thread
+   * @return the handler
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailLinkGenerationSuccessHandler emailLinkGenerationSuccessHandler(
@@ -287,6 +364,18 @@ public class WhoEmailLinkAutoConfiguration {
    * AuthenticationProvider} bean would become Spring Security's global one and switch off the
    * application's {@code UserDetailsService}, and Spring's resource server takes any {@code
    * AuthenticationConverter} bean as its own, so bearer requests would be read as sign-in codes.
+   *
+   * @param tokenService makes the one-time tokens
+   * @param generateRequestResolver reads a link request
+   * @param generationSuccessHandler answers a link request
+   * @param jsonMapper reads a sign-in request; a default one when the application has none
+   * @param handlers answer a sign-in
+   * @param whoService resolves a token's credential to its identity
+   * @param emailLinkTokenRepository finds and uses up the issued token
+   * @param settings the code secret, code length and attempts
+   * @param clock checks expiry and stamps events
+   * @param whoEventPublisher publishes sign-in events
+   * @return the login method
    */
   @Bean
   @ConditionalOnMissingBean
@@ -312,12 +401,32 @@ public class WhoEmailLinkAutoConfiguration {
         handlers.failure());
   }
 
+  /**
+   * Pending address changes, until they are confirmed or expire.
+   *
+   * @param jdbcClient the database
+   * @return the repository
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailAddressRequestRepository emailAddressRequestRepository(JdbcClient jdbcClient) {
     return new JdbcEmailAddressRequestRepository(jdbcClient);
   }
 
+  /**
+   * Adds or replaces an address only once its owner confirms it, by link or code. The link goes to
+   * {@code who.email-link.address-confirmation-url}, or the sign-in link's base URL.
+   *
+   * @param emailCredentialService adds and revokes the addresses
+   * @param emailAddressRequestRepository the pending changes
+   * @param emailLinkSender sends the confirmation and the notice to the old address
+   * @param resourceLoader checks whether Spring's mail support is on the classpath
+   * @param settings the code secret, code length, attempts and resend interval
+   * @param properties who's properties, for the confirmation URL
+   * @param clock stamps the request and events
+   * @param whoEventPublisher publishes address events
+   * @return the address changes
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailAddressChanges emailAddressChanges(
@@ -340,6 +449,18 @@ public class WhoEmailLinkAutoConfiguration {
         whoEventPublisher);
   }
 
+  /**
+   * {@code /who/email/addresses}: a signed-in person asks for and confirms an address change.
+   *
+   * @param emailAddressChanges makes the changes
+   * @param sessionRepository finds the browser session, for the recent-sign-in check
+   * @param handoff hands errors to the application's exception handling, when present
+   * @param executor sends the confirmation off the request thread
+   * @param jsonMapper reads and writes JSON; a default one when the application has none
+   * @param clock checks how recently the person signed in
+   * @param properties who's properties, for the recent-sign-in window
+   * @return the endpoints
+   */
   @Bean
   @ConditionalOnMissingBean
   public EmailAddressEndpoints emailAddressEndpoints(

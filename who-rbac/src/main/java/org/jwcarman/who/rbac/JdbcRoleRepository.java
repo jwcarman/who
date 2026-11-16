@@ -33,6 +33,11 @@ public class JdbcRoleRepository implements RoleRepository {
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps roles in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcRoleRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

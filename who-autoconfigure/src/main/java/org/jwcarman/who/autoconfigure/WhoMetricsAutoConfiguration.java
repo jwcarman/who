@@ -38,6 +38,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 @ConditionalOnBean(MeterRegistry.class)
 public class WhoMetricsAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoMetricsAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
   /**
    * Counts who's own events.
    *

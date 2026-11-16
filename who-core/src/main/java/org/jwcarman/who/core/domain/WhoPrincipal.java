@@ -23,8 +23,13 @@ import java.util.Set;
 /**
  * Resolved principal placed into the security context. Carries the resolved {@link Identity} and
  * the union of all permission strings granted to that identity.
+ *
+ * @param identity the identity signed in
+ * @param permissions every permission it holds on this request
  */
 public record WhoPrincipal(Identity identity, Set<String> permissions) implements Serializable {
+
+  /** Validates that no field is null, and copies the permissions. */
   public WhoPrincipal {
     requireNonNull(identity, "identity must not be null");
     requireNonNull(permissions, "permissions must not be null");

@@ -26,6 +26,11 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
  */
 public class WhoSchemaRuntimeHints implements RuntimeHintsRegistrar {
 
+  /** Creates the registrar. Spring creates it from {@code aot.factories}. */
+  public WhoSchemaRuntimeHints() {
+    // stateless: the hints are registered by registerHints
+  }
+
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
     for (String marker : WhoDataSourceScriptDatabaseInitializer.moduleMarkers()) {

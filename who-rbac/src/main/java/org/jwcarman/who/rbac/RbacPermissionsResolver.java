@@ -33,6 +33,12 @@ public class RbacPermissionsResolver implements PermissionsResolver {
   private final IdentityRoleRepository identityRoleRepository;
   private final RolePermissionRepository rolePermissionRepository;
 
+  /**
+   * Creates the resolver.
+   *
+   * @param identityRoleRepository finds an identity's roles
+   * @param rolePermissionRepository finds the roles' permissions
+   */
   public RbacPermissionsResolver(
       IdentityRoleRepository identityRoleRepository,
       RolePermissionRepository rolePermissionRepository) {

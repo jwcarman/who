@@ -43,6 +43,11 @@ public class JdbcFederatedCredentialRepository
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps federated credentials in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcFederatedCredentialRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

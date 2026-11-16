@@ -23,6 +23,9 @@ import org.jwcarman.who.core.id.Identifiers;
 /**
  * An immutable domain record representing a named role that can be assigned to identities and
  * granted permissions.
+ *
+ * @param id the role's stable id
+ * @param name the role's unique name
  */
 public record Role(UUID id, String name) {
 

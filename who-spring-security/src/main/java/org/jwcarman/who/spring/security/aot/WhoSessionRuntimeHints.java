@@ -29,6 +29,11 @@ import org.springframework.aot.hint.TypeReference;
  */
 public class WhoSessionRuntimeHints implements RuntimeHintsRegistrar {
 
+  /** Creates the registrar. Spring creates it from {@code aot.factories}. */
+  public WhoSessionRuntimeHints() {
+    // stateless: the hints are registered by registerHints
+  }
+
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
     hints.reflection().registerJavaSerialization(WhoSession.class);

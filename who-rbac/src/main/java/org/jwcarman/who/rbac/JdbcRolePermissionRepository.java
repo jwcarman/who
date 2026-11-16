@@ -33,6 +33,11 @@ public class JdbcRolePermissionRepository implements RolePermissionRepository {
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps permissions granted to roles in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcRolePermissionRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

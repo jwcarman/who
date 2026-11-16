@@ -40,6 +40,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @ConditionalOnClass(name = "org.jwcarman.who.federated.JdbcFederatedCredentialRepository")
 public class WhoFederatedAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoFederatedAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
   /**
    * The repository is also this module's {@link CredentialRemover}; its declared type exposes both,
    * so {@link WhoService} finds it without a second bean.

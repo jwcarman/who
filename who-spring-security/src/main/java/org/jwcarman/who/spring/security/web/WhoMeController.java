@@ -33,6 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class WhoMeController {
 
+  /** Creates the controller. */
+  public WhoMeController() {
+    // stateless
+  }
+
   /**
    * The signed-in identity.
    *

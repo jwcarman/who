@@ -33,6 +33,11 @@ public class JdbcCredentialIdentityRepository implements CredentialIdentityRepos
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps links between credentials and identities in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcCredentialIdentityRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

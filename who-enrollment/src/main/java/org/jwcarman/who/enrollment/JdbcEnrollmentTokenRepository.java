@@ -55,6 +55,11 @@ public class JdbcEnrollmentTokenRepository implements EnrollmentTokenRepository 
 
   private final JdbcClient jdbcClient;
 
+  /**
+   * Creates the repository, which keeps enrollment tokens in who's tables.
+   *
+   * @param jdbcClient the database
+   */
   public JdbcEnrollmentTokenRepository(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
   }

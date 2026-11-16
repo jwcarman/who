@@ -26,8 +26,13 @@ public final class WhoConfigurationException extends IllegalStateException {
 
   private static final long serialVersionUID = 1L;
 
+  /** The configuration property at fault. */
   private final String property;
+
+  /** What is wrong with it. */
   private final String problem;
+
+  /** What to set to fix it. */
   private final String action;
 
   /**

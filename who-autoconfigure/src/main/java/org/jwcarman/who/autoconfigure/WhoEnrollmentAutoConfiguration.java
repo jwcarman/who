@@ -39,12 +39,35 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @ConditionalOnBooleanProperty(name = "who.enrollment.enabled", matchIfMissing = true)
 public class WhoEnrollmentAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoEnrollmentAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
+  /**
+   * The enrollment tokens handed out to invite people, kept until used or expired.
+   *
+   * @param jdbcClient the database
+   * @return the repository
+   */
   @Bean
   @ConditionalOnMissingBean
   public EnrollmentTokenRepository enrollmentTokenRepository(JdbcClient jdbcClient) {
     return new JdbcEnrollmentTokenRepository(jdbcClient);
   }
 
+  /**
+   * Issues enrollment tokens and redeems them, linking a credential to the invited identity. Tokens
+   * last {@code who.enrollment.token-expiration}.
+   *
+   * @param enrollmentTokenRepository the tokens
+   * @param identityRepository finds the invited identity
+   * @param credentialIdentityRepository links the credential to it
+   * @param properties who's properties, for the token lifetime
+   * @param whoEventPublisher publishes enrollment events
+   * @param whoClock stamps tokens and events
+   * @return the service
+   */
   @Bean
   @ConditionalOnMissingBean
   public WhoEnrollmentService whoEnrollmentService(

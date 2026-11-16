@@ -66,6 +66,11 @@ import io.micrometer.observation.ObservationRegistry;
 @EnableConfigurationProperties(WhoProperties.class)
 public class WhoAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
   /**
    * Initializes Who's bundled DDL schemas against the configured {@link DataSource}.
    *
@@ -87,6 +92,8 @@ public class WhoAutoConfiguration {
    * <p>This bean is only registered when no other {@code PermissionsResolver} is present (e.g.,
    * when {@code who-rbac} is not on the classpath). Applications that need permissions should
    * include {@code who-rbac} or register their own bean.
+   *
+   * @return a resolver that grants nothing
    */
   @Bean
   @ConditionalOnMissingBean

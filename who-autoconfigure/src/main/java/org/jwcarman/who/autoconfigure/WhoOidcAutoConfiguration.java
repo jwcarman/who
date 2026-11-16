@@ -67,6 +67,11 @@ import org.springframework.web.util.pattern.PathPatternParser;
 @ConditionalOnBooleanProperty(name = "who.oidc.enabled", matchIfMissing = true)
 public class WhoOidcAutoConfiguration {
 
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoOidcAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
+
   private static final Logger log = LoggerFactory.getLogger(WhoOidcAutoConfiguration.class);
 
   private static final String OFF_SWITCH =
