@@ -88,7 +88,7 @@ class EmailLinkSignInIT {
 
   /** Asks for a sign-in email and returns its text. */
   static String requestEmail(WhoClient client, String address) {
-    assertThat(client.post("/ott/generate", WhoClient.json(Map.of("email", address))).status())
+    assertThat(client.post("/who/email/send", WhoClient.json(Map.of("email", address))).status())
         .isEqualTo(202);
     return TestEndpoints.awaitMail(client, address);
   }
@@ -101,7 +101,8 @@ class EmailLinkSignInIT {
 
   static String signInByLink(WhoClient client, String address) {
     String token = find(TOKEN, requestEmail(client, address));
-    WhoClient.Response response = client.post("/login/ott", WhoClient.json(Map.of("token", token)));
+    WhoClient.Response response =
+        client.post("/who/email/sign-in", WhoClient.json(Map.of("token", token)));
     assertThat(response.status()).isEqualTo(200);
     return response.json().path("identityId").asString();
   }
@@ -142,7 +143,8 @@ class EmailLinkSignInIT {
         String code = find(CODE, requestEmail(client, address));
 
         WhoClient.Response response =
-            client.post("/login/ott", WhoClient.json(Map.of("email", address, "code", code)));
+            client.post(
+                "/who/email/sign-in", WhoClient.json(Map.of("email", address, "code", code)));
 
         assertThat(response.status()).isEqualTo(200);
         assertThat(client.get("/who/me").json().path("identityId").asString())
@@ -170,7 +172,8 @@ class EmailLinkSignInIT {
         String wrong = code.startsWith("0") ? "111-111" : "000-000";
 
         WhoClient.Response response =
-            client.post("/login/ott", WhoClient.json(Map.of("email", address, "code", wrong)));
+            client.post(
+                "/who/email/sign-in", WhoClient.json(Map.of("email", address, "code", wrong)));
 
         assertThat(response.status()).isEqualTo(401);
         assertThat(client.get("/who/me").status()).isEqualTo(401);
@@ -229,12 +232,13 @@ class EmailLinkSignInIT {
         String identityId = setUpIdentity(client, address, false);
         signInByLink(client, address);
 
-        assertThat(client.post("/logout", null).status()).isEqualTo(204);
+        assertThat(client.post("/who/logout", null).status()).isEqualTo(204);
 
         assertThat(client.get("/who/me").status()).isEqualTo(401);
         TestEndpoints.awaitEvent(client, Map.of("type", "SignedOut", "identityId", identityId));
         // the cookie was cleared at sign-out; the next POST still carries a fresh token
-        assertThat(client.post("/ott/generate", WhoClient.json(Map.of("email", address))).status())
+        assertThat(
+                client.post("/who/email/send", WhoClient.json(Map.of("email", address))).status())
             .isEqualTo(202);
       }
     }

@@ -93,7 +93,7 @@ class OidcSignInIT {
   static String signInAtProvider(WhoClient client, String subject)
       throws IOException, InterruptedException {
     provider.nextUser(subject, Map.of("email", subject + "@example.test"));
-    return finishAtProvider(client, location(client.get("/oauth2/authorization/test")));
+    return finishAtProvider(client, location(client.get("/who/oidc/authorize/test")));
   }
 
   static String finishAtProvider(WhoClient client, String authorize)

@@ -88,27 +88,32 @@ class PasskeySignInIT {
         client.post(
             "/test/setup/identity", WhoClient.json(Map.of("email", address, "admin", admin)));
     assertThat(setup.status()).isEqualTo(200);
-    assertThat(client.post("/ott/generate", WhoClient.json(Map.of("email", address))).status())
+    assertThat(client.post("/who/email/send", WhoClient.json(Map.of("email", address))).status())
         .isEqualTo(202);
     Matcher token = TOKEN.matcher(TestEndpoints.awaitMail(client, address));
     assertThat(token.find()).isTrue();
-    assertThat(client.post("/login/ott", WhoClient.json(Map.of("token", token.group(1)))).status())
+    assertThat(
+            client
+                .post("/who/email/sign-in", WhoClient.json(Map.of("token", token.group(1))))
+                .status())
         .isEqualTo(200);
     return setup.json().path("identityId").asString();
   }
 
   /** Registers a passkey on the device for the signed-in caller. */
   static void registerPasskey(WhoClient client, PasskeyDevice device) {
-    WhoClient.Response options = client.post("/webauthn/register/options", null);
+    WhoClient.Response options = client.post("/who/passkey/register/options", null);
     assertThat(options.status()).isEqualTo(200);
     WhoClient.Response registered =
-        client.post("/webauthn/register", device.register(options.body(), "test device"));
+        client.post("/who/passkey/register", device.register(options.body(), "test device"));
     assertThat(registered.status()).as(registered.body()).isEqualTo(200);
   }
 
-  /** The body for {@code POST /login/webauthn}, as the device would answer the next challenge. */
+  /**
+   * The body for {@code POST /who/passkey/sign-in}, as the device would answer the next challenge.
+   */
   static String assertion(WhoClient client, PasskeyDevice device) {
-    WhoClient.Response options = client.post("/webauthn/authenticate/options", null);
+    WhoClient.Response options = client.post("/who/passkey/sign-in/options", null);
     assertThat(options.status()).isEqualTo(200);
     return device.signIn(options.body());
   }
@@ -117,7 +122,7 @@ class PasskeySignInIT {
   static String withPasskeyOnly(WhoClient client, PasskeyDevice device, boolean admin) {
     String identityId = signInByEmail(client, admin);
     registerPasskey(client, device);
-    assertThat(client.post("/logout", null).status()).isEqualTo(204);
+    assertThat(client.post("/who/logout", null).status()).isEqualTo(204);
     assertThat(client.get("/who/me").status()).isEqualTo(401);
     return identityId;
   }
@@ -131,7 +136,8 @@ class PasskeySignInIT {
         PasskeyDevice device = new PasskeyDevice(origin);
         String identityId = withPasskeyOnly(client, device, false);
 
-        WhoClient.Response signedIn = client.post("/login/webauthn", assertion(client, device));
+        WhoClient.Response signedIn =
+            client.post("/who/passkey/sign-in", assertion(client, device));
 
         assertThat(signedIn.status()).as(signedIn.body()).isEqualTo(200);
         WhoClient.Response me = client.get("/who/me");
@@ -155,7 +161,7 @@ class PasskeySignInIT {
         ((ObjectNode) forged.path("response"))
             .put("signature", Base64.getUrlEncoder().withoutPadding().encodeToString(signature));
 
-        WhoClient.Response response = client.post("/login/webauthn", forged.toString());
+        WhoClient.Response response = client.post("/who/passkey/sign-in", forged.toString());
 
         assertThat(response.status()).isEqualTo(401);
         assertThat(client.get("/who/me").status()).isEqualTo(401);
@@ -168,7 +174,7 @@ class PasskeySignInIT {
     @Test
     void registering_needs_a_signed_in_caller() {
       try (WhoClient client = client()) {
-        assertThat(client.post("/webauthn/register/options", null).status()).isEqualTo(401);
+        assertThat(client.post("/who/passkey/register/options", null).status()).isEqualTo(401);
       }
     }
   }
@@ -182,11 +188,11 @@ class PasskeySignInIT {
           WhoClient user = client()) {
         PasskeyDevice adminDevice = new PasskeyDevice(origin);
         withPasskeyOnly(admin, adminDevice, true);
-        assertThat(admin.post("/login/webauthn", assertion(admin, adminDevice)).status())
+        assertThat(admin.post("/who/passkey/sign-in", assertion(admin, adminDevice)).status())
             .isEqualTo(200);
         PasskeyDevice userDevice = new PasskeyDevice(origin);
         withPasskeyOnly(user, userDevice, false);
-        assertThat(user.post("/login/webauthn", assertion(user, userDevice)).status())
+        assertThat(user.post("/who/passkey/sign-in", assertion(user, userDevice)).status())
             .isEqualTo(200);
 
         assertThat(admin.get("/api/admin").status()).isEqualTo(200);
