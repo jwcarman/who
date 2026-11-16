@@ -212,13 +212,13 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
       String address,
       UUID identityId,
       UUID credentialId) {
+    // ids only: an address is personal data, and logs outlive and outspread the database
     log.debug(
-        "Email sign-in failed: method={}, reason={}, identityId={}, credentialId={}, address={}",
+        "Email sign-in failed: method={}, reason={}, identityId={}, credentialId={}",
         method,
         reason,
         identityId,
-        credentialId,
-        address);
+        credentialId);
     eventPublisher.publish(
         new SignInFailed(now, method, reason, address, identityId, credentialId));
     return new InvalidOneTimeTokenException(INVALID_TOKEN);

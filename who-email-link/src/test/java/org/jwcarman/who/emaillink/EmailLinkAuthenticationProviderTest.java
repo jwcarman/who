@@ -53,11 +53,17 @@ import org.jwcarman.who.emaillink.EmailSignInProof.LinkToken;
 import org.jwcarman.who.emaillink.EmailSignInProof.Malformed;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.ott.InvalidOneTimeTokenException;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class EmailLinkAuthenticationProviderTest {
 
@@ -166,6 +172,31 @@ class EmailLinkAuthenticationProviderTest {
     verify(repository).attemptCode("owner@example.com", 5, NOW);
     verify(repository, never()).consumeCode(any(), anyString(), any());
     verifyNoInteractions(whoService);
+  }
+
+  @Test
+  void aFailedSignInIsLoggedByIdNeverByAddress() {
+    when(repository.attemptCode("owner@example.com", 5, NOW))
+        .thenReturn(
+            Optional.of(new EmailCodeAttempt(credentialId, hasher.hash(credentialId, "K7F2QM"))));
+    Logger logger = (Logger) LoggerFactory.getLogger(EmailLinkAuthenticationProvider.class);
+    Level level = logger.getLevel();
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    logger.addAppender(logs);
+    logger.setLevel(Level.DEBUG);
+    try {
+      assertInvalid(new EmailCode("owner@example.com", "K7F2QN"));
+    } finally {
+      logger.detachAppender(logs);
+      logger.setLevel(level);
+    }
+
+    assertThat(logs.list)
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .isNotEmpty()
+        .allSatisfy(message -> assertThat(message).doesNotContainIgnoringCase("example.com"))
+        .anySatisfy(message -> assertThat(message).contains(credentialId.toString()));
   }
 
   @Test
