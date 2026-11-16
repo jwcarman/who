@@ -154,7 +154,11 @@ class SessionsFilterTest {
 
   @Test
   void never_shows_the_servlet_session_id() throws Exception {
-    HttpSession session = browser(alice, NOW, "x");
+    // a mock session's own id is a small number, which any UUID might contain
+    MockHttpServletRequest signIn = new MockHttpServletRequest();
+    signIn.setSession(new MockHttpSession(null, "servlet-session-" + UUID.randomUUID()));
+    repository.saveContext(context(alice), signIn, new MockHttpServletResponse());
+    HttpSession session = signIn.getSession(false);
 
     MockHttpServletResponse response = send("GET", "/who/sessions", session);
 
@@ -281,6 +285,51 @@ class SessionsFilterTest {
     filter.doFilter(new MockHttpServletRequest("GET", "/who/me"), response, chain);
 
     assertThat(reachedChain).isTrue();
+  }
+
+  @Test
+  void ending_all_others_needs_a_recent_sign_in() throws Exception {
+    HttpSession stale = browser(alice, NOW.minus(RECENT).minusSeconds(1), "a");
+    HttpSession other = browser(alice, NOW, "b");
+
+    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
+    request.setParameter("others", "true");
+    request.setSession(stale);
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new WhoAuthenticationToken(
+                new WhoPrincipal(alice, Set.of()), alice.id(), SignInMethod.PASSKEY));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    filter.doFilter(request, response, chain);
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(sessions.findLive(idOf(other))).isPresent();
+  }
+
+  @Test
+  void a_session_of_someone_else_than_the_caller_is_403() throws Exception {
+    HttpSession bobs = browser(bob, NOW, "b");
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/sessions");
+    request.setSession(bobs);
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new WhoAuthenticationToken(
+                new WhoPrincipal(alice, Set.of()), alice.id(), SignInMethod.PASSKEY));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    filter.doFilter(request, response, chain);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+  }
+
+  @Test
+  void a_session_without_a_record_is_403() throws Exception {
+    MockHttpSession unrecorded = new MockHttpSession();
+    unrecorded.setAttribute(
+        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+        new WhoSession(alice.id(), alice.id(), NOW, SignInMethod.PASSKEY));
+
+    assertThat(send("GET", "/who/sessions", unrecorded).getStatus()).isEqualTo(403);
   }
 
   private static final class MutableClock extends Clock {

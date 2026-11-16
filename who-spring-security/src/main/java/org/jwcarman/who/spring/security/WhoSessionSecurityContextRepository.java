@@ -248,7 +248,7 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
     }
   }
 
-  private static void invalidate(HttpServletRequest request) {
+  static void invalidate(HttpServletRequest request) {
     HttpSession session = request.getSession(false);
     if (session != null) {
       try {

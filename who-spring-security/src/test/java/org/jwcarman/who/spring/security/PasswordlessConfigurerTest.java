@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -82,6 +83,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(classes = PasswordlessConfigurerTest.TestApp.class)
 class PasswordlessConfigurerTest {
@@ -117,6 +119,18 @@ class PasswordlessConfigurerTest {
     @Bean
     WhoExceptionHandoff whoExceptionHandoff() {
       return new WhoExceptionHandoff((request, response, exception) -> !HANDED_OFF.add(exception));
+    }
+
+    @Bean
+    SessionEndpoints sessionEndpoints(
+        WhoSessions sessions, WhoSessionSecurityContextRepository repository, Clock clock) {
+      return new SessionEndpoints(
+          sessions,
+          repository,
+          new WhoExceptionHandoff(null),
+          JsonMapper.builder().build(),
+          clock,
+          Duration.ofMinutes(10));
     }
 
     @Bean
@@ -193,6 +207,16 @@ class PasswordlessConfigurerTest {
         .andExpect(jsonPath("$.identityId").value(identity.id().toString()))
         .andExpect(jsonPath("$.permissions.length()").value(1))
         .andExpect(jsonPath("$.permissions[0]").value("task.read"));
+  }
+
+  @Test
+  void theSessionEndpointsJoinTheBrowserChain() throws Exception {
+    resolvesTo(Set.of());
+
+    mvc.perform(get("/who/sessions").session(signedIn()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].current").value(true));
+    mvc.perform(get("/who/sessions")).andExpect(status().isUnauthorized());
   }
 
   @Test

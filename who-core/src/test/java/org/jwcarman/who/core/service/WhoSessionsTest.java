@@ -292,6 +292,10 @@ class WhoSessionsTest {
           Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 OPR/115.0.0.0 | Opera on Windows
           Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 | Chrome on ChromeOS
           curl/8.4.0 | Unknown browser on unknown system
+          Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/132.0 Mobile/15E148 Safari/605.1.15 | Firefox on iOS
+          Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1 | Chrome on iOS
+          Opera/9.80 (Windows NT 6.1; U; en) Presto/2.12.388 Version/12.18 | Opera on Windows
+          Something (Mac OS X 10.15) | Unknown browser on macOS
           """)
   void device_label_reads_common_browsers(String userAgent, String label) {
     assertThat(WhoSessions.deviceLabel(userAgent)).isEqualTo(label);
@@ -301,5 +305,16 @@ class WhoSessionsTest {
   void device_label_without_a_user_agent_is_unknown() {
     assertThat(WhoSessions.deviceLabel(null)).isEqualTo("Unknown browser");
     assertThat(WhoSessions.deviceLabel(" ")).isEqualTo("Unknown browser");
+  }
+
+  @Test
+  void exposes_its_settings() {
+    WhoSessions configured = sessions(true);
+
+    assertThat(configured.idleTimeout()).isEqualTo(IDLE);
+    assertThat(configured.lastSeenInterval()).isEqualTo(SEEN);
+    assertThat(configured.purgeBatchSize()).isPositive();
+    assertThat(configured.autoPurge()).isTrue();
+    assertThat(sessions.autoPurge()).isFalse();
   }
 }

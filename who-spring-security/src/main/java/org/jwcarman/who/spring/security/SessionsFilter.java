@@ -32,7 +32,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.service.WhoSessions;
@@ -201,14 +200,7 @@ final class SessionsFilter extends OncePerRequestFilter {
   /** Signs this browser out, as logout does: closes the record, then ends the servlet session. */
   private void signOut(HttpServletRequest request, WhoAuthenticationToken token) {
     repository.onLogout(request, token);
-    HttpSession session = request.getSession(false);
-    if (session != null) {
-      try {
-        session.invalidate();
-      } catch (IllegalStateException _) {
-        // a concurrent request ended it first
-      }
-    }
+    WhoSessionSecurityContextRepository.invalidate(request);
     SecurityContextHolder.clearContext();
   }
 
