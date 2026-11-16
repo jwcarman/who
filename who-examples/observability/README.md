@@ -6,6 +6,8 @@ stack (Loki for logs, Tempo for traces, Prometheus for metrics), with a provisio
 a traffic generator that keeps it moving, and a page where you make each request yourself and
 follow it to its trace and log lines.
 
+![The who dashboard in Grafana: sign-ins by method, outcome and reason, sign-in emails, credentials, sign-outs, who's own work, HTTP requests by traffic, and who's log lines](images/dashboard.png)
+
 who needs no observability configuration of its own. The app adds Spring Boot's Actuator and
 OpenTelemetry starters, and who's meters, spans and logs go wherever Spring Boot sends them.
 
