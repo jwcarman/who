@@ -188,7 +188,7 @@ class LinkStartFilterTest {
   void signed_in_just_within_the_window_goes_to_the_provider() throws Exception {
     signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
-    withWhoSession(request, bob, NOW.minus(RECENT_SIGN_IN));
+    withWhoSession(request, bob, NOW.minus(RECENT_SIGN_IN).plusMillis(1));
 
     assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
   }

@@ -41,6 +41,7 @@ import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
@@ -209,7 +210,7 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
       return;
     }
     Instant now = clock.instant();
-    if (session.get().signedInAt().plus(linkWindow).isBefore(now)) {
+    if (!WhoSignInFactors.isRecent(session.get().signedInAt(), linkWindow, now)) {
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;

@@ -114,9 +114,9 @@ class PasskeyRegistrationGuardFilterTest {
   @ParameterizedTest
   @CsvSource({
     OPTIONS + ",0",
-    OPTIONS + ",600",
+    OPTIONS + ",599",
     REGISTER + ",0",
-    REGISTER + ",600",
+    REGISTER + ",599",
   })
   void guardLetsRecentSessionsThrough(String path, long secondsAgo)
       throws ServletException, IOException {

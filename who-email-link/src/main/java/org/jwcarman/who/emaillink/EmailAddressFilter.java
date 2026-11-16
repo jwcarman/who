@@ -35,6 +35,7 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -106,7 +107,8 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    if (signedIn.get().session().signedInAt().plus(recentSignIn).isBefore(clock.instant())) {
+    if (!WhoSignInFactors.isRecent(
+        signedIn.get().session().signedInAt(), recentSignIn, clock.instant())) {
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;

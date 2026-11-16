@@ -32,6 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
@@ -136,7 +137,7 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       return;
     }
     Instant now = clock.instant();
-    if (session.get().signedInAt().plus(registrationWindow).isBefore(now)) {
+    if (!WhoSignInFactors.isRecent(session.get().signedInAt(), registrationWindow, now)) {
       UUID identityId = session.get().identityId();
       log.debug(
           "Passkey registration refused: reauthentication required, identityId={}", identityId);

@@ -35,6 +35,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -105,7 +106,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
     }
     Instant now = clock.instant();
     // checked again at confirmation; here so a stale session fails before the trip to the provider
-    if (session.get().signedInAt().plus(recentSignIn).isBefore(now)) {
+    if (!WhoSignInFactors.isRecent(session.get().signedInAt(), recentSignIn, now)) {
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
