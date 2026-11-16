@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +34,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -45,6 +45,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jose.util.JSONArrayUtils;
 import com.nimbusds.jose.util.JSONObjectUtils;
+import com.nimbusds.jwt.JWTClaimNames;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpExchange;
@@ -76,11 +77,12 @@ public final class StubOidcProvider implements AutoCloseable {
   private final AtomicInteger emailRequests = new AtomicInteger();
 
   private volatile String subject = "user";
-  private volatile Map<String, Object> claims = Map.of();
+  private final AtomicReference<Map<String, Object>> claims = new AtomicReference<>(Map.of());
   private volatile String issuerClaim;
   private volatile String nonce;
   private volatile String clientId;
-  private volatile List<Map<String, Object>> emails = List.of();
+  private final AtomicReference<List<Map<String, Object>>> emails =
+      new AtomicReference<>(List.of());
   private volatile int emailsStatus = 200;
   private volatile Duration emailsDelay = Duration.ZERO;
 
@@ -140,7 +142,7 @@ public final class StubOidcProvider implements AutoCloseable {
    */
   public void nextUser(String subject, Map<String, Object> claims) {
     this.subject = subject;
-    this.claims = Map.copyOf(claims);
+    this.claims.set(Map.copyOf(claims));
   }
 
   /**
@@ -159,7 +161,7 @@ public final class StubOidcProvider implements AutoCloseable {
    * @param emails entries with {@code email}, {@code primary} and {@code verified}
    */
   public void nextEmails(List<Map<String, Object>> emails) {
-    this.emails = List.copyOf(emails);
+    this.emails.set(List.copyOf(emails));
   }
 
   /**
@@ -221,12 +223,12 @@ public final class StubOidcProvider implements AutoCloseable {
     emailRequests.incrementAndGet();
     try {
       Thread.sleep(emailsDelay);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       return;
     }
     if (emailsStatus == 200) {
-      send(exchange, 200, JSONArrayUtils.toJSONString(emails));
+      send(exchange, 200, JSONArrayUtils.toJSONString(emails.get()));
     } else {
       send(exchange, emailsStatus, "{\"message\":\"failed\"}");
     }
@@ -287,13 +289,13 @@ public final class StubOidcProvider implements AutoCloseable {
   private String idToken(String audience) {
     Instant now = Instant.now();
     JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder();
-    claims.forEach(builder::claim);
+    claims.get().forEach(builder::claim);
     builder
         .issuer(issuerClaim != null ? issuerClaim : issuer)
         .subject(subject)
         .audience(audience)
-        .issueTime(Date.from(now))
-        .expirationTime(Date.from(now.plusSeconds(300)));
+        .claim(JWTClaimNames.ISSUED_AT, now.getEpochSecond())
+        .claim(JWTClaimNames.EXPIRATION_TIME, now.plusSeconds(300).getEpochSecond());
     if (nonce != null) {
       builder.claim("nonce", nonce);
     }
@@ -310,7 +312,7 @@ public final class StubOidcProvider implements AutoCloseable {
   }
 
   private Map<String, Object> user() {
-    Map<String, Object> user = new HashMap<>(claims);
+    Map<String, Object> user = new HashMap<>(claims.get());
     if (gitHub) {
       user.put("id", numericIfPossible(subject));
     } else {
@@ -322,7 +324,7 @@ public final class StubOidcProvider implements AutoCloseable {
   private static Object numericIfPossible(String value) {
     try {
       return Long.parseLong(value);
-    } catch (NumberFormatException e) {
+    } catch (NumberFormatException _) {
       return value;
     }
   }
