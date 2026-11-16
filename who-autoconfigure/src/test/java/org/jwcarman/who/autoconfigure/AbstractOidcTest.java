@@ -22,9 +22,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -82,6 +84,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** One application for the provider sign-in tests: a stub provider registered as {@code test}. */
@@ -310,10 +313,22 @@ abstract class AbstractOidcTest {
     return authorize;
   }
 
+  /** The {@code redirect_uri} an authorization URL sends the provider, decoded. */
+  static String redirectUri(String authorize) {
+    return URLDecoder.decode(
+        UriComponentsBuilder.fromUriString(authorize)
+            .build()
+            .getQueryParams()
+            .getFirst("redirect_uri"),
+        StandardCharsets.UTF_8);
+  }
+
   String startAuthorization() throws Exception {
-    MvcResult start = browser.perform(get("/oauth2/authorization/test")).andReturn();
+    MvcResult start = browser.perform(get("/who/oidc/authorize/test")).andReturn();
     String authorize = start.getResponse().getRedirectedUrl();
     assertThat(authorize).startsWith(PROVIDER.issuer() + "/authorize");
+    // the provider sends the browser back to who's callback, under the root
+    assertThat(redirectUri(authorize)).isEqualTo("http://localhost/who/oidc/callback/test");
     return authorize;
   }
 

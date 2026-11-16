@@ -32,6 +32,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -76,6 +77,7 @@ class OidcLoginMethodTest {
       WhoService whoService = mock(WhoService.class);
       Clock clock = Clock.systemUTC();
       return new OidcLoginMethod(
+          WhoPaths.defaults(),
           SignInRegistrations.of(List.of(ACME), Map.of()),
           whoService,
           mock(FederatedCredentialRepository.class),
@@ -133,7 +135,7 @@ class OidcLoginMethodTest {
                   MockMvcBuilders.webAppContextSetup((WebApplicationContext) context)
                       .apply(springSecurity())
                       .build()
-                      .perform(get("/oauth2/authorization/acme"))
+                      .perform(get("/who/oidc/authorize/acme"))
                       .andReturn()
                       .getResponse()
                       .getRedirectedUrl();

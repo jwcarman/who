@@ -35,7 +35,7 @@ import org.springframework.test.web.servlet.MvcResult;
     properties = {
       "spring.security.oauth2.client.registration.test.provider=endpoints",
       "spring.security.oauth2.client.registration.test.authorization-grant-type=authorization_code",
-      "spring.security.oauth2.client.registration.test.redirect-uri={baseUrl}/login/oauth2/code/{registrationId}",
+      "spring.security.oauth2.client.registration.test.redirect-uri={baseUrl}/who/oidc/callback/{registrationId}",
       "spring.security.oauth2.client.provider.endpoints.user-name-attribute=sub"
     })
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)

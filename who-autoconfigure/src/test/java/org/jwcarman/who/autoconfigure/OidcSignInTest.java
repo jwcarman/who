@@ -212,7 +212,7 @@ class OidcSignInTest extends AbstractOidcTest {
       MvcResult result =
           browser
               .perform(
-                  get("/login/oauth2/code/test")
+                  get("/who/oidc/callback/test")
                       .param("error", "access_denied")
                       .param("state", state))
               .andReturn();
@@ -240,8 +240,26 @@ class OidcSignInTest extends AbstractOidcTest {
   }
 
   @Test
+  void the_old_endpoints_are_gone() throws Exception {
+    MvcResult start = browser.perform(get("/oauth2/authorization/test")).andReturn();
+
+    assertThat(String.valueOf(start.getResponse().getRedirectedUrl()))
+        .doesNotStartWith(PROVIDER.issuer());
+    assertThat(start.getResponse().getStatus()).isGreaterThanOrEqualTo(400);
+  }
+
+  @Test
+  void a_context_path_is_kept_in_the_redirect_uri() throws Exception {
+    MvcResult start =
+        browser.perform(get("/app/who/oidc/authorize/test").contextPath("/app")).andReturn();
+
+    assertThat(redirectUri(start.getResponse().getRedirectedUrl()))
+        .isEqualTo("http://localhost/app/who/oidc/callback/test");
+  }
+
+  @Test
   void a_registration_who_does_not_sign_in_with_cannot_start() throws Exception {
-    MvcResult result = browser.perform(get("/oauth2/authorization/unknown")).andReturn();
+    MvcResult result = browser.perform(get("/who/oidc/authorize/unknown")).andReturn();
 
     assertThat(result.getResponse().getRedirectedUrl()).isNull();
     assertThat(result.getResponse().getStatus()).isEqualTo(404);

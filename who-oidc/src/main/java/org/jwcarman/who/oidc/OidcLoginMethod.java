@@ -26,6 +26,7 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -53,6 +54,13 @@ import org.springframework.security.web.context.NullSecurityContextRepository;
  */
 public final class OidcLoginMethod implements PasswordlessLoginMethod {
 
+  /** Where a sign-in starts, followed by the registration's id, below the root. */
+  private static final String AUTHORIZE = "/oidc/authorize";
+
+  /** Where the provider sends the browser back, followed by the registration's id. */
+  private static final String CALLBACK = "/oidc/callback";
+
+  private final WhoPaths paths;
   private final SignInRegistrations registrations;
   private final WhoService whoService;
   private final FederatedCredentialRepository credentials;
@@ -70,6 +78,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
   /**
    * Creates the login method.
    *
+   * @param paths where the sign-in endpoints and the callback live
    * @param registrations the registrations who signs in with
    * @param whoService resolves a credential to its identity
    * @param credentials finds the credential for an issuer and subject
@@ -82,6 +91,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
    * @param linkWindow how recently the identity must have signed in to link an account
    */
   public OidcLoginMethod(
+      WhoPaths paths,
       SignInRegistrations registrations,
       WhoService whoService,
       FederatedCredentialRepository credentials,
@@ -92,6 +102,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
       Clock clock,
       Duration signUpWindow,
       Duration linkWindow) {
+    this.paths = requireNonNull(paths, "paths must not be null");
     this.registrations = requireNonNull(registrations, "registrations must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.credentials = requireNonNull(credentials, "credentials must not be null");
@@ -107,10 +118,10 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
   @Override
   public Set<String> publicPaths() {
     return Set.of(
-        "/oauth2/authorization/**",
-        "/login/oauth2/code/**",
-        PendingSignUpFilter.PENDING_URL,
-        PendingSignUpFilter.SIGN_UP_URL);
+        paths.of(AUTHORIZE + "/**"),
+        paths.of(CALLBACK + "/**"),
+        paths.of(PendingSignUpFilter.PENDING),
+        paths.of(PendingSignUpFilter.SIGN_UP));
   }
 
   @Override
@@ -129,18 +140,23 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
     // application's own oauth2Client() keeps Spring Boot's
     OAuth2AuthorizedClientRepository shared =
         http.getSharedObject(OAuth2AuthorizedClientRepository.class);
-    OidcAuthorizationRequests resolver = new OidcAuthorizationRequests(clients, registrations);
+    ClientRegistrationRepository callbacks = new CallbackRegistrations(clients, paths);
+    OidcAuthorizationRequests resolver =
+        new OidcAuthorizationRequests(callbacks, registrations, paths.of(AUTHORIZE));
     http.oauth2Login(
         login ->
             login
                 // a login page of who's failure URL turns off Spring's generated one
                 .loginPage(redirects.failureUrl())
+                .clientRegistrationRepository(callbacks)
                 .authorizedClientRepository(new NothingStoredAuthorizedClientRepository())
                 .authorizationEndpoint(
                     endpoint ->
                         endpoint
+                            .baseUri(paths.of(AUTHORIZE))
                             .authorizationRequestResolver(resolver)
                             .authorizationRequestRepository(authorizationRequests))
+                .redirectionEndpoint(endpoint -> endpoint.baseUri(paths.of(CALLBACK + "/*")))
                 .userInfoEndpoint(
                     userInfo -> userInfo.userService(new WhoOAuth2UserService(registrations::find)))
                 .withObjectPostProcessor(idTokenIssuerCheck())
@@ -214,10 +230,11 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
         // passkeys' guard filter does
         http.addFilterAfter(
             new LinkStartFilter(
-                resolver, authorizationRequests, sessions, handoff, clock, linkWindow),
+                paths, resolver, authorizationRequests, sessions, handoff, clock, linkWindow),
             ExceptionTranslationFilter.class);
         http.addFilterAfter(
             new PendingSignUpFilter(
+                paths,
                 signUpService,
                 identities,
                 sessions,

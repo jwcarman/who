@@ -31,12 +31,14 @@ import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
+import org.jwcarman.who.oidc.CallbackRegistrations;
 import org.jwcarman.who.oidc.InvalidRegistrationException;
 import org.jwcarman.who.oidc.OidcLoginMethod;
 import org.jwcarman.who.oidc.OidcRedirects;
 import org.jwcarman.who.oidc.OidcSignUpService;
 import org.jwcarman.who.oidc.ProviderSettings;
 import org.jwcarman.who.oidc.SignInRegistrations;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,13 +94,16 @@ public class WhoOidcAutoConfiguration {
    * The client registrations who signs in with, checked at startup.
    *
    * @param clientRegistrations Spring Boot's client registrations
+   * @param paths where who's callback lives
    * @param properties who's properties
    * @return the registrations
    */
   @Bean
   @ConditionalOnMissingBean
   public SignInRegistrations signInRegistrations(
-      ObjectProvider<ClientRegistrationRepository> clientRegistrations, WhoProperties properties) {
+      ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+      WhoPaths paths,
+      WhoProperties properties) {
     List<ClientRegistration> registrations = new ArrayList<>();
     if (clientRegistrations.getIfAvailable() instanceof Iterable<?> all) {
       all.forEach(
@@ -133,6 +138,23 @@ public class WhoOidcAutoConfiguration {
           "spring.security.oauth2.client.registration",
           "names no provider to sign in with",
           "Add a registration with the authorization_code grant." + OFF_SWITCH);
+    }
+    for (ClientRegistration registration : registrations) {
+      if (signIn.find(registration.getRegistrationId()).isPresent()) {
+        CallbackRegistrations.problem(registration, paths)
+            .ifPresent(
+                problem -> {
+                  throw new WhoConfigurationException(
+                      "spring.security.oauth2.client.registration."
+                          + registration.getRegistrationId()
+                          + ".redirect-uri",
+                      problem,
+                      "Remove it, so who sets it, or end it with "
+                          + CallbackRegistrations.callbackPath(paths)
+                          + "."
+                          + OFF_SWITCH);
+                });
+      }
     }
     return signIn;
   }
@@ -178,6 +200,7 @@ public class WhoOidcAutoConfiguration {
   /**
    * Mounts provider sign-in in who's chains.
    *
+   * @param paths where the sign-in endpoints and the callback live
    * @param registrations the registrations who signs in with
    * @param whoService resolves credentials
    * @param credentials finds provider credentials
@@ -191,6 +214,7 @@ public class WhoOidcAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public OidcLoginMethod oidcLoginMethod(
+      WhoPaths paths,
       SignInRegistrations registrations,
       WhoService whoService,
       FederatedCredentialRepository credentials,
@@ -206,6 +230,7 @@ public class WhoOidcAutoConfiguration {
         oidc.getLinkUrl() == null ? successUrl : localPath("who.oidc.link-url", oidc.getLinkUrl());
     warnWhenNotPublic(failureUrl, properties.getSecurity().getPublicPaths());
     return new OidcLoginMethod(
+        paths,
         registrations,
         whoService,
         credentials,

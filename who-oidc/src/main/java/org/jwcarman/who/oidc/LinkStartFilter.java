@@ -33,6 +33,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoSignInFactors;
@@ -61,12 +62,7 @@ import com.nimbusds.jose.util.JSONObjectUtils;
  */
 final class LinkStartFilter extends OncePerRequestFilter {
 
-  /** Starts a link through the registration named in the path. */
-  static final String LINK_START_URL = PendingSignUpFilter.LINK_URL + "/{registrationId}";
-
-  private static final RequestMatcher LINK_START =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, LINK_START_URL);
-
+  private final RequestMatcher linkStart;
   private final OidcAuthorizationRequests authorizationRequests;
   private final AuthorizationRequestRepository<OAuth2AuthorizationRequest> repository;
   private final WhoSessionSecurityContextRepository sessions;
@@ -75,12 +71,20 @@ final class LinkStartFilter extends OncePerRequestFilter {
   private final Duration recentSignIn;
 
   LinkStartFilter(
+      WhoPaths paths,
       OidcAuthorizationRequests authorizationRequests,
       AuthorizationRequestRepository<OAuth2AuthorizationRequest> repository,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
       Clock clock,
       Duration recentSignIn) {
+    // starts a link through the registration named in the path
+    this.linkStart =
+        PathPatternRequestMatcher.withDefaults()
+            .matcher(
+                HttpMethod.POST,
+                requireNonNull(paths, "paths must not be null")
+                    .of(PendingSignUpFilter.LINK + "/{registrationId}"));
     this.authorizationRequests =
         requireNonNull(authorizationRequests, "authorizationRequests must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
@@ -92,7 +96,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !LINK_START.matches(request);
+    return !linkStart.matches(request);
   }
 
   @Override
@@ -111,7 +115,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    String registrationId = LINK_START.matcher(request).getVariables().get("registrationId");
+    String registrationId = linkStart.matcher(request).getVariables().get("registrationId");
     Optional<OAuth2AuthorizationRequest> authorization =
         authorizationRequests.link(request, registrationId, session.get().identityId(), now);
     if (authorization.isEmpty()) {

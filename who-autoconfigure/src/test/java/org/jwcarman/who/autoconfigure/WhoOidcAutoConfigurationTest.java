@@ -109,6 +109,30 @@ class WhoOidcAutoConfigurationTest extends AbstractOidcTest {
     }
 
     @Test
+    void an_explicit_redirect_uri_under_the_root_starts() {
+      runner
+          .withPropertyValues(
+              "spring.security.oauth2.client.registration.github.redirect-uri="
+                  + "{baseUrl}/who/oidc/callback/{registrationId}")
+          .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    void an_explicit_redirect_uri_who_does_not_serve_fails_startup() {
+      runner
+          .withPropertyValues(
+              "spring.security.oauth2.client.registration.github.redirect-uri="
+                  + "{baseUrl}/login/oauth2/code/{registrationId}")
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .hasStackTraceContaining(
+                          "spring.security.oauth2.client.registration.github.redirect-uri")
+                      .hasStackTraceContaining("/who/oidc/callback/{registrationId}"));
+    }
+
+    @Test
     void oidc_disabled_registers_nothing() {
       runner
           .withPropertyValues("who.oidc.enabled=false")

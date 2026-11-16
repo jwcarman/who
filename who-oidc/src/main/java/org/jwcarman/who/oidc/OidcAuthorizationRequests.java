@@ -25,7 +25,6 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -39,21 +38,26 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  */
 final class OidcAuthorizationRequests implements OAuth2AuthorizationRequestResolver {
 
-  private static final String BASE_URI =
-      OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
   private static final String REGISTRATION_ID = "registrationId";
 
   private final ClientRegistrationRepository clients;
   private final SignInRegistrations registrations;
+  private final String baseUri;
   private final DefaultOAuth2AuthorizationRequestResolver plain;
-  private final RequestMatcher matcher =
-      PathPatternRequestMatcher.withDefaults().matcher(BASE_URI + "/{" + REGISTRATION_ID + "}");
+  private final RequestMatcher matcher;
 
+  /**
+   * @param baseUri where a sign-in starts, followed by the registration's id: {@code
+   *     /who/oidc/authorize} under the default root
+   */
   OidcAuthorizationRequests(
-      ClientRegistrationRepository clients, SignInRegistrations registrations) {
+      ClientRegistrationRepository clients, SignInRegistrations registrations, String baseUri) {
     this.clients = clients;
     this.registrations = registrations;
-    this.plain = new DefaultOAuth2AuthorizationRequestResolver(clients, BASE_URI);
+    this.baseUri = baseUri;
+    this.plain = new DefaultOAuth2AuthorizationRequestResolver(clients, baseUri);
+    this.matcher =
+        PathPatternRequestMatcher.withDefaults().matcher(baseUri + "/{" + REGISTRATION_ID + "}");
   }
 
   @Override
@@ -94,7 +98,7 @@ final class OidcAuthorizationRequests implements OAuth2AuthorizationRequestResol
         .map(
             registration -> {
               DefaultOAuth2AuthorizationRequestResolver resolver =
-                  new DefaultOAuth2AuthorizationRequestResolver(clients, BASE_URI);
+                  new DefaultOAuth2AuthorizationRequestResolver(clients, baseUri);
               LinkIntent intent = new LinkIntent(identityId, now);
               resolver.setAuthorizationRequestCustomizer(
                   builder ->

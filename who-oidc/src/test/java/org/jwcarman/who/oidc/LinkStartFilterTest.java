@@ -40,6 +40,7 @@ import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -79,9 +80,11 @@ class LinkStartFilterTest {
       new HttpSessionOAuth2AuthorizationRequestRepository();
   private final LinkStartFilter filter =
       new LinkStartFilter(
+          WhoPaths.defaults(),
           new OidcAuthorizationRequests(
               new InMemoryClientRegistrationRepository(ACME),
-              SignInRegistrations.of(List.of(ACME), Map.of())),
+              SignInRegistrations.of(List.of(ACME), Map.of()),
+              "/who/oidc/authorize"),
           saved,
           whoSessionRepository(mock(WhoService.class), Clock.systemUTC()),
           new WhoExceptionHandoff(null),

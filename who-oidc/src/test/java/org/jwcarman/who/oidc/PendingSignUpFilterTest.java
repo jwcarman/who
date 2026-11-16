@@ -42,6 +42,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
@@ -61,6 +62,7 @@ class PendingSignUpFilterTest {
   private final OidcSignUpService signUpService = mock(OidcSignUpService.class);
   private final PendingSignUpFilter filter =
       new PendingSignUpFilter(
+          WhoPaths.defaults(),
           signUpService,
           identities,
           whoSessionRepository(mock(WhoService.class), Clock.systemUTC()),
@@ -85,9 +87,8 @@ class PendingSignUpFilterTest {
         .setAuthentication(
             new WhoAuthenticationToken(
                 new WhoPrincipal(bob, Set.of()), bob.id(), SignInMethod.API_KEY));
-    MockHttpServletRequest request =
-        new MockHttpServletRequest("POST", PendingSignUpFilter.LINK_URL);
-    request.setServletPath(PendingSignUpFilter.LINK_URL);
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/link");
+    request.setServletPath("/who/oidc/link");
     MockHttpServletResponse response = new MockHttpServletResponse();
 
     filter.doFilter(request, response, new MockFilterChain());
@@ -103,6 +104,7 @@ class PendingSignUpFilterTest {
     PendingSignUps pendingSignUps = new PendingSignUps();
     PendingSignUpFilter fixed =
         new PendingSignUpFilter(
+            WhoPaths.defaults(),
             signUpService,
             identities,
             whoSessionRepository(mock(WhoService.class), Clock.fixed(now, ZoneOffset.UTC)),
@@ -113,9 +115,8 @@ class PendingSignUpFilterTest {
             null,
             Clock.fixed(now, ZoneOffset.UTC),
             Duration.ofMinutes(10));
-    MockHttpServletRequest request =
-        new MockHttpServletRequest("POST", PendingSignUpFilter.SIGN_UP_URL);
-    request.setServletPath(PendingSignUpFilter.SIGN_UP_URL);
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/sign-up");
+    request.setServletPath("/who/oidc/sign-up");
     pendingSignUps.save(
         request,
         new PendingSignUp(

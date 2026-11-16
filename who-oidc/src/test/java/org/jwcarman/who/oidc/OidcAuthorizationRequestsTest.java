@@ -58,7 +58,8 @@ class OidcAuthorizationRequestsTest {
               CLIENTS,
               Map.of(
                   "plain",
-                  new ProviderSettings(true, "https://plain.example.com", "user_id", null))));
+                  new ProviderSettings(true, "https://plain.example.com", "user_id", null))),
+          "/who/oidc/authorize");
 
   private static ClientRegistration oidc(String id, String issuer) {
     return ClientRegistration.withRegistrationId(id)
@@ -152,7 +153,7 @@ class OidcAuthorizationRequestsTest {
     @Test
     void carries_no_intent_and_asks_for_nothing_extra() {
       OAuth2AuthorizationRequest acme =
-          requests.resolve(new MockHttpServletRequest("GET", "/oauth2/authorization/acme"));
+          requests.resolve(new MockHttpServletRequest("GET", "/who/oidc/authorize/acme"));
 
       assertThat(LinkIntent.readFrom(acme.getAttributes())).isEmpty();
       assertThat(acme.getAdditionalParameters()).doesNotContainKeys("prompt", "max_age");
@@ -172,8 +173,7 @@ class OidcAuthorizationRequestsTest {
 
     @Test
     void through_a_registration_who_does_not_sign_in_with_is_not_resolved() {
-      assertThat(
-              requests.resolve(new MockHttpServletRequest("GET", "/oauth2/authorization/machine")))
+      assertThat(requests.resolve(new MockHttpServletRequest("GET", "/who/oidc/authorize/machine")))
           .isNull();
       assertThat(requests.resolve(new MockHttpServletRequest("GET", "/elsewhere"))).isNull();
     }

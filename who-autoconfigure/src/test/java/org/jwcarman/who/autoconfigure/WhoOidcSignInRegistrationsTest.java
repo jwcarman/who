@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.oidc.SignInRegistrations;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -38,7 +39,7 @@ class WhoOidcSignInRegistrationsTest {
           .clientId("client")
           .clientSecret("secret")
           .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-          .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+          .redirectUri("{baseUrl}/who/oidc/callback/{registrationId}")
           .scope("openid")
           .issuerUri("https://idp.example.com")
           .authorizationUri("https://idp.example.com/authorize")
@@ -68,7 +69,9 @@ class WhoOidcSignInRegistrationsTest {
     SignInRegistrations registrations =
         new WhoOidcAutoConfiguration()
             .signInRegistrations(
-                beans.getBeanProvider(ClientRegistrationRepository.class), new WhoProperties());
+                beans.getBeanProvider(ClientRegistrationRepository.class),
+                WhoPaths.defaults(),
+                new WhoProperties());
 
     assertThat(registrations.find("acme")).isPresent();
   }

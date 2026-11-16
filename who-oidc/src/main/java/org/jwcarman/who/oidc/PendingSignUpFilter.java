@@ -39,6 +39,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoSignInFactors;
@@ -64,25 +65,22 @@ import com.nimbusds.jose.util.JSONObjectUtils;
  * {@code POST /who/oidc/sign-up} confirms a sign-up (signed out), and {@code POST /who/oidc/link}
  * links it to the identity that started it, within the recent sign-in window. Each POST uses the
  * pending sign-up up. A filter, not a controller, so a sign-up runs the chain's session strategy.
+ * The paths shown are under the default root; each follows {@code who.base-path}.
  */
 public final class PendingSignUpFilter extends OncePerRequestFilter {
 
-  /** Describes the pending sign-up. */
-  public static final String PENDING_URL = "/who/oidc/pending";
+  /** Describes the pending sign-up, below the root. */
+  static final String PENDING = "/oidc/pending";
 
-  /** Confirms a sign-up. */
-  public static final String SIGN_UP_URL = "/who/oidc/sign-up";
+  /** Confirms a sign-up, below the root. */
+  static final String SIGN_UP = "/oidc/sign-up";
 
-  /** Confirms a link. */
-  public static final String LINK_URL = "/who/oidc/link";
+  /** Confirms a link, below the root. */
+  static final String LINK = "/oidc/link";
 
-  private static final RequestMatcher PENDING =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, PENDING_URL);
-  private static final RequestMatcher SIGN_UP =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, SIGN_UP_URL);
-  private static final RequestMatcher LINK =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, LINK_URL);
-
+  private final RequestMatcher pending;
+  private final RequestMatcher signUp;
+  private final RequestMatcher link;
   private final OidcSignUpService signUpService;
   private final IdentityRepository identities;
   private final WhoSessionSecurityContextRepository sessions;
@@ -97,6 +95,7 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
   /**
    * Creates the filter.
    *
+   * @param paths where the endpoints live
    * @param signUpService confirms sign-ups and links
    * @param identities finds the identity signed in
    * @param sessions stores the who session
@@ -109,6 +108,7 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
    * @param linkWindow how recently the identity must have signed in to link an account
    */
   public PendingSignUpFilter(
+      WhoPaths paths,
       OidcSignUpService signUpService,
       IdentityRepository identities,
       WhoSessionSecurityContextRepository sessions,
@@ -119,6 +119,11 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
       LastSignInCookie lastSignInCookie,
       Clock clock,
       Duration linkWindow) {
+    requireNonNull(paths, "paths must not be null");
+    PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
+    this.pending = matchers.matcher(HttpMethod.GET, paths.of(PENDING));
+    this.signUp = matchers.matcher(HttpMethod.POST, paths.of(SIGN_UP));
+    this.link = matchers.matcher(HttpMethod.POST, paths.of(LINK));
     this.signUpService = requireNonNull(signUpService, "signUpService must not be null");
     this.identities = requireNonNull(identities, "identities must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
@@ -133,16 +138,16 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !PENDING.matches(request) && !SIGN_UP.matches(request) && !LINK.matches(request);
+    return !pending.matches(request) && !signUp.matches(request) && !link.matches(request);
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    if (PENDING.matches(request)) {
+    if (pending.matches(request)) {
       describe(request, response);
-    } else if (SIGN_UP.matches(request)) {
+    } else if (signUp.matches(request)) {
       signUp(request, response);
     } else {
       link(request, response);

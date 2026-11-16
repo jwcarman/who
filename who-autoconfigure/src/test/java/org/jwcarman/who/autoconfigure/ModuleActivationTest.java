@@ -338,7 +338,7 @@ class ModuleActivationTest {
               acme + "client-secret=secret",
               acme + "scope=openid",
               acme + "authorization-grant-type=authorization_code",
-              acme + "redirect-uri={baseUrl}/login/oauth2/code/{registrationId}",
+              acme + "redirect-uri={baseUrl}/who/oidc/callback/{registrationId}",
               provider + "authorization-uri=https://idp.example.com/authorize",
               provider + "token-uri=https://idp.example.com/token",
               provider + "jwk-set-uri=https://idp.example.com/jwks")
