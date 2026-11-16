@@ -20,12 +20,50 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.Map;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoPropertiesTest {
+
+  @Test
+  void every_module_switch_and_the_remaining_settings_bind_by_their_documented_names() {
+    WhoProperties props =
+        new Binder(
+                new MapConfigurationPropertySource(
+                    Map.ofEntries(
+                        Map.entry("who.passkey.enabled", "false"),
+                        Map.entry("who.email-link.enabled", "false"),
+                        Map.entry("who.email-link.address-confirmation-subject", "Confirm it"),
+                        Map.entry("who.email-link.address-changed-subject", "It changed"),
+                        Map.entry("who.enrollment.enabled", "false"),
+                        Map.entry("who.api-key.enabled", "false"),
+                        Map.entry("who.jwt.enabled", "false"),
+                        Map.entry("who.security.last-sign-in-cookie.enabled", "false"),
+                        Map.entry("who.oidc.enabled", "false"),
+                        Map.entry("who.oidc.sign-up-window", "5m"),
+                        Map.entry("who.oidc.providers.acme.enabled", "false"),
+                        Map.entry("who.oidc.providers.acme.trust-email", "true"))))
+            .bind("who", WhoProperties.class)
+            .get();
+
+    assertThat(props.getPasskey().isEnabled()).isFalse();
+    assertThat(props.getEmailLink().isEnabled()).isFalse();
+    assertThat(props.getEmailLink().getAddressConfirmationSubject()).isEqualTo("Confirm it");
+    assertThat(props.getEmailLink().getAddressChangedSubject()).isEqualTo("It changed");
+    assertThat(props.getEnrollment().isEnabled()).isFalse();
+    assertThat(props.getApiKey().isEnabled()).isFalse();
+    assertThat(props.getJwt().isEnabled()).isFalse();
+    assertThat(props.getSecurity().getLastSignInCookie().isEnabled()).isFalse();
+    assertThat(props.getOidc().isEnabled()).isFalse();
+    assertThat(props.getOidc().getSignUpWindow()).isEqualTo(Duration.ofMinutes(5));
+    assertThat(props.getOidc().getProviders().get("acme").isEnabled()).isFalse();
+    assertThat(props.getOidc().getProviders().get("acme").getTrustEmail()).isTrue();
+  }
 
   @Test
   void defaultsArePopulated() {

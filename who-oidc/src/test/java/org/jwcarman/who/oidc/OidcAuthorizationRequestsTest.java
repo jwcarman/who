@@ -159,6 +159,18 @@ class OidcAuthorizationRequestsTest {
     }
 
     @Test
+    void resolved_by_registration_id_keeps_spring_s_meaning_and_only_for_who_s_registrations() {
+      MockHttpServletRequest request = new MockHttpServletRequest("GET", "/anything");
+
+      OAuth2AuthorizationRequest github = requests.resolve(request, "github");
+
+      // Spring asks this form for a client's authorization, so {action} is "authorize"
+      assertThat(github.getRedirectUri()).endsWith("/authorize/oauth2/code/github");
+      assertThat(LinkIntent.readFrom(github.getAttributes())).isEmpty();
+      assertThat(requests.resolve(request, "machine")).isNull();
+    }
+
+    @Test
     void through_a_registration_who_does_not_sign_in_with_is_not_resolved() {
       assertThat(
               requests.resolve(new MockHttpServletRequest("GET", "/oauth2/authorization/machine")))

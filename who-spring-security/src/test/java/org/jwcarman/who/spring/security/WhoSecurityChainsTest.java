@@ -1,0 +1,167 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.spring.security;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.config.Customizer.withDefaults;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.Optional;
+
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+
+/**
+ * {@link WhoSecurity}'s chains built from the Spring Security configuration alone: no who
+ * autoconfiguration, so no {@code WhoExceptionHandoff} bean.
+ */
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+class WhoSecurityChainsTest {
+
+  @Configuration
+  @EnableWebSecurity
+  static class Bearer {
+    @Bean
+    StatelessLoginMethod bearer() {
+      return new StatelessLoginMethod() {
+        @Override
+        public void configure(HttpSecurity http) {
+          // signs no one in: these tests are about the answers
+        }
+
+        @Override
+        public RequestMatcher carriesCredential() {
+          return AnyRequestMatcher.INSTANCE;
+        }
+
+        @Override
+        public Optional<String> challenge() {
+          return Optional.of("Bearer");
+        }
+      };
+    }
+  }
+
+  @Configuration
+  static class StatelessChain {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) {
+      http.with(WhoSecurity.stateless(), withDefaults())
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
+  @Configuration
+  static class AllWithoutCsrf {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) {
+      http.csrf(c -> c.disable())
+          .with(WhoSecurity.all(), withDefaults())
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
+  @Configuration
+  @EnableWebSecurity
+  static class AllWithNothing {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) {
+      http.with(WhoSecurity.all(), withDefaults())
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
+  @Test
+  void stateless_without_a_handoff_bean_answers_a_bare_401_with_the_challenge() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Bearer.class, StatelessChain.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              mockMvc(context)
+                  .perform(get("/anything"))
+                  .andExpect(status().isUnauthorized())
+                  .andExpect(header().stringValues(HttpHeaders.WWW_AUTHENTICATE, "Bearer"));
+            });
+  }
+
+  @Test
+  void all_on_a_chain_with_csrf_off_still_mounts_the_stateless_methods() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Bearer.class, AllWithoutCsrf.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              mockMvc(context)
+                  .perform(get("/anything"))
+                  .andExpect(status().isUnauthorized())
+                  .andExpect(header().stringValues(HttpHeaders.WWW_AUTHENTICATE, "Bearer"));
+            });
+  }
+
+  @Test
+  void all_with_no_sign_in_method_warns_and_answers_401() {
+    Logger logger = (Logger) LoggerFactory.getLogger(WhoSecurityConfigurer.class);
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    logger.addAppender(logs);
+    try {
+      new WebApplicationContextRunner()
+          .withUserConfiguration(AllWithNothing.class)
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                mockMvc(context).perform(get("/anything")).andExpect(status().isUnauthorized());
+              });
+    } finally {
+      logger.detachAppender(logs);
+    }
+
+    assertThat(logs.list)
+        .filteredOn(e -> e.getLevel() == Level.WARN)
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .containsExactly(WhoSecurityConfigurer.NO_METHODS);
+  }
+
+  private static MockMvc mockMvc(WebApplicationContext context) {
+    return MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+  }
+}

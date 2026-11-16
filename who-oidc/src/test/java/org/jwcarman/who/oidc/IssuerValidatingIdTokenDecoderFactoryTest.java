@@ -77,6 +77,31 @@ class IssuerValidatingIdTokenDecoderFactoryTest {
   }
 
   @Test
+  void a_registration_who_does_not_sign_in_with_gets_no_decoder() {
+    ClientRegistration other =
+        ClientRegistration.withRegistrationId("other")
+            .clientId("client")
+            .clientSecret("secret")
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+            .scope("openid")
+            .authorizationUri(provider.issuer() + "/authorize")
+            .tokenUri(provider.issuer() + "/token")
+            .jwkSetUri(provider.issuer() + "/jwks")
+            .userNameAttributeName("sub")
+            .build();
+    IssuerValidatingIdTokenDecoderFactory factory =
+        new IssuerValidatingIdTokenDecoderFactory(
+            SignInRegistrations.of(
+                List.of(registration),
+                Map.of("acme", new ProviderSettings(true, provider.issuer(), null, null))));
+
+    assertThatThrownBy(() -> factory.createDecoder(other))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("'other'");
+  }
+
+  @Test
   void matching_iss_decodes() throws Exception {
     provider.nextUser("alice", Map.of("email", "alice@example.com"));
 

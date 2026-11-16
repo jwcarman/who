@@ -22,7 +22,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -128,6 +130,71 @@ class StubOidcProviderTest {
     }
 
     @Test
+    void a_client_authenticating_with_basic_gets_an_id_token_for_itself() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        provider.nextUser("alice", Map.of());
+        String basic =
+            Base64.getEncoder().encodeToString("web%20app:secret".getBytes(StandardCharsets.UTF_8));
+        HttpRequest request =
+            HttpRequest.newBuilder(URI.create(provider.issuer() + "/token"))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Authorization", "Basic " + basic)
+                .POST(HttpRequest.BodyPublishers.ofString("grant_type&code=any"))
+                .build();
+
+        Map<String, Object> token =
+            JSONObjectUtils.parse(HTTP.send(request, HttpResponse.BodyHandlers.ofString()).body());
+
+        assertThat(SignedJWT.parse((String) token.get("id_token")).getJWTClaimsSet().getAudience())
+            .containsExactly("web app");
+      }
+    }
+
+    @Test
+    void a_token_request_with_no_form_is_for_the_client_that_authorized() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        provider.nextUser("alice", Map.of());
+        get(provider.issuer() + "/authorize?client_id=cli&state=s&redirect_uri=http%3A%2F%2Fx");
+        HttpRequest request =
+            HttpRequest.newBuilder(URI.create(provider.issuer() + "/token"))
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        Map<String, Object> token =
+            JSONObjectUtils.parse(HTTP.send(request, HttpResponse.BodyHandlers.ofString()).body());
+
+        assertThat(SignedJWT.parse((String) token.get("id_token")).getJWTClaimsSet().getAudience())
+            .containsExactly("cli");
+      }
+    }
+
+    @Test
+    void a_client_sending_another_kind_of_authorization_is_named_by_its_form() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        provider.nextUser("alice", Map.of());
+        HttpRequest request =
+            HttpRequest.newBuilder(URI.create(provider.issuer() + "/token"))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Authorization", "Bearer something")
+                .POST(HttpRequest.BodyPublishers.ofString("client_id=from-form&code=any"))
+                .build();
+
+        Map<String, Object> token =
+            JSONObjectUtils.parse(HTTP.send(request, HttpResponse.BodyHandlers.ofString()).body());
+
+        assertThat(SignedJWT.parse((String) token.get("id_token")).getJWTClaimsSet().getAudience())
+            .containsExactly("from-form");
+      }
+    }
+
+    @Test
+    void an_unknown_path_is_404() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        assertThat(get(provider.issuer() + "/nowhere").statusCode()).isEqualTo(404);
+      }
+    }
+
+    @Test
     void userinfo_returns_the_user() throws Exception {
       try (StubOidcProvider provider = StubOidcProvider.start()) {
         provider.nextUser("alice", Map.of("email", "alice@example.com"));
@@ -154,6 +221,25 @@ class StubOidcProviderTest {
         Map<String, Object> user = JSONObjectUtils.parse(get(provider.issuer() + "/user").body());
         assertThat(user).containsEntry("login", "octocat");
         assertThat(((Number) user.get("id")).longValue()).isEqualTo(583231L);
+      }
+    }
+
+    @Test
+    void there_is_no_openid_discovery() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.startGitHub()) {
+        assertThat(get(provider.issuer() + "/.well-known/openid-configuration").statusCode())
+            .isEqualTo(404);
+      }
+    }
+
+    @Test
+    void a_subject_that_is_not_a_number_is_served_as_text() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.startGitHub()) {
+        provider.nextUser("octocat", Map.of());
+
+        Map<String, Object> user = JSONObjectUtils.parse(get(provider.issuer() + "/user").body());
+
+        assertThat(user).containsEntry("id", "octocat");
       }
     }
 

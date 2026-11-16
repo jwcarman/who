@@ -175,6 +175,16 @@ class LinkStartFilterTest {
   }
 
   @Test
+  void a_malformed_accept_header_is_treated_as_a_page_and_redirected() throws Exception {
+    signedIn(bob, SignInMethod.EMAIL_LINK);
+    MockHttpServletRequest request = start("acme");
+    request.addHeader("Accept", "not a media type");
+    withWhoSession(request, bob);
+
+    assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
+  }
+
+  @Test
   void signed_in_just_within_the_window_goes_to_the_provider() throws Exception {
     signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");

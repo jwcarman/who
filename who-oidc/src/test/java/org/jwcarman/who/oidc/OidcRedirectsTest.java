@@ -81,6 +81,13 @@ class OidcRedirectsTest {
   }
 
   @Test
+  void a_local_path_is_local_and_one_that_is_not_a_uri_is_not() {
+    assertThat(OidcRedirects.isLocalPath("/home?tab=keys#top")).isTrue();
+    assertThat(OidcRedirects.isLocalPath("/a path with spaces")).isFalse();
+    assertThat(OidcRedirects.isLocalPath(null)).isFalse();
+  }
+
+  @Test
   void rejects_a_backslash_that_browsers_read_as_protocol_relative() {
     assertThatThrownBy(() -> new OidcRedirects("/\\evil.example.com", "/"))
         .isInstanceOf(IllegalArgumentException.class);

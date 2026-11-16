@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -33,11 +34,41 @@ import org.springframework.mock.web.MockHttpSession;
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class SessionlessRequestFilterTest {
 
+  /** Each way a request reaches the filter, set up as the servlet container does it. */
+  enum Dispatch {
+    REQUEST {
+      @Override
+      void prepare(MockHttpServletRequest request) {
+        request.setDispatcherType(DispatcherType.REQUEST);
+      }
+    },
+    ERROR_PAGE {
+      @Override
+      void prepare(MockHttpServletRequest request) {
+        request.setDispatcherType(DispatcherType.ERROR);
+        request.setAttribute(RequestDispatcher.ERROR_REQUEST_URI, "/api/ping");
+      }
+    },
+    ERROR_PAGE_WHILE_THE_CHAIN_RUNS {
+      @Override
+      void prepare(MockHttpServletRequest request) {
+        ERROR_PAGE.prepare(request);
+        request.setAttribute(SessionlessRequestFilter.class.getName() + ".FILTERED", true);
+      }
+    },
+    ASYNC {
+      @Override
+      void prepare(MockHttpServletRequest request) {
+        request.setDispatcherType(DispatcherType.ASYNC);
+      }
+    };
+
+    abstract void prepare(MockHttpServletRequest request);
+  }
+
   @ParameterizedTest
-  @EnumSource(
-      value = DispatcherType.class,
-      names = {"REQUEST", "ERROR", "ASYNC"})
-  void the_chain_sees_no_session(DispatcherType dispatch) throws Exception {
+  @EnumSource(Dispatch.class)
+  void the_chain_sees_no_session(Dispatch dispatch) throws Exception {
     HttpServletRequest seen = filtered(dispatch);
 
     assertThat(seen.getSession(false)).isNull();
@@ -48,10 +79,8 @@ class SessionlessRequestFilterTest {
   }
 
   @ParameterizedTest
-  @EnumSource(
-      value = DispatcherType.class,
-      names = {"REQUEST", "ERROR", "ASYNC"})
-  void nothing_on_the_chain_may_make_or_rotate_one(DispatcherType dispatch) throws Exception {
+  @EnumSource(Dispatch.class)
+  void nothing_on_the_chain_may_make_or_rotate_one(Dispatch dispatch) throws Exception {
     HttpServletRequest seen = filtered(dispatch);
 
     assertThatThrownBy(seen::getSession)
@@ -61,12 +90,12 @@ class SessionlessRequestFilterTest {
     assertThatThrownBy(seen::changeSessionId).isInstanceOf(IllegalStateException.class);
   }
 
-  private static HttpServletRequest filtered(DispatcherType dispatch) throws Exception {
+  private static HttpServletRequest filtered(Dispatch dispatch) throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/ping");
     request.setSession(new MockHttpSession());
     request.setRequestedSessionId("browser-session");
     request.setRequestedSessionIdFromCookie(true);
-    request.setDispatcherType(dispatch);
+    dispatch.prepare(request);
     MockFilterChain chain = new MockFilterChain();
 
     new SessionlessRequestFilter().doFilter(request, new MockHttpServletResponse(), chain);

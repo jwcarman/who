@@ -33,10 +33,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInFailed;
@@ -196,13 +201,36 @@ class ApiKeyAuthenticationProviderTest {
     verify(repository).touch(credential.id(), NOW, NOW.minus(INTERVAL));
   }
 
-  @Test
-  void a_non_positive_interval_is_refused() {
+  @ParameterizedTest
+  @ValueSource(longs = {0, -1})
+  void a_non_positive_interval_is_refused(long minutes) {
     Clock clock = Clock.systemUTC();
+    Duration interval = Duration.ofMinutes(minutes);
     assertThatThrownBy(
             () ->
                 new ApiKeyAuthenticationProvider(
-                    repository, whoService, FORMAT, Duration.ZERO, events::add, clock))
+                    repository, whoService, FORMAT, interval, events::add, clock))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  static Stream<Arguments> expiredAndNoLongerActive() {
+    UUID someone = UUID.randomUUID();
+    return Stream.of(
+        Arguments.of(new Resolution.Inactive(someone), someone),
+        Arguments.of(new Resolution.NoIdentity(someone), someone),
+        Arguments.of(new Resolution.NotLinked(), null));
+  }
+
+  @ParameterizedTest
+  @MethodSource("expiredAndNoLongerActive")
+  void an_expired_key_names_whatever_identity_it_still_resolves_to(
+      Resolution resolution, UUID identityId) {
+    ApiKeyCredential credential = stored(Set.of("task.read"), NOW, Set.of("task.read"));
+    when(whoService.resolveDetailed(credential)).thenReturn(resolution);
+
+    SignInFailed failed = refused(key);
+
+    assertThat(failed.reason()).isEqualTo(SignInFailureReason.EXPIRED_KEY);
+    assertThat(failed.identityId()).isEqualTo(identityId);
   }
 }

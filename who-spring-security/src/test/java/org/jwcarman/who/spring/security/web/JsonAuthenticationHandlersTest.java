@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
@@ -40,6 +42,7 @@ import org.springframework.security.authentication.ott.InvalidOneTimeTokenExcept
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class JsonAuthenticationHandlersTest {
 
   private static final Instant NOW = Instant.parse("2026-11-13T10:00:00Z");
@@ -143,5 +146,44 @@ class JsonAuthenticationHandlersTest {
     }
 
     assertThat(published).isEmpty();
+  }
+
+  private final JsonAuthenticationHandlers remembering =
+      new JsonAuthenticationHandlers(
+          mapper,
+          new WhoExceptionHandoff(recording),
+          published::add,
+          Clock.fixed(NOW, ZoneOffset.UTC),
+          new LastSignInCookie());
+
+  @Test
+  void a_sign_in_with_a_known_method_is_remembered_in_the_browser() throws Exception {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+
+    remembering
+        .success()
+        .onAuthenticationSuccess(
+            new MockHttpServletRequest(),
+            response,
+            new WhoAuthenticationToken(principal, UUID.randomUUID(), SignInMethod.EMAIL_CODE));
+
+    assertThat(response.getCookie(LastSignInCookie.NAME).getValue()).isEqualTo("email-link");
+  }
+
+  @Test
+  void a_sign_in_without_a_known_method_is_not_remembered() throws Exception {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+
+    for (var authentication :
+        List.of(
+            new WhoAuthenticationToken(principal, UUID.randomUUID()),
+            new TestingAuthenticationToken(principal, null))) {
+      MockHttpServletResponse answer = new MockHttpServletResponse();
+      remembering
+          .success()
+          .onAuthenticationSuccess(new MockHttpServletRequest(), answer, authentication);
+
+      assertThat(answer.getCookie(LastSignInCookie.NAME)).isNull();
+    }
   }
 }

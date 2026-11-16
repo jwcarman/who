@@ -331,7 +331,7 @@ public final class StubOidcProvider implements AutoCloseable {
 
   private static Map<String, String> form(String encoded) {
     Map<String, String> values = new HashMap<>();
-    if (encoded == null || encoded.isEmpty()) {
+    if (encoded.isEmpty()) {
       return values;
     }
     for (String pair : encoded.split("&")) {

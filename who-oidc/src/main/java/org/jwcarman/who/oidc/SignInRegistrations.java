@@ -178,7 +178,8 @@ public final class SignInRegistrations {
 
   private static void rejectSharedEntraTenant(String id, String issuer) {
     URI uri = URI.create(issuer);
-    if (!ENTRA_HOST.equalsIgnoreCase(uri.getHost()) || uri.getPath() == null) {
+    // a URI with a host is hierarchical, so it has a path, though perhaps an empty one
+    if (!ENTRA_HOST.equalsIgnoreCase(uri.getHost())) {
       return;
     }
     String path = uri.getPath().toLowerCase(Locale.ROOT);

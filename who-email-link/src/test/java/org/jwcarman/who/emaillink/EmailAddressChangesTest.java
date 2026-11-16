@@ -17,6 +17,9 @@ package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -31,10 +34,14 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.WhoEvent;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -339,5 +346,62 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
   void a_request_names_an_unknown_identity_safely() {
     assertThat(changes().request(UUID.randomUUID(), "new@example.com", null))
         .isEqualTo(EmailAddressRequestOutcome.SEND_FAILED);
+  }
+
+  private EmailAddressChanges changes(
+      EmailAddressRequestRepository requestRepository, WhoEventPublisher publisher) {
+    return new EmailAddressChanges(
+        credentials,
+        requestRepository,
+        email -> sender.send(email),
+        SETTINGS,
+        CONFIRM_URL,
+        Clock.fixed(NOW, ZoneOffset.UTC),
+        publisher);
+  }
+
+  @Test
+  void a_failed_event_still_answers_the_request() {
+    EmailAddressChanges changes =
+        changes(
+            requests,
+            event -> {
+              throw new IllegalStateException("listener broke");
+            });
+
+    assertThat(changes.request(alice.id(), "new@example.com", null))
+        .isEqualTo(EmailAddressRequestOutcome.SENT);
+  }
+
+  @Test
+  void a_failed_send_whose_cleanup_fails_still_answers_send_failed() {
+    EmailAddressRequestRepository failing = spy(requests);
+    doThrow(new IllegalStateException("database down")).when(failing).delete(any());
+    sender =
+        email -> {
+          throw new IllegalStateException("mail server down");
+        };
+
+    assertThat(changes(failing, events::add).request(alice.id(), "new@example.com", null))
+        .isEqualTo(EmailAddressRequestOutcome.SEND_FAILED);
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"   "})
+  void a_missing_or_blank_token_confirms_nothing(String token) {
+    EmailAddressChanges changes = changes();
+
+    assertThatThrownBy(() -> changes.confirmToken(alice, token))
+        .isInstanceOf(InvalidEmailAddressConfirmationException.class);
+  }
+
+  @Test
+  void a_token_too_long_to_be_one_confirms_nothing() {
+    EmailAddressChanges changes = changes();
+    String token = "t".repeat(513);
+
+    assertThatThrownBy(() -> changes.confirmToken(alice, token))
+        .isInstanceOf(InvalidEmailAddressConfirmationException.class);
   }
 }

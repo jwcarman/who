@@ -30,6 +30,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
@@ -37,6 +39,7 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class EmailCredentialServiceTest extends AbstractEmailLinkTest {
 
   @Autowired private EmailCredentialService service;
@@ -237,5 +240,27 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
 
     assertThatThrownBy(() -> racing.register(identity, "claim@example.com"))
         .isInstanceOf(EmailAddressTakenException.class);
+  }
+
+  @Test
+  void replacing_an_address_with_itself_revokes_nothing() {
+    Identity identity = identityRepository.save(Identity.create());
+    EmailCredential credential = service.register(identity, "same@example.com");
+
+    EmailCredential replaced = service.replace(identity, "same@example.com", credential.id());
+
+    assertThat(replaced.id()).isEqualTo(credential.id());
+    assertThat(service.findById(credential.id())).isPresent();
+  }
+
+  @Test
+  void replacing_leaves_alone_a_credential_that_is_not_the_identity_s() {
+    Identity identity = identityRepository.save(Identity.create());
+    Identity other = identityRepository.save(Identity.create());
+    EmailCredential others = service.register(other, "other@example.com");
+
+    service.replace(identity, "mine@example.com", others.id());
+
+    assertThat(service.findById(others.id())).isPresent();
   }
 }

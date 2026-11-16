@@ -154,7 +154,79 @@ class SignInRegistrationsTest {
   }
 
   @Nested
+  class Entra_tenants {
+
+    @Test
+    void a_shared_endpoint_without_a_version_is_invalid() {
+      ClientRegistration entra =
+          oidc("entra").issuerUri("https://login.microsoftonline.com/common").build();
+
+      assertThatThrownBy(() -> of(Map.of(), entra))
+          .isInstanceOf(InvalidRegistrationException.class)
+          .hasMessageContaining("common");
+    }
+
+    @Test
+    void a_tenant_of_its_own_is_valid_even_when_its_name_starts_like_a_shared_one() {
+      for (String tenant : List.of("8f2c1a6e-0000-4000-8000-000000000001", "commonwealth")) {
+        String issuer = "https://login.microsoftonline.com/" + tenant + "/v2.0";
+        ClientRegistration entra = oidc("entra").issuerUri(issuer).build();
+
+        assertThat(of(Map.of(), entra).find("entra").orElseThrow().issuer()).isEqualTo(issuer);
+      }
+    }
+
+    @Test
+    void a_configured_issuer_matching_the_issuer_uri_is_fine() {
+      ClientRegistration google = oidc("google").issuerUri("https://accounts.google.com").build();
+
+      assertThat(
+              of(Map.of("google", settings("https://accounts.google.com", null)), google)
+                  .find("google")
+                  .orElseThrow()
+                  .issuer())
+          .isEqualTo("https://accounts.google.com");
+    }
+  }
+
+  @Nested
   class GitHub {
+
+    @Test
+    void github_with_its_own_issuer_and_subject_keeps_them_and_stays_github() {
+      SignInRegistration github =
+          of(
+                  Map.of("github", settings("https://github.example", "login")),
+                  oauth2("github", "github.com", "api.github.com").build())
+              .find("github")
+              .orElseThrow();
+
+      assertThat(github.kind()).isEqualTo(SignInRegistration.Kind.GITHUB);
+      assertThat(github.issuer()).isEqualTo("https://github.example");
+      assertThat(github.subjectAttribute()).isEqualTo("login");
+    }
+
+    @Test
+    void github_with_only_a_subject_attribute_still_needs_an_issuer() {
+      ClientRegistration github = oauth2("github", "github.com", "api.github.com").build();
+
+      assertThatThrownBy(() -> of(Map.of("github", settings(null, "login")), github))
+          .isInstanceOfSatisfying(
+              InvalidRegistrationException.class,
+              e -> assertThat(e.property()).isEqualTo("who.oidc.providers.github.issuer"));
+    }
+
+    @Test
+    void github_sign_in_without_github_s_user_api_is_not_github() {
+      ClientRegistration elsewhere = oauth2("gh", "github.com", "api.acme.com").build();
+      ClientRegistration noUserInfo =
+          oauth2("gh2", "github.com", "api.github.com").userInfoUri(null).build();
+
+      assertThatThrownBy(() -> of(Map.of(), elsewhere))
+          .isInstanceOf(InvalidRegistrationException.class);
+      assertThatThrownBy(() -> of(Map.of(), noUserInfo))
+          .isInstanceOf(InvalidRegistrationException.class);
+    }
 
     @Test
     void github_default_issuer_and_subject() {

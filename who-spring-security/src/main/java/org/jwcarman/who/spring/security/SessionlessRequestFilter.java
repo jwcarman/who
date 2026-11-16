@@ -79,7 +79,7 @@ final class SessionlessRequestFilter extends OncePerRequestFilter {
 
     @Override
     public HttpSession getSession() {
-      return getSession(true);
+      throw new IllegalStateException(NO_SESSIONS);
     }
 
     @Override

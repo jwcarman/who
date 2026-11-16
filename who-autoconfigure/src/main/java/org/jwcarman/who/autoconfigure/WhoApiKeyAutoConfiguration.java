@@ -101,7 +101,8 @@ public class WhoApiKeyAutoConfiguration {
       WhoEventPublisher whoEventPublisher,
       Clock clock) {
     Duration maxLifetime = properties.getApiKey().getMaxLifetime();
-    if (maxLifetime == null || maxLifetime.isNegative() || maxLifetime.isZero()) {
+    // binding never leaves it null: an empty value keeps the default
+    if (maxLifetime.isNegative() || maxLifetime.isZero()) {
       throw new IllegalStateException(
           "who.api-key.max-lifetime must be positive, got " + maxLifetime);
     }
@@ -138,7 +139,7 @@ public class WhoApiKeyAutoConfiguration {
       WhoEventPublisher whoEventPublisher,
       Clock clock) {
     Duration interval = properties.getApiKey().getLastUsedInterval();
-    if (interval == null || interval.isNegative() || interval.isZero()) {
+    if (interval.isNegative() || interval.isZero()) {
       throw new IllegalStateException(
           "who.api-key.last-used-interval must be positive, got " + interval);
     }

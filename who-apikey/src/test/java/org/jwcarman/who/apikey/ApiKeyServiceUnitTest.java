@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialKind;
@@ -71,6 +72,8 @@ class ApiKeyServiceUnitTest {
   static Stream<Arguments> refused() {
     Set<String> withBlank = new HashSet<>(Set.of("task.read"));
     withBlank.add(" ");
+    Set<String> withNull = new HashSet<>(Set.of("task.read"));
+    withNull.add(null);
     return Stream.of(
         Arguments.of("a blank name", " ", Duration.ofDays(1), Set.of("task.read"), "name"),
         Arguments.of("a zero lifetime", "k", Duration.ZERO, Set.of("task.read"), "lifetime"),
@@ -84,6 +87,7 @@ class ApiKeyServiceUnitTest {
             "lifetime"),
         Arguments.of("no scopes", "k", Duration.ofDays(1), Set.of(), "scope"),
         Arguments.of("a blank scope", "k", Duration.ofDays(1), withBlank, "scope"),
+        Arguments.of("a null scope", "k", Duration.ofDays(1), withNull, "scope"),
         Arguments.of(
             "a name longer than its column",
             "n".repeat(256),
@@ -228,14 +232,41 @@ class ApiKeyServiceUnitTest {
     assertThat(key.toString()).doesNotContain(key.key()).contains("CI");
   }
 
-  @Test
-  void a_non_positive_maximum_is_refused() {
+  @ParameterizedTest
+  @ValueSource(longs = {0, -1})
+  void a_non_positive_maximum_is_refused(long days) {
     ApiKeyFormat format = new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX);
     Clock clock = Clock.systemUTC();
+    Duration maximum = Duration.ofDays(days);
     assertThatIllegalArgumentException()
         .isThrownBy(
             () ->
                 new ApiKeyService(
-                    keys, links, identity -> Set.of(), format, Duration.ZERO, events::add, clock));
+                    keys, links, identity -> Set.of(), format, maximum, events::add, clock));
+  }
+
+  @Test
+  void rotate_refuses_a_key_that_belongs_to_no_one() {
+    UUID id = UUID.randomUUID();
+    when(keys.findById(id))
+        .thenReturn(
+            Optional.of(
+                new ApiKeyCredential(
+                    id, "k", "hash", Set.of("task.read"), NOW, NOW.plusSeconds(60), null)));
+    when(links.findIdentityIdByCredentialId(id)).thenReturn(Optional.empty());
+
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> service.rotate(id, Duration.ZERO))
+        .withMessage("No API key " + id);
+  }
+
+  @Test
+  void rotate_refuses_an_unknown_key() {
+    UUID id = UUID.randomUUID();
+    when(keys.findById(id)).thenReturn(Optional.empty());
+
+    assertThatIllegalArgumentException()
+        .isThrownBy(() -> service.rotate(id, Duration.ZERO))
+        .withMessage("No API key " + id);
   }
 }

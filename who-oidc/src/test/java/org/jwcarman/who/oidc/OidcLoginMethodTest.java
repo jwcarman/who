@@ -1,0 +1,163 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.oidc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.federated.FederatedCredentialRepository;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+/**
+ * {@link OidcLoginMethod} built by hand, as an application without who's autoconfiguration would:
+ * no event publisher and no exception handoff beans.
+ */
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+class OidcLoginMethodTest {
+
+  private static final ClientRegistration ACME =
+      ClientRegistration.withRegistrationId("acme")
+          .clientId("client")
+          .clientSecret("secret")
+          .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+          .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+          .scope("openid")
+          .issuerUri("https://idp.example.com")
+          .authorizationUri("https://idp.example.com/authorize")
+          .tokenUri("https://idp.example.com/token")
+          .jwkSetUri("https://idp.example.com/jwks")
+          .userNameAttributeName("sub")
+          .build();
+
+  @Configuration
+  @EnableWebSecurity
+  static class Method {
+    @Bean
+    OidcLoginMethod oidcLoginMethod() {
+      WhoService whoService = mock(WhoService.class);
+      Clock clock = Clock.systemUTC();
+      return new OidcLoginMethod(
+          SignInRegistrations.of(List.of(ACME), Map.of()),
+          whoService,
+          mock(FederatedCredentialRepository.class),
+          new WhoSessionSecurityContextRepository(whoService, clock),
+          mock(OidcSignUpService.class),
+          mock(IdentityRepository.class),
+          new OidcRedirects("/", "/signin"),
+          clock,
+          Duration.ofMinutes(10),
+          Duration.ofMinutes(10));
+    }
+  }
+
+  @Configuration
+  static class Clients {
+    @Bean
+    ClientRegistrationRepository clientRegistrationRepository() {
+      return new InMemoryClientRegistrationRepository(ACME);
+    }
+  }
+
+  @Configuration
+  static class Chain {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http, OidcLoginMethod method) {
+      method.configure(http);
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
+  @Configuration
+  static class ChainWithoutSessionManagement {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http, OidcLoginMethod method) {
+      http.sessionManagement(s -> s.disable());
+      method.configure(http);
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
+  @Test
+  void without_its_own_beans_it_still_starts_sign_in_at_the_provider() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Method.class, Clients.class, Chain.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              String location =
+                  MockMvcBuilders.webAppContextSetup((WebApplicationContext) context)
+                      .apply(springSecurity())
+                      .build()
+                      .perform(get("/oauth2/authorization/acme"))
+                      .andReturn()
+                      .getResponse()
+                      .getRedirectedUrl();
+              assertThat(location).startsWith("https://idp.example.com/authorize");
+            });
+  }
+
+  @Test
+  void without_client_registrations_startup_fails_saying_so() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Method.class, Chain.class)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("needs client registrations"));
+  }
+
+  @Test
+  void without_session_management_startup_fails_saying_so() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Method.class, Clients.class, ChainWithoutSessionManagement.class)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("needs the chain's session management"));
+  }
+}

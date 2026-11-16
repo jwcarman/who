@@ -221,10 +221,13 @@ public class WhoOidcAutoConfiguration {
     return url;
   }
 
-  /** who does not make the failure URL public; a signed-out person sent there needs it to be. */
+  /**
+   * who does not make the failure URL public; a signed-out person sent there needs it to be. The
+   * URL is a local path by now, so its path is never empty.
+   */
   private static void warnWhenNotPublic(String failureUrl, List<String> publicPaths) {
     String path = UriComponentsBuilder.fromUriString(failureUrl).build().getPath();
-    PathContainer container = PathContainer.parsePath(path == null || path.isEmpty() ? "/" : path);
+    PathContainer container = PathContainer.parsePath(path);
     boolean isPublic =
         publicPaths.stream()
             .map(PathPatternParser.defaultInstance::parse)

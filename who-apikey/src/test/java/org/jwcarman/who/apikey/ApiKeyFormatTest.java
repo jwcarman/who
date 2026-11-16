@@ -72,7 +72,8 @@ class ApiKeyFormatTest {
         " ",
         "who_",
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "who_0123456789ABCDEFGHIJabcdefghij012345"
+        "who_0123456789ABCDEFGHIJabcdefghij012345",
+        "who_------------------------------------"
       })
   void text_that_is_not_a_key_does_not_look_valid(String text) {
     assertThat(format.looksValid(text)).isFalse();

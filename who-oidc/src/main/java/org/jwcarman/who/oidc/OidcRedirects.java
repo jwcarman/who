@@ -145,8 +145,10 @@ public final class OidcRedirects {
     if (url == null || !url.startsWith("/") || url.startsWith("//") || url.startsWith("/\\")) {
       return false;
     }
+    // starting with a single slash, it has no scheme: what remains is whether it parses at all
     try {
-      return !URI.create(url.replace("\\", "%5C")).isAbsolute();
+      URI.create(url.replace("\\", "%5C"));
+      return true;
     } catch (IllegalArgumentException _) {
       return false;
     }

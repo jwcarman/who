@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -24,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -33,12 +35,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.http.MediaType;
@@ -139,6 +143,18 @@ class OidcLinkTest extends AbstractOidcTest {
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE))
           .isInstanceOfSatisfying(
               PendingSignUp.class, p -> assertThat(p.createdFor()).isEqualTo(bob.id()));
+    }
+
+    @Test
+    void confirming_without_a_browser_session_is_401() throws Exception {
+      Identity bob = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
+      WhoAuthenticationToken notFromASession =
+          new WhoAuthenticationToken(new WhoPrincipal(bob, Set.of()));
+
+      MvcResult result =
+          browser.perform(post("/who/oidc/link").with(authentication(notFromASession))).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(401);
     }
 
     @Test
