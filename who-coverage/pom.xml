@@ -67,6 +67,11 @@
         </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-turnstile</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
             <artifactId>who-enrollment</artifactId>
             <version>${project.version}</version>
         </dependency>

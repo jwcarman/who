@@ -55,6 +55,7 @@ public class WhoProperties {
   private EmailLink emailLink = new EmailLink();
   private Passkey passkey = new Passkey();
   private Jwt jwt = new Jwt();
+  private Turnstile turnstile = new Turnstile();
   private Security security = new Security();
   private Oidc oidc = new Oidc();
   private Sessions sessions = new Sessions();
@@ -803,6 +804,139 @@ public class WhoProperties {
    */
   public void setJwt(Jwt jwt) {
     this.jwt = jwt;
+  }
+
+  /**
+   * Returns Cloudflare Turnstile's settings.
+   *
+   * @return Turnstile properties
+   */
+  public Turnstile getTurnstile() {
+    return turnstile;
+  }
+
+  /**
+   * Sets Cloudflare Turnstile's settings.
+   *
+   * @param turnstile Turnstile properties
+   */
+  public void setTurnstile(Turnstile turnstile) {
+    this.turnstile = turnstile;
+  }
+
+  /** Properties for the {@code who-turnstile} module: Cloudflare Turnstile as the human check. */
+  public static class Turnstile {
+
+    /** Creates the settings with their defaults. */
+    public Turnstile() {
+      // defaults are set on the fields
+    }
+
+    /** Whether the Turnstile check is on. It is on whenever its module is on the classpath. */
+    private boolean enabled = true;
+
+    /** The widget's secret key, from the Cloudflare dashboard. Required. */
+    private String secretKey;
+
+    /** The hostnames a token may be made on; empty accepts any. */
+    private Set<String> hostnames = new LinkedHashSet<>();
+
+    /** How long to wait for Cloudflare, to connect and to answer. */
+    private Duration timeout = Duration.ofSeconds(3);
+
+    /** Whether to let requests through when Cloudflare cannot be reached or answers an error. */
+    private boolean failOpen = false;
+
+    /**
+     * Returns whether the Turnstile check is on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns the Turnstile check off with {@code false}.
+     *
+     * @param enabled false to turn it off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    /**
+     * Returns the widget's secret key.
+     *
+     * @return the secret key, or null when not set
+     */
+    public String getSecretKey() {
+      return secretKey;
+    }
+
+    /**
+     * Sets the widget's secret key.
+     *
+     * @param secretKey the secret key
+     */
+    public void setSecretKey(String secretKey) {
+      this.secretKey = secretKey;
+    }
+
+    /**
+     * Returns the hostnames a token may be made on.
+     *
+     * @return the hostnames; empty accepts any
+     */
+    public Set<String> getHostnames() {
+      return hostnames;
+    }
+
+    /**
+     * Sets the hostnames a token may be made on.
+     *
+     * @param hostnames the hostnames; empty accepts any
+     */
+    public void setHostnames(Set<String> hostnames) {
+      this.hostnames = hostnames;
+    }
+
+    /**
+     * Returns how long to wait for Cloudflare.
+     *
+     * @return the timeout
+     */
+    public Duration getTimeout() {
+      return timeout;
+    }
+
+    /**
+     * Sets how long to wait for Cloudflare, to connect and to answer.
+     *
+     * @param timeout the timeout
+     */
+    public void setTimeout(Duration timeout) {
+      this.timeout = timeout;
+    }
+
+    /**
+     * Returns whether requests go through when Cloudflare cannot be reached or answers an error.
+     *
+     * @return true to fail open
+     */
+    public boolean isFailOpen() {
+      return failOpen;
+    }
+
+    /**
+     * Sets whether requests go through when Cloudflare cannot be reached or answers an error. A
+     * token Cloudflare refuses always fails.
+     *
+     * @param failOpen true to fail open
+     */
+    public void setFailOpen(boolean failOpen) {
+      this.failOpen = failOpen;
+    }
   }
 
   /** Properties for the {@code who-jwt} module. */

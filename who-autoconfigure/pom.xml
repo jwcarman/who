@@ -71,6 +71,12 @@
         </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-turnstile</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
             <artifactId>who-enrollment</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
@@ -215,6 +221,9 @@
                         <!-- who-oidc is on this module's test classpath, and the module is on
                              with its jar; the tests that exercise it turn it back on -->
                         <who.oidc.enabled>false</who.oidc.enabled>
+                        <!-- likewise who-turnstile, which would otherwise fail every context
+                             that sets no secret key; its tests turn it back on -->
+                        <who.turnstile.enabled>false</who.turnstile.enabled>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
