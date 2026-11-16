@@ -29,6 +29,7 @@ import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
 import org.jwcarman.who.spring.security.SessionEndpoints;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -232,6 +233,24 @@ public class WhoSpringSecurityAutoConfiguration {
       matchIfMissing = true)
   public LastSignInCookie lastSignInCookie() {
     return new LastSignInCookie();
+  }
+
+  /**
+   * Where every who endpoint lives: {@code who.base-path}, {@code /who} unless configured.
+   *
+   * @param properties who's properties
+   * @return the paths
+   * @throws WhoConfigurationException when {@code who.base-path} is not a usable root
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public WhoPaths whoPaths(WhoProperties properties) {
+    try {
+      return new WhoPaths(properties.getBasePath());
+    } catch (IllegalArgumentException e) {
+      throw new WhoConfigurationException(
+          "who.base-path", e.getMessage(), "use a path such as /who or /auth");
+    }
   }
 
   /**

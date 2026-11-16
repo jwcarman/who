@@ -43,6 +43,11 @@ public class WhoProperties {
    */
   private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
+  /**
+   * The root every who endpoint lives under, such as {@code /who} (the default) or {@code /auth}.
+   */
+  private String basePath = "/who";
+
   private Enrollment enrollment = new Enrollment();
   private ApiKey apiKey = new ApiKey();
   private MethodSecurity methodSecurity = new MethodSecurity();
@@ -69,6 +74,24 @@ public class WhoProperties {
    */
   public void setInitializeSchema(DatabaseInitializationMode initializeSchema) {
     this.initializeSchema = initializeSchema;
+  }
+
+  /**
+   * Returns the root every who endpoint lives under.
+   *
+   * @return the root, such as {@code /who}
+   */
+  public String getBasePath() {
+    return basePath;
+  }
+
+  /**
+   * Sets the root every who endpoint lives under.
+   *
+   * @param basePath the root, such as {@code /who} or {@code /auth}
+   */
+  public void setBasePath(String basePath) {
+    this.basePath = basePath;
   }
 
   /**
