@@ -26,7 +26,7 @@ import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 /**
- * Answers {@code POST /ott/generate} with {@code 202} at once and hands the real work to {@link
+ * Answers {@code POST /who/email/send} with {@code 202} at once and hands the real work to {@link
  * EmailLinkIssuer} on another thread, so the response time does not reveal whether the address is
  * known.
  */

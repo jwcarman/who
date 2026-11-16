@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.concurrent.Executor;
 
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,11 +33,12 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Adds the endpoints that let a signed-in person add an email address, or change one, by confirming
  * a link or code sent to it: {@code POST /who/email/addresses} and {@code POST
- * /who/email/addresses/confirm}. Not a way to sign in, but contributed to the browser chain the
- * same way; it adds no public path.
+ * /who/email/addresses/confirm}, under {@code who.base-path}. Not a way to sign in, but contributed
+ * to the browser chain the same way; it adds no public path.
  */
 public class EmailAddressEndpoints implements PasswordlessLoginMethod {
 
+  private final WhoPaths paths;
   private final EmailAddressChanges changes;
   private final WhoSessionSecurityContextRepository sessions;
   private final WhoExceptionHandoff handoff;
@@ -48,6 +50,7 @@ public class EmailAddressEndpoints implements PasswordlessLoginMethod {
   /**
    * Creates the endpoints.
    *
+   * @param paths where the endpoints live
    * @param changes requests and confirms the changes
    * @param sessions reads the browser's who session and its sign-in time
    * @param handoff answers errors through the application's exception handling
@@ -57,6 +60,7 @@ public class EmailAddressEndpoints implements PasswordlessLoginMethod {
    * @param recentSignIn how recently the session must have signed in
    */
   public EmailAddressEndpoints(
+      WhoPaths paths,
       EmailAddressChanges changes,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
@@ -64,6 +68,7 @@ public class EmailAddressEndpoints implements PasswordlessLoginMethod {
       JsonMapper jsonMapper,
       Clock clock,
       Duration recentSignIn) {
+    this.paths = requireNonNull(paths, "paths must not be null");
     this.changes = requireNonNull(changes, "changes must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
@@ -78,7 +83,7 @@ public class EmailAddressEndpoints implements PasswordlessLoginMethod {
     // before authorization, as passkeys' guard filter, so a signed-out caller gets who's answer
     http.addFilterAfter(
         new EmailAddressFilter(
-            changes, sessions, handoff, executor, jsonMapper, clock, recentSignIn),
+            paths, changes, sessions, handoff, executor, jsonMapper, clock, recentSignIn),
         ExceptionTranslationFilter.class);
   }
 }

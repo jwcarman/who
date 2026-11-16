@@ -254,13 +254,13 @@ class EmailSignInEventsTest {
   }
 
   private static MockHttpServletRequestBuilder generate(String address) {
-    return post("/ott/generate")
+    return post("/who/email/send")
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"email\":\"" + address + "\"}");
   }
 
   private static MockHttpServletRequestBuilder confirmBody(String body) {
-    return post("/login/ott").contentType(MediaType.APPLICATION_JSON).content(body);
+    return post("/who/email/sign-in").contentType(MediaType.APPLICATION_JSON).content(body);
   }
 
   private static MockHttpServletRequestBuilder confirm(String token) {
@@ -625,7 +625,7 @@ class EmailSignInEventsTest {
 
       browser.performWithCsrf(generate("owner\\u0001@example.com"));
       browser.performWithCsrf(
-          post("/ott/generate").contentType(MediaType.APPLICATION_JSON).content("{}"));
+          post("/who/email/send").contentType(MediaType.APPLICATION_JSON).content("{}"));
 
       SignInEmailRequested unknown =
           new SignInEmailRequested(clock.instant(), null, EmailLinkOutcome.UNKNOWN_ADDRESS, null);

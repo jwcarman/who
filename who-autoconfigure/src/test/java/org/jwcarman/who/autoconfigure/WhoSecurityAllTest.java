@@ -339,11 +339,11 @@ class WhoSecurityAllTest {
 
   /** Signs the browser in with an emailed link, so later requests carry a session cookie. */
   private void signIn() throws Exception {
-    assertThat(send(json("/ott/generate", "{\"email\":\"" + ADDRESS + "\"}")).statusCode())
+    assertThat(send(json("/who/email/send", "{\"email\":\"" + ADDRESS + "\"}")).statusCode())
         .isLessThan(300);
     String link = SENT.getLast().link();
     String token = link.substring(link.indexOf("#token=") + "#token=".length());
-    assertThat(send(json("/login/ott", "{\"token\":\"" + token + "\"}")).statusCode())
+    assertThat(send(json("/who/email/sign-in", "{\"token\":\"" + token + "\"}")).statusCode())
         .isEqualTo(200);
   }
 
@@ -455,7 +455,7 @@ class WhoSecurityAllTest {
       String token = csrfToken();
       HttpResponse<String> response =
           send(
-              HttpRequest.newBuilder(uri("/ott/generate"))
+              HttpRequest.newBuilder(uri("/who/email/send"))
                   .header("Content-Type", "application/json")
                   .header("X-XSRF-TOKEN", token)
                   .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"a@example.com\"}")));

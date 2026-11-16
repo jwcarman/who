@@ -171,7 +171,7 @@ class EmailAddressChangeTest {
     Browser browser = new Browser(mvc);
     assertThat(
             browser
-                .performWithCsrf(json("/ott/generate", "{\"email\":\"" + address + "\"}"))
+                .performWithCsrf(json("/who/email/send", "{\"email\":\"" + address + "\"}"))
                 .getResponse()
                 .getStatus())
         .isEqualTo(202);
@@ -179,7 +179,7 @@ class EmailAddressChangeTest {
     String token = link.substring(link.indexOf("#token=") + "#token=".length());
     assertThat(
             browser
-                .performWithCsrf(json("/login/ott", "{\"token\":\"" + token + "\"}"))
+                .performWithCsrf(json("/who/email/sign-in", "{\"token\":\"" + token + "\"}"))
                 .getResponse()
                 .getStatus())
         .isEqualTo(200);
@@ -207,7 +207,7 @@ class EmailAddressChangeTest {
 
   private boolean signsIn(String address) throws Exception {
     int before = outbox.of(EmailLinkMessage.class).size();
-    new Browser(mvc).performWithCsrf(json("/ott/generate", "{\"email\":\"" + address + "\"}"));
+    new Browser(mvc).performWithCsrf(json("/who/email/send", "{\"email\":\"" + address + "\"}"));
     return outbox.of(EmailLinkMessage.class).size() > before;
   }
 

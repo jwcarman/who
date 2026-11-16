@@ -337,11 +337,12 @@ class WhoRecentSignInTest {
 
   /** Signs the browser in with an emailed link, at the clock's current time. */
   private void signIn() throws Exception {
-    assertThat(json("/ott/generate", "{\"email\":\"" + ADDRESS + "\"}").statusCode())
+    assertThat(json("/who/email/send", "{\"email\":\"" + ADDRESS + "\"}").statusCode())
         .isLessThan(300);
     String link = SENT.getLast().link();
     String token = link.substring(link.indexOf("#token=") + "#token=".length());
-    assertThat(json("/login/ott", "{\"token\":\"" + token + "\"}").statusCode()).isEqualTo(200);
+    assertThat(json("/who/email/sign-in", "{\"token\":\"" + token + "\"}").statusCode())
+        .isEqualTo(200);
   }
 
   @Test

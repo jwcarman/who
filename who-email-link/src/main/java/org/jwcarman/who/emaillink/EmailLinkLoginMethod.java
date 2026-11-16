@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.Set;
 
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,11 +31,19 @@ import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenR
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 /**
- * Email-link sign-in through Spring Security's {@code oneTimeTokenLogin()}, at its default URLs
- * ({@code POST /ott/generate}, {@code POST /login/ott}), with who's hooks and no default pages.
+ * Email-link sign-in through Spring Security's {@code oneTimeTokenLogin()}, under {@code
+ * who.base-path} ({@code POST /who/email/send}, {@code POST /who/email/sign-in} by default), with
+ * who's hooks and no default pages.
  */
 public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
 
+  /** Sends the sign-in email, below the root. */
+  private static final String SEND = "/email/send";
+
+  /** Signs a link's token or a typed code in, below the root. */
+  private static final String SIGN_IN = "/email/sign-in";
+
+  private final WhoPaths paths;
   private final OneTimeTokenService tokenService;
   private final GenerateOneTimeTokenRequestResolver generateRequestResolver;
   private final OneTimeTokenGenerationSuccessHandler generationSuccessHandler;
@@ -46,6 +55,7 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
   /**
    * Creates a new login method.
    *
+   * @param paths where the sign-in endpoints live
    * @param tokenService generates and consumes tokens
    * @param generateRequestResolver reads the generation request
    * @param generationSuccessHandler answers the generation request and sends the link
@@ -55,6 +65,7 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
    * @param failureHandler answers a failed sign-in
    */
   public EmailLinkLoginMethod(
+      WhoPaths paths,
       OneTimeTokenService tokenService,
       GenerateOneTimeTokenRequestResolver generateRequestResolver,
       OneTimeTokenGenerationSuccessHandler generationSuccessHandler,
@@ -62,6 +73,7 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
       AuthenticationProvider authenticationProvider,
       AuthenticationSuccessHandler successHandler,
       AuthenticationFailureHandler failureHandler) {
+    this.paths = requireNonNull(paths, "paths must not be null");
     this.tokenService = requireNonNull(tokenService, "tokenService must not be null");
     this.generateRequestResolver =
         requireNonNull(generateRequestResolver, "generateRequestResolver must not be null");
@@ -78,14 +90,16 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
   /** The endpoints that send a sign-in email and sign a link or code in. */
   @Override
   public Set<String> publicPaths() {
-    return Set.of("/ott/generate", "/login/ott");
+    return Set.of(paths.of(SEND), paths.of(SIGN_IN));
   }
 
   @Override
   public void configure(HttpSecurity http) {
     http.oneTimeTokenLogin(
         ott ->
-            ott.tokenService(tokenService)
+            ott.tokenGeneratingUrl(paths.of(SEND))
+                .loginProcessingUrl(paths.of(SIGN_IN))
+                .tokenService(tokenService)
                 .generateRequestResolver(generateRequestResolver)
                 .tokenGenerationSuccessHandler(generationSuccessHandler)
                 .authenticationConverter(authenticationConverter)

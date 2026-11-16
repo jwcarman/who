@@ -38,10 +38,10 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.observation.ObservationRegistry;
 
 /**
- * Does the real work behind {@code POST /ott/generate}, off the request thread: looks up the
+ * Does the real work behind {@code POST /who/email/send}, off the request thread: looks up the
  * address, stores the token's hash (the upsert that is also the resend limit), and sends the link.
  *
- * <p>Nothing here is visible to the {@code /ott/generate} caller, who has already been answered
+ * <p>Nothing here is visible to the {@code /who/email/send} caller, who has already been answered
  * {@code 202}; that path ignores the {@link EmailLinkOutcome}. {@link #issue} never throws: every
  * failure is logged at WARN with only the credential id (when known) and the exception class, never
  * the exception message, the address or the token value.

@@ -31,9 +31,9 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Fuzzes the JSON bodies of the two unauthenticated sign-in endpoints, {@code /login/ott} and
- * {@code /ott/generate}. Runs as a quick regression test in every build; {@code JAZZER_FUZZ=1}
- * generates new inputs.
+ * Fuzzes the JSON bodies of the two unauthenticated sign-in endpoints, {@code /who/email/sign-in}
+ * and {@code /who/email/send}. Runs as a quick regression test in every build; {@code
+ * JAZZER_FUZZ=1} generates new inputs.
  */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class SignInRequestFuzzTest {
@@ -55,7 +55,7 @@ class SignInRequestFuzzTest {
 
   @FuzzTest(maxDuration = "2m")
   void login_body_becomes_one_well_formed_proof(byte[] body) {
-    Authentication result = CONVERTER.convert(post("/login/ott", body));
+    Authentication result = CONVERTER.convert(post("/who/email/sign-in", body));
 
     assertThat(result).isInstanceOf(EmailSignInAuthenticationToken.class);
     assertThat(result.isAuthenticated()).isFalse();
@@ -77,7 +77,7 @@ class SignInRequestFuzzTest {
 
   @FuzzTest(maxDuration = "2m")
   void generate_body_becomes_an_address_or_the_no_address_marker(byte[] body) {
-    GenerateOneTimeTokenRequest result = RESOLVER.resolve(post("/ott/generate", body));
+    GenerateOneTimeTokenRequest result = RESOLVER.resolve(post("/who/email/send", body));
 
     String username = result.getUsername();
     assertThat(username).isNotBlank();

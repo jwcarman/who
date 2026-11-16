@@ -23,9 +23,9 @@ import java.util.UUID;
 import org.jwcarman.who.core.event.WhoEvent;
 
 /**
- * A sign-in email was requested at {@code POST /ott/generate}, published once per request by {@link
- * EmailLinkIssuer#issue} with what became of it. Published on the email thread, after the caller
- * has been answered.
+ * A sign-in email was requested at {@code POST /who/email/send}, published once per request by
+ * {@link EmailLinkIssuer#issue} with what became of it. Published on the email thread, after the
+ * caller has been answered.
  *
  * <p>The address is personal data.
  *

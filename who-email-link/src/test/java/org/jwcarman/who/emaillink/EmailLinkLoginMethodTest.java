@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.emaillink;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -34,7 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
 class EmailLinkLoginMethodTest {
 
   @Test
-  void configuresEveryHookAndLeavesTheUrlsAlone() {
+  void configuresEveryHookAndPutsTheUrlsUnderTheRoot() {
     JsonMapper mapper = JsonMapper.builder().build();
     WhoOneTimeTokenService tokenService = mock(WhoOneTimeTokenService.class);
     JsonGenerateOneTimeTokenRequestResolver resolver =
@@ -48,7 +50,16 @@ class EmailLinkLoginMethodTest {
     AuthenticationFailureHandler failure = mock(AuthenticationFailureHandler.class);
     EmailLinkLoginMethod method =
         new EmailLinkLoginMethod(
-            tokenService, resolver, generationHandler, converter, provider, success, failure);
+            new WhoPaths("/auth"),
+            tokenService,
+            resolver,
+            generationHandler,
+            converter,
+            provider,
+            success,
+            failure);
+    assertThat(method.publicPaths())
+        .containsExactlyInAnyOrder("/auth/email/send", "/auth/email/sign-in");
 
     HttpSecurity http = mock(HttpSecurity.class);
     method.configure(http);
@@ -59,6 +70,8 @@ class EmailLinkLoginMethodTest {
     OneTimeTokenLoginConfigurer<HttpSecurity> ott = mock(RETURNS_SELF);
     customizer.getValue().customize(ott);
 
+    verify(ott).tokenGeneratingUrl("/auth/email/send");
+    verify(ott).loginProcessingUrl("/auth/email/sign-in");
     verify(ott).tokenService(tokenService);
     verify(ott).generateRequestResolver(resolver);
     verify(ott).tokenGenerationSuccessHandler(generationHandler);
@@ -67,8 +80,6 @@ class EmailLinkLoginMethodTest {
     verify(ott).successHandler(success);
     verify(ott).failureHandler(failure);
     verify(ott).showDefaultSubmitPage(false);
-    verify(ott, never()).tokenGeneratingUrl(anyString());
-    verify(ott, never()).loginProcessingUrl(anyString());
     verify(ott, never()).loginPage(anyString());
     verify(ott, never()).defaultSubmitPageUrl(anyString());
   }

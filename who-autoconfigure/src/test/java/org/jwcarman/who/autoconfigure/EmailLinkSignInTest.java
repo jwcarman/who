@@ -289,7 +289,7 @@ class EmailLinkSignInTest {
   }
 
   private static MockHttpServletRequestBuilder generate(String body) {
-    return post("/ott/generate").contentType(MediaType.APPLICATION_JSON).content(body);
+    return post("/who/email/send").contentType(MediaType.APPLICATION_JSON).content(body);
   }
 
   private static MockHttpServletRequestBuilder confirm(String token) {
@@ -297,7 +297,7 @@ class EmailLinkSignInTest {
   }
 
   private static MockHttpServletRequestBuilder confirmBody(String body) {
-    return post("/login/ott").contentType(MediaType.APPLICATION_JSON).content(body);
+    return post("/who/email/sign-in").contentType(MediaType.APPLICATION_JSON).content(body);
   }
 
   private static MockHttpServletRequestBuilder confirmCode(String email, String code) {
@@ -357,6 +357,25 @@ class EmailLinkSignInTest {
         .andExpect(jsonPath("$.identityId").value(identity.id().toString()))
         .andExpect(jsonPath("$.permissions.length()").value(1))
         .andExpect(jsonPath("$.permissions[0]").value("task.read"));
+  }
+
+  @Test
+  void theOldEndpointsAreGone() throws Exception {
+    Browser browser = new Browser(mvc);
+
+    browser.performWithCsrf(
+        post("/ott/generate")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"email\":\"" + ADDRESS + "\"}"));
+    assertThat(sender.sent).isEmpty();
+
+    browser.performWithCsrf(generate("{\"email\":\"" + ADDRESS + "\"}"));
+    String token = sender.sent.getFirst().token();
+    browser.performWithCsrf(
+        post("/login/ott")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"token\":\"" + token + "\"}"));
+    assertThat(browser.perform(get("/who/me")).getResponse().getStatus()).isEqualTo(401);
   }
 
   @Test

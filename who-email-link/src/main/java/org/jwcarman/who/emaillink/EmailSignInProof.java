@@ -18,9 +18,9 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 /**
- * What a sign-in request at {@code POST /login/ott} presents: the token from the emailed link, the
- * address and code typed by hand, or something malformed. The secret parts never appear in {@code
- * toString()}.
+ * What a sign-in request at {@code POST /who/email/sign-in} presents: the token from the emailed
+ * link, the address and code typed by hand, or something malformed. The secret parts never appear
+ * in {@code toString()}.
  */
 public sealed interface EmailSignInProof {
 

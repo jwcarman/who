@@ -310,11 +310,11 @@ class WhoSecurityStatelessTest {
 
   /** Signs the browser in on the web chain with an emailed link: it now has a session cookie. */
   private void signIn() throws Exception {
-    assertThat(send(json("/ott/generate", "{\"email\":\"" + ADDRESS + "\"}")).statusCode())
+    assertThat(send(json("/who/email/send", "{\"email\":\"" + ADDRESS + "\"}")).statusCode())
         .isLessThan(300);
     String link = SENT.getLast().link();
     String token = link.substring(link.indexOf("#token=") + "#token=".length());
-    assertThat(send(json("/login/ott", "{\"token\":\"" + token + "\"}")).statusCode())
+    assertThat(send(json("/who/email/sign-in", "{\"token\":\"" + token + "\"}")).statusCode())
         .isEqualTo(200);
   }
 

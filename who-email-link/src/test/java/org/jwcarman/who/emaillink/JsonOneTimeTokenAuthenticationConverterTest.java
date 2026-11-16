@@ -35,7 +35,7 @@ class JsonOneTimeTokenAuthenticationConverterTest {
       new JsonOneTimeTokenAuthenticationConverter(JsonMapper.builder().build());
 
   private static MockHttpServletRequest post(String body) {
-    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/login/ott");
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/email/sign-in");
     request.setContentType("application/json");
     request.setContent(body.getBytes(UTF_8));
     return request;
@@ -86,7 +86,7 @@ class JsonOneTimeTokenAuthenticationConverterTest {
 
   @Test
   void requestWithNoBodyNeverGivesNull() {
-    assertThat(proofOf(converter.convert(new MockHttpServletRequest("POST", "/login/ott"))))
+    assertThat(proofOf(converter.convert(new MockHttpServletRequest("POST", "/who/email/sign-in"))))
         .isEqualTo(new Malformed());
   }
 }

@@ -250,7 +250,7 @@ class PasskeyRegistrationGuardFilterTest {
     "POST," + REGISTER + "/abc",
     "POST,/webauthn/authenticate/options",
     "POST,/login/webauthn",
-    "POST,/ott/generate",
+    "POST,/who/email/send",
   })
   void guardIgnoresEverythingElse(String method, String path) throws ServletException, IOException {
     guard.doFilter(request(method, path), response, passing);

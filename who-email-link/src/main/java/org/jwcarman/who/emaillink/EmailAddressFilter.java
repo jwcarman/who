@@ -33,6 +33,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoSignInFactors;
@@ -57,17 +58,11 @@ import tools.jackson.databind.json.JsonMapper;
  */
 final class EmailAddressFilter extends OncePerRequestFilter {
 
-  static final String ADDRESSES_URL = "/who/email/addresses";
-  static final String CONFIRM_URL = ADDRESSES_URL + "/confirm";
-
   /** The body field naming the address a request replaces. */
   private static final String REPLACES = "replaces";
 
-  private static final RequestMatcher ADDRESSES =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, ADDRESSES_URL);
-  private static final RequestMatcher CONFIRM =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, CONFIRM_URL);
-
+  private final RequestMatcher addresses;
+  private final RequestMatcher confirm;
   private final EmailAddressChanges changes;
   private final WhoSessionSecurityContextRepository sessions;
   private final WhoExceptionHandoff handoff;
@@ -77,6 +72,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
   private final Duration recentSignIn;
 
   EmailAddressFilter(
+      WhoPaths paths,
       EmailAddressChanges changes,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
@@ -84,6 +80,10 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       JsonMapper jsonMapper,
       Clock clock,
       Duration recentSignIn) {
+    String url = requireNonNull(paths, "paths must not be null").of("/email/addresses");
+    this.addresses = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url);
+    this.confirm =
+        PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url + "/confirm");
     this.changes = requireNonNull(changes, "changes must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
@@ -95,7 +95,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !ADDRESSES.matches(request) && !CONFIRM.matches(request);
+    return !addresses.matches(request) && !confirm.matches(request);
   }
 
   @Override
@@ -113,7 +113,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    if (ADDRESSES.matches(request)) {
+    if (addresses.matches(request)) {
       request(request, response, signedIn.get().identity());
     } else {
       confirm(request, response, signedIn.get().identity());

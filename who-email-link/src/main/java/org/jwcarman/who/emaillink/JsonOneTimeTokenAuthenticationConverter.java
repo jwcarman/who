@@ -30,11 +30,11 @@ import org.springframework.security.web.authentication.AuthenticationConverter;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Reads the body of {@code POST /login/ott}: either {@code {"token": "..."}} from the emailed link,
- * or {@code {"email": "...", "code": "..."}} typed by hand. Anything else, including a body with
- * both, yields {@link Malformed}, never {@code null} or an exception, so every sign-in failure
- * reaches the failure handler and gets the same answer. The code is passed on exactly as typed;
- * {@link EmailLinkAuthenticationProvider} normalizes it.
+ * Reads the body of {@code POST /who/email/sign-in}: either {@code {"token": "..."}} from the
+ * emailed link, or {@code {"email": "...", "code": "..."}} typed by hand. Anything else, including
+ * a body with both, yields {@link Malformed}, never {@code null} or an exception, so every sign-in
+ * failure reaches the failure handler and gets the same answer. The code is passed on exactly as
+ * typed; {@link EmailLinkAuthenticationProvider} normalizes it.
  */
 public class JsonOneTimeTokenAuthenticationConverter implements AuthenticationConverter {
 

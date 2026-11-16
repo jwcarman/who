@@ -164,11 +164,12 @@ class WhoSessionsEndpointsTest {
     }
 
     Browser signIn() throws Exception {
-      assertThat(post("/ott/generate", "{\"email\":\"" + ADDRESS + "\"}").statusCode())
+      assertThat(post("/who/email/send", "{\"email\":\"" + ADDRESS + "\"}").statusCode())
           .isLessThan(300);
       String link = SENT.getLast().link();
       String token = link.substring(link.indexOf("#token=") + "#token=".length());
-      assertThat(post("/login/ott", "{\"token\":\"" + token + "\"}").statusCode()).isEqualTo(200);
+      assertThat(post("/who/email/sign-in", "{\"token\":\"" + token + "\"}").statusCode())
+          .isEqualTo(200);
       return this;
     }
 

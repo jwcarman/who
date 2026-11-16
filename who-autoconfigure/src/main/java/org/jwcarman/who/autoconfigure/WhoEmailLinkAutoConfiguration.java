@@ -44,6 +44,7 @@ import org.jwcarman.who.emaillink.JsonGenerateOneTimeTokenRequestResolver;
 import org.jwcarman.who.emaillink.JsonOneTimeTokenAuthenticationConverter;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
 import org.jwcarman.who.emaillink.WhoOneTimeTokenService;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
@@ -376,6 +377,7 @@ public class WhoEmailLinkAutoConfiguration {
    * @param settings the email-link settings
    * @param clock checks expiry and stamps events
    * @param whoEventPublisher publishes sign-in events
+   * @param paths where the sign-in endpoints live
    * @return the login method
    */
   @Bean
@@ -390,8 +392,10 @@ public class WhoEmailLinkAutoConfiguration {
       EmailLinkTokenRepository emailLinkTokenRepository,
       EmailLinkSettings settings,
       Clock clock,
-      WhoEventPublisher whoEventPublisher) {
+      WhoEventPublisher whoEventPublisher,
+      WhoPaths paths) {
     return new EmailLinkLoginMethod(
+        paths,
         tokenService,
         generateRequestResolver,
         generationSuccessHandler,
@@ -461,6 +465,7 @@ public class WhoEmailLinkAutoConfiguration {
    * @param jsonMapper reads and writes JSON; a default one when the application has none
    * @param clock checks how recently the person signed in
    * @param properties who's properties, for the recent-sign-in window
+   * @param paths where the endpoints live
    * @return the endpoints
    */
   @Bean
@@ -472,8 +477,10 @@ public class WhoEmailLinkAutoConfiguration {
       @Qualifier(EXECUTOR_BEAN_NAME) Executor executor,
       ObjectProvider<JsonMapper> jsonMapper,
       Clock clock,
-      WhoProperties properties) {
+      WhoProperties properties,
+      WhoPaths paths) {
     return new EmailAddressEndpoints(
+        paths,
         emailAddressChanges,
         sessionRepository,
         handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),

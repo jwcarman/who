@@ -270,12 +270,13 @@ class PasskeySignInTest {
     int before = sender.sent.size();
     MvcResult generated =
         browser.performWithCsrf(
-            json(post("/ott/generate")).content("{\"email\":\"" + address + "\"}"));
+            json(post("/who/email/send")).content("{\"email\":\"" + address + "\"}"));
     assertThat(generated.getResponse().getStatus()).isEqualTo(202);
     assertThat(sender.sent).hasSize(before + 1);
     String token = sender.sent.getLast().token();
     MvcResult confirmed =
-        browser.performWithCsrf(json(post("/login/ott")).content("{\"token\":\"" + token + "\"}"));
+        browser.performWithCsrf(
+            json(post("/who/email/sign-in")).content("{\"token\":\"" + token + "\"}"));
     assertThat(confirmed.getResponse().getStatus()).isEqualTo(200);
     assertThat(browser.me()).isEqualTo(200);
   }

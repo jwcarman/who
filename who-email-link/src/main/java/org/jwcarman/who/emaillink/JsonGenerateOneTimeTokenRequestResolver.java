@@ -27,7 +27,7 @@ import org.springframework.security.web.authentication.ott.GenerateOneTimeTokenR
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Reads {@code {"email": "..."}} from the body of {@code POST /ott/generate}.
+ * Reads {@code {"email": "..."}} from the body of {@code POST /who/email/send}.
  *
  * <p>Malformed input of any kind never throws and never yields {@code null} (which would make
  * Spring skip the success handler and answer differently): it yields a request for {@link

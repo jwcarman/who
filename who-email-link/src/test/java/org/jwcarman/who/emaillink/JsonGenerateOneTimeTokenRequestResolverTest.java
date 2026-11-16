@@ -32,7 +32,7 @@ class JsonGenerateOneTimeTokenRequestResolverTest {
       new JsonGenerateOneTimeTokenRequestResolver(JsonMapper.builder().build());
 
   private static MockHttpServletRequest post(String body) {
-    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/ott/generate");
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/email/send");
     request.setContentType("application/json");
     request.setContent(body.getBytes(UTF_8));
     return request;
@@ -69,7 +69,7 @@ class JsonGenerateOneTimeTokenRequestResolverTest {
   @Test
   void requestWithNoBodyGivesTheNoAddressUsername() {
     GenerateOneTimeTokenRequest result =
-        resolver.resolve(new MockHttpServletRequest("POST", "/ott/generate"));
+        resolver.resolve(new MockHttpServletRequest("POST", "/who/email/send"));
 
     assertThat(result.getUsername()).isEqualTo(JsonGenerateOneTimeTokenRequestResolver.NO_ADDRESS);
   }

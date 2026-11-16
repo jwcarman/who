@@ -49,8 +49,8 @@ public interface EmailLinkTokenRepository {
    *
    * <p>The increment must commit even when the sign-in then fails. who calls this method outside
    * any transaction, so it autocommits. A custom implementation, or an application that runs {@code
-   * /login/ott} inside a transaction, must not let a failed sign-in roll back the increment, or the
-   * attempt cap stops working.
+   * /who/email/sign-in} inside a transaction, must not let a failed sign-in roll back the
+   * increment, or the attempt cap stops working.
    *
    * @param normalizedAddress the normalized email address
    * @param maxAttempts the most attempts a token allows

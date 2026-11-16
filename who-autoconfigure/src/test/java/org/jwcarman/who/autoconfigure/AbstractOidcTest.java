@@ -324,14 +324,14 @@ abstract class AbstractOidcTest {
   /** Signs the browser in by email link, a real sign-in that keeps the session's attributes. */
   void signInByEmailLink(String address) throws Exception {
     browser.perform(
-        post("/ott/generate")
+        post("/who/email/send")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"email\":\"" + address + "\"}"));
     String token = sender.sent.getLast().token();
     MvcResult result =
         browser
             .perform(
-                post("/login/ott")
+                post("/who/email/sign-in")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"token\":\"" + token + "\"}"))
             .andReturn();

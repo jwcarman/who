@@ -226,7 +226,7 @@ class ApiKeyErrorDispatchTest {
             .findFirst()
             .orElseThrow();
     return browser.send(
-        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/login/ott"))
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/who/email/sign-in"))
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .header("X-XSRF-TOKEN", csrf)

@@ -50,9 +50,10 @@ class WhoPublicPathsTest {
   @Test
   void adds_each_methods_paths_then_the_configured_ones() {
     assertThat(
-            new WhoPublicPaths(List.of(method("/login/ott")), List.of("/signin", "/assets/**"))
+            new WhoPublicPaths(
+                    List.of(method("/who/email/sign-in")), List.of("/signin", "/assets/**"))
                 .patterns())
-        .containsExactly("/error", "/login/ott", "/signin", "/assets/**");
+        .containsExactly("/error", "/who/email/sign-in", "/signin", "/assets/**");
   }
 
   @Test

@@ -261,14 +261,14 @@ class SpringSessionJdbcTest {
     Browser browser = new Browser(mvc);
     browser.perform(get("/who/me"));
     browser.perform(
-        post("/ott/generate")
+        post("/who/email/send")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"email\":\"" + ADDRESS + "\"}"));
     assertThat(sender.tokens).hasSize(1);
 
     MvcResult signedIn =
         browser.perform(
-            post("/login/ott")
+            post("/who/email/sign-in")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"token\":\"" + sender.tokens.getFirst() + "\"}"));
     assertThat(signedIn.getResponse().getStatus()).isEqualTo(200);

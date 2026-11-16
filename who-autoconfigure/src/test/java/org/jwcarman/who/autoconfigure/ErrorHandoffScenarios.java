@@ -162,9 +162,10 @@ abstract class ErrorHandoffScenarios {
 
   private Browser signedIn() throws Exception {
     Browser browser = new Browser(mvc);
-    browser.performWithCsrf(json(post("/ott/generate")).content("{\"email\":\"" + OWNER + "\"}"));
+    browser.performWithCsrf(json(post("/who/email/send")).content("{\"email\":\"" + OWNER + "\"}"));
     String token = sender.sent.getLast().token();
-    browser.performWithCsrf(json(post("/login/ott")).content("{\"token\":\"" + token + "\"}"));
+    browser.performWithCsrf(
+        json(post("/who/email/sign-in")).content("{\"token\":\"" + token + "\"}"));
     assertThat(browser.me()).isEqualTo(200);
     return browser;
   }
@@ -172,7 +173,7 @@ abstract class ErrorHandoffScenarios {
   MvcResult badSignInToken() throws Exception {
     return new Browser(mvc)
         .performWithCsrf(
-            json(post("/login/ott")).content("{\"token\":\"" + "x".repeat(43) + "\"}"));
+            json(post("/who/email/sign-in")).content("{\"token\":\"" + "x".repeat(43) + "\"}"));
   }
 
   MvcResult unknownPasskeySignIn() throws Exception {
