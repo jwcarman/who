@@ -41,6 +41,8 @@ export interface Call<T, R extends string> {
   path: string;
   body?: unknown;
   accept?: string;
+  /** Extra request headers for this one call. */
+  headers?: Record<string, string>;
   /** Reads a success's value. */
   read: (response: Response) => Promise<T>;
   /** The call's reason for a failed status and `Who-Error` code, or undefined if unexpected. */
@@ -134,7 +136,7 @@ export class WhoHttp<D> {
 
   /** Makes the call, answering its result; throws for anything the call does not expect. */
   async call<T, R extends string>(call: Call<T, R>): Promise<WhoResult<T, R, D>> {
-    const response = await this.send(call.method, call.path, call.body, call.accept);
+    const response = await this.send(call.method, call.path, call.body, call.accept, call.headers);
     const where = `${call.method} ${call.path}`;
     if (response.ok) {
       try {
@@ -163,13 +165,19 @@ export class WhoHttp<D> {
     await this.fetch(this.url("/me"), { credentials: this.credentials });
   }
 
-  private async send(method: string, path: string, body: unknown, accept: string | undefined): Promise<Response> {
+  private async send(
+    method: string,
+    path: string,
+    body: unknown,
+    accept: string | undefined,
+    extra: Record<string, string> = {},
+  ): Promise<Response> {
     const unsafe = method !== "GET";
     // the cookie exists only after a response from who
     if (unsafe && csrfToken() === undefined) {
       await this.refreshCsrf();
     }
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...extra };
     if (accept !== undefined) {
       headers.Accept = accept;
     }

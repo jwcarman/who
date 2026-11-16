@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 export { createWhoClient, type Me, type WhoClient } from "./client.js";
-export type { ConfirmAddressFailure, Email, SignedIn } from "./email.js";
+export type {
+  ConfirmAddressFailure,
+  Email,
+  EmailSignInFailure,
+  HumanCheckFailed,
+  HumanCheckOptions,
+  SignedIn,
+} from "./email.js";
 export type { WhoClientOptions } from "./http.js";
 export type { Oidc, PendingSignUp } from "./oidc.js";
 export type { Passkeys } from "./passkeys.js";

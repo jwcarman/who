@@ -21,6 +21,18 @@ export interface SignedIn {
   identityId: string;
 }
 
+/** The human check's refusal: show its widget again and retry with a fresh token. */
+export type HumanCheckFailed = "human-check-failed";
+
+/** Options for a call the application's human check guards. */
+export interface HumanCheckOptions {
+  /** The token from the human check's widget, such as Cloudflare Turnstile's; each works once. */
+  humanCheck?: string;
+}
+
+/** The reasons signing in by email can fail. */
+export type EmailSignInFailure = "rejected" | HumanCheckFailed;
+
 /** The reasons confirming a new address can fail. */
 export type ConfirmAddressFailure = SignInRequired | "rejected" | "conflict";
 
@@ -28,16 +40,19 @@ export type ConfirmAddressFailure = SignInRequired | "rejected" | "conflict";
 export interface Email<D> {
   /**
    * Emails a sign-in link and code. who answers the same whether or not the address is known, so
-   * the answer tells an attacker nothing.
+   * the answer tells an attacker nothing. Fails only when the application's human check refuses.
    */
-  send(email: string): Promise<void>;
+  send(email: string, options?: HumanCheckOptions): Promise<WhoResult<void, HumanCheckFailed, D>>;
   /** Signs in with a link's token, or with the address and the emailed code. */
-  signIn(credentials: { token: string } | { email: string; code: string }): Promise<WhoResult<SignedIn, "rejected", D>>;
+  signIn(
+    credentials: { token: string } | { email: string; code: string },
+    options?: HumanCheckOptions,
+  ): Promise<WhoResult<SignedIn, EmailSignInFailure, D>>;
   /**
    * Signs in with the link's token in this page's URL (`#token=...`), first taking it out of the
    * address bar and history; answers null when the URL has none.
    */
-  signInFromLocation(): Promise<WhoResult<SignedIn, "rejected", D> | null>;
+  signInFromLocation(options?: HumanCheckOptions): Promise<WhoResult<SignedIn, EmailSignInFailure, D> | null>;
   /**
    * Emails a confirmation to a new address, or one replacing `replaces` (the id of one of your
    * addresses). Needs a recent sign-in.
@@ -64,14 +79,25 @@ function takeFromFragment(key: string): string | null {
   return token;
 }
 
+/** The header carrying a human check's token, only when there is one. */
+function humanCheckHeader(options?: HumanCheckOptions): Record<string, string> | undefined {
+  return options?.humanCheck === undefined ? undefined : { "Who-Human-Check": options.humanCheck };
+}
+
+function humanCheckFailed(status: number, code: string | null): HumanCheckFailed | undefined {
+  return status === 403 && code === "human-check-failed" ? code : undefined;
+}
+
 export function email<D>(http: WhoHttp<D>): Email<D> {
-  const signIn = (credentials: { token: string } | { email: string; code: string }) =>
+  const signIn = (credentials: { token: string } | { email: string; code: string }, options?: HumanCheckOptions) =>
     http.call({
       method: "POST",
       path: "/email/sign-in",
       body: credentials,
+      headers: humanCheckHeader(options),
       read: json<SignedIn>(),
-      reason: (status) => (status === 401 ? "rejected" : undefined),
+      reason: (status, code): EmailSignInFailure | undefined =>
+        status === 401 ? "rejected" : humanCheckFailed(status, code),
     });
   const confirmAddress = (proof: { token: string } | { code: string }) =>
     http.call({
@@ -83,19 +109,19 @@ export function email<D>(http: WhoHttp<D>): Email<D> {
         signInRequired(status, code) ?? (status === 400 ? "rejected" : status === 409 ? "conflict" : undefined),
     });
   return {
-    send: async (address) => {
-      await http.call({
+    send: (address, options) =>
+      http.call({
         method: "POST",
         path: "/email/send",
         body: { email: address },
+        headers: humanCheckHeader(options),
         read: nothing,
-        reason: () => undefined,
-      });
-    },
+        reason: humanCheckFailed,
+      }),
     signIn,
-    signInFromLocation: async () => {
+    signInFromLocation: async (options) => {
       const token = takeFromFragment("token");
-      return token === null ? null : signIn({ token });
+      return token === null ? null : signIn({ token }, options);
     },
     addAddress: (address, replaces) =>
       http.call({
