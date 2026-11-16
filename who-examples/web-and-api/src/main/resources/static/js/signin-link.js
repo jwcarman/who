@@ -4,7 +4,10 @@ function next() {
   try {
     const saved = localStorage.getItem('who-next');
     localStorage.removeItem('who-next');
-    return saved && saved.startsWith('/') && !saved.startsWith('//') ? saved : '/';
+    if (!saved) return '/';
+    // only a page of this site: '//evil.example' and '/\evil.example' resolve to another origin
+    const url = new URL(saved, location.origin);
+    return url.origin === location.origin ? url.pathname + url.search + url.hash : '/';
   } catch {
     return '/';
   }

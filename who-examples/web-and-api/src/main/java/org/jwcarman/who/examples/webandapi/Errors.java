@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * who hands its errors to the application's exception handling, from both chains (see the Errors
@@ -62,8 +63,12 @@ class Errors {
       return ResponseEntity.status(HttpStatus.SEE_OTHER)
           .header(
               HttpHeaders.LOCATION,
-              "/signin?again="
-                  + request.getRequestURI().substring(request.getContextPath().length()))
+              UriComponentsBuilder.fromPath(request.getContextPath() + "/signin")
+                  .queryParam(
+                      "again", request.getRequestURI().substring(request.getContextPath().length()))
+                  .encode()
+                  .build()
+                  .toUriString())
           .build();
     }
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
