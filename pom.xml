@@ -80,6 +80,13 @@
 
         <!-- License Header Configuration -->
         <license.owner>James Carman</license.owner>
+
+        <!-- Node for who-client and the spa example: the current LTS, downloaded into target/ by
+             the build, so no Node is needed on the machine. -Dwho.frontend.skip skips both, for
+             building who offline. -->
+        <node.version>v26.13.0</node.version>
+        <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
+        <who.frontend.skip>false</who.frontend.skip>
     </properties>
 
     <url>https://github.com/jwcarman/who</url>
@@ -124,6 +131,7 @@
         <module>who-oidc</module>
         <module>who-autoconfigure</module>
         <module>who-spring-boot-starter</module>
+        <module>who-client</module>
         <module>who-examples</module>
     </modules>
 
@@ -469,12 +477,16 @@ limitations under the License.]]></inlineHeader>
                                         <exclude>site/**</exclude>
                                         <!-- the single-page app example's npm packages and build -->
                                         <exclude>**/node_modules/**</exclude>
+                                        <!-- who-client's build output, and its ignore file (no comment syntax) -->
+                                        <exclude>**/dist/**</exclude>
+                                        <exclude>**/.prettierignore</exclude>
                                     </excludes>
                                 </licenseSet>
                             </licenseSets>
                             <mapping>
                                 <ts>SLASHSTAR_STYLE</ts>
                                 <tsx>SLASHSTAR_STYLE</tsx>
+                                <mjs>SLASHSTAR_STYLE</mjs>
                             </mapping>
                         </configuration>
                         <executions>

@@ -121,13 +121,6 @@
         </dependency>
     </dependencies>
 
-    <properties>
-        <!-- Current Node LTS, downloaded into target/ by the build: no Node needed on the machine. -->
-        <node.version>v26.13.0</node.version>
-        <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
-        <!-- -Dwho.frontend.skip skips the front end, for building who offline. -->
-        <who.frontend.skip>false</who.frontend.skip>
-    </properties>
 
     <build>
         <plugins>
