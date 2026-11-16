@@ -11,6 +11,7 @@
 | `who.oidc.enabled` | `true` | Turns provider sign-in off when `false`, with `who-oidc` still on the classpath |
 | `who.enrollment.enabled` | `true` | Turns enrollment tokens off when `false`, with `who-enrollment` still on the classpath |
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
+| `who.security.recent-sign-in` | `10m` | How recently the browser session must have signed in to add a way to sign in: register a passkey, link a provider account, add or change an email address. Checked when the request starts and when it is confirmed; a started provider link lasts as long |
 | `who.security.last-sign-in-cookie.enabled` | `true` | Sets the `who_last_sign_in` cookie after a browser sign-in. See [Sessions](sessions.md#the-last-sign-in-cookie) |
 | `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off |
 | `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |
@@ -19,18 +20,19 @@
 | `who.email-link.resend-interval` | `60s` | Minimum time between two links for the same address. Startup fails if it is longer than `token-ttl` |
 | `who.email-link.from` | none | Sender address of sign-in emails. Required when links go out through Spring Boot's `JavaMailSender` |
 | `who.email-link.subject` | `Your sign-in link and code` | Subject of sign-in emails |
+| `who.email-link.address-confirmation-url` | `link-base-url` | Page of your app that receives the link confirming an address being added or changed. The token is appended as `#confirm-address=...`. The person must be signed in there |
+| `who.email-link.address-confirmation-subject` | `Confirm your email address` | Subject of the email confirming an address being added or changed |
+| `who.email-link.address-changed-subject` | `Your email address was changed` | Subject of the email telling an address it was replaced |
 | `who.email-link.code-length` | `6` | Number of characters in the typed sign-in code. At least 6 |
 | `who.email-link.code-max-attempts` | `5` | Wrong guesses a sign-in code survives before it is burnt. The link still works. At least 1 |
 | `who.email-link.code-secret` | none | Secret that keys the code hash. Required with `who-email-link`, at least 32 characters, the same on every instance. Never stored in the database |
 | `who.passkey.rp-id` | none | The application's own host, such as `app.example.com`. Required with `who-passkey`: startup fails without it. Never use a registrable domain that other apps share |
 | `who.passkey.rp-name` | `who` | Name of the relying party, shown by authenticators. Must not be blank |
 | `who.passkey.allowed-origins` | `https://<rp-id>` | Origins a registration or sign-in response may come from: each a scheme (`http` or `https`), a host and an optional port, with no path, such as `http://localhost:8080`. Startup fails on anything else |
-| `who.passkey.registration-window` | `10m` | How recently the session must have signed in to register a passkey |
 | `who.passkey.from` | none | Sender address of the "passkey added" email. The email is sent only when this is set, `who-email-link` is on and a `JavaMailSender` exists. It does not fall back to `who.email-link.from`. When the email cannot be sent, who logs a warning at startup |
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
 | `who.oidc.failure-url` | `/` | Where every other provider sign-in outcome lands, with `error=no-account`, `already-linked`, `signed-in` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
 | `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
-| `who.oidc.link-window` | `10m` | How recently the identity must have signed in to link a provider account, and how long a started link lasts |
 | `who.oidc.providers.<id>.enabled` | `true` | Leaves one client registration out of sign-in when `false` |
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints, or an OAuth 2 provider |
 | `who.oidc.providers.<id>.subject-attribute` | none | The user-info attribute holding the account's immutable id, for an OAuth 2 provider other than github.com |

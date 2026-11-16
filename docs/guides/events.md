@@ -51,6 +51,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `SignedOut` | who-core | A caller signs out of a who session. | `identityId`, `credentialId` |
 | `SessionEnded` | who-core | who drops a session because its identity is no longer active or its credential was revoked. | `identityId`, `credentialId`, `reason` |
 | `SignInEmailRequested` | who-email-link | A request to `POST /ott/generate` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
+| `EmailAddressConfirmationRequested` | who-email-link | A request to `POST /who/email/addresses` has been handled, once per request, on the email thread. | `identityId`, `address` or null, `change`, `outcome` (`SENT`, `INVALID_ADDRESS`, `ADDRESS_TAKEN`, `RESEND_SUPPRESSED`, `SEND_FAILED`) |
 | `PasskeyRegistrationRefused` | who-passkey | A signed-in identity tries to add a passkey, but signed in longer ago than the registration window allows. | `identityId`, `reason` |
 
 `SignInMethod`: `EMAIL_LINK`, `EMAIL_CODE`, `PASSKEY`, `API_KEY`, `JWT`, `OIDC`.

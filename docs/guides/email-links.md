@@ -49,24 +49,33 @@ Startup fails, and the message names the fix, if:
 Each message also says how to turn email links off without removing the jar:
 `who.email-link.enabled=false`.
 
-A custom sender is one method:
+A custom sender is one method, which takes any of who's three emails. `WhoEmail` is sealed, so a `switch` covers them all and the compiler tells you when who adds one:
 
 ```java
 @Bean
 EmailLinkSender emailLinkSender(MyMailer mailer) {
-    return message -> mailer.send(
-        message.address(),
-        "Your sign-in link and code",
-        "Sign in: " + message.link()
-            + "\n\nOr enter this code: " + message.formattedCode()
-            + "\n\nIf you didn't ask to sign in, ignore this email."
-            + " Never share this code with anyone.");
+    return email -> {
+        switch (email) {
+            case EmailLinkMessage m -> mailer.send(m.address(), "Your sign-in link and code",
+                "Sign in: " + m.link()
+                    + "\n\nOr enter this code: " + m.formattedCode()
+                    + "\n\nIf you didn't ask to sign in, ignore this email."
+                    + " Never share this code with anyone.");
+            case EmailAddressConfirmationMessage m -> mailer.send(m.address(), "Confirm your email address",
+                "Add this address to your account: " + m.link()
+                    + "\n\nOr enter this code: " + m.formattedCode()
+                    + "\n\nIf you didn't ask for this, ignore this email.");
+            case EmailAddressChangedMessage m -> mailer.send(m.address(), "Your email address was changed",
+                "Your account's email address is now " + m.maskedNewAddress()
+                    + ". If you didn't do this, contact us right away.");
+        }
+    };
 }
 ```
 
-`EmailLinkMessage` carries `address`, `link`, `code` and `expiresAt`. `formattedCode()` returns the code in groups, such as `K7F-2QM`, which is easier to read and type. The link is `link-base-url` followed by `#token=` and the token. Do not log the link or the code.
+`EmailLinkMessage` is the sign-in email. It carries `address`, `link`, `code` and `expiresAt`. `formattedCode()` returns the code in groups, such as `K7F-2QM`, which is easier to read and type. The link is `link-base-url` followed by `#token=` and the token. The other two are for [adding or changing an address](#adding-or-changing-an-address): `EmailAddressConfirmationMessage` has the same fields plus `change`, and `EmailAddressChangedMessage` goes to the replaced address, with the new one in `newAddress` and `maskedNewAddress()`. Do not log a link or a code.
 
-The default sender (through `JavaMailSender`) sends plain text: the link, the formatted code, and how long both stay valid.
+The default sender (through `JavaMailSender`) sends plain text: the link, the formatted code, and how long both stay valid. Its subjects are `who.email-link.subject`, `address-confirmation-subject` and `address-changed-subject`.
 
 See the [Configuration Reference](configuration.md) for all eight properties.
 
@@ -237,9 +246,46 @@ Identity identity = whoService.createIdentity();
 emailCredentialService.register(identity, "user@example.com");
 ```
 
-Call `register` only with an address you have verified, for example one that received an invitation. Who does not verify ownership here. `register` throws `EmailAddressTakenException` if the address is registered to another identity. If the address is already the identity's own, `register` returns that credential. If it is registered but linked to no identity (its identity was deleted directly, not with [`WhoService.deleteIdentity`](getting-started.md#deleting-an-identity)), `register` deletes that old credential, along with any sign-in link sent before, and registers a new one for the identity. Addresses are trimmed and lower-cased.
+Call `register` only with an address you vouch for, for example one you are sending an invitation to. Who does not verify ownership here. For a person adding an address to their own identity, use the [confirmed flow](#adding-or-changing-an-address) instead. `register` throws `EmailAddressTakenException` if the address is registered to another identity. If the address is already the identity's own, `register` returns that credential. If it is registered but linked to no identity (its identity was deleted directly, not with [`WhoService.deleteIdentity`](getting-started.md#deleting-an-identity)), `register` deletes that old credential, along with any sign-in link sent before, and registers a new one for the identity. Addresses are trimmed and lower-cased.
 
 `EmailCredentialService` also has `findByAddress(String)` and `revoke(UUID credentialId)`. `revoke` deletes the credential and its link to the identity.
+
+## Adding or changing an address
+
+A signed-in person can add an address to their identity, or make an address theirs in place of one they have, by confirming a link or code sent to it. Until they confirm, nothing changes: an address is never attached without proof that the person reads its mailbox. Otherwise anyone could claim another person's address, which would then be taken, or get someone to sign in to an identity that is not theirs.
+
+Both endpoints need a browser session for the signed-in identity, signed in within `who.security.recent-sign-in` (10 minutes by default), and a CSRF token like every POST. Signed out is `401` (`NotSignedInException`); an older sign-in is `401` (`ReauthenticationRequiredException`): sign the person in again and retry.
+
+Ask for an address:
+
+```js
+await post('/who/email/addresses', { address: 'new@example.com' });            // 202
+await post('/who/email/addresses', { address: 'new@example.com',
+                                     replaces: '<email credential id>' });      // 202, a change
+```
+
+The answer is `202` whatever becomes of the request, and the rest runs on the email thread, as sign-in does, so the endpoint does not tell whether an address is taken. who sends the address a link and a code unless:
+
+- the text is not an address;
+- the address is registered already, to anyone, the caller included;
+- the identity asked within `who.email-link.resend-interval`, for any address, or anyone asked for this address within it.
+
+A new request replaces the identity's earlier one. Each is published as `EmailAddressConfirmationRequested` with its outcome. `replaces` must be one of the caller's own email credentials, or the answer is `404` (`EmailCredentialNotFoundException`).
+
+The link is `who.email-link.address-confirmation-url` (default `link-base-url`) followed by `#confirm-address=` and the token. The page reads the token from the fragment and posts it, while signed in:
+
+```js
+await post('/who/email/addresses/confirm', { token });                          // { "credentialId": "..." }
+await post('/who/email/addresses/confirm', { code: 'K7F-2QM' });                 // or the typed code
+```
+
+Only the identity that asked can confirm: the same token or code does nothing for anyone else signed in. A code counts against `who.email-link.code-max-attempts`, as at sign-in. A link or code works once and lasts `who.email-link.token-ttl`. No match is `400` (`InvalidEmailAddressConfirmationException`), and an address someone registered in the meantime is `409` (`EmailAddressTakenException`).
+
+On confirmation who adds the address and publishes `CredentialAdded`. For a change, it adds the new address and revokes the old one in one transaction (`CredentialAdded`, then `CredentialRevoked`), and then emails the old address that it was replaced, showing the new one masked (`n***@example.com`). The old address is the one most likely to still belong to the real owner if someone else had their session, so it always hears about it. A failure to send that notice is logged and does not undo the change. Revoking the old address ends every session signed in with it, as any revoked credential does, including the one that made the change if it signed in with that address: the person signs in again with the new one.
+
+To remove an address without replacing it, call `EmailCredentialService.revoke` from your own endpoint, after checking that the identity keeps another way to sign in.
+
+`EmailAddressChanges` is the bean behind the endpoints, if you want the same flow under your own URLs.
 
 ## Sending a link from your own code
 
@@ -348,4 +394,4 @@ Who assumes one tenant per JVM. Each customer application should have its own da
 
 ## Database
 
-The module adds `who_email_credential` and `who_email_link_token`. The token row holds the hash of the token and the HMAC of the code, never the values. See [Database Setup](database.md).
+The module adds `who_email_credential`, `who_email_link_token` and `who_email_address_request` (a pending address change, one per identity). Token and request rows hold the hash of the token and the HMAC of the code, never the values. See [Database Setup](database.md).

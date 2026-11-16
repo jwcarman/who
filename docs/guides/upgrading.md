@@ -92,6 +92,16 @@ provider sign-in can share it.
 - **who sets the `who_last_sign_in` cookie** after every browser sign-in, naming the method used.
   Turn it off with `who.security.last-sign-in-cookie.enabled=false`. See
   [Sessions](sessions.md#the-last-sign-in-cookie).
+- **One recent sign-in setting.** `who.passkey.registration-window` and `who.oidc.link-window`
+  are gone. `who.security.recent-sign-in` (default `10m`) is how recently the browser session must
+  have signed in to register a passkey, link a provider account, or add or change an email address.
+  Starting a provider link (`POST /who/oidc/link/{registrationId}`) now checks it too.
+- **`EmailLinkSender.send` takes a `WhoEmail`.** It is sealed: the sign-in `EmailLinkMessage`, and
+  the new `EmailAddressConfirmationMessage` and `EmailAddressChangedMessage`. A custom sender
+  switches over the three; see [Email Links](email-links.md#turn-it-on).
+- **A new table, `who_email_address_request`,** for [adding or changing an
+  address](email-links.md#adding-or-changing-an-address). The bundled schema and the Liquibase
+  changelog create it; Flyway users copy it from [Database Setup](database.md#flyway).
 - **The "passkey added" startup warning moved logger.** It is now logged by
   `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`, not `WhoAutoConfiguration`.
 

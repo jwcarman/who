@@ -8,11 +8,11 @@ who formats no error responses. When something goes wrong it throws an exception
 |---|---|---|
 | `SignInFailedException` | 401 | A sign-in failed: a bad, expired or used email-link token; an unknown or invalid passkey; an inactive identity. Its message is always `"Sign-in failed"`, so the reason never reaches a response. The cause keeps it for your logs. |
 | `NotSignedInException` | 401 | A request needs a signed-in caller and has none: a protected URL, `GET /who/me`, or passkey registration while signed out. |
-| `ReauthenticationRequiredException` | 401 | Passkey registration more than `who.passkey.registration-window` after signing in. Send the user through an email link again, then retry. |
+| `ReauthenticationRequiredException` | 401 | Adding a credential (a passkey, a provider account, an email address) more than `who.security.recent-sign-in` after signing in. Sign the user in again, then retry. |
 | `InvalidPasskeyRegistrationException` | 400 | A passkey registration failed verification. It carries no cause, because WebAuthn details must not travel. |
 | `AccessDeniedException` (Spring Security's own) | 403 | A signed-in caller lacks a permission. Spring Security 7 raises its subclass `AuthorizationDeniedException`. |
 
-Provider sign-in adds three, for its [confirm endpoints](social-login.md#sign-up):
+Provider sign-in adds four, for its [confirm endpoints](social-login.md#sign-up):
 
 | Exception | Status if unmapped | When |
 |---|---|---|
@@ -21,9 +21,17 @@ Provider sign-in adds three, for its [confirm endpoints](social-login.md#sign-up
 | `PendingSignUpNotFoundException` | 404 | No pending sign-up, or an expired or used one, at `GET /who/oidc/pending`, `POST /who/oidc/sign-up` or `POST /who/oidc/link`. |
 | `AlreadyLinkedException` | 409 | `POST /who/oidc/link` for an account linked to another identity. |
 
-`POST /who/oidc/link` also answers `NotSignedInException` and `ReauthenticationRequiredException`, after `who.oidc.link-window`. `POST /who/oidc/link/{registrationId}`, which starts a link, answers `NotSignedInException` when signed out.
+`POST /who/oidc/link` and `POST /who/oidc/link/{registrationId}`, which starts a link, also answer `NotSignedInException` and `ReauthenticationRequiredException`.
 
-All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException` and the three provider sign-in exceptions, which are in `org.jwcarman.who.oidc`.
+Adding or changing an [email address](email-links.md#adding-or-changing-an-address) adds three, besides `NotSignedInException` and `ReauthenticationRequiredException`:
+
+| Exception | Status if unmapped | When |
+|---|---|---|
+| `EmailCredentialNotFoundException` | 404 | `POST /who/email/addresses` named a `replaces` that is not one of the caller's email addresses. |
+| `InvalidEmailAddressConfirmationException` | 400 | `POST /who/email/addresses/confirm` matched nothing: no request by this identity, an expired or used one, a wrong code, a code with no attempts left, or neither or both of `token` and `code`. |
+| `EmailAddressTakenException` | 409 | The confirmed address was registered to someone in the meantime. `EmailCredentialService.register` throws it too. |
+
+All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException`, the provider sign-in exceptions, which are in `org.jwcarman.who.oidc`, and the email address exceptions, which are in `org.jwcarman.who.emaillink`.
 
 ## How errors raised in filters reach your advice
 

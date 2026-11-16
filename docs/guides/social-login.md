@@ -270,8 +270,9 @@ and for that one round trip only, that it is a link and which identity asked. No
 says so, so no other site can turn a sign-in into a link. Signed out is `401`
 (`NotSignedInException`), and so is a caller signed in without a browser session (an API key or a
 bearer token), since the callback has no session to finish the link in. A registration who does
-not sign in with is `404` (`UnknownProviderException`). A link lasts `who.oidc.link-window`: a
-provider that answers later is refused.
+not sign in with is `404` (`UnknownProviderException`). So is a session that signed in longer
+ago than `who.security.recent-sign-in` (`401`, `ReauthenticationRequiredException`), before the
+trip to the provider. A link lasts that long too: a provider that answers later is refused.
 
 who also asks the provider to show the person which account they are linking, so an account the
 provider remembers (perhaps someone else's, on a shared computer) is not linked unseen:
@@ -284,7 +285,7 @@ provider remembers (perhaps someone else's, on a shared computer) is not linked 
 
 That is a request, not a check: who cannot tell whether the provider did it. The check is who's
 own, the same for every provider: the person must have signed in to your application within
-`who.oidc.link-window` when they confirm.
+`who.security.recent-sign-in` when they confirm.
 
 The callback lands on `error=no-account` with a pending sign-up for which `canLink` is `true`.
 Show which account it is, and on confirmation:
@@ -294,7 +295,7 @@ const response = await post('/who/oidc/link');   // { "credentialId": "..." }
 ```
 
 `POST /who/oidc/link` links the account and publishes `CredentialAdded`. It needs the person to
-have signed in within `who.oidc.link-window` (default 10 minutes), or it answers `401` with
+have signed in within `who.security.recent-sign-in` (default 10 minutes), or it answers `401` with
 `ReauthenticationRequiredException`; sign them in again and retry. An account already linked to
 another identity is `409` with `AlreadyLinkedException`. Signed out is `401`; no pending sign-up
 is `404`.
@@ -393,7 +394,7 @@ person's identity. See [JWT](jwt.md#validate-the-audience).
 | The policy refused a sign-up | `SignInFailed`, reason `SIGN_UP_REFUSED` |
 | A sign-up | `IdentityCreated` and `CredentialAdded` (kind `FEDERATED`, labelled with the issuer) |
 | A link | `CredentialAdded` (kind `FEDERATED`) |
-| A link started more than `who.oidc.link-window` ago, or answered while another identity (or none) is signed in | `SignInFailed`, reason `LINK_REFUSED`, naming the identity that started it |
+| A link started more than `who.security.recent-sign-in` ago, or answered while another identity (or none) is signed in | `SignInFailed`, reason `LINK_REFUSED`, naming the identity that started it |
 
 Starting a pending sign-up, `already-linked` and `signed-in` publish nothing. The `who.sign-ins` meter counts
 these with `method=oidc` (see [Observability](observability.md)).
@@ -435,7 +436,6 @@ those requests.
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
 | `who.oidc.failure-url` | `/` | Where every other outcome lands, with `error=<code>`. A path on this site; list it in `who.security.public-paths` |
 | `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
-| `who.oidc.link-window` | `10m` | How recently the identity must have signed in to link an account, and how long a started link lasts |
 | `who.oidc.providers.<id>.enabled` | `true` | Leaves one registration out of sign-in when `false` |
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints or an OAuth 2 provider |
 | `who.oidc.providers.<id>.subject-attribute` | none | The user-info attribute holding the account's immutable id, for an OAuth 2 provider other than github.com |

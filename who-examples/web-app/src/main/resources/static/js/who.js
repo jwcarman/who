@@ -59,6 +59,32 @@ export async function signInWithCode(email, code) {
   return res.ok;
 }
 
+// --- Email addresses (Email Links guide, "Adding or changing an address") ---------------------
+
+// Always 202 when signed in recently, whether or not the address is free, so the answer tells
+// nothing about it. replaces, if given, is the id of one of your addresses. 401 signed out or
+// signed in too long ago, 404 a replaces that is not yours.
+export async function requestAddress(address, replaces) {
+  const res = await post('/who/email/addresses', replaces ? { address, replaces } : { address });
+  return res.status;
+}
+
+// The link puts the token in the fragment, as #confirm-address=..., on a signed-in page. Take it
+// out of the address bar. Answers the status, or null when there is no token.
+export async function confirmAddressFromLocation() {
+  const token = new URLSearchParams(location.hash.slice(1)).get('confirm-address');
+  if (!token) return null;
+  history.replaceState(null, '', location.pathname);
+  const res = await post('/who/email/addresses/confirm', { token });
+  return res.status;
+}
+
+// 200 added, 400 no match, 409 taken since, 401 signed out or signed in too long ago.
+export async function confirmAddressCode(code) {
+  const res = await post('/who/email/addresses/confirm', { code });
+  return res.status;
+}
+
 // --- Passkeys (Passkeys guide, "The browser flow") --------------------------------------------
 
 // Spring's options are JSON with base64url strings. The browser wants bytes.
@@ -68,7 +94,7 @@ const b64u = {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 };
 
-// Needs a recent sign-in (who.passkey.registration-window). Answers the status: 200 registered,
+// Needs a recent sign-in (who.security.recent-sign-in). Answers the status: 200 registered,
 // 401 signed out or signed in too long ago, 400 failed verification.
 export async function registerPasskey(label) {
   const optionsRes = await post('/webauthn/register/options');

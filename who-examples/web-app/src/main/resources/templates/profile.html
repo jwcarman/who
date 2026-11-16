@@ -7,12 +7,28 @@
   <h1>Your ways in</h1>
   <div class="message warn" id="error" hidden></div>
 
-  <section>
+  <div class="message" id="notice" hidden></div>
+
+  <section class="stack">
     <h2>Email</h2>
     <p class="muted" th:if="${#lists.isEmpty(emails)}">No email address. You signed up with a provider.</p>
     <ul class="list">
-      <li th:each="e : ${emails}"><span class="grow" th:text="${e.address}">ada@example.com</span></li>
+      <li th:each="e : ${emails}">
+        <span class="grow" th:text="${e.address}">ada@example.com</span>
+        <button type="button" class="secondary" data-change-address th:attr="data-credential-id=${e.id}">Change</button>
+      </li>
     </ul>
+    <!-- Nothing changes until the new address is confirmed with the link or the code sent to it. -->
+    <form class="inline" id="address-form">
+      <input type="email" id="address" placeholder="new@example.com" maxlength="320" required>
+      <input type="hidden" id="replaces">
+      <button type="submit" id="address-submit">Add an address</button>
+    </form>
+    <form class="inline" id="address-code-form" hidden>
+      <input type="text" id="address-code" placeholder="Code from the email" autocomplete="one-time-code" required>
+      <button type="submit">Confirm</button>
+    </form>
+    <p class="muted">We send the address a link and a code. Within 10 minutes of signing in.</p>
   </section>
 
   <section class="stack">

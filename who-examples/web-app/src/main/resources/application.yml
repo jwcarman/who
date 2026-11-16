@@ -47,6 +47,8 @@ who:
 
   email-link:
     link-base-url: http://localhost:8080/signin/link
+    # Where the link confirming a new or changed address lands: a signed-in page.
+    address-confirmation-url: http://localhost:8080/profile
     from: who@example.com
     subject: Sign in to Who Tasks
     # A development value. In production, at least 32 random characters from your secret store,

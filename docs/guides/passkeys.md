@@ -26,7 +26,7 @@ who:
     rp-id: app.example.com
 ```
 
-The defaults are `rp-name` `who`, `allowed-origins` `https://<rp-id>` and `registration-window` `10m`:
+The defaults are `rp-name` `who` and `allowed-origins` `https://<rp-id>`:
 
 ```yaml
 who:
@@ -35,7 +35,6 @@ who:
     rp-name: Example App
     allowed-origins:
       - https://app.example.com
-    registration-window: 10m
 ```
 
 Each `allowed-origins` entry is an origin: a scheme (`http` or `https`), a host and an optional port, with no path or trailing slash, as the browser reports it. A blank `rp-name`, or an entry such as `app.example.com` or `https://app.example.com/signin`, fails startup with a message that names the property.
@@ -127,7 +126,7 @@ const b64u = {
 
 ### Register a passkey
 
-The user must be signed in, and the sign-in must be within `registration-window` (10 minutes by default). The usual path is: sign in by email link, then add a passkey.
+The user must be signed in, and the sign-in must be within `who.security.recent-sign-in` (10 minutes by default), the window every way of adding a credential shares. The usual path is: sign in by email link, then add a passkey.
 
 Passkeys cannot be an app's only way in. Registering needs a recent who session, and in who only [Email Links](email-links.md) create the first one: passkey sign-in needs a passkey that is already registered. An app that turns on passkeys alone has no way for a new user to register one. Turn on email links as well, or create the first session yourself with your own `PasswordlessLoginMethod`.
 
@@ -173,7 +172,7 @@ The answers. An error's body is whatever your application writes for its excepti
 |--------|------|---------|
 | `200` | `{"success":true}` | The passkey is registered. |
 | `401` | yours | `NotSignedInException`: the caller is signed out. |
-| `401` | yours | `ReauthenticationRequiredException`: the sign-in is older than `registration-window`. Send the user through an email link again, then retry. |
+| `401` | yours | `ReauthenticationRequiredException`: the sign-in is older than `who.security.recent-sign-in`. Send the user through an email link again, then retry. |
 | `400` | yours | `InvalidPasskeyRegistrationException`: the response failed verification: a wrong origin or challenge, or a device that did not verify the user. Also when the options in the session were requested by a different identity than the one signed in now (someone else signed in on the same browser before the registration finished). |
 | `400` | empty | Spring's own answer to a malformed registration body, or to a request with no options in the session (post to `/webauthn/register/options` first). |
 

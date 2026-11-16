@@ -49,7 +49,8 @@ who runs inside your application and draws these lines:
 
 **Passkeys are phishing-resistant.** who requires user verification and discoverable
 credentials, and checks the origin and relying party id. Adding a passkey requires a recent
-sign-in, within `who.passkey.registration-window` (10 minutes by default) ([Passkeys](passkeys.md)).
+sign-in, within `who.security.recent-sign-in` (10 minutes by default) ([Passkeys](passkeys.md)).
+So do linking a provider account and adding or changing an email address, with the same window.
 
 **Sessions are hardened for single-page apps.** `WhoWebSecurity.passwordless()`:
 
