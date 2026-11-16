@@ -84,6 +84,9 @@ backend, started the same way (`-pl who-examples/spa`); its [README](who-example
 covers Vite's dev server. [`who-examples/api`](who-examples/api) is the board as a stateless JSON
 API, called with Keycloak access tokens and who API keys (`-pl who-examples/api`); its
 [README](who-examples/api/README.md) walks through it with `curl`.
+[`who-examples/web-and-api`](who-examples/web-and-api) is one app that is both: a website with
+sessions and an API with tokens and keys, each with a security chain of its own
+(`WhoSecurity.stateless()` for the API).
 
 ## Upgrading to 0.10.0
 

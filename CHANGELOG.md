@@ -37,6 +37,7 @@ All notable changes to this project are documented here. The format follows
 - The `who_last_sign_in` cookie, naming the method of the last browser sign-in for a "Last used" badge; `who.security.last-sign-in-cookie.enabled=false` turns it off.
 - `StubOidcProvider` in `who-test`, an OpenID Connect (or GitHub-like) provider for integration tests.
 - A native-image test app for provider sign-in, and serialization hints for the pending sign-up.
+- `who-examples/web-and-api`, a website and an API in one app, each with its own `SecurityFilterChain`: sessions, CSRF, email links and Keycloak for the pages; `WhoSecurity.stateless()` with Keycloak access tokens and API keys for `/api/**`. People make, list and revoke their keys on the website; a person is one identity on both.
 - `who-examples/api`, the board as a stateless JSON API on who's default chain: Keycloak access tokens (device flow, checked audience) for accounts the app links, and API keys that people make, list and revoke through it with a token; a key reads only itself, at `/api/keys/self`. It replaces `who-example`, which is removed.
 - `who-examples/spa`, the same app as a React and TypeScript single-page app over a JSON backend: Maven builds it into the jar, or Vite's dev server runs it with the `vite` profile.
 - `POST /who/oidc/link/{registrationId}` answers `200 {"redirectUrl": ...}` instead of a redirect when the request accepts JSON and not HTML, so a single-page app can start a link with `fetch` and the CSRF header.

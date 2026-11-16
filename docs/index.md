@@ -109,6 +109,9 @@ with Spring Boot's Docker Compose support.
 - [API](https://github.com/jwcarman/who/tree/main/who-examples/api): the board as a stateless JSON
   API, called with access tokens from Keycloak and with API keys, which people make and revoke
   through it.
+- [Website and API](https://github.com/jwcarman/who/tree/main/who-examples/web-and-api): one app
+  that is both, with a security chain for each: sessions and CSRF for the pages,
+  `WhoSecurity.stateless()` for `/api/**`. People manage their API keys on the website.
 
 ## Modules
 
