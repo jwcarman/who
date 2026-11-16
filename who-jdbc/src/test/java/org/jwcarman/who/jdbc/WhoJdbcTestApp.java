@@ -19,5 +19,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
-@Import({JdbcIdentityRepository.class, JdbcCredentialIdentityRepository.class})
+@Import({
+  JdbcIdentityRepository.class,
+  JdbcCredentialIdentityRepository.class,
+  JdbcSessionRecordRepository.class
+})
 class WhoJdbcTestApp {}

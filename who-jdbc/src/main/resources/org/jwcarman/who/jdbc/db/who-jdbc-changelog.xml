@@ -40,4 +40,26 @@
             </column>
         </createTable>
     </changeSet>
+
+    <changeSet id="who-session-1" author="who">
+        <createTable tableName="who_session">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="identity_id" type="uuid">
+                <constraints nullable="false" foreignKeyName="fk_who_session_identity"
+                             referencedTableName="who_identity" referencedColumnNames="id" deleteCascade="true"/>
+            </column>
+            <column name="credential_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="sign_in_method" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="signed_in_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="last_seen_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="user_agent" type="varchar(512)"/>
+            <column name="ended_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <createIndex tableName="who_session" indexName="who_session_identity_idx">
+            <column name="identity_id"/>
+        </createIndex>
+        <createIndex tableName="who_session" indexName="who_session_last_seen_idx">
+            <column name="last_seen_at"/>
+        </createIndex>
+    </changeSet>
 </databaseChangeLog>
