@@ -18,7 +18,10 @@ package org.jwcarman.who.apikey;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
@@ -105,7 +108,11 @@ public class ApiKeyService {
     String rawKey = "who_" + Secrets.token();
     String keyHash = sha256Hex(rawKey);
 
-    ApiKeyCredential credential = new ApiKeyCredential(Identifiers.uuid(), name, keyHash);
+    Instant now = clock.instant();
+    // replaced by the lifetime and scopes the caller gives
+    ApiKeyCredential credential =
+        new ApiKeyCredential(
+            Identifiers.uuid(), name, keyHash, Set.of(), now, now.plus(Duration.ofDays(365)), null);
     apiKeyCredentialRepository.save(credential);
     credentialIdentityRepository.link(credential.id(), identity.id());
     eventPublisher.publish(

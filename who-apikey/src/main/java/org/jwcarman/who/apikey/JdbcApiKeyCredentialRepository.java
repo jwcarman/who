@@ -15,7 +15,14 @@
  */
 package org.jwcarman.who.apikey;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.spi.Credential;
@@ -34,11 +41,21 @@ public class JdbcApiKeyCredentialRepository
   private static final String COL_NAME = "name";
   private static final String COL_KEY_HASH = "key_hash";
   private static final String PARAM_KEY_HASH = "keyHash";
+  private static final String COLUMNS = "id, name, key_hash, created_at, expires_at, last_used_at";
 
-  private static final RowMapper<ApiKeyCredential> ROW_MAPPER =
+  /** A key's row, before its scopes are read. */
+  private record Row(
+      UUID id, String name, String keyHash, Instant createdAt, Instant expiresAt, Instant used) {}
+
+  private static final RowMapper<Row> ROW_MAPPER =
       (rs, rowNum) ->
-          new ApiKeyCredential(
-              rs.getObject(COL_ID, UUID.class), rs.getString(COL_NAME), rs.getString(COL_KEY_HASH));
+          new Row(
+              rs.getObject(COL_ID, UUID.class),
+              rs.getString(COL_NAME),
+              rs.getString(COL_KEY_HASH),
+              instant(rs, "created_at"),
+              instant(rs, "expires_at"),
+              instant(rs, "last_used_at"));
 
   private final JdbcClient jdbcClient;
 
@@ -54,19 +71,21 @@ public class JdbcApiKeyCredentialRepository
   @Override
   public Optional<ApiKeyCredential> findByKeyHash(String keyHash) {
     return jdbcClient
-        .sql("SELECT id, name, key_hash FROM who_api_key_credential WHERE key_hash = :keyHash")
+        .sql("SELECT " + COLUMNS + " FROM who_api_key_credential WHERE key_hash = :keyHash")
         .param(PARAM_KEY_HASH, keyHash)
         .query(ROW_MAPPER)
-        .optional();
+        .optional()
+        .map(this::withScopes);
   }
 
   @Override
   public Optional<ApiKeyCredential> findById(UUID id) {
     return jdbcClient
-        .sql("SELECT id, name, key_hash FROM who_api_key_credential WHERE id = :id")
+        .sql("SELECT " + COLUMNS + " FROM who_api_key_credential WHERE id = :id")
         .param(COL_ID, id)
         .query(ROW_MAPPER)
-        .optional();
+        .optional()
+        .map(this::withScopes);
   }
 
   @Override
@@ -74,15 +93,69 @@ public class JdbcApiKeyCredentialRepository
     jdbcClient
         .sql(
             """
-                        INSERT INTO who_api_key_credential (id, name, key_hash)
-                        VALUES (:id, :name, :keyHash)
-                        ON CONFLICT (id) DO UPDATE SET name = :name, key_hash = :keyHash
+                        INSERT INTO who_api_key_credential
+                            (id, name, key_hash, created_at, expires_at, last_used_at)
+                        VALUES (:id, :name, :keyHash, :createdAt, :expiresAt, :lastUsedAt)
+                        ON CONFLICT (id) DO UPDATE SET name = :name, key_hash = :keyHash,
+                            created_at = :createdAt, expires_at = :expiresAt,
+                            last_used_at = :lastUsedAt
                         """)
         .param(COL_ID, credential.id())
         .param(COL_NAME, credential.name())
         .param(PARAM_KEY_HASH, credential.keyHash())
+        .param("createdAt", offset(credential.createdAt()))
+        .param("expiresAt", offset(credential.expiresAt()))
+        .param("lastUsedAt", offset(credential.lastUsedAt()))
         .update();
+    jdbcClient
+        .sql("DELETE FROM who_api_key_scope WHERE credential_id = :id")
+        .param(COL_ID, credential.id())
+        .update();
+    for (String scope : credential.scopes()) {
+      jdbcClient
+          .sql(
+              "INSERT INTO who_api_key_scope (credential_id, permission) VALUES (:id, :permission)")
+          .param(COL_ID, credential.id())
+          .param("permission", scope)
+          .update();
+    }
     return credential;
+  }
+
+  @Override
+  public boolean touch(UUID id, Instant now, Instant notSince) {
+    return jdbcClient
+            .sql(
+                """
+                UPDATE who_api_key_credential SET last_used_at = :now
+                WHERE id = :id AND (last_used_at IS NULL OR last_used_at < :notSince)
+                """)
+            .param(COL_ID, id)
+            .param("now", offset(now))
+            .param("notSince", offset(notSince))
+            .update()
+        > 0;
+  }
+
+  private ApiKeyCredential withScopes(Row row) {
+    Set<String> scopes =
+        new HashSet<>(
+            jdbcClient
+                .sql("SELECT permission FROM who_api_key_scope WHERE credential_id = :id")
+                .param(COL_ID, row.id())
+                .query(String.class)
+                .list());
+    return new ApiKeyCredential(
+        row.id(), row.name(), row.keyHash(), scopes, row.createdAt(), row.expiresAt(), row.used());
+  }
+
+  private static Instant instant(ResultSet rs, String column) throws SQLException {
+    OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+    return value == null ? null : value.toInstant();
+  }
+
+  private static OffsetDateTime offset(Instant instant) {
+    return instant == null ? null : instant.atOffset(ZoneOffset.UTC);
   }
 
   @Override

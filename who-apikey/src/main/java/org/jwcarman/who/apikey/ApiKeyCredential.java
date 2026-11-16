@@ -17,7 +17,9 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.event.CredentialKind;
@@ -31,17 +33,46 @@ import org.jwcarman.who.core.spi.Credential;
  * {@link #name()} is a human-readable label (e.g. "Production server", "CI pipeline") to help users
  * identify and manage their keys; it is also the label security events report.
  *
+ * <p>A key signs in with at most its {@link #scopes()}, and only those its identity still holds,
+ * and only before {@link #expiresAt()}.
+ *
  * @param id the stable UUID for this credential record
  * @param name a human-readable label identifying this key (e.g. "Production server")
  * @param keyHash the SHA-256 hex digest of the raw API key
+ * @param scopes the permissions the key may use, at most
+ * @param createdAt when the key was made
+ * @param expiresAt when the key stops signing in
+ * @param lastUsedAt when the key last signed in, to within the last-used interval; {@code null}
+ *     when it never has
  */
-public record ApiKeyCredential(UUID id, String name, String keyHash) implements Credential {
+public record ApiKeyCredential(
+    UUID id,
+    String name,
+    String keyHash,
+    Set<String> scopes,
+    Instant createdAt,
+    Instant expiresAt,
+    Instant lastUsedAt)
+    implements Credential {
 
-  /** Compact constructor — validates that no field is {@code null}. */
+  /** Compact constructor: validates that no field but {@code lastUsedAt} is {@code null}. */
   public ApiKeyCredential {
     requireNonNull(id, "id must not be null");
     requireNonNull(name, "name must not be null");
     requireNonNull(keyHash, "keyHash must not be null");
+    scopes = Set.copyOf(requireNonNull(scopes, "scopes must not be null"));
+    requireNonNull(createdAt, "createdAt must not be null");
+    requireNonNull(expiresAt, "expiresAt must not be null");
+  }
+
+  /**
+   * Whether the key has expired.
+   *
+   * @param now the time to check against
+   * @return {@code true} once {@code now} reaches {@link #expiresAt()}
+   */
+  public boolean expiredAt(Instant now) {
+    return !now.isBefore(expiresAt);
   }
 
   /**

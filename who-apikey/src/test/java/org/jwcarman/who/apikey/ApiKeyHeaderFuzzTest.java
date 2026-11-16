@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -105,6 +106,11 @@ class ApiKeyHeaderFuzzTest {
 
     @Override
     public boolean deleteById(UUID id) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean touch(UUID id, Instant now, Instant notSince) {
       throw new UnsupportedOperationException();
     }
   }

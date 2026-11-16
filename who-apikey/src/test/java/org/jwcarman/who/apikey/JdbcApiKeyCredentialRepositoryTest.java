@@ -17,24 +17,119 @@ package org.jwcarman.who.apikey;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Set;
 import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
+
+  // Postgres keeps microseconds
+  private static final Instant CREATED = Instant.now().truncatedTo(ChronoUnit.MICROS);
+  private static final Instant EXPIRES = CREATED.plus(Duration.ofDays(30));
 
   @Autowired private JdbcApiKeyCredentialRepository repository;
   @Autowired private IdentityRepository identityRepository;
   @Autowired private CredentialIdentityRepository credentialIdentityRepository;
+  @Autowired private JdbcClient jdbcClient;
+
+  private static ApiKeyCredential key(UUID id, String name, String keyHash) {
+    return new ApiKeyCredential(id, name, keyHash, Set.of("task.read"), CREATED, EXPIRES, null);
+  }
+
+  private static ApiKeyCredential key(UUID id, Set<String> scopes, Instant lastUsedAt) {
+    return new ApiKeyCredential(id, "Scoped", "hash-" + id, scopes, CREATED, EXPIRES, lastUsedAt);
+  }
+
+  @Test
+  void saves_and_reads_back_scopes_and_times() {
+    Instant used = CREATED.plusSeconds(60);
+    ApiKeyCredential credential = repository.save(key(UUID.randomUUID(), Set.of("a", "b"), used));
+
+    assertThat(repository.findById(credential.id())).contains(credential);
+    assertThat(repository.findByKeyHash(credential.keyHash())).contains(credential);
+  }
+
+  @Test
+  void saving_again_replaces_the_scopes() {
+    UUID id = UUID.randomUUID();
+    repository.save(key(id, Set.of("a", "b"), null));
+
+    repository.save(key(id, Set.of("c"), null));
+
+    assertThat(repository.findById(id))
+        .hasValueSatisfying(found -> assertThat(found.scopes()).containsExactly("c"));
+  }
+
+  @Test
+  void deleting_a_key_deletes_its_scopes() {
+    ApiKeyCredential credential = repository.save(key(UUID.randomUUID(), Set.of("a"), null));
+
+    repository.deleteById(credential.id());
+
+    assertThat(
+            jdbcClient
+                .sql("SELECT count(*) FROM who_api_key_scope WHERE credential_id = :id")
+                .param("id", credential.id())
+                .query(Long.class)
+                .single())
+        .isZero();
+  }
+
+  @Test
+  void touch_writes_when_never_used() {
+    ApiKeyCredential credential = repository.save(key(UUID.randomUUID(), Set.of("a"), null));
+    Instant now = CREATED.plusSeconds(10);
+
+    assertThat(repository.touch(credential.id(), now, now.minusSeconds(300))).isTrue();
+    assertThat(repository.findById(credential.id()))
+        .hasValueSatisfying(found -> assertThat(found.lastUsedAt()).isEqualTo(now));
+  }
+
+  @Test
+  void touch_skips_within_the_interval() {
+    Instant used = CREATED.plusSeconds(10);
+    ApiKeyCredential credential = repository.save(key(UUID.randomUUID(), Set.of("a"), used));
+    Instant now = used.plusSeconds(60);
+
+    assertThat(repository.touch(credential.id(), now, now.minusSeconds(300))).isFalse();
+    assertThat(repository.findById(credential.id()))
+        .hasValueSatisfying(found -> assertThat(found.lastUsedAt()).isEqualTo(used));
+  }
+
+  @Test
+  void touch_writes_after_it() {
+    Instant used = CREATED.plusSeconds(10);
+    ApiKeyCredential credential = repository.save(key(UUID.randomUUID(), Set.of("a"), used));
+    Instant now = used.plusSeconds(301);
+
+    assertThat(repository.touch(credential.id(), now, now.minusSeconds(300))).isTrue();
+    assertThat(repository.findById(credential.id()))
+        .hasValueSatisfying(found -> assertThat(found.lastUsedAt()).isEqualTo(now));
+  }
+
+  @Test
+  void touch_of_a_gone_key_writes_nothing() {
+    Instant now = CREATED.plusSeconds(10);
+
+    assertThat(repository.touch(UUID.randomUUID(), now, now.minusSeconds(300))).isFalse();
+  }
 
   @Test
   void savesAndFindsByKeyHash() {
-    ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "My Key", "abc123hash");
+    ApiKeyCredential credential = key(UUID.randomUUID(), "My Key", "abc123hash");
     repository.save(credential);
 
     assertThat(repository.findByKeyHash("abc123hash"))
@@ -54,8 +149,7 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
 
   @Test
   void deleteByIdRemovesCredential() {
-    ApiKeyCredential credential =
-        new ApiKeyCredential(UUID.randomUUID(), "Delete Me", "hash-to-delete");
+    ApiKeyCredential credential = key(UUID.randomUUID(), "Delete Me", "hash-to-delete");
     repository.save(credential);
 
     assertThat(repository.deleteById(credential.id())).isTrue();
@@ -67,8 +161,8 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
   @Test
   void saveUpdatesKeyHashOnConflictById() {
     UUID id = UUID.randomUUID();
-    ApiKeyCredential first = new ApiKeyCredential(id, "Original Name", "original-hash");
-    ApiKeyCredential second = new ApiKeyCredential(id, "Updated Name", "updated-hash");
+    ApiKeyCredential first = key(id, "Original Name", "original-hash");
+    ApiKeyCredential second = key(id, "Updated Name", "updated-hash");
 
     repository.save(first);
     repository.save(second);
@@ -82,7 +176,7 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
   @Test
   void removeDeletesTheCredentialItOwns() {
     ApiKeyCredential credential =
-        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Remove Me", "hash-to-remove"));
+        repository.save(key(UUID.randomUUID(), "Remove Me", "hash-to-remove"));
 
     assertThat(repository.remove(credential.id())).isTrue();
     assertThat(repository.findByKeyHash("hash-to-remove")).isEmpty();
@@ -97,10 +191,9 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
   void removeUnlinkedDeletesOnlyUnlinkedCredentials() {
     repository.removeUnlinked();
     Identity identity = identityRepository.save(Identity.create());
-    ApiKeyCredential linked =
-        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Linked", "linked-hash"));
+    ApiKeyCredential linked = repository.save(key(UUID.randomUUID(), "Linked", "linked-hash"));
     credentialIdentityRepository.link(linked.id(), identity.id());
-    repository.save(new ApiKeyCredential(UUID.randomUUID(), "Orphan", "orphan-hash"));
+    repository.save(key(UUID.randomUUID(), "Orphan", "orphan-hash"));
 
     assertThat(repository.removeUnlinked()).isOne();
     assertThat(repository.findByKeyHash("orphan-hash")).isEmpty();
@@ -110,7 +203,7 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
   @Test
   void findByIdFindsTheCredential() {
     ApiKeyCredential credential =
-        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Find Me", "hash-to-find"));
+        repository.save(key(UUID.randomUUID(), "Find Me", "hash-to-find"));
 
     assertThat(repository.findById(credential.id())).contains(credential);
     assertThat(repository.findById(UUID.randomUUID())).isEmpty();
@@ -119,7 +212,7 @@ class JdbcApiKeyCredentialRepositoryTest extends AbstractApiKeyTest {
   @Test
   void findDescribesTheCredentialAsAnApiKeyLabelledWithItsName() {
     ApiKeyCredential credential =
-        repository.save(new ApiKeyCredential(UUID.randomUUID(), "Laptop", "hash-to-describe"));
+        repository.save(key(UUID.randomUUID(), "Laptop", "hash-to-describe"));
 
     assertThat(repository.find(credential.id()))
         .hasValueSatisfying(

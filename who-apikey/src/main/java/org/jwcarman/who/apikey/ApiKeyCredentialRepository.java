@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.apikey;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,4 +57,16 @@ public interface ApiKeyCredentialRepository {
    * @return {@code true} if a credential was deleted, {@code false} if there was none
    */
   boolean deleteById(UUID id);
+
+  /**
+   * Records that a key signed in, unless it already did within the interval: the write happens only
+   * when the key was never used or last used before {@code notSince}, so a busy key costs one write
+   * per interval.
+   *
+   * @param id the key's credential id
+   * @param now when it signed in
+   * @param notSince the earliest earlier use that makes this write unnecessary
+   * @return {@code true} when the time was written
+   */
+  boolean touch(UUID id, Instant now, Instant notSince);
 }

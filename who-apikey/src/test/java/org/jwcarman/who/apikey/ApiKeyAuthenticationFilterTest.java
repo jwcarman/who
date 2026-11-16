@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -379,7 +380,10 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
         throws Exception {
       Identity identity = Identity.create();
       when(repository.findByKeyHash(any()))
-          .thenReturn(Optional.of(new ApiKeyCredential(UUID.randomUUID(), "k", "hash")));
+          .thenReturn(
+              Optional.of(
+                  new ApiKeyCredential(
+                      UUID.randomUUID(), "k", "hash", Set.of(), Instant.EPOCH, Instant.MAX, null)));
       when(whoService.resolveDetailed(any()))
           .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
       MockHttpServletRequest request = new MockHttpServletRequest();

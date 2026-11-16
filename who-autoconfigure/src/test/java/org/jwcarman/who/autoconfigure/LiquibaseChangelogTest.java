@@ -70,6 +70,7 @@ class LiquibaseChangelogTest {
           "who_federated_credential",
           "who_enrollment_token",
           "who_api_key_credential",
+          "who_api_key_scope",
           "who_email_credential",
           "who_email_link_token",
           "who_email_address_request",

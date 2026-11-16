@@ -22,10 +22,12 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -246,7 +248,9 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
     @Test
     void a_key_whose_identity_is_gone_is_an_unknown_key_with_both_ids() {
       ApiKeyCredentialRepository repository = mock(ApiKeyCredentialRepository.class);
-      ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "events", "hash");
+      ApiKeyCredential credential =
+          new ApiKeyCredential(
+              UUID.randomUUID(), "events", "hash", Set.of(), Instant.EPOCH, Instant.MAX, null);
       when(repository.findByKeyHash(ApiKeyService.sha256Hex("who_key")))
           .thenReturn(Optional.of(credential));
       WhoService whoService = mock(WhoService.class);
@@ -275,7 +279,9 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
     @Test
     void a_missing_resolution_is_treated_as_not_linked() {
       ApiKeyCredentialRepository repository = mock(ApiKeyCredentialRepository.class);
-      ApiKeyCredential credential = new ApiKeyCredential(UUID.randomUUID(), "events", "hash");
+      ApiKeyCredential credential =
+          new ApiKeyCredential(
+              UUID.randomUUID(), "events", "hash", Set.of(), Instant.EPOCH, Instant.MAX, null);
       when(repository.findByKeyHash(ApiKeyService.sha256Hex("who_key")))
           .thenReturn(Optional.of(credential));
       List<WhoEvent> published = new ArrayList<>();

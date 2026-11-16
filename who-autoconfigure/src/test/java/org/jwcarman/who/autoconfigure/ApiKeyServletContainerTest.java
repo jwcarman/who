@@ -111,8 +111,14 @@ class ApiKeyServletContainerTest {
         .params(identityId, LocalDateTime.now(), LocalDateTime.now())
         .update();
     jdbcClient
-        .sql("INSERT INTO who_api_key_credential (id, name, key_hash) VALUES (?, 'servlet', ?)")
-        .params(credentialId, MessageDigests.sha256Hex(key))
+        .sql(
+            "INSERT INTO who_api_key_credential (id, name, key_hash, created_at, expires_at)"
+                + " VALUES (?, 'servlet', ?, ?, ?)")
+        .params(
+            credentialId,
+            MessageDigests.sha256Hex(key),
+            LocalDateTime.now(),
+            LocalDateTime.now().plusDays(1))
         .update();
     jdbcClient
         .sql("INSERT INTO who_credential_identity (credential_id, identity_id) VALUES (?, ?)")
