@@ -94,6 +94,8 @@ If your app defines its own `PublicKeyCredentialUserEntityRepository` or `UserCr
 
 ## The browser flow
 
+The [TypeScript client](client.md#passkeys) does all of this, the encoding included: `who.passkeys.register`, `who.passkeys.signIn` and `who.passkeys.remove`.
+
 All requests are JSON. Every POST needs the CSRF token in the `X-XSRF-TOKEN` header, as described in [Email Links](email-links.md#the-sign-in-flow). The examples use the same `post` helper:
 
 ```javascript

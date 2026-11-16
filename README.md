@@ -115,6 +115,7 @@ foreign key and revoked pending enrollment tokens. See
 | `who-spring-security` | `@RequiresPermission`, `WhoSecurity.all()`, `WhoWebSecurity.passwordless()` and `GET /who/me` |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
 | `who-spring-boot-starter` | Starter with the base: `who-core`, `who-spring-security`, `who-jdbc`, `who-rbac` and the autoconfiguration. Add each sign-in module you use; its jar turns it on |
+| `who-client` | `@jwcarman/who-client` on npm: a typed TypeScript client for the browser endpoints. See [TypeScript Client](https://jwcarman.github.io/who/guides/client/) |
 
 ## Building
 

@@ -88,6 +88,8 @@ The attributes are stored with Java serialization. `WhoSession` and the types it
 
 ## See and end sessions
 
+The [TypeScript client](client.md#sessions) has these calls: `who.sessions.list`, `who.sessions.end` and `who.sessions.endOthers`.
+
 A signed-in person can see every browser they are signed in on and sign any of them out, for instance after losing a phone or signing in on a shared computer. who adds the endpoints to every browser chain:
 
 | Request | Answer |

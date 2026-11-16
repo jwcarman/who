@@ -188,6 +188,8 @@ Startup fails, naming the property to fix, when:
 
 ## The sign-in page
 
+The [TypeScript client](client.md#provider-sign-in) has these calls: `who.oidc.authorizeUrl`, `who.oidc.pending`, `who.oidc.signUp`, `who.oidc.link` and `who.oidc.startLink`.
+
 Each provider's button is a plain link:
 
 ```html

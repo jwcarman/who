@@ -37,7 +37,7 @@ All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `Acce
 
 ## The `Who-Error` header
 
-Every failure in the tables above, except Spring's own `AccessDeniedException`, also names itself in a `Who-Error` response header, whatever body your application writes. A client can tell failures apart by it without knowing your body's shape; who's TypeScript client does.
+Every failure in the tables above, except Spring's own `AccessDeniedException`, also names itself in a `Who-Error` response header, whatever body your application writes. A client can tell failures apart by it without knowing your body's shape; who's [TypeScript client](client.md#the-who-error-header) does.
 
 | `Who-Error` | Exception |
 |---|---|

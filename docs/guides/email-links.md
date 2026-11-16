@@ -150,6 +150,8 @@ A denied request is not saved: `passwordless()` uses a `NullRequestCache`, so th
 
 ## The sign-in flow
 
+The [TypeScript client](client.md#email-links) makes these calls for you, CSRF included: `who.email.send`, `who.email.signIn` and `who.email.signInFromLocation`.
+
 All requests are JSON. Every POST needs the CSRF token. Spring sets an `XSRF-TOKEN` cookie that the page can read. The page sends its raw value in the `X-XSRF-TOKEN` header on every POST, including `/who/email/send`, `/who/email/sign-in` and `/who/logout`.
 
 ```javascript

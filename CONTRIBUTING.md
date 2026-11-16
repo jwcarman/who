@@ -95,7 +95,8 @@ Sonar and CodeQL run on every pull request; please address what they find.
 ## Releases
 
 Releases are cut by the maintainer from `main`. The version in the poms stays at the next
-`-SNAPSHOT`; publishing a GitHub Release builds, signs and publishes to Maven Central. Before a
+`-SNAPSHOT`; publishing a GitHub Release publishes `@jwcarman/who-client` to npm at the release's
+version (trusted publishing, no token), then builds, signs and publishes to Maven Central. Before a
 release, the latest Fuzz workflow run should be green; start one by hand if the last is old.
 The Native workflow must be green on the release commit.
 
