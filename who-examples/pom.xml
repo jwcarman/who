@@ -44,6 +44,7 @@
         <module>spa</module>
         <module>api</module>
         <module>web-and-api</module>
+        <module>observability</module>
     </modules>
 
     <build>

@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: who-example-observability
+
+  # Mailpit, from compose.yaml. Every email lands at http://localhost:8025.
+  mail:
+    host: localhost
+    port: 1025
+
+who:
+  # who's tables. Fine on your machine; in production use Flyway or Liquibase and set this to never.
+  initialize-schema: always
+  security:
+    public-paths:
+      - /
+      - /index.html
+      - /app.css
+      - /js/**
+  email-link:
+    link-base-url: http://localhost:8080/
+    from: who@example.com
+    subject: Your who code
+    code-secret: this-is-a-development-secret-change-it
