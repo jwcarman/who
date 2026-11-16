@@ -15,6 +15,7 @@
  */
 import { type Email, email } from "./email";
 import { json, nothing, signedOut, type WhoClientOptions, WhoHttp } from "./http";
+import { type Oidc, oidc } from "./oidc";
 import { type Passkeys, passkeys } from "./passkeys";
 import type { WhoResult } from "./result";
 import { type Sessions, sessions } from "./sessions";
@@ -37,6 +38,8 @@ export interface WhoClient<D> {
   email: Email<D>;
   /** Signing in with a passkey, and registering and removing them. */
   passkeys: Passkeys<D>;
+  /** Signing in with a provider, and linking provider accounts. */
+  oidc: Oidc<D>;
 }
 
 /**
@@ -55,5 +58,6 @@ export function createWhoClient<D = unknown>(options: WhoClientOptions<D> = {}):
     sessions: sessions(http),
     email: email(http),
     passkeys: passkeys(http),
+    oidc: oidc(http),
   };
 }

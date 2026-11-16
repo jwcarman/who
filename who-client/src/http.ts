@@ -27,6 +27,11 @@ export interface WhoClientOptions<D> {
   decodeError?: (response: Response) => Promise<D>;
   /** Replaces the global `fetch`, for tests or instrumentation. */
   fetch?: typeof fetch;
+  /**
+   * Sends the page to another site, for the calls that leave it (starting a provider link).
+   * Defaults to `location.assign`.
+   */
+  navigate?: (url: string) => void;
 }
 
 /** One request a call makes, and how it reads the answer. */
@@ -103,6 +108,8 @@ export class WhoHttp<D> {
   private readonly credentials: RequestCredentials;
   private readonly fetch: typeof fetch;
   private readonly decodeError: (response: Response) => Promise<D>;
+  /** Sends the page elsewhere. */
+  readonly navigate: (url: string) => void;
 
   constructor(options: WhoClientOptions<D>) {
     this.base = normalize(options.baseUrl ?? "/who");
@@ -112,6 +119,12 @@ export class WhoHttp<D> {
     // called as a plain function: a browser's fetch refuses to run with another `this`
     this.fetch = given ?? ((input, init) => fetch(input, init));
     this.decodeError = options.decodeError ?? (readJson as (response: Response) => Promise<D>);
+    this.navigate = options.navigate ?? ((url) => location.assign(url));
+  }
+
+  /** A path below the base, as given (relative or absolute), for links the page renders. */
+  href(path: string): string {
+    return this.base + path;
   }
 
   /** The absolute URL of a path below the base. */
