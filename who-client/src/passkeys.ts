@@ -1,0 +1,189 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { decode, encode } from "./base64url";
+import type { SignedIn } from "./email";
+import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http";
+import type { Cancelled, SignInRequired, WhoResult } from "./result";
+
+/** Signing in with a passkey, and registering and removing them. */
+export interface Passkeys<D> {
+  /** Whether this browser can use passkeys at all. */
+  supported(): boolean;
+  /**
+   * Registers a new passkey for the signed-in person, under `label`. Needs a recent sign-in; who
+   * answers that before the browser is asked anything.
+   */
+  register(label: string): Promise<WhoResult<void, SignInRequired | "rejected", D> | Cancelled>;
+  /** Signs in with a passkey this browser can find. */
+  signIn(): Promise<WhoResult<SignedIn, "rejected", D> | Cancelled>;
+  /**
+   * Removes one of your passkeys, by its WebAuthn credential id (`PasskeySummary.credentialId`),
+   * not who's id. Someone else's is refused.
+   */
+  remove(credentialId: string): Promise<WhoResult<void, "signed-out" | "refused", D>>;
+}
+
+/** A credential id as WebAuthn's JSON carries it. */
+interface Descriptor {
+  id: string;
+  type: PublicKeyCredentialType;
+  transports?: AuthenticatorTransport[];
+}
+
+/** The parts of Spring's creation options that hold bytes; the rest passes through. */
+interface CreationOptionsJson {
+  challenge: string;
+  user: { id: string; name: string; displayName: string };
+  excludeCredentials?: Descriptor[];
+}
+
+/** The parts of Spring's request options that hold bytes; the rest passes through. */
+interface RequestOptionsJson {
+  challenge: string;
+  allowCredentials?: Descriptor[];
+}
+
+const CANCELLED: Cancelled = { ok: false, reason: "cancelled", status: 0, detail: undefined };
+
+function descriptors(list: Descriptor[] | undefined): PublicKeyCredentialDescriptor[] {
+  return (list ?? []).map((d) => ({ ...d, id: decode(d.id) }));
+}
+
+/**
+ * What the browser's prompt gave, or undefined when the person dismissed it. Any other failure (a
+ * wrong origin, an unsupported algorithm) is a fault, not a choice, and is thrown.
+ */
+async function prompt(ask: () => Promise<Credential | null>): Promise<PublicKeyCredential | undefined> {
+  try {
+    return (await ask()) as PublicKeyCredential;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "NotAllowedError") {
+      return undefined;
+    }
+    throw e;
+  }
+}
+
+export function passkeys<D>(http: WhoHttp<D>): Passkeys<D> {
+  return {
+    supported: () => typeof window !== "undefined" && "PublicKeyCredential" in window,
+
+    register: async (label) => {
+      const options = await http.call({
+        method: "POST",
+        path: "/passkey/register/options",
+        read: json<CreationOptionsJson>(),
+        reason: signInRequired,
+      });
+      if (!options.ok) {
+        return options;
+      }
+      const json_ = options.value;
+      const credential = await prompt(() =>
+        navigator.credentials.create({
+          publicKey: {
+            ...(json_ as unknown as PublicKeyCredentialCreationOptions),
+            challenge: decode(json_.challenge),
+            user: { ...json_.user, id: decode(json_.user.id) },
+            excludeCredentials: descriptors(json_.excludeCredentials),
+          },
+        }),
+      );
+      if (credential === undefined) {
+        return CANCELLED;
+      }
+      const response = credential.response as AuthenticatorAttestationResponse;
+      return http.call({
+        method: "POST",
+        path: "/passkey/register",
+        body: {
+          publicKey: {
+            credential: {
+              id: credential.id,
+              rawId: encode(credential.rawId),
+              type: credential.type,
+              response: {
+                attestationObject: encode(response.attestationObject),
+                clientDataJSON: encode(response.clientDataJSON),
+                transports: response.getTransports?.() ?? [],
+              },
+              clientExtensionResults: credential.getClientExtensionResults(),
+              authenticatorAttachment: credential.authenticatorAttachment,
+            },
+            label,
+          },
+        },
+        read: nothing,
+        reason: (status, code): SignInRequired | "rejected" | undefined =>
+          signInRequired(status, code) ?? (status === 400 ? "rejected" : undefined),
+      });
+    },
+
+    signIn: async () => {
+      const options = await http.call<RequestOptionsJson, never>({
+        method: "POST",
+        path: "/passkey/sign-in/options",
+        read: json<RequestOptionsJson>(),
+        reason: () => undefined,
+      });
+      if (!options.ok) {
+        // no reason can arise: the call throws for every failure
+        return options;
+      }
+      const json_ = options.value;
+      const credential = await prompt(() =>
+        navigator.credentials.get({
+          publicKey: {
+            ...(json_ as unknown as PublicKeyCredentialRequestOptions),
+            challenge: decode(json_.challenge),
+            allowCredentials: descriptors(json_.allowCredentials),
+          },
+        }),
+      );
+      if (credential === undefined) {
+        return CANCELLED;
+      }
+      const response = credential.response as AuthenticatorAssertionResponse;
+      return http.call({
+        method: "POST",
+        path: "/passkey/sign-in",
+        body: {
+          id: credential.id,
+          rawId: encode(credential.rawId),
+          type: credential.type,
+          response: {
+            authenticatorData: encode(response.authenticatorData),
+            clientDataJSON: encode(response.clientDataJSON),
+            signature: encode(response.signature),
+            userHandle: response.userHandle ? encode(response.userHandle) : null,
+          },
+          clientExtensionResults: credential.getClientExtensionResults(),
+          authenticatorAttachment: credential.authenticatorAttachment,
+        },
+        read: json<SignedIn>(),
+        reason: (status) => (status === 401 ? "rejected" : undefined),
+      });
+    },
+
+    remove: (credentialId) =>
+      http.call({
+        method: "DELETE",
+        path: `/passkey/register/${encodeURIComponent(credentialId)}`,
+        read: nothing,
+        reason: (status) => signedOut(status) ?? (status === 403 ? "refused" : undefined),
+      }),
+  };
+}

@@ -15,6 +15,7 @@
  */
 import { type Email, email } from "./email";
 import { json, nothing, signedOut, type WhoClientOptions, WhoHttp } from "./http";
+import { type Passkeys, passkeys } from "./passkeys";
 import type { WhoResult } from "./result";
 import { type Sessions, sessions } from "./sessions";
 
@@ -34,6 +35,8 @@ export interface WhoClient<D> {
   sessions: Sessions<D>;
   /** Signing in by email link or code, and email addresses. */
   email: Email<D>;
+  /** Signing in with a passkey, and registering and removing them. */
+  passkeys: Passkeys<D>;
 }
 
 /**
@@ -51,5 +54,6 @@ export function createWhoClient<D = unknown>(options: WhoClientOptions<D> = {}):
     },
     sessions: sessions(http),
     email: email(http),
+    passkeys: passkeys(http),
   };
 }

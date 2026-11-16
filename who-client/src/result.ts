@@ -23,6 +23,17 @@ export type WhoResult<T, R extends string, D> =
   { ok: true; value: T } | { ok: false; reason: R; status: number; detail: D };
 
 /**
+ * The person dismissed the browser's passkey prompt. Nothing reached who, so there is no status
+ * (0) and no detail.
+ */
+export interface Cancelled {
+  ok: false;
+  reason: "cancelled";
+  status: 0;
+  detail: undefined;
+}
+
+/**
  * The reasons a call that needs a recent sign-in can fail with a 401. who's `Who-Error` header tells
  * `"signed-out"` from `"reauthentication-required"`; `"sign-in-required"` is either, when an
  * application's error handling dropped the header (`me()` then tells which).
