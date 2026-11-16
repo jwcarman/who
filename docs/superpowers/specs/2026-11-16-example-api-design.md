@@ -11,7 +11,7 @@ no longer shows how who is meant to be used.
 
 It teaches what the browser examples cannot: who signs a token in but never creates an identity
 from one, so an app decides which accounts exist and links them; a token must be issued *for this
-API* (its audience); and an API key acts as its owner, with the owner's permissions.
+API* (its audience); and an API key holds only the scopes it was made with, never more than its owner has now.
 
 ## Goals
 
@@ -92,12 +92,13 @@ in only accounts the app linked. The subjects and roles are `example.*` properti
 |---|---|---|
 | `GET /api/me` | anyone signed in | identity, permissions, how the call was signed in (token or key) |
 | `GET/POST/DELETE /api/tasks` | by permission | the board, as in the other examples |
-| `POST /api/keys` | a token only | creates a key for the caller; answers the raw key once |
-| `GET /api/keys` | anyone signed in | the caller's keys: id, name, created |
+| `POST /api/keys` | a token only | creates a key for the caller with a name, lifetime and scopes; answers the raw key once |
+| `GET /api/keys` | a token only | the caller's keys: id, name, scopes, created, expiry, last use; no secret |
+| `GET /api/keys/self` | a key only | the key the request signed in with, found by the sign-in's credential id; `404` with a token |
 | `DELETE /api/keys/{id}` | a token only | revokes one of the caller's keys |
 
-Creating and revoking keys needs a person's token: a key cannot mint keys or revoke its siblings,
-so a leaked key cannot make itself permanent. Errors are `ProblemDetail` JSON: `401` (who's chain,
+Creating, listing and revoking keys needs a person's token: a key cannot mint keys, see its
+siblings or revoke them, so a leaked key cannot make itself permanent or map out its owner's keys. Errors are `ProblemDetail` JSON: `401` (who's chain,
 with `WWW-Authenticate`), `403`, `404` for another identity's key.
 
 ### Tests
@@ -105,8 +106,8 @@ with `WWW-Authenticate`), `403`, `404` for another identity's key.
 - The backend starts with a Testcontainers Postgres and Docker Compose off.
 - A JWT from a test signer (who-test, or a `JwtDecoder` the test supplies) for a linked subject
   reaches `/api/tasks`; an unlinked subject and a wrong audience get `401`.
-- A created key calls `/api/tasks` with its owner's permissions; a key cannot create a key; a
-  revoked key gets `401`.
+- A created key calls `/api/tasks` with its scopes only; a key cannot create, list or revoke keys,
+  and reads only itself at `/api/keys/self`; a revoked key gets `401`.
 
 ### Removing who-example
 
