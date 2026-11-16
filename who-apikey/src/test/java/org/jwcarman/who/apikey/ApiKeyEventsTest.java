@@ -435,7 +435,7 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
           new ApiKeyService(
               apiKeyCredentialRepository,
               credentialIdentityRepository,
-              identity -> Set.of("task.read"),
+              _ -> Set.of("task.read"),
               new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
               Duration.ofDays(365),
               events::add,

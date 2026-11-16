@@ -92,7 +92,8 @@ class ApiKeyAuthenticationProviderTest {
   }
 
   private SignInFailed refused(String presented) {
-    assertThatThrownBy(() -> provider.authenticate(new ApiKeyAuthenticationToken(presented)))
+    ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken(presented);
+    assertThatThrownBy(() -> provider.authenticate(token))
         .isInstanceOf(BadCredentialsException.class);
     assertThat(events).singleElement().isInstanceOf(SignInFailed.class);
     return (SignInFailed) events.getFirst();

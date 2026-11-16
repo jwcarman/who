@@ -39,7 +39,7 @@ public final class ApiKeyFormat {
   private static final int RANDOM_LENGTH = 30;
   private static final int CHECKSUM_LENGTH = 6;
   private static final int TAIL_LENGTH = RANDOM_LENGTH + CHECKSUM_LENGTH;
-  private static final Pattern PREFIX = Pattern.compile("[A-Za-z0-9_]{1,19}_");
+  private static final Pattern PREFIX_SHAPE = Pattern.compile("\\w{1,19}_");
   private static final Pattern TAIL = Pattern.compile("[0-9A-Za-z]{" + TAIL_LENGTH + "}");
   // the largest multiple of 62 a byte reaches; a byte at or above it is drawn again, so every
   // character is equally likely
@@ -56,7 +56,7 @@ public final class ApiKeyFormat {
    * @throws IllegalArgumentException if the prefix breaks those rules
    */
   public ApiKeyFormat(String prefix) {
-    if (prefix == null || !PREFIX.matcher(prefix).matches()) {
+    if (prefix == null || !PREFIX_SHAPE.matcher(prefix).matches()) {
       throw new IllegalArgumentException(
           "An API key prefix must be 2 to 20 letters, digits or underscores, ending in an"
               + " underscore, such as \"who_\"; got "
@@ -96,7 +96,7 @@ public final class ApiKeyFormat {
       return false;
     }
     int tailStart = key.length() - TAIL_LENGTH;
-    if (!PREFIX.matcher(key.substring(0, tailStart)).matches()
+    if (!PREFIX_SHAPE.matcher(key.substring(0, tailStart)).matches()
         || !TAIL.matcher(key.substring(tailStart)).matches()) {
       return false;
     }
