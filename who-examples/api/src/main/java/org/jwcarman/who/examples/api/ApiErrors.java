@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.examples.api;
 
+import org.jwcarman.who.spring.security.web.InsufficientUserAuthenticationException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -39,6 +40,18 @@ class ApiErrors {
         .body(
             ProblemDetail.forStatusAndDetail(
                 HttpStatus.UNAUTHORIZED, "Send an access token or an API key"));
+  }
+
+  /**
+   * The token's person signed in too long ago to make a key: {@code 401}; who has already set the
+   * step-up challenge, with {@code max_age}, in {@code WWW-Authenticate}.
+   */
+  @ExceptionHandler(InsufficientUserAuthenticationException.class)
+  ResponseEntity<ProblemDetail> signInAgain() {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(
+            ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNAUTHORIZED, "Sign in again to make a key"));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

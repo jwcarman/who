@@ -22,9 +22,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,6 +78,32 @@ class ApiKeysTest extends AbstractApiTest {
             .getResponse()
             .getContentAsString();
     return UUID.fromString(JsonPath.read(json, "$.identityId"));
+  }
+
+  @Test
+  void a_token_signed_in_long_ago_must_sign_in_again_to_make_a_key() throws Exception {
+    create(
+            tokenSignedInAt(ALICE, Instant.now().minus(Duration.ofHours(1))),
+            "{\"name\":\"CI\",\"lifetimeDays\":30,\"scopes\":[\"task.read\"]}")
+        .andExpect(status().isUnauthorized())
+        .andExpect(
+            header()
+                .string(
+                    HttpHeaders.WWW_AUTHENTICATE,
+                    "Bearer error=\"insufficient_user_authentication\", "
+                        + "error_description=\"A more recent sign-in is required\", "
+                        + "max_age=600"))
+        .andExpect(jsonPath("$.detail").value("Sign in again to make a key"));
+
+    assertThat(apiKeys.findByIdentity(identityOf(ALICE))).isEmpty();
+  }
+
+  @Test
+  void a_token_that_does_not_say_when_its_person_signed_in_cannot_make_a_key() throws Exception {
+    create(
+            tokenSignedInAt(ALICE, null),
+            "{\"name\":\"CI\",\"lifetimeDays\":30,\"scopes\":[\"task.read\"]}")
+        .andExpect(status().isForbidden());
   }
 
   @Test

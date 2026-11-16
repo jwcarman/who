@@ -151,6 +151,28 @@ decides who may manage which key:
   `404`.
 - A key is revoked only by its owner. Another person's key id is `404`, as if it did not exist.
 
+### Making a key needs a recent sign-in
+
+A key outlives the token that made it, so `POST /api/keys` is annotated `@RequiresRecentSignIn`:
+the token's `auth_time`, when the person signed in at Keycloak, must be within
+`who.security.recent-sign-in` (10 minutes). A token from an older sign-in is refused with the RFC
+9470 step-up challenge:
+
+```text
+HTTP/1.1 401
+WWW-Authenticate: Bearer error="insufficient_user_authentication", error_description="A more recent sign-in is required", max_age=600
+```
+
+The client has the person sign in again and retries with the new token. A browser-based client
+sends `max_age=600` on its authorization request, and Keycloak asks for the password if the person
+signed in longer ago than that. With the device grant above, sign in again in a fresh browser
+session (sign out of Keycloak first, or use a private window): a Keycloak session still open in the
+browser signs the device in without asking, and the token keeps the old `auth_time`.
+
+A token without `auth_time` cannot make a key at all (`403`): who cannot tell when its person
+signed in. Keycloak, Okta and Cognito include the claim in access tokens; the
+[JWT guide](../../docs/guides/jwt.md#recent-sign-in) lists which providers do.
+
 ## In production
 
 - `issuer-uri` and `audiences` name your authorization server and your API. Without the

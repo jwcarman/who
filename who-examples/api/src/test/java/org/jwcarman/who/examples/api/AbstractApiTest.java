@@ -113,16 +113,39 @@ abstract class AbstractApiTest {
     return token(SIGNING_KEY, ISSUER, subject, AUDIENCE, Instant.now().plus(Duration.ofMinutes(5)));
   }
 
+  /**
+   * A valid access token for {@code subject} who signed in at {@code authTime}, or, when it is
+   * null, a token that does not say when.
+   */
+  static String tokenSignedInAt(String subject, Instant authTime) {
+    Instant expiresAt = Instant.now().plus(Duration.ofMinutes(5));
+    return token(SIGNING_KEY, ISSUER, subject, AUDIENCE, expiresAt, authTime);
+  }
+
+  /** As Keycloak issues them, the token says when its person signed in: just now. */
   static String token(
       KeyPair key, String issuer, String subject, String audience, Instant expiresAt) {
-    JWTClaimsSet claims =
+    return token(key, issuer, subject, audience, expiresAt, Instant.now());
+  }
+
+  static String token(
+      KeyPair key,
+      String issuer,
+      String subject,
+      String audience,
+      Instant expiresAt,
+      Instant authTime) {
+    JWTClaimsSet.Builder builder =
         new JWTClaimsSet.Builder()
             .issuer(issuer)
             .subject(subject)
             .audience(List.of(audience))
             .issueTime(Date.from(expiresAt.minus(Duration.ofMinutes(10))))
-            .expirationTime(Date.from(expiresAt))
-            .build();
+            .expirationTime(Date.from(expiresAt));
+    if (authTime != null) {
+      builder.claim("auth_time", authTime.getEpochSecond());
+    }
+    JWTClaimsSet claims = builder.build();
     SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
     try {
       jwt.sign(new RSASSASigner((RSAPrivateKey) key.getPrivate()));

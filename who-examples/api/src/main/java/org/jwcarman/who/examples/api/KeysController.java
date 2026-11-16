@@ -26,6 +26,7 @@ import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.NewApiKey;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -76,7 +77,14 @@ class KeysController {
     this.apiKeys = apiKeys;
   }
 
+  /**
+   * Makes a key for the person whose token this is. A key outlives the token, so making one needs a
+   * recent sign-in: a token whose {@code auth_time} is more than {@code
+   * who.security.recent-sign-in} old gets the RFC 9470 step-up challenge, and the client signs the
+   * person in again with {@code max_age}.
+   */
   @PostMapping("/api/keys")
+  @RequiresRecentSignIn
   ResponseEntity<CreatedKey> create(@RequestBody NewKey request, Authentication authentication) {
     WhoPrincipal caller = personSignedInWithToken(authentication);
     // who refuses a blank name, a bad lifetime and a scope the caller lacks; a field left out of
