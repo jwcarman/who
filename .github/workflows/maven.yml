@@ -19,7 +19,24 @@ permissions:
   contents: read
 
 jobs:
+  # First and fast: a formatting slip or a missing license header fails here, in about a minute,
+  # and the build never starts. A shallow clone, and no compiling: both goals only read the sources.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Set up JDK 25
+      uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      with:
+        java-version: '25'
+        distribution: 'liberica'
+        cache: maven
+    - name: Check formatting and license headers
+      run: mvn -B -Plicense spotless:check license:check
+
   build:
+    needs: checks
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
@@ -32,10 +49,6 @@ jobs:
         java-version: '25'
         distribution: 'liberica'
         cache: maven
-    # Seconds, not minutes: a formatting slip or a missing license header fails here, before the
-    # build and its tests. The build checks formatting again; the license check runs only here.
-    - name: Check formatting and license headers
-      run: mvn -B -Plicense spotless:check license:check
     - name: Build with Maven
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
