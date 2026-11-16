@@ -660,6 +660,31 @@ public class WhoProperties {
     public void setHeaderName(String headerName) {
       this.headerName = headerName;
     }
+
+    /**
+     * Starts every new API key, so a secret scanner can recognize a leaked one: letters, digits and
+     * {@code _}, 2 to 20 characters, ending in {@code _}. Keys made under an earlier prefix keep
+     * working.
+     */
+    private String prefix = "who_";
+
+    /**
+     * Returns the prefix that starts every new API key.
+     *
+     * @return the prefix
+     */
+    public String getPrefix() {
+      return prefix;
+    }
+
+    /**
+     * Sets the prefix that starts every new API key.
+     *
+     * @param prefix the prefix
+     */
+    public void setPrefix(String prefix) {
+      this.prefix = prefix;
+    }
   }
 
   /**

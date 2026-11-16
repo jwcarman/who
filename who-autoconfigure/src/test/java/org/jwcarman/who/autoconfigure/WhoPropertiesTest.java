@@ -34,6 +34,7 @@ class WhoPropertiesTest {
     assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.EMBEDDED);
     assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
+    assertThat(props.getApiKey().getPrefix()).isEqualTo("who_");
     assertThat(props.getMethodSecurity().isEnabled()).isTrue();
   }
 
@@ -62,8 +63,10 @@ class WhoPropertiesTest {
 
     WhoProperties.ApiKey apiKey = new WhoProperties.ApiKey();
     apiKey.setHeaderName("Authorization");
+    apiKey.setPrefix("acme_");
     props.setApiKey(apiKey);
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("Authorization");
+    assertThat(props.getApiKey().getPrefix()).isEqualTo("acme_");
   }
 
   @Test
