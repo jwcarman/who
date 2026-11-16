@@ -43,6 +43,7 @@
         <module>web-app</module>
         <module>spa</module>
         <module>api</module>
+        <module>web-and-api</module>
     </modules>
 
     <build>
