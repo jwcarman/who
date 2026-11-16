@@ -15,6 +15,9 @@
 | `who.security.last-sign-in-cookie.enabled` | `true` | Sets the `who_last_sign_in` cookie after a browser sign-in. See [Sessions](sessions.md#the-last-sign-in-cookie) |
 | `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off |
 | `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |
+| `who.api-key.prefix` | `who_` | Starts every new API key, so secret scanners can spot one. Letters, digits and `_`, 2 to 20 characters, ending in `_`, or startup fails. Changing it leaves existing keys working |
+| `who.api-key.max-lifetime` | `365d` | The longest lifetime a new API key may be given. Positive, or startup fails |
+| `who.api-key.last-used-interval` | `5m` | How often, at most, an API key's last use is written. Positive, or startup fails |
 | `who.email-link.link-base-url` | none | Page of your app that receives sign-in links. The token is appended as `#token=...`. Required with `who-email-link`: a missing or blank value fails startup. List the page in `who.security.public-paths` |
 | `who.email-link.token-ttl` | `5m` | How long a sign-in link stays valid |
 | `who.email-link.resend-interval` | `60s` | Minimum time between two links for the same address. Startup fails if it is longer than `token-ttl` |

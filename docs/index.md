@@ -76,8 +76,9 @@ by creating them yourself.
 
     ---
 
-    Keys are hashed before storage and shown once. Add them to the filter chains
-    that need them. See [API Keys](guides/api-keys.md).
+    Keys expire, hold only the permissions they were scoped to, record their
+    last use, and rotate with an overlap. They are hashed before storage and
+    shown once. See [API Keys](guides/api-keys.md).
 
 -   **Enrollment**
 

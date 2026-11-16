@@ -102,6 +102,28 @@ provider sign-in can share it.
 - **A new table, `who_email_address_request`,** for [adding or changing an
   address](email-links.md#adding-or-changing-an-address). The bundled schema and the Liquibase
   changelog create it; Flyway users copy it from [Database Setup](database.md#flyway).
+- **API keys need a lifetime and scopes.** `ApiKeyService.create(identity, name)` is now
+  `create(identity, name, lifetime, scopes)` and answers a `NewApiKey`; the raw key is its
+  `key()`. The lifetime is required and at most `who.api-key.max-lifetime` (default `365d`), and
+  each scope must be a permission the owner holds. A key signs in with its scopes intersected
+  with its owner's permissions, so a key no longer carries everything its owner can do. See
+  [API Keys](api-keys.md#making-a-key).
+    - New: `findByIdentity` lists an identity's keys, `rotate` replaces one with an overlap, and
+      `SignInFailureReason.EXPIRED_KEY`.
+    - New keys look like `who_` plus 36 base62 characters, the last 6 a checksum. A header that is
+      not shaped like a key is refused without a database lookup.
+    - New settings: `who.api-key.prefix`, `max-lifetime` and `last-used-interval`.
+    - `ApiKeyService` and `ApiKeyAuthenticationProvider` take new constructor arguments: a
+      `PermissionsResolver`, an `ApiKeyFormat` and the maximum lifetime for the service; an
+      `ApiKeyFormat` and the last-used interval for the provider. Apps that use the autoconfigured
+      beans change nothing.
+    - `ApiKeyCredentialRepository` has a new method, `touch`, for a custom implementation to add.
+- **The API-key tables change, and existing keys are deleted.** `who_api_key_credential` gains
+  `created_at`, `expires_at` and `last_used_at`, and a new table, `who_api_key_scope`, holds each
+  key's scopes. Keys made before have no lifetime or scopes, so the Liquibase changelog deletes
+  them before adding the columns; issue new ones. With the bundled schema, drop
+  `who_api_key_credential` and let who create both tables again. Flyway users delete the rows and
+  copy the new columns and table from [Database Setup](database.md#flyway).
 - **The "passkey added" startup warning moved logger.** It is now logged by
   `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`, not `WhoAutoConfiguration`.
 

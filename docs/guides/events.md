@@ -63,7 +63,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `EMAIL_LINK` | `MALFORMED`, `INVALID_LINK` (unknown, used or expired), `INACTIVE_IDENTITY` |
 | `EMAIL_CODE` | `MALFORMED`, `NO_LIVE_CODE` (unknown address, no code, expired, or attempts used up), `WRONG_CODE`, `CODE_ALREADY_USED` (the right code lost a race with another use or expiry), `INACTIVE_IDENTITY` |
 | `PASSKEY` | `INVALID_ASSERTION` (signature, origin or unknown credential; they cannot be told apart), `INACTIVE_IDENTITY` |
-| `API_KEY` | `UNKNOWN_KEY` (unknown, revoked, or linked to no identity), `INACTIVE_IDENTITY` |
+| `API_KEY` | `UNKNOWN_KEY` (malformed, unknown, revoked, or linked to no identity), `EXPIRED_KEY`, `INACTIVE_IDENTITY` |
 | `JWT` | `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY` |
 | `OIDC` | `PROVIDER_ERROR` (cancelled, refused by the provider, a state mismatch, a bad ID token or one from the wrong issuer), `LINK_REFUSED` (a link started too long ago, or answered for another identity; the event names the identity that started it), `MISSING_CLAIMS`, `UNKNOWN_CREDENTIAL`, `INACTIVE_IDENTITY`, `SIGN_UP_REFUSED` (the sign-up policy said no) |
 

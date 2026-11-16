@@ -49,28 +49,24 @@ is a tag.
   today's "sign out everywhere".
 - **Security notifications** for a changed address or a new API key, as `PasskeyAddedNotifier`
   does for passkeys. Built on the 0.17 events.
+- **API keys that are ready for production.** (Done in 0.18.0, moved from 0.19: see [API
+  Keys](docs/guides/api-keys.md).) Every key expires and records its last use; a key holds only
+  its scopes, never more than its owner has now; keys rotate with an overlap and carry a
+  recognizable prefix and checksum for secret scanners.
 
-## 0.19: API keys that are ready for production
-
-- An expiry date, and a last-used time to find stale keys, recorded by the API-key sign-in itself
-  (throttled), not from events: a valid key publishes no event.
-- A recognizable prefix (such as `who_…`) so secret scanners can spot a leaked key.
-- Scopes: a key holds a subset of its identity's permissions.
-- Rotation with an overlap window.
-
-## 0.20: more identity providers
+## 0.19: more identity providers
 
 - Sign in with Apple. Its callback is a cross-site `form_post`, which needs a CSRF-exempt callback
   or a cookie-backed authorization-request store.
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
 - Sign-up through `WhoSignUpPolicy` for email links.
 
-## 0.21: organizations
+## 0.20: organizations
 
 - Roles and permissions scoped to an organization ("admin in Acme, member in Globex"),
   invitations to an organization, and permission checks against the current one.
 - This changes the data model more than anything else here, so its design should start early,
-  well before 0.21, even if the code comes last.
+  well before 0.20, even if the code comes last.
 
 ## 1.0: stability
 

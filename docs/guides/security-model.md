@@ -22,8 +22,9 @@ who runs inside your application and draws these lines:
 **Secrets are stored as hashes, never as values.**
 
 - Sign-in link tokens and enrollment tokens are 256-bit random values, stored as SHA-256 hashes.
-- API keys are `who_` plus 256 random bits, stored as SHA-256 hashes and shown once at creation
-  ([API Keys](api-keys.md)).
+- API keys are a prefix, about 178 random bits and a checksum, stored as SHA-256 hashes and shown
+  once at creation. Every key expires, and holds only the scopes it was made with that its owner
+  still has ([API Keys](api-keys.md)).
 - Typed sign-in codes are stored as HMAC-SHA256 under `who.email-link.code-secret`, keyed with
   the credential id as well. The secret is not in the database, so a copy of the database alone
   cannot be used to recover a live code ([Email Links](email-links.md#code-secret)).
@@ -103,7 +104,7 @@ How who applies the classic secure design principles (Saltzer and Schroeder):
 - **Complete mediation.** The session holds only ids; the identity and credential are re-checked
   on every request.
 - **Least privilege.** `@RequiresPermission` grants nothing the resolved permissions don't
-  include; API keys and sessions map to the same identity and the same permissions.
+  include; an API key gets only its scopes, and never more than its owner holds at that moment.
 - **Economy of mechanism.** Sign-in is built on Spring Security's one-time-token and WebAuthn
   support, not a parallel implementation; every credential type ends in one `WhoPrincipal`.
 - **Separation of privilege.** A typed code needs both the stored HMAC and the secret that is not
