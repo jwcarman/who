@@ -45,6 +45,7 @@ import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -192,6 +193,7 @@ class ApiKeyErrorDispatchTest {
   @LocalServerPort private int port;
   @Autowired private WhoService whoService;
   @Autowired private ApiKeyService apiKeyService;
+  @Autowired private RbacService rbacService;
 
   private final HttpClient client = HttpClient.newHttpClient();
   private final JsonMapper json = JsonMapper.builder().build();
@@ -270,7 +272,8 @@ class ApiKeyErrorDispatchTest {
     @Test
     void keeps_its_identity_on_the_error_page_and_signs_in_once() throws Exception {
       Identity identity = whoService.createIdentity();
-      String key = apiKeyService.create(identity, "error-dispatch");
+      TestApiKeys.grant(rbacService, identity);
+      String key = TestApiKeys.create(apiKeyService, identity, "error-dispatch");
       EVENTS.clear();
       SPRING_SUCCESSES.clear();
 

@@ -20,6 +20,9 @@ import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
@@ -61,7 +64,14 @@ class ApiKeyChainTest extends AbstractApiKeyTest {
   @BeforeEach
   void setUp() {
     mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(springSecurityFilterChain).build();
-    key = apiKeyService.create(identityRepository.save(Identity.create()), "chain");
+    key =
+        apiKeyService
+            .create(
+                identityRepository.save(Identity.create()),
+                "chain",
+                Duration.ofDays(30),
+                Set.of("task.read"))
+            .key();
   }
 
   @Test

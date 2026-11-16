@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 class ApiController {
 
   static final String ADMIN_PERMISSION = "native.admin";
+  static final String USER_PERMISSION = "native.user";
 
   @GetMapping("/api/hello")
   Map<String, String> hello(@AuthenticationPrincipal WhoPrincipal principal) {

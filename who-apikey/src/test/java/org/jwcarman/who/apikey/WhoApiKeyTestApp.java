@@ -15,8 +15,11 @@
  */
 package org.jwcarman.who.apikey;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.util.Set;
 
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
@@ -49,7 +52,7 @@ class WhoApiKeyTestApp {
 
   @Bean
   PermissionsResolver permissionsResolver() {
-    return identity -> Set.of();
+    return identity -> Set.of("task.read", "task.write");
   }
 
   @Bean
@@ -63,7 +66,15 @@ class WhoApiKeyTestApp {
   @Bean
   ApiKeyService apiKeyService(
       ApiKeyCredentialRepository apiKeyCredentialRepository,
-      CredentialIdentityRepository credentialIdentityRepository) {
-    return new ApiKeyService(apiKeyCredentialRepository, credentialIdentityRepository);
+      CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver) {
+    return new ApiKeyService(
+        apiKeyCredentialRepository,
+        credentialIdentityRepository,
+        permissionsResolver,
+        new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+        Duration.ofDays(365),
+        WhoEventPublisher.NOOP,
+        Clock.systemUTC());
   }
 }

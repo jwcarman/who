@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,7 +89,10 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
   }
 
   private String keyFor(Identity identity) {
-    return apiKeyService.create(identityRepository.save(identity), "filter");
+    return apiKeyService
+        .create(
+            identityRepository.save(identity), "filter", Duration.ofDays(30), Set.of("task.read"))
+        .key();
   }
 
   private UUID credentialIdOf(String key) {

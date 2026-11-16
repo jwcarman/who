@@ -81,7 +81,8 @@ class DeleteIdentityTest {
                   .register(identity, "delete-" + identity.id() + "@example.com")
                   .id();
           UUID jwt = linkedJwt(context, identity, "delete-" + identity.id());
-          context.getBean(ApiKeyService.class).create(identity, "Laptop");
+          TestApiKeys.grant(context.getBean(RbacService.class), identity);
+          TestApiKeys.create(context.getBean(ApiKeyService.class), identity, "Laptop");
           UUID apiKey =
               jdbc.sql(
                       "SELECT k.id FROM who_api_key_credential k JOIN who_credential_identity ci"
@@ -135,7 +136,8 @@ class DeleteIdentityTest {
                   .getBean(EmailCredentialService.class)
                   .register(deleted, "orphan-" + deleted.id() + "@example.com");
           UUID orphanJwt = linkedJwt(context, deleted, "orphan-" + deleted.id());
-          context.getBean(ApiKeyService.class).create(deleted, "Laptop");
+          TestApiKeys.grant(context.getBean(RbacService.class), deleted);
+          TestApiKeys.create(context.getBean(ApiKeyService.class), deleted, "Laptop");
           // A raw delete cascades to the links only.
           jdbc.sql("DELETE FROM who_identity WHERE id = :id").param("id", deleted.id()).update();
 

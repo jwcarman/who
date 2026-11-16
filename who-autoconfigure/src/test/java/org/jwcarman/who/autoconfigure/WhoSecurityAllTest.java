@@ -44,6 +44,7 @@ import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
+import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -174,6 +175,7 @@ class WhoSecurityAllTest {
   @LocalServerPort private int port;
   @Autowired private WhoService whoService;
   @Autowired private ApiKeyService apiKeyService;
+  @Autowired private RbacService rbacService;
   @Autowired private FederatedCredentialService federatedCredentialService;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private EmailCredentialService emailCredentialService;
@@ -187,7 +189,8 @@ class WhoSecurityAllTest {
     jdbcClient.sql("DELETE FROM who_identity").update();
     jdbcClient.sql("DELETE FROM who_federated_credential").update();
     Identity identity = whoService.createIdentity();
-    apiKey = apiKeyService.create(identity, "test");
+    TestApiKeys.grant(rbacService, identity);
+    apiKey = TestApiKeys.create(apiKeyService, identity, "test");
     federatedCredentialService.link(identity, ISSUER, SUBJECT);
     emailCredentialService.register(identity, ADDRESS);
     SENT.clear();

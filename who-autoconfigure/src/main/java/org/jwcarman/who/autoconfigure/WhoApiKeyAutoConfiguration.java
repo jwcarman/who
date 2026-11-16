@@ -17,10 +17,12 @@
 package org.jwcarman.who.autoconfigure;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationProvider;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
+import org.jwcarman.who.apikey.ApiKeyFormat;
 import org.jwcarman.who.apikey.ApiKeyLoginMethod;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
@@ -28,6 +30,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
+import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -58,23 +61,58 @@ public class WhoApiKeyAutoConfiguration {
   }
 
   /**
-   * Creates and revokes API keys, publishing the credential events.
+   * The shape of new keys, with the configured prefix.
    *
-   * @param apiKeyCredentialRepository stores the keys' hashes
+   * @param properties {@code who.api-key.prefix}
+   * @return the format
+   * @throws IllegalStateException if the prefix breaks the format's rules, so startup fails
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public ApiKeyFormat apiKeyFormat(WhoProperties properties) {
+    try {
+      return new ApiKeyFormat(properties.getApiKey().getPrefix());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalStateException("who.api-key.prefix: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Makes, lists, rotates and revokes API keys, publishing the credential events.
+   *
+   * @param apiKeyCredentialRepository stores the keys
    * @param credentialIdentityRepository links keys to identities
+   * @param permissionsResolver what an owner holds, checked against a new key's scopes
+   * @param apiKeyFormat makes the keys
+   * @param properties {@code who.api-key.max-lifetime}
    * @param whoEventPublisher where the credential events are published
-   * @param clock stamps the events
+   * @param clock stamps keys and events
    * @return the service
+   * @throws IllegalStateException if the maximum lifetime is not positive, so startup fails
    */
   @Bean
   @ConditionalOnMissingBean
   public ApiKeyService apiKeyService(
       ApiKeyCredentialRepository apiKeyCredentialRepository,
       CredentialIdentityRepository credentialIdentityRepository,
+      PermissionsResolver permissionsResolver,
+      ApiKeyFormat apiKeyFormat,
+      WhoProperties properties,
       WhoEventPublisher whoEventPublisher,
       Clock clock) {
+    Duration maxLifetime = properties.getApiKey().getMaxLifetime();
+    if (maxLifetime == null || maxLifetime.isNegative() || maxLifetime.isZero()) {
+      throw new IllegalStateException(
+          "who.api-key.max-lifetime must be positive, got " + maxLifetime);
+    }
     return new ApiKeyService(
-        apiKeyCredentialRepository, credentialIdentityRepository, whoEventPublisher, clock);
+        apiKeyCredentialRepository,
+        credentialIdentityRepository,
+        permissionsResolver,
+        apiKeyFormat,
+        maxLifetime,
+        whoEventPublisher,
+        clock);
   }
 
   /**

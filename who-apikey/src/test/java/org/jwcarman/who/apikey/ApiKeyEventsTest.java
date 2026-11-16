@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -164,7 +165,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
     @Test
     void a_valid_key_publishes_no_sign_in_succeeded() throws Exception {
-      String key = apiKeyService.create(identity, "events");
+      String key =
+          apiKeyService.create(identity, "events", Duration.ofDays(30), Set.of("task.read")).key();
 
       assertThat(statusOf(key)).isEqualTo(200);
       assertThat(statusOf(key)).isEqualTo(200);
@@ -185,7 +187,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
     @Test
     void a_revoked_key_publishes_sign_in_failed_with_unknown_key() throws Exception {
-      String key = apiKeyService.create(identity, "events");
+      String key =
+          apiKeyService.create(identity, "events", Duration.ofDays(30), Set.of("task.read")).key();
       UUID credentialId = credentialIdOf(key);
       apiKeyService.revoke(credentialId);
 
@@ -201,7 +204,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
     @Test
     void a_key_whose_link_is_gone_publishes_sign_in_failed_with_unknown_key_and_its_id()
         throws Exception {
-      String key = apiKeyService.create(identity, "events");
+      String key =
+          apiKeyService.create(identity, "events", Duration.ofDays(30), Set.of("task.read")).key();
       UUID credentialId = credentialIdOf(key);
       credentialIdentityRepository.unlink(credentialId);
 
@@ -220,7 +224,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
     @Test
     void the_sign_in_is_observed_when_the_application_observes() throws Exception {
-      String key = apiKeyService.create(identity, "events");
+      String key =
+          apiKeyService.create(identity, "events", Duration.ofDays(30), Set.of("task.read")).key();
 
       assertThat(statusOf(key)).isEqualTo(200);
 
@@ -232,7 +237,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
     @Test
     void the_application_hears_spring_authentication_events() throws Exception {
-      String key = apiKeyService.create(identity, "events");
+      String key =
+          apiKeyService.create(identity, "events", Duration.ofDays(30), Set.of("task.read")).key();
 
       statusOf(key);
       statusOf("who_unknown");
@@ -338,7 +344,8 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
     @Test
     void the_raw_key_appears_in_no_event_and_no_log_line() throws Exception {
-      String key = apiKeyService.create(identity, "events");
+      String key =
+          apiKeyService.create(identity, "events", Duration.ofDays(30), Set.of("task.read")).key();
       String unknown = "who_" + "u".repeat(43);
       List<String> keys = List.of(key, unknown);
       List<String> hashes = List.of(ApiKeyService.sha256Hex(key), ApiKeyService.sha256Hex(unknown));
@@ -414,13 +421,17 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
           new ApiKeyService(
               apiKeyCredentialRepository,
               credentialIdentityRepository,
+              identity -> Set.of("task.read"),
+              new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+              Duration.ofDays(365),
               events::add,
               Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
     void create_and_revoke_publish_credential_events() {
-      String key = service.create(identity, "CI pipeline");
+      String key =
+          service.create(identity, "CI pipeline", Duration.ofDays(30), Set.of("task.read")).key();
       UUID credentialId = credentialIdOf(key);
 
       service.revoke(credentialId);

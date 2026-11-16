@@ -685,6 +685,27 @@ public class WhoProperties {
     public void setPrefix(String prefix) {
       this.prefix = prefix;
     }
+
+    /** The longest lifetime a new API key may be given. */
+    private Duration maxLifetime = Duration.ofDays(365);
+
+    /**
+     * Returns the longest lifetime a new API key may be given.
+     *
+     * @return the maximum lifetime
+     */
+    public Duration getMaxLifetime() {
+      return maxLifetime;
+    }
+
+    /**
+     * Sets the longest lifetime a new API key may be given; positive, or startup fails.
+     *
+     * @param maxLifetime the maximum lifetime
+     */
+    public void setMaxLifetime(Duration maxLifetime) {
+      this.maxLifetime = maxLifetime;
+    }
   }
 
   /**

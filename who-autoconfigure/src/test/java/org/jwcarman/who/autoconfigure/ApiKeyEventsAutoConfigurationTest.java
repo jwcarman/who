@@ -39,6 +39,7 @@ import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.rbac.RbacService;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
@@ -105,9 +106,10 @@ class ApiKeyEventsAutoConfigurationTest {
           context -> {
             Identity identity = context.getBean(WhoService.class).createIdentity();
             ApiKeyService apiKeys = context.getBean(ApiKeyService.class);
+            TestApiKeys.grant(context.getBean(RbacService.class), identity);
             events.clear();
 
-            String key = apiKeys.create(identity, "Laptop");
+            String key = TestApiKeys.create(apiKeys, identity, "Laptop");
             CredentialAdded added = (CredentialAdded) events.getFirst();
             UUID credentialId = added.credentialId();
             assertThat(signIn(context, key)).isEqualTo(200);
@@ -128,7 +130,8 @@ class ApiKeyEventsAutoConfigurationTest {
           context -> {
             WhoService whoService = context.getBean(WhoService.class);
             Identity identity = whoService.createIdentity();
-            context.getBean(ApiKeyService.class).create(identity, "Laptop");
+            TestApiKeys.grant(context.getBean(RbacService.class), identity);
+            TestApiKeys.create(context.getBean(ApiKeyService.class), identity, "Laptop");
             UUID credentialId = ((CredentialAdded) events.getLast()).credentialId();
             events.clear();
 

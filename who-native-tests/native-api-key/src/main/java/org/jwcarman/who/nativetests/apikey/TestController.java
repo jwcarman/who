@@ -15,8 +15,11 @@
  */
 package org.jwcarman.who.nativetests.apikey;
 
+import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
@@ -35,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 class TestController {
 
   static final String ADMIN_ROLE = "native-admin";
+  static final String USER_ROLE = "native-user";
 
   private final EventRecorder recorder;
   private final WhoService who;
@@ -65,19 +69,23 @@ class TestController {
   @PostMapping("/test/setup/api-key")
   Map<String, String> setUpApiKey(@RequestBody ApiKeySetup setup) {
     Identity identity = who.createIdentity();
-    String key = apiKeys.create(identity, "native test");
+    // a key holds only scopes its owner has
+    rbac.assignRoleToIdentity(identity, role(USER_ROLE, ApiController.USER_PERMISSION));
+    Set<String> scopes = new HashSet<>(Set.of(ApiController.USER_PERMISSION));
     if (setup.admin()) {
-      rbac.assignRoleToIdentity(identity, adminRole());
+      rbac.assignRoleToIdentity(identity, role(ADMIN_ROLE, ApiController.ADMIN_PERMISSION));
+      scopes.add(ApiController.ADMIN_PERMISSION);
     }
+    String key = apiKeys.create(identity, "native test", Duration.ofDays(1), scopes).key();
     return Map.of("identityId", identity.id().toString(), "key", key);
   }
 
-  private synchronized Role adminRole() {
-    return rbac.findRole(ADMIN_ROLE)
+  private synchronized Role role(String name, String permission) {
+    return rbac.findRole(name)
         .orElseGet(
             () -> {
-              Role role = rbac.createRole(ADMIN_ROLE);
-              rbac.addPermissionToRole(role, ApiController.ADMIN_PERMISSION);
+              Role role = rbac.createRole(name);
+              rbac.addPermissionToRole(role, permission);
               return role;
             });
   }
