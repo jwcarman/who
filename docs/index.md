@@ -103,6 +103,8 @@ with Spring Boot's Docker Compose support.
 
 - [Web app](https://github.com/jwcarman/who/tree/main/who-examples/web-app): server-rendered
   pages with email links, passkeys and social login on who's default chain.
+- [Single-page app](https://github.com/jwcarman/who/tree/main/who-examples/spa): the same app in
+  React and TypeScript over a JSON backend, built by Maven into the jar or run on Vite's dev server.
 
 ## Modules
 

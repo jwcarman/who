@@ -1,0 +1,135 @@
+spring:
+  application:
+    name: who-example-spa
+
+  # The app's own table. Postgres itself comes from compose.yaml, through Boot's service connection.
+  sql:
+    init:
+      mode: always
+
+  # Mailpit, from compose.yaml. Every email lands at http://localhost:8025.
+  mail:
+    host: localhost
+    port: 1025
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-name: Keycloak
+            client-id: who-example
+            client-secret: who-example-secret
+            scope: openid,email,profile
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          # Keycloak's endpoints rather than its issuer-uri, so the app starts without waiting for
+          # Keycloak. Spring then checks no issuer, so who.oidc.providers.keycloak.issuer gives it.
+          keycloak:
+            authorization-uri: http://localhost:8280/realms/who-example/protocol/openid-connect/auth
+            token-uri: http://localhost:8280/realms/who-example/protocol/openid-connect/token
+            jwk-set-uri: http://localhost:8280/realms/who-example/protocol/openid-connect/certs
+            user-info-uri: http://localhost:8280/realms/who-example/protocol/openid-connect/userinfo
+            user-name-attribute: sub
+
+who:
+  # who's tables. Fine on your machine; in production use Flyway or Liquibase (see the Database
+  # guide) and set this to never.
+  initialize-schema: always
+
+  security:
+    # The front end's pages and files are public: they are the same for everyone, and hold no data.
+    # The data is under /api, which stays behind sign-in. Keep this list and ClientRoutes in step.
+    public-paths:
+      - /
+      - /index.html
+      - /assets/**
+      - /signin
+      - /signin/**
+      - /members
+      - /profile
+      - /api/providers
+
+  email-link:
+    link-base-url: http://localhost:8080/signin/link
+    # Where the link confirming a new or changed address lands: a signed-in page.
+    address-confirmation-url: http://localhost:8080/profile
+    from: who@example.com
+    subject: Sign in to Who Tasks
+    # A development value. In production, at least 32 random characters from your secret store,
+    # the same on every instance.
+    code-secret: this-is-a-development-secret-change-it
+
+  # Every URL below is one the browser sees. With the front end built into the jar that is Spring's
+  # own port, 8080; the vite profile at the end changes them for Vite's dev server on 5173.
+  passkey:
+    rp-id: localhost
+    # Emails the owner when a passkey is added to their account (it lands in Mailpit).
+    from: who@example.com
+    rp-name: Who Tasks
+    # Browsers allow WebAuthn over plain http on localhost only.
+    allowed-origins: http://localhost:8080
+
+  oidc:
+    # Paths, not URLs: they land on whichever port the browser came from.
+    success-url: /
+    failure-url: /signin
+    # A link starts on the profile page, so it comes back there to be confirmed.
+    link-url: /profile
+    providers:
+      keycloak:
+        issuer: http://localhost:8280/realms/who-example
+        # This realm is ours, and it marks addresses verified. Never set this for a provider you
+        # do not control.
+        trust-email: true
+
+---
+# Front-end development: run with this profile, then `npm run dev` in frontend/ and open
+# http://localhost:5173. Vite forwards the API's and who's paths here, keeping the browser's host,
+# so the session cookie, CSRF and the provider's return address all belong to 5173. What who puts
+# in an email, and the origin a passkey is checked against, must say 5173 too.
+spring:
+  config:
+    activate:
+      on-profile: vite
+
+who:
+  email-link:
+    link-base-url: http://localhost:5173/signin/link
+    address-confirmation-url: http://localhost:5173/profile
+  passkey:
+    allowed-origins: http://localhost:5173
+
+---
+# Sign in with Google: create an OAuth client at https://console.cloud.google.com/apis/credentials
+# with the redirect URI http://localhost:8080/login/oauth2/code/google (and 5173 for the vite profile), then run with
+# GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET set and the google profile on.
+spring:
+  config:
+    activate:
+      on-profile: google
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+
+---
+# Sign in with GitHub: create an OAuth app at https://github.com/settings/developers with the
+# callback URL http://localhost:8080/login/oauth2/code/github (a GitHub OAuth app has one callback URL, so make a second app for 5173), then run with GITHUB_CLIENT_ID and
+# GITHUB_CLIENT_SECRET set and the github profile on.
+spring:
+  config:
+    activate:
+      on-profile: github
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: read:user,user:email

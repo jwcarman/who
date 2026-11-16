@@ -458,9 +458,15 @@ limitations under the License.]]></inlineHeader>
                                         <exclude>.superpowers/**</exclude>
                                         <exclude>.worktrees/**</exclude>
                                         <exclude>.claude/**</exclude>
+                                        <!-- the single-page app example's npm packages and build -->
+                                        <exclude>**/node_modules/**</exclude>
                                     </excludes>
                                 </licenseSet>
                             </licenseSets>
+                            <mapping>
+                                <ts>SLASHSTAR_STYLE</ts>
+                                <tsx>SLASHSTAR_STYLE</tsx>
+                            </mapping>
                         </configuration>
                         <executions>
                             <execution>

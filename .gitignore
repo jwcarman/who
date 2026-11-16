@@ -22,3 +22,6 @@ site/
 
 # Jazzer: the corpus it grows while fuzzing (crash inputs worth keeping go in src/test/resources)
 .cifuzz-corpus/
+
+# The single-page app example's npm packages
+node_modules/

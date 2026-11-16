@@ -78,7 +78,10 @@ Spring Boot starts its Postgres, Mailpit and Keycloak for you:
 ./mvnw spring-boot:run -pl who-examples/web-app
 ```
 
-Its [README](who-examples/web-app/README.md) says what to try. The older JWT example runs with:
+Its [README](who-examples/web-app/README.md) says what to try.
+[`who-examples/spa`](who-examples/spa) is the same app as a React single-page app over a JSON
+backend, started the same way (`-pl who-examples/spa`); its [README](who-examples/spa/README.md)
+covers Vite's dev server. The older JWT example runs with:
 
 ```bash
 ./mvnw spring-boot:run -pl who-example
