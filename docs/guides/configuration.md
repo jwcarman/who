@@ -2,6 +2,7 @@
 
 | Property | Default | Description |
 |----------|---------|-------------|
+| `who.base-path` | `/who` | The root of every who endpoint: `<root>/me`, `<root>/sessions`, `<root>/logout`, `<root>/email/...`, `<root>/passkey/...` and `<root>/oidc/...`, including the provider callback. A path that starts with `/`, does not end with `/`, is not `/` alone, and holds no `*{}?#;` or whitespace; anything else fails startup. See [Endpoints](#endpoints) |
 | `who.initialize-schema` | `embedded` | When to run Who's bundled DDL scripts: `always`, `embedded` (H2/HSQLDB/Derby only), or `never` |
 | `who.security.public-paths` | none | Paths of your app that who's default chain opens to signed-out requests, such as `/signin` and `/assets/**`. `/error`, the sign-in methods' endpoints and Actuator's health endpoint are open already. Also in `WhoPublicPaths` for a chain of your own |
 | `who.email-link.enabled` | `true` | Turns email-link sign-in off when `false`, with `who-email-link` still on the classpath |
@@ -46,3 +47,26 @@
 | `who.oidc.providers.<id>.trust-email` | `true` for Google and github.com, else `false` | Whether a verified address from this provider reaches the sign-up policy |
 
 See [Email Links](email-links.md), [Passkeys](passkeys.md) and [Social Login](social-login.md) for how these fit together.
+
+## Endpoints
+
+Every who endpoint lives under `who.base-path`. With the default `/who`:
+
+| Endpoint | Module | What it does |
+|---|---|---|
+| `GET /who/me` | who-spring-security | The signed-in identity and its permissions |
+| `GET /who/sessions`, `DELETE /who/sessions/{id}`, `DELETE /who/sessions?others=true` | who-spring-security | See and end sessions |
+| `POST /who/logout` | who-spring-security | Sign out |
+| `POST /who/email/send` | who-email-link | Email a sign-in link and code |
+| `POST /who/email/sign-in` | who-email-link | Sign in with the link's token, or the address and code |
+| `POST /who/email/addresses`, `POST /who/email/addresses/confirm` | who-email-link | Add or change an email address |
+| `POST /who/passkey/register/options`, `POST /who/passkey/register` | who-passkey | Register a passkey |
+| `DELETE /who/passkey/register/{id}` | who-passkey | Remove one of your passkeys |
+| `POST /who/passkey/sign-in/options`, `POST /who/passkey/sign-in` | who-passkey | Sign in with a passkey |
+| `GET /who/oidc/authorize/{registrationId}` | who-oidc | Start a provider sign-in |
+| `GET /who/oidc/callback/{registrationId}` | who-oidc | The provider's redirect URI |
+| `GET /who/oidc/pending`, `POST /who/oidc/sign-up`, `POST /who/oidc/link` | who-oidc | Confirm a pending sign-up or link |
+| `POST /who/oidc/link/{registrationId}` | who-oidc | Start linking a provider account |
+
+Your own endpoints may live under the same root; who's rules apply only to its own paths, so
+yours still need whatever sign-in your chain asks for.

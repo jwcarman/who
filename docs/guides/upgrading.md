@@ -2,8 +2,44 @@
 
 ## Upgrading to 0.19.0
 
-0.19.0 adds [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) and lets people
-[see and end their sessions](sessions.md#see-and-end-sessions).
+0.19.0 adds [`@RequiresRecentSignIn`](security-model.md#recent-sign-in), lets people
+[see and end their sessions](sessions.md#see-and-end-sessions), and moves every who endpoint
+under one root.
+
+### Every endpoint under one root
+
+Update the redirect URI registered at each provider to
+`https://<your-host>/who/oidc/callback/<registration-id>`.
+
+Every who endpoint now lives under `who.base-path`, `/who` unless you set it. Change your
+front end's calls, and any `requestMatchers` or proxy rules that name them:
+
+| Before | From 0.19.0 |
+|---|---|
+| `POST /ott/generate` | `POST /who/email/send` |
+| `POST /login/ott` | `POST /who/email/sign-in` |
+| `POST /logout` | `POST /who/logout` |
+| `POST /webauthn/register/options` | `POST /who/passkey/register/options` |
+| `POST /webauthn/register` | `POST /who/passkey/register` |
+| `DELETE /webauthn/register/{id}` | `DELETE /who/passkey/register/{id}` |
+| `POST /webauthn/authenticate/options` | `POST /who/passkey/sign-in/options` |
+| `POST /login/webauthn` | `POST /who/passkey/sign-in` |
+| `GET /oauth2/authorization/{id}` | `GET /who/oidc/authorize/{id}` |
+| `GET /login/oauth2/code/{id}` | `GET /who/oidc/callback/{id}` |
+
+`/who/me`, `/who/sessions`, `/who/email/addresses` and `/who/oidc/...` keep their paths under the
+default root, and move with it if you set another.
+
+- **The old paths are gone.** who answers none of them, and keeps no redirects.
+- **A registration's `redirect-uri`.** Leave it unset and who sets its callback. An explicit one
+  must end with `/who/oidc/callback/{registrationId}` (under your root); any other fails startup,
+  naming `spring.security.oauth2.client.registration.<id>.redirect-uri`.
+- **Code that builds who's pieces itself.** `PendingSignUpFilter`'s `PENDING_URL`, `SIGN_UP_URL`
+  and `LINK_URL` are gone. `PendingSignUpFilter`, `OidcLoginMethod`, `EmailLinkLoginMethod`,
+  `EmailAddressEndpoints`, `PasskeyLoginMethod` and `PasskeyRegistrationGuardFilter` take a
+  `WhoPaths` first (`WhoPaths.defaults()` for `/who`); `PasskeyLoginMethod` also takes the
+  `PasskeyFilterPaths` bean.
+- **An application's own `webAuthn()` chain** keeps Spring's paths; only who's chains move.
 
 ### Signed-in sessions
 

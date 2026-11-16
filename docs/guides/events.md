@@ -51,7 +51,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `SignedOut` | who-core | A caller signs out of a who session. | `identityId`, `credentialId` |
 | `SessionEnded` | who-core | who drops a session because its identity is no longer active or its credential was revoked, or a session is [ended](sessions.md#see-and-end-sessions) from another browser or through `WhoSessions`. | `identityId`, `credentialId`, `reason` |
 | `EndedSessionsPurged` | who-core | A batch of ended or abandoned session records was deleted, on sign-in or by `WhoSessions.purgeEndedSessions()`. Not published for an empty batch. | `count` |
-| `SignInEmailRequested` | who-email-link | A request to `POST /ott/generate` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
+| `SignInEmailRequested` | who-email-link | A request to `POST /who/email/send` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
 | `EmailAddressConfirmationRequested` | who-email-link | A request to `POST /who/email/addresses` has been handled, once per request, on the email thread. | `identityId`, `address` or null, `change`, `outcome` (`SENT`, `INVALID_ADDRESS`, `ADDRESS_TAKEN`, `RESEND_SUPPRESSED`, `SEND_FAILED`) |
 | `PasskeyRegistrationRefused` | who-passkey | A signed-in identity tries to add a passkey, but signed in longer ago than the registration window allows. | `identityId`, `reason` |
 
@@ -95,7 +95,7 @@ been answered with `202`.
 | `IdentityDeleted` | who-core | `WhoService.deleteIdentity` | `identityId` |
 | `OrphanedCredentialsPurged` | who-core | Credentials linked to no identity are purged, including when registering an email address replaces an orphaned credential (count 1). | `count` |
 | `CredentialAdded` | who-core | A credential is linked to an identity: an email address registered, a passkey registered, an API key created, a provider account linked or signed up with, or an enrollment completed. | `identityId`, `credentialId`, `kind`, `label` or null |
-| `CredentialRevoked` | who-core | A credential is removed: an email address, passkey (including Spring's `DELETE /webauthn/register/{id}`) or API key revoked, a provider account unlinked, or an identity deleted (one event for each of its credentials). | `identityId`, `credentialId`, `kind`, `label` or null |
+| `CredentialRevoked` | who-core | A credential is removed: an email address, passkey (including Spring's `DELETE /who/passkey/register/{id}`) or API key revoked, a provider account unlinked, or an identity deleted (one event for each of its credentials). | `identityId`, `credentialId`, `kind`, `label` or null |
 
 `CredentialKind`: `EMAIL`, `PASSKEY`, `API_KEY`, `FEDERATED`, `OTHER`. The label is the email
 address, the passkey's label, the API key's name, or the issuer of an `(issuer, subject)` credential.

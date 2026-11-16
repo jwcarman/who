@@ -1,6 +1,6 @@
 # Email Links
 
-Who supports sign-in by an emailed link or code, in the `who-email-link` module. The user enters an address and gets an email with a link and a short code. Opening the link, or typing the code, signs them in and starts an HTTP session. It is built on Spring Security's one-time-token login. Who supplies the hooks and keeps Spring's endpoints: `POST /ott/generate`, `POST /login/ott` and `POST /logout`. Who adds one endpoint of its own, `GET /who/me`.
+Who supports sign-in by an emailed link or code, in the `who-email-link` module. The user enters an address and gets an email with a link and a short code. Opening the link, or typing the code, signs them in and starts an HTTP session. It is built on Spring Security's one-time-token login. Who supplies the hooks and keeps Spring's endpoints: `POST /who/email/send`, `POST /who/email/sign-in` and `POST /who/logout`. Who adds one endpoint of its own, `GET /who/me`.
 
 Add `who-email-link` to turn email links on; an application without the jar has none of this.
 
@@ -90,7 +90,7 @@ If you change the secret, codes already sent stop working. The links in those em
 ## Wire the chain
 
 With no `SecurityFilterChain` of your own there is nothing to wire: who's default chain mounts
-email links, opens `/ott/generate` and `/login/ott` to signed-out requests, and does everything
+email links, opens `/who/email/send` and `/who/email/sign-in` to signed-out requests, and does everything
 listed below (see [Getting Started](getting-started.md#secure-the-app)). Open the page
 `link-base-url` points at, and the assets it loads, yourself:
 
@@ -113,7 +113,7 @@ Started](getting-started.md#your-own-chain)). To mount the browser methods only,
 SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
     http.with(WhoWebSecurity.passwordless(), Customizer.withDefaults());
     http.authorizeHttpRequests(a -> a
-            .requestMatchers("/ott/generate", "/login/ott", "/signin").permitAll()
+            .requestMatchers("/who/email/send", "/who/email/sign-in", "/signin").permitAll()
             .anyRequest().authenticated());
     return http.build();
 }
@@ -125,7 +125,7 @@ It also:
 
 - turns on CSRF protection with Spring's `csrf.spa()`;
 - hands unauthenticated requests to your application as a `NotSignedInException` (`401` unless you map it; see [Errors](errors.md)), with no redirect;
-- makes `/logout` answer `204` and clear the `XSRF-TOKEN` cookie;
+- makes `/who/logout` answer `204` and clear the `XSRF-TOKEN` cookie;
 - changes the session id at sign-in;
 - adds `Referrer-Policy: no-referrer`.
 
@@ -150,7 +150,7 @@ A denied request is not saved: `passwordless()` uses a `NullRequestCache`, so th
 
 ## The sign-in flow
 
-All requests are JSON. Every POST needs the CSRF token. Spring sets an `XSRF-TOKEN` cookie that the page can read. The page sends its raw value in the `X-XSRF-TOKEN` header on every POST, including `/ott/generate`, `/login/ott` and `/logout`.
+All requests are JSON. Every POST needs the CSRF token. Spring sets an `XSRF-TOKEN` cookie that the page can read. The page sends its raw value in the `X-XSRF-TOKEN` header on every POST, including `/who/email/send`, `/who/email/sign-in` and `/who/logout`.
 
 ```javascript
 function xsrf() {
@@ -171,12 +171,12 @@ async function post(path, body) {
 }
 ```
 
-The cookie exists after the first response from the server, so make any GET first (for example `GET /who/me`, which answers `401` but sets the cookie). `/logout` clears the cookie. After signing out, make another GET before the next POST, or `/ott/generate` answers `403`.
+The cookie exists after the first response from the server, so make any GET first (for example `GET /who/me`, which answers `401` but sets the cookie). `/who/logout` clears the cookie. After signing out, make another GET before the next POST, or `/who/email/send` answers `403`.
 
-1. **Ask for a link and code.** `POST /ott/generate` with `{"email": "user@example.com"}`. The answer is always `202` with an empty body, whether or not the address is registered. The server does the lookup and sends the email after it has answered.
+1. **Ask for a link and code.** `POST /who/email/send` with `{"email": "user@example.com"}`. The answer is always `202` with an empty body, whether or not the address is registered. The server does the lookup and sends the email after it has answered.
 
     ```javascript
-    await post('/ott/generate', { email });
+    await post('/who/email/send', { email });
     ```
 
     The email carries the link and a code. The code uses the Crockford base32 alphabet (`0-9` and `A-Z` without `I`, `L`, `O` and `U`), has `who.email-link.code-length` characters (default 6), and is shown in groups, such as `K7F-2QM`. The user can use either one.
@@ -188,7 +188,7 @@ The cookie exists after the first response from the server, so make any GET firs
     ```javascript
     const token = new URLSearchParams(location.hash.slice(1)).get('token');
     history.replaceState(null, '', location.pathname);
-    const res = await post('/login/ott', { token });
+    const res = await post('/who/email/sign-in', { token });
     if (res.ok) {
       const { identityId } = await res.json();
     }
@@ -199,17 +199,17 @@ The cookie exists after the first response from the server, so make any GET firs
     **Or type the code.** A user who cannot open the link in this browser (the mail app opened it elsewhere, or a mail scanner used it up) types the code from the email instead. The page posts the address and the code to the same endpoint:
 
     ```javascript
-    const res = await post('/login/ott', { email, code });
+    const res = await post('/who/email/sign-in', { email, code });
     ```
 
     The body is either `{"token": "..."}` or `{"email": "...", "code": "..."}`. A body with both, or with neither, fails. Using the link ends the code, and using the code ends the link. The code is not tied to the browser that asked for it, so a user can ask on a laptop and type the code on a phone.
 
 4. **Use the session.** `GET /who/me` answers `{"identityId": "...", "permissions": ["..."]}` for a signed-in caller and throws `NotSignedInException` otherwise (`401`, in your application's error format).
 
-5. **Sign out.** `POST /logout` answers `204` and clears the `XSRF-TOKEN` cookie. Fetch the cookie again with any GET (for example `GET /who/me`) before the next POST.
+5. **Sign out.** `POST /who/logout` answers `204` and clears the `XSRF-TOKEN` cookie. Fetch the cookie again with any GET (for example `GET /who/me`) before the next POST.
 
     ```javascript
-    await post('/logout');
+    await post('/who/logout');
     await fetch('/who/me', { credentials: 'same-origin' }); // sets a new XSRF-TOKEN cookie
     ```
 
@@ -235,7 +235,7 @@ Spraying many known addresses scales linearly: across 100,000 addresses, with no
 - for large user bases, set `who.email-link.code-length: 8` (about 1 trillion codes, 1024 times harder);
 - alert on volumes of failed sign-ins.
 
-Also, don't run `/login/ott` inside a transaction: the attempt count must commit even when the sign-in fails, or the attempt limit stops working. And limit the request body size at the ingress.
+Also, don't run `/who/email/sign-in` inside a transaction: the attempt count must commit even when the sign-in fails, or the attempt limit stops working. And limit the request body size at the ingress.
 
 ## Registering addresses
 
@@ -289,7 +289,7 @@ To remove an address without replacing it, call `EmailCredentialService.revoke` 
 
 ## Sending a link from your own code
 
-`POST /ott/generate` answers `202` at once and does the work in the background. To send a link yourself, for example in an invitation, call `EmailLinkIssuer.issue(address, tokenValue)`. The `EmailLinkIssuer` is a bean. `tokenValue` is a random, URL-safe value that you generate. Who generates the code itself.
+`POST /who/email/send` answers `202` at once and does the work in the background. To send a link yourself, for example in an invitation, call `EmailLinkIssuer.issue(address, tokenValue)`. The `EmailLinkIssuer` is a bean. `tokenValue` is a random, URL-safe value that you generate. Who generates the code itself.
 
 `issue` returns an `EmailLinkOutcome`:
 
@@ -301,7 +301,7 @@ To remove an address without replacing it, call `EmailCredentialService.revoke` 
 | `RESEND_SUPPRESSED` | A link was sent within the [resend interval](#the-resend-interval). |
 | `SEND_FAILED` | A step failed. The failure is logged, and a token already stored for that send is removed. |
 
-`issue` never throws. The `/ott/generate` endpoint ignores the outcome, so it still reveals nothing about an address. Show the outcome only to a caller you trust, such as the owner who sent an invitation.
+`issue` never throws. The `/who/email/send` endpoint ignores the outcome, so it still reveals nothing about an address. Show the outcome only to a caller you trust, such as the owner who sent an invitation.
 
 `issue` is synchronous and uses its own transactions. If you call it while a transaction of yours is open, call it after that transaction commits, with a new transaction of its own. Otherwise the send happens before your data is committed, and a failure in your transaction cannot take back the email:
 
@@ -329,7 +329,7 @@ The link and the code expire together, after `who.email-link.token-ttl` (default
 
 ## Tracing the send
 
-`/ott/generate` answers `202` at once and sends the email on a virtual thread from the
+`/who/email/send` answers `202` at once and sends the email on a virtual thread from the
 `whoEmailLinkExecutor` bean. That executor applies your `TaskDecorator` beans, as Spring Boot does
 to its own executors, so the send can stay in the request's trace and logging context. With
 Micrometer Tracing, register Spring's decorator:
@@ -345,19 +345,19 @@ To use your own executor instead, define a bean named `whoEmailLinkExecutor`.
 
 ## Rate limiting at the ingress
 
-The attempt limit is per address, not per client. Who does not limit requests by client IP and never reads `X-Forwarded-For`. Put per-IP limits on `/ott/generate` and `/login/ott` at the load balancer, WAF or ingress, where the real client address is known. With [Passkeys](passkeys.md) on, limit `/webauthn/authenticate/options` and `/login/webauthn` the same way: the options endpoint creates a session for any anonymous caller. For example, with nginx:
+The attempt limit is per address, not per client. Who does not limit requests by client IP and never reads `X-Forwarded-For`. Put per-IP limits on `/who/email/send` and `/who/email/sign-in` at the load balancer, WAF or ingress, where the real client address is known. With [Passkeys](passkeys.md) on, limit `/who/passkey/sign-in/options` and `/who/passkey/sign-in` the same way: the options endpoint creates a session for any anonymous caller. For example, with nginx:
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=who_signin:10m rate=10r/m;
 
 server {
-    location = /ott/generate {
+    location = /who/email/send {
         limit_req zone=who_signin burst=5 nodelay;
         limit_req_status 429;
         proxy_pass http://app;
     }
 
-    location = /login/ott {
+    location = /who/email/sign-in {
         limit_req zone=who_signin burst=5 nodelay;
         limit_req_status 429;
         proxy_pass http://app;

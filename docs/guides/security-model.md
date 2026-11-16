@@ -31,7 +31,7 @@ who runs inside your application and draws these lines:
 
 **Signing in by email reveals nothing about who is registered.**
 
-- `POST /ott/generate` always answers `202`, registered or not, and sends mail after answering.
+- `POST /who/email/send` always answers `202`, registered or not, and sends mail after answering.
 - Every failed sign-in is the same `401`: an unknown address, a wrong, burnt or expired code, a
   used or expired link, an inactive identity and a malformed body cannot be told apart.
 - When an address has no live code, who still computes a dummy HMAC, so a wrong guess costs about
@@ -187,8 +187,8 @@ that ever broke the parsers.
 ## What your application must do
 
 - **Rate limits at the ingress.** who limits guesses per address, not per client, and never
-  reads `X-Forwarded-For`. Put per-IP limits on `/ott/generate`, `/login/ott`,
-  `/webauthn/authenticate/options` and `/login/webauthn` at the load balancer, WAF or ingress
+  reads `X-Forwarded-For`. Put per-IP limits on `/who/email/send`, `/who/email/sign-in`,
+  `/who/passkey/sign-in/options` and `/who/passkey/sign-in` at the load balancer, WAF or ingress
   ([Rate limiting at the ingress](email-links.md#rate-limiting-at-the-ingress)). Limit request
   body sizes there too.
 - **TLS everywhere**, and secure session cookies (`Secure`, `HttpOnly`, `SameSite=Lax`)
@@ -199,7 +199,7 @@ that ever broke the parsers.
   what checks the signature, issuer and audience ([JWT](jwt.md)).
 - **Verify an address before registering it.** `EmailCredentialService.register` trusts that you
   have; invitations through [Enrollment](enrollment.md) are the usual way.
-- **Don't run `/login/ott` inside a transaction.** The attempt count must commit even when a
+- **Don't run `/who/email/sign-in` inside a transaction.** The attempt count must commit even when a
   sign-in fails.
 - **Watch for abuse.** Alert on volumes of failed sign-ins and sign-in emails, using the
   [events](events.md).

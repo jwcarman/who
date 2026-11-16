@@ -114,7 +114,7 @@ The `id` is who's own, not the session cookie, so showing it exposes nothing tha
 
 `userAgent`, and `device` read from it, are whatever the browser sent at sign-in, so treat them as untrusted text: render them as text (`textContent`, or your framework's default escaping), never as HTML.
 
-Signing out the current browser through `DELETE /who/sessions/{id}` runs the chain's logout handlers, the same as `POST /logout`: who's, any you added, CSRF's, clearing the `XSRF-TOKEN` cookie, and Spring Security's `LogoutSuccessEvent`. It answers `204` rather than running the logout success handler.
+Signing out the current browser through `DELETE /who/sessions/{id}` runs the chain's logout handlers, the same as `POST /who/logout`: who's, any you added, CSRF's, clearing the `XSRF-TOKEN` cookie, and Spring Security's `LogoutSuccessEvent`. It answers `204` rather than running the logout success handler.
 
 Answers, through your exception handling like who's other endpoints:
 

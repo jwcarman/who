@@ -58,7 +58,7 @@ browser.perform(post("/api/notes")
                 .content("{\"text\":\"hello\"}"))
         .andExpect(status().isCreated());
 
-browser.perform(post("/logout")).andExpect(status().isNoContent());
+browser.perform(post("/who/logout")).andExpect(status().isNoContent());
 browser.perform(get("/who/me")).andExpect(status().isUnauthorized());
 ```
 

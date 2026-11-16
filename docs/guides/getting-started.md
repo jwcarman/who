@@ -108,7 +108,7 @@ every sign-in method on the classpath and answers a signed-out request with `401
 There is no login page and no redirect. Signed-out requests may reach only:
 
 - `/error`;
-- each sign-in method's endpoints, such as `/ott/generate` and `/login/ott`;
+- each sign-in method's endpoints, such as `/who/email/send` and `/who/email/sign-in`;
 - Actuator's health endpoint, if Actuator is present;
 - the paths you list in `who.security.public-paths`.
 

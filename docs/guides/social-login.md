@@ -48,8 +48,13 @@ With `who-oidc` on the classpath and no sign-in registration, startup fails and 
 `spring.security.oauth2.client.registration`. `who.oidc.enabled=false` turns provider sign-in off
 without removing the jar. `who-oidc` does not turn JWT sign-in on: that is `who-jwt`'s jar.
 
-The provider's callback is Spring's default, `{baseUrl}/login/oauth2/code/{registrationId}`, such
-as `https://app.example.com/login/oauth2/code/google`. Register that URL with the provider.
+The provider's callback is who's, `{baseUrl}/who/oidc/callback/{registrationId}` under the
+default `who.base-path`, such as `https://app.example.com/who/oidc/callback/google`. Register that
+URL with the provider. A registration that sets no `redirect-uri` gets who's callback. One that
+sets a `redirect-uri` must end with `<who.base-path>/oidc/callback/{registrationId}` (or the
+registration's id in place of the placeholder), or startup fails naming
+`spring.security.oauth2.client.registration.<id>.redirect-uri`. A sign-in starts at
+`GET /who/oidc/authorize/{registrationId}`.
 
 ### Google
 
@@ -128,7 +133,7 @@ spring:
             client-secret: ${KEYCLOAK_CLIENT_SECRET}
             scope: openid,email,profile
             authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "{baseUrl}/who/oidc/callback/{registrationId}"
         provider:
           keycloak:
             authorization-uri: https://sso.example.com/realms/main/protocol/openid-connect/auth
@@ -186,8 +191,8 @@ Startup fails, naming the property to fix, when:
 Each provider's button is a plain link:
 
 ```html
-<a href="/oauth2/authorization/google">Sign in with Google</a>
-<a href="/oauth2/authorization/github">Sign in with GitHub</a>
+<a href="/who/oidc/authorize/google">Sign in with Google</a>
+<a href="/who/oidc/authorize/github">Sign in with GitHub</a>
 ```
 
 The provider sends the person back to who, and who redirects:
@@ -206,7 +211,7 @@ get a `401`. Startup logs a warning when the failure URL is not public. The reas
 `signin-failed` is never in the URL; it is in the [events](#events-and-metrics). A link someone
 asked for lands elsewhere: see [Link an account](#link-an-account-to-someone-signed-in).
 
-who opens `/oauth2/authorization/**`, `/login/oauth2/code/**`, `GET /who/oidc/pending` and
+who opens `/who/oidc/authorize/**`, `/who/oidc/callback/**`, `GET /who/oidc/pending` and
 `POST /who/oidc/sign-up` to signed-out requests. The sign-in is a session sign-in, like an email
 link: the session id changes, the CSRF token rotates, and the `who_last_sign_in` cookie records the
 registration id (see [Sessions](sessions.md)).
@@ -338,7 +343,7 @@ link is also dropped when anyone else signs in. Linking an account the identity 
 nothing and redirects to `who.oidc.link-url`: a link is not a sign-in, so the session keeps the
 credential and sign-in time it had.
 
-A plain sign-in (`/oauth2/authorization/{id}`) never links. Someone signed in who reaches an
+A plain sign-in (`/who/oidc/authorize/{id}`) never links. Someone signed in who reaches an
 account who does not know that way lands on `error=signed-in`, and nothing is kept: to use another
 account, sign out first. One that is already linked to someone else redirects with
 `error=already-linked` and changes nothing.
@@ -440,7 +445,7 @@ static void provider(DynamicPropertyRegistry registry) {
 
 Register `test` with a client id, a secret and the `openid` scope. Before each sign-in, say who the
 provider signs in with `PROVIDER.nextUser("alice", Map.of("email", "alice@example.com",
-"email_verified", true))`. Start at `/oauth2/authorization/test` in your test client, follow its
+"email_verified", true))`. Start at `/who/oidc/authorize/test` in your test client, follow its
 redirect to the stub's `/authorize` with any HTTP client, and send the `Location` it answers (the
 callback, with `code` and `state`) back to your app in the same session. `nextIssuerClaim` forges
 the ID token's `iss`, to prove a token from the wrong issuer is refused.
