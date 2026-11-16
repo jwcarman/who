@@ -18,9 +18,12 @@ package org.jwcarman.who.oidc;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,8 +38,11 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.InvalidMediaTypeException;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
@@ -44,6 +50,8 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.nimbusds.jose.util.JSONObjectUtils;
 
 /**
  * Starts a link: {@code POST /who/oidc/link/{registrationId}} by someone signed in sends them to
@@ -110,7 +118,29 @@ final class LinkStartFilter extends OncePerRequestFilter {
       return;
     }
     repository.saveAuthorizationRequest(authorization.get(), request, response);
-    response.sendRedirect(authorization.get().getAuthorizationRequestUri());
+    String providerUrl = authorization.get().getAuthorizationRequestUri();
+    if (wantsJson(request)) {
+      // a single-page app's fetch, with the CSRF header: it cannot follow a redirect to another
+      // site, so it is told where to go and goes there itself
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+      response.getWriter().write(JSONObjectUtils.toJSONString(Map.of("redirectUrl", providerUrl)));
+      return;
+    }
+    response.sendRedirect(providerUrl);
+  }
+
+  /** Asked for JSON and not for a page: a browser's own form submission always accepts HTML. */
+  private static boolean wantsJson(HttpServletRequest request) {
+    List<MediaType> accepted;
+    try {
+      accepted = MediaType.parseMediaTypes(request.getHeader(HttpHeaders.ACCEPT));
+    } catch (InvalidMediaTypeException e) {
+      return false;
+    }
+    return accepted.stream().anyMatch(MediaType.APPLICATION_JSON::equalsTypeAndSubtype)
+        && accepted.stream().noneMatch(MediaType.TEXT_HTML::equalsTypeAndSubtype);
   }
 
   /**

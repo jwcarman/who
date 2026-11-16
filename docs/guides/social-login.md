@@ -255,18 +255,36 @@ If two requests confirm the same account at once, one identity is created and bo
 
 ### Link an account to someone signed in
 
-Linking starts only when the person asks for it. Your account settings post to
-`POST /who/oidc/link/{registrationId}`, a form, so the chain's CSRF protection applies and only
-your own pages can start a link:
+Linking starts only when the person asks for it, with `POST /who/oidc/link/{registrationId}`, so
+the chain's CSRF protection applies and only your own pages can start a link.
+
+A server-rendered page posts a form, and lets its template engine add the CSRF field. The field
+must hold the masked token the template engine renders, not the `XSRF-TOKEN` cookie's value, which
+`csrf.spa()` accepts only in the `X-XSRF-TOKEN` header:
 
 ```html
 <form method="post" action="/who/oidc/link/github">
-  <input type="hidden" name="_csrf" value="...">   <!-- or let your template engine add it -->
+  <input type="hidden" name="_csrf" th:value="${_csrf.token}">
   <button>Link your GitHub account</button>
 </form>
 ```
 
-who answers with a redirect to the provider. The request it sends there remembers, on the server
+A single-page app posts with `fetch`, the header, and `Accept: application/json`. who then answers
+`200` with the provider's address instead of a redirect, which `fetch` cannot follow to another
+site, and the page goes there itself:
+
+```js
+const response = await fetch('/who/oidc/link/github', {
+  method: 'POST',
+  credentials: 'same-origin',
+  headers: { 'Accept': 'application/json', 'X-XSRF-TOKEN': decodeURIComponent(xsrf()) }  // xsrf() as in Email Links
+});
+if (response.ok) {
+  location.assign((await response.json()).redirectUrl);
+}
+```
+
+Otherwise who answers with a redirect to the provider. The request it sends there remembers, on the server
 and for that one round trip only, that it is a link and which identity asked. Nothing in the URL
 says so, so no other site can turn a sign-in into a link. Signed out is `401`
 (`NotSignedInException`), and so is a caller signed in without a browser session (an API key or a

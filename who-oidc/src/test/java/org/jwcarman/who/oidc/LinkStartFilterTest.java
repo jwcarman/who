@@ -52,6 +52,8 @@ import org.springframework.security.oauth2.client.web.HttpSessionOAuth2Authoriza
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 
+import com.nimbusds.jose.util.JSONObjectUtils;
+
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class LinkStartFilterTest {
 
@@ -142,6 +144,34 @@ class LinkStartFilterTest {
 
     assertThat(response.getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
     assertThat(savedRequests(request)).hasSize(1);
+  }
+
+  @Test
+  void asked_for_json_answers_where_to_go_instead_of_redirecting() throws Exception {
+    signedIn(bob, SignInMethod.EMAIL_LINK);
+    MockHttpServletRequest request = start("acme");
+    request.addHeader("Accept", "application/json");
+    withWhoSession(request, bob);
+
+    MockHttpServletResponse response = filter(request);
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.getRedirectedUrl()).isNull();
+    assertThat(response.getContentType()).startsWith("application/json");
+    assertThat(JSONObjectUtils.parse(response.getContentAsString()).get("redirectUrl"))
+        .asString()
+        .isEqualTo(savedRequests(request).getFirst().getAuthorizationRequestUri())
+        .startsWith("https://idp.example.com/authorize");
+  }
+
+  @Test
+  void a_page_asking_for_html_first_is_still_redirected() throws Exception {
+    signedIn(bob, SignInMethod.EMAIL_LINK);
+    MockHttpServletRequest request = start("acme");
+    request.addHeader("Accept", "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8");
+    withWhoSession(request, bob);
+
+    assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
   }
 
   @Test

@@ -41,8 +41,11 @@ import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.test.web.servlet.MvcResult;
+
+import com.nimbusds.jose.util.JSONObjectUtils;
 
 /** Linking starts only from {@code POST /who/oidc/link/{registrationId}}. */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -58,6 +61,26 @@ class OidcLinkTest extends AbstractOidcTest {
       String authorize = startLink();
 
       assertThat(authorize).contains("prompt=login").doesNotContain("max_age");
+    }
+
+    @Test
+    void from_a_single_page_app_answers_where_to_go_and_the_link_finishes() throws Exception {
+      signedInIdentity("https://other.example.com", "bob");
+      PROVIDER.nextUser("carol", Map.of());
+
+      MvcResult start =
+          browser
+              .perform(post("/who/oidc/link/test").accept(MediaType.APPLICATION_JSON))
+              .andReturn();
+
+      assertThat(start.getResponse().getStatus()).isEqualTo(200);
+      String authorize =
+          JSONObjectUtils.parse(start.getResponse().getContentAsString())
+              .get("redirectUrl")
+              .toString();
+      assertThat(authorize).startsWith(PROVIDER.issuer() + "/authorize");
+      assertThat(finishAtProvider(authorize).getResponse().getRedirectedUrl())
+          .isEqualTo(LINK_URL + "?pending=link");
     }
 
     @Test
