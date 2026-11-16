@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: who-example-api
+
+  # The app's own table. Postgres itself comes from compose.yaml, through Boot's service connection.
+  sql:
+    init:
+      mode: always
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak's realm. Spring reads its keys on the first token, so the app starts first.
+          issuer-uri: http://localhost:8280/realms/who-tasks
+          # Only tokens issued for this API. Without it, a token Keycloak made for any other app of
+          # the realm would sign in here; who refuses to start with JWTs and no audience.
+          audiences: who-tasks-api
+
+who:
+  # who's tables. Fine on your machine; in production use Flyway or Liquibase (see the Database
+  # guide) and set this to never.
+  initialize-schema: always
+
+example:
+  # The issuer whose accounts Setup links: the same realm the tokens come from.
+  issuer: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}
+  # Keycloak's user ids, fixed by keycloak/realm.json. carol has a Keycloak account and no who
+  # identity, so her tokens get 401: who signs in only the accounts the app linked.
+  accounts:
+    - subject: a11ce000-0000-4000-8000-000000000001
+      role: ADMIN
+    - subject: b0b00000-0000-4000-8000-000000000002
+      role: MEMBER
