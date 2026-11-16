@@ -48,6 +48,7 @@ import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmail;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -154,9 +155,11 @@ class SpringSessionJdbcTest {
     final List<String> tokens = new CopyOnWriteArrayList<>();
 
     @Override
-    public void send(EmailLinkMessage message) {
-      String link = message.link();
-      tokens.add(link.substring(link.indexOf("#token=") + "#token=".length()));
+    public void send(WhoEmail email) {
+      if (email instanceof EmailLinkMessage message) {
+        String link = message.link();
+        tokens.add(link.substring(link.indexOf("#token=") + "#token=".length()));
+      }
     }
   }
 

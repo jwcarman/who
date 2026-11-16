@@ -50,4 +50,26 @@
             <column name="code_attempts" type="integer"><constraints nullable="false"/></column>
         </addColumn>
     </changeSet>
+    <!-- 0.18.0: a person adds or changes an address only by confirming a link or code sent to it.
+         One pending request per identity; replaces_credential_id names the address a change
+         replaces, checked again at confirmation, so it needs no foreign key. -->
+    <changeSet id="who-email-address-request-1" author="who">
+        <createTable tableName="who_email_address_request">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="identity_id" type="uuid">
+                <constraints nullable="false" unique="true" foreignKeyName="fk_who_email_address_request_identity"
+                             referencedTableName="who_identity" referencedColumnNames="id" deleteCascade="true"/>
+            </column>
+            <column name="address" type="varchar(320)"><constraints nullable="false"/></column>
+            <column name="replaces_credential_id" type="uuid"/>
+            <column name="token_hash" type="varchar(64)"><constraints nullable="false" unique="true"/></column>
+            <column name="code_hash" type="varchar(64)"><constraints nullable="false"/></column>
+            <column name="code_attempts" type="integer"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="who_email_address_request" indexName="ix_who_email_address_request_address">
+            <column name="address"/>
+        </createIndex>
+    </changeSet>
 </databaseChangeLog>

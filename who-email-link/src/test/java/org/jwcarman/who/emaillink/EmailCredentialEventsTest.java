@@ -16,6 +16,7 @@
 package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -146,6 +147,67 @@ class EmailCredentialEventsTest extends AbstractEmailLinkTest {
     void its_credential_has_no_label() {
       assertThat(new EmailCredential(UUID.randomUUID(), UNSAFE).label()).isEmpty();
       assertThat(new EmailCredential(UUID.randomUUID(), "a".repeat(321)).label()).isEmpty();
+    }
+  }
+
+  @Nested
+  class Replacing {
+
+    @Test
+    void adds_the_new_address_then_removes_the_old_one() {
+      EmailCredential old = service.register(identity, "old@example.com");
+      events.clear();
+
+      EmailCredential added = service.replace(identity, "New@Example.com", old.id());
+
+      assertThat(added.address()).isEqualTo("new@example.com");
+      assertThat(events)
+          .containsExactly(
+              new CredentialAdded(
+                  NOW, identity.id(), added.id(), CredentialKind.EMAIL, "new@example.com"),
+              new CredentialRevoked(
+                  NOW, identity.id(), old.id(), CredentialKind.EMAIL, "old@example.com"));
+      assertThat(service.findById(old.id())).isEmpty();
+      assertThat(service.isOwnedBy(added.id(), identity.id())).isTrue();
+    }
+
+    @Test
+    void someone_elses_address_is_left_alone() {
+      Identity other = identityRepository.save(Identity.create());
+      EmailCredential theirs = service.register(other, "theirs@example.com");
+      events.clear();
+
+      EmailCredential added = service.replace(identity, "new@example.com", theirs.id());
+
+      assertThat(events).singleElement().isInstanceOf(CredentialAdded.class);
+      assertThat(service.isOwnedBy(theirs.id(), other.id())).isTrue();
+      assertThat(service.isOwnedBy(added.id(), identity.id())).isTrue();
+    }
+
+    @Test
+    void a_taken_address_changes_nothing() {
+      EmailCredential old = service.register(identity, "old@example.com");
+      service.register(identityRepository.save(Identity.create()), "taken@example.com");
+      events.clear();
+
+      assertThatThrownBy(() -> service.replace(identity, "taken@example.com", old.id()))
+          .isInstanceOf(EmailAddressTakenException.class);
+
+      assertThat(events).isEmpty();
+      assertThat(service.isOwnedBy(old.id(), identity.id())).isTrue();
+    }
+  }
+
+  @Nested
+  class Ownership {
+
+    @Test
+    void is_the_identity_the_credential_is_linked_to() {
+      EmailCredential credential = service.register(identity, "mine@example.com");
+
+      assertThat(service.isOwnedBy(credential.id(), identity.id())).isTrue();
+      assertThat(service.isOwnedBy(credential.id(), UUID.randomUUID())).isFalse();
+      assertThat(service.isOwnedBy(UUID.randomUUID(), identity.id())).isFalse();
     }
   }
 

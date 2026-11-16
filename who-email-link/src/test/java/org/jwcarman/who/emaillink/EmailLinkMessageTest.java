@@ -39,4 +39,37 @@ class EmailLinkMessageTest {
         .doesNotContain("SECRETTOKEN", "K7F2QM", "https://")
         .contains("a@b.c", "link=****", "code=****");
   }
+
+  @Test
+  void an_address_confirmation_hides_the_link_and_the_code() {
+    EmailAddressConfirmationMessage message =
+        new EmailAddressConfirmationMessage(
+            "a@b.c",
+            "https://app.test/profile#confirm-address=SECRETTOKEN",
+            "K7F2QM",
+            Instant.parse("2026-11-13T10:00:00Z"),
+            false);
+
+    assertThat(message.toString())
+        .doesNotContain("SECRETTOKEN", "K7F2QM", "https://")
+        .contains("a@b.c", "link=****", "code=****");
+    assertThat(message.formattedCode()).isEqualTo("K7F-2QM");
+  }
+
+  @Test
+  void a_change_notice_masks_the_new_address() {
+    assertThat(new EmailAddressChangedMessage("old@b.c", "newname@example.com").maskedNewAddress())
+        .isEqualTo("n***@example.com");
+    assertThat(new EmailAddressChangedMessage("old@b.c", "x@example.com").maskedNewAddress())
+        .isEqualTo("x***@example.com");
+  }
+
+  @Test
+  void every_email_names_its_recipient() {
+    WhoEmail signIn = new EmailLinkMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH);
+    WhoEmail notice = new EmailAddressChangedMessage("old@b.c", "new@b.c");
+
+    assertThat(signIn.address()).isEqualTo("a@b.c");
+    assertThat(notice.address()).isEqualTo("old@b.c");
+  }
 }

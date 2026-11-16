@@ -72,6 +72,7 @@ class LiquibaseChangelogTest {
           "who_api_key_credential",
           "who_email_credential",
           "who_email_link_token",
+          "who_email_address_request",
           "who_passkey_user",
           "who_passkey_credential");
 

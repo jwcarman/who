@@ -27,7 +27,8 @@ import java.time.Instant;
  * @param code the raw normalized sign-in code
  * @param expiresAt when the link and the code stop working
  */
-public record EmailLinkMessage(String address, String link, String code, Instant expiresAt) {
+public record EmailLinkMessage(String address, String link, String code, Instant expiresAt)
+    implements WhoEmail {
 
   /** Compact constructor: validates that no field is {@code null}. */
   public EmailLinkMessage {

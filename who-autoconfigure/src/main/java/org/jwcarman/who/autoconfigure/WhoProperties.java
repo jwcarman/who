@@ -321,6 +321,19 @@ public class WhoProperties {
     /** Subject of sign-in emails. */
     private String subject = "Your sign-in link and code";
 
+    /**
+     * Page of the application that receives the link confirming an address being added or changed;
+     * the token is appended as a {@code #confirm-address=...} fragment. Defaults to {@code
+     * link-base-url}.
+     */
+    private String addressConfirmationUrl;
+
+    /** Subject of the email confirming an address being added or changed. */
+    private String addressConfirmationSubject = "Confirm your email address";
+
+    /** Subject of the email telling an address it was replaced. */
+    private String addressChangedSubject = "Your email address was changed";
+
     /** Number of characters in the typed sign-in code; at least 6. */
     private int codeLength = 6;
 
@@ -421,6 +434,60 @@ public class WhoProperties {
      */
     public void setSubject(String subject) {
       this.subject = subject;
+    }
+
+    /**
+     * Returns the page that receives address confirmation links.
+     *
+     * @return the URL, or null for {@code link-base-url}
+     */
+    public String getAddressConfirmationUrl() {
+      return addressConfirmationUrl;
+    }
+
+    /**
+     * Sets the page that receives address confirmation links.
+     *
+     * @param addressConfirmationUrl the URL
+     */
+    public void setAddressConfirmationUrl(String addressConfirmationUrl) {
+      this.addressConfirmationUrl = addressConfirmationUrl;
+    }
+
+    /**
+     * Returns the subject of an address confirmation.
+     *
+     * @return the subject
+     */
+    public String getAddressConfirmationSubject() {
+      return addressConfirmationSubject;
+    }
+
+    /**
+     * Sets the subject of an address confirmation.
+     *
+     * @param addressConfirmationSubject the subject
+     */
+    public void setAddressConfirmationSubject(String addressConfirmationSubject) {
+      this.addressConfirmationSubject = addressConfirmationSubject;
+    }
+
+    /**
+     * Returns the subject of the notice to a replaced address.
+     *
+     * @return the subject
+     */
+    public String getAddressChangedSubject() {
+      return addressChangedSubject;
+    }
+
+    /**
+     * Sets the subject of the notice to a replaced address.
+     *
+     * @param addressChangedSubject the subject
+     */
+    public void setAddressChangedSubject(String addressChangedSubject) {
+      this.addressChangedSubject = addressChangedSubject;
     }
 
     /**

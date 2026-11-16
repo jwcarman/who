@@ -58,6 +58,7 @@ import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
+import org.jwcarman.who.emaillink.WhoEmail;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -203,8 +204,10 @@ class EmailLinkSignInTest {
     final List<SentLink> sent = new CopyOnWriteArrayList<>();
 
     @Override
-    public void send(EmailLinkMessage message) {
-      sent.add(new SentLink(message.address(), message.link(), message.code()));
+    public void send(WhoEmail email) {
+      if (email instanceof EmailLinkMessage message) {
+        sent.add(new SentLink(message.address(), message.link(), message.code()));
+      }
     }
   }
 

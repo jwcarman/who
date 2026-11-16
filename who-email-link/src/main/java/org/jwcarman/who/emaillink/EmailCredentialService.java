@@ -139,6 +139,47 @@ public class EmailCredentialService {
   }
 
   /**
+   * Makes an address the identity's in place of one of its addresses, in one transaction: registers
+   * the new address as {@link #register} does, then revokes the old credential if it is still the
+   * identity's. Call this only with an address the caller has verified.
+   *
+   * <p>Publishes {@link CredentialAdded} for the new credential, then {@link CredentialRevoked} for
+   * the old one. If the new address is taken, nothing changes.
+   *
+   * @param identity the identity
+   * @param address the new address; normalized before use
+   * @param oldCredentialId the email credential it replaces; left alone if it is not the identity's
+   * @return the identity's credential for the new address
+   * @throws EmailAddressTakenException if the new address is registered to another identity
+   */
+  @Transactional
+  public EmailCredential replace(Identity identity, String address, UUID oldCredentialId) {
+    requireNonNull(oldCredentialId, "oldCredentialId must not be null");
+    EmailCredential added = register(identity, address);
+    if (!added.id().equals(oldCredentialId) && isOwnedBy(oldCredentialId, identity.id())) {
+      revoke(oldCredentialId);
+    }
+    return added;
+  }
+
+  /**
+   * Whether an email credential is linked to the identity.
+   *
+   * @param credentialId the credential
+   * @param identityId the identity
+   * @return {@code true} if the credential is an email credential of the identity
+   */
+  public boolean isOwnedBy(UUID credentialId, UUID identityId) {
+    requireNonNull(credentialId, "credentialId must not be null");
+    requireNonNull(identityId, "identityId must not be null");
+    return emailCredentialRepository.findById(credentialId).isPresent()
+        && credentialIdentityRepository
+            .findIdentityIdByCredentialId(credentialId)
+            .filter(identityId::equals)
+            .isPresent();
+  }
+
+  /**
    * Finds a credential by address, normalizing the address first.
    *
    * @param address the raw address

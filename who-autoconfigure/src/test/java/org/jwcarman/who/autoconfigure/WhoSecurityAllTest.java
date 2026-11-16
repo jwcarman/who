@@ -109,7 +109,11 @@ class WhoSecurityAllTest {
 
     @Bean
     EmailLinkSender emailLinkSender() {
-      return SENT::add;
+      return email -> {
+        if (email instanceof EmailLinkMessage message) {
+          SENT.add(message);
+        }
+      };
     }
 
     @Bean

@@ -26,7 +26,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-@Import({JdbcEmailCredentialRepository.class, JdbcEmailLinkTokenRepository.class})
+@Import({
+  JdbcEmailCredentialRepository.class,
+  JdbcEmailLinkTokenRepository.class,
+  JdbcEmailAddressRequestRepository.class
+})
 @SpringBootApplication(
     exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
 class WhoEmailLinkTestApp {

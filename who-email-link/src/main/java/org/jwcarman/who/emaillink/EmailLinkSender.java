@@ -15,14 +15,18 @@
  */
 package org.jwcarman.who.emaillink;
 
-/** Delivers a sign-in link and code to an email address. */
+/**
+ * Delivers who's emails: a sign-in link and code ({@link EmailLinkMessage}), the confirmation of an
+ * address being added or changed ({@link EmailAddressConfirmationMessage}), and the notice to an
+ * address that was replaced ({@link EmailAddressChangedMessage}).
+ */
 @FunctionalInterface
 public interface EmailLinkSender {
 
   /**
-   * Sends the link and the code.
+   * Sends the email.
    *
-   * @param message the address, link, code and expiry
+   * @param email the email; switch over its kind
    */
-  void send(EmailLinkMessage message);
+  void send(WhoEmail email);
 }

@@ -25,6 +25,9 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
+import org.jwcarman.who.emaillink.EmailAddressChanges;
+import org.jwcarman.who.emaillink.EmailAddressEndpoints;
+import org.jwcarman.who.emaillink.EmailAddressRequestRepository;
 import org.jwcarman.who.emaillink.EmailCredentialRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkAuthenticationProvider;
@@ -34,12 +37,14 @@ import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.emaillink.EmailLinkTokenRepository;
+import org.jwcarman.who.emaillink.JdbcEmailAddressRequestRepository;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
 import org.jwcarman.who.emaillink.JdbcEmailLinkTokenRepository;
 import org.jwcarman.who.emaillink.JsonGenerateOneTimeTokenRequestResolver;
 import org.jwcarman.who.emaillink.JsonOneTimeTokenAuthenticationConverter;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
 import org.jwcarman.who.emaillink.WhoOneTimeTokenService;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -214,6 +219,19 @@ public class WhoEmailLinkAutoConfiguration {
       WhoEventPublisher whoEventPublisher,
       ObjectProvider<ObservationRegistry> observationRegistry,
       ResourceLoader resourceLoader) {
+    return new EmailLinkIssuer(
+        emailCredentialService,
+        whoService,
+        emailLinkTokenRepository,
+        requireSender(emailLinkSender, resourceLoader),
+        settings,
+        clock,
+        whoEventPublisher,
+        observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
+  }
+
+  private static EmailLinkSender requireSender(
+      ObjectProvider<EmailLinkSender> emailLinkSender, ResourceLoader resourceLoader) {
     EmailLinkSender sender = emailLinkSender.getIfAvailable();
     if (sender == null
         && !ClassUtils.isPresent(JAVA_MAIL_SENDER, resourceLoader.getClassLoader())) {
@@ -232,15 +250,7 @@ public class WhoEmailLinkAutoConfiguration {
           "Set spring.mail.host and who.email-link.from, or register an EmailLinkSender bean."
               + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
-    return new EmailLinkIssuer(
-        emailCredentialService,
-        whoService,
-        emailLinkTokenRepository,
-        sender,
-        settings,
-        clock,
-        whoEventPublisher,
-        observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
+    return sender;
   }
 
   /**
@@ -302,6 +312,54 @@ public class WhoEmailLinkAutoConfiguration {
         handlers.failure());
   }
 
+  @Bean
+  @ConditionalOnMissingBean
+  public EmailAddressRequestRepository emailAddressRequestRepository(JdbcClient jdbcClient) {
+    return new JdbcEmailAddressRequestRepository(jdbcClient);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public EmailAddressChanges emailAddressChanges(
+      EmailCredentialService emailCredentialService,
+      EmailAddressRequestRepository emailAddressRequestRepository,
+      ObjectProvider<EmailLinkSender> emailLinkSender,
+      ResourceLoader resourceLoader,
+      EmailLinkSettings settings,
+      WhoProperties properties,
+      Clock clock,
+      WhoEventPublisher whoEventPublisher) {
+    String confirmationUrl = properties.getEmailLink().getAddressConfirmationUrl();
+    return new EmailAddressChanges(
+        emailCredentialService,
+        emailAddressRequestRepository,
+        requireSender(emailLinkSender, resourceLoader),
+        settings,
+        StringUtils.hasText(confirmationUrl) ? confirmationUrl : settings.linkBaseUrl(),
+        clock,
+        whoEventPublisher);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public EmailAddressEndpoints emailAddressEndpoints(
+      EmailAddressChanges emailAddressChanges,
+      WhoSessionSecurityContextRepository sessionRepository,
+      ObjectProvider<WhoExceptionHandoff> handoff,
+      @Qualifier(EXECUTOR_BEAN_NAME) Executor executor,
+      ObjectProvider<JsonMapper> jsonMapper,
+      Clock clock,
+      WhoProperties properties) {
+    return new EmailAddressEndpoints(
+        emailAddressChanges,
+        sessionRepository,
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        executor,
+        jsonMapper(jsonMapper),
+        clock,
+        properties.getSecurity().getRecentSignIn());
+  }
+
   private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> jsonMapper) {
     return jsonMapper.getIfAvailable(JsonMapper::new);
   }
@@ -329,7 +387,12 @@ public class WhoEmailLinkAutoConfiguration {
                 + " Or turn email-link sign-in off with who.email-link.enabled=false.");
       }
       return new MailEmailLinkSender(
-          javaMailSender, emailLink.getFrom(), emailLink.getSubject(), clock);
+          javaMailSender,
+          emailLink.getFrom(),
+          emailLink.getSubject(),
+          emailLink.getAddressConfirmationSubject(),
+          emailLink.getAddressChangedSubject(),
+          clock);
     }
   }
 }

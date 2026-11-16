@@ -33,6 +33,7 @@ class MailEmailLinkSenderTest {
 
   private static final Instant EXPIRES_AT = Instant.parse("2026-11-07T10:15:00Z");
   private static final String LINK = "https://app.test/signin#token=abc";
+  private static final String CONFIRM_LINK = "https://app.test/profile#confirm-address=abc";
 
   private final JavaMailSender mailSender = mock(JavaMailSender.class);
 
@@ -67,6 +68,66 @@ class MailEmailLinkSenderTest {
     SimpleMailMessage message = sendWithTimeLeft(Duration.ofSeconds(270));
 
     assertThat(message.getText()).contains("expire in 5 minutes and work once.");
+  }
+
+  private SimpleMailMessage send(WhoEmail email) {
+    Clock clock = Clock.fixed(EXPIRES_AT.minus(Duration.ofMinutes(5)), ZoneOffset.UTC);
+    new MailEmailLinkSender(
+            mailSender,
+            "noreply@app.test",
+            "Your sign-in link",
+            "Confirm your address",
+            "Your address changed",
+            clock)
+        .send(email);
+    ArgumentCaptor<SimpleMailMessage> message = ArgumentCaptor.forClass(SimpleMailMessage.class);
+    verify(mailSender).send(message.capture());
+    return message.getValue();
+  }
+
+  @Test
+  void anAddressConfirmationAsksToConfirmTheAddress() {
+    SimpleMailMessage message =
+        send(
+            new EmailAddressConfirmationMessage(
+                "new@example.com", CONFIRM_LINK, "K7F2QM", EXPIRES_AT, false));
+
+    assertThat(message.getTo()).containsExactly("new@example.com");
+    assertThat(message.getSubject()).isEqualTo("Confirm your address");
+    assertThat(message.getText())
+        .isEqualTo(
+            "Add this address to your account: "
+                + CONFIRM_LINK
+                + "\n\nOr enter this code: K7F-2QM\n\nThe link and the code expire in 5 minutes"
+                + " and work once, while you are signed in.\n\nIf you didn't ask to add this"
+                + " address, ignore this email and nothing changes. Never share this code with"
+                + " anyone.");
+  }
+
+  @Test
+  void aChangeConfirmationSaysTheAddressReplacesTheOldOne() {
+    SimpleMailMessage message =
+        send(
+            new EmailAddressConfirmationMessage(
+                "new@example.com", CONFIRM_LINK, "K7F2QM", EXPIRES_AT, true));
+
+    assertThat(message.getText())
+        .startsWith("Make this your account's email address, in place of the old one: ");
+  }
+
+  @Test
+  void aChangeNoticeTellsTheOldAddressWithoutSpellingOutTheNewOne() {
+    SimpleMailMessage message =
+        send(new EmailAddressChangedMessage("old@example.com", "newname@example.com"));
+
+    assertThat(message.getTo()).containsExactly("old@example.com");
+    assertThat(message.getSubject()).isEqualTo("Your address changed");
+    assertThat(message.getText())
+        .isEqualTo(
+            "Your account's email address was changed to n***@example.com. This address no"
+                + " longer signs in.\n\nIf you didn't make this change, someone else may have"
+                + " access to your account: contact the site right away.")
+        .doesNotContain("newname");
   }
 
   @Test
