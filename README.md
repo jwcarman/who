@@ -87,6 +87,9 @@ API, called with Keycloak access tokens and who API keys (`-pl who-examples/api`
 [`who-examples/web-and-api`](who-examples/web-and-api) is one app that is both: a website with
 sessions and an API with tokens and keys, each with a security chain of its own
 (`WhoSecurity.stateless()` for the API).
+[`who-examples/observability`](who-examples/observability) shows who's meters, traces and logs in
+Grafana's LGTM stack, with a provisioned dashboard and a traffic generator
+(`-pl who-examples/observability`).
 
 ## Upgrading to 0.10.0
 

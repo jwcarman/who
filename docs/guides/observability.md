@@ -5,6 +5,11 @@ so sign-ins, failures and sign-in emails show up on the dashboards and alerts yo
 There is nothing to configure in who: add Spring Boot Actuator (or any `MeterRegistry` and
 `ObservationRegistry` beans) and it starts.
 
+To see it all working, run the
+[observability example](https://github.com/jwcarman/who/tree/main/who-examples/observability):
+who's meters, traces and logs in Grafana, with a dashboard, a traffic generator, and a page
+whose every request links to its trace.
+
 ## What Spring Security already measures
 
 Spring Security times every authentication: with an `ObservationRegistry` it records

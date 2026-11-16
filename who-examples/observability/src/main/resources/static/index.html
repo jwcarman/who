@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>who observability</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header>
+  <span class="brand">who observability</span>
+  <a href="http://localhost:3000/d/who" target="_blank" rel="noopener">Dashboard</a>
+  <a href="http://localhost:8025" target="_blank" rel="noopener">Mailpit</a>
+</header>
+<main>
+  <p class="muted">
+    Each button makes one request. who counts it on its meters, Spring traces it, and who logs why
+    a sign-in failed. Below each answer is its trace id: open the trace, or the log lines it wrote.
+    A traffic generator makes the same requests in the background, marked as synthetic.
+  </p>
+
+  <section class="result" id="result" aria-live="polite">
+    <h2>Your last request</h2>
+    <p id="result-none" class="muted">Nothing yet. Pick a button.</p>
+    <div id="result-body" hidden>
+      <p><span id="result-request"></span> → <span class="status" id="result-status"></span></p>
+      <p id="result-says"></p>
+      <p id="result-trace">trace <code id="result-trace-id"></code>
+        · <a id="result-trace-link" target="_blank" rel="noopener">open the trace</a>
+        · <a id="result-logs-link" target="_blank" rel="noopener">its log lines</a></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sign in by email</h2>
+    <p class="muted">As <strong>demo@example.com</strong>. The code lands in
+      <a href="http://localhost:8025" target="_blank" rel="noopener">Mailpit</a>.
+      You are <strong id="signed-in">signed out</strong>.</p>
+    <div class="actions">
+      <button data-action="request-code">Email me a code</button>
+      <button data-action="unknown-address" class="secondary">Email a code to an unknown address</button>
+      <button data-action="wrong-code" class="secondary">Sign in with a wrong code</button>
+      <button data-action="sign-out" class="secondary">Sign out</button>
+    </div>
+    <form class="inline" id="code-form" style="margin-top: .75rem">
+      <input type="text" id="code" placeholder="Code from the email" autocomplete="one-time-code" required>
+      <button type="submit">Sign in with the code</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>API keys</h2>
+    <p class="muted">Signed in, make a key. It may only read the greeting, so writing with it is
+      refused. Calls with it send no cookies: the key is the only credential.</p>
+    <div class="actions">
+      <button data-action="make-key">Make a key</button>
+      <button data-action="read">Read with the key</button>
+      <button data-action="write" class="secondary">Write with the key</button>
+      <button data-action="unknown-key" class="secondary">Call with an unknown key</button>
+      <button data-action="revoke" class="secondary">Revoke the key</button>
+    </div>
+    <p class="muted" id="key-state">No key yet.</p>
+  </section>
+</main>
+<script type="module" src="/js/page.js"></script>
+</body>
+</html>

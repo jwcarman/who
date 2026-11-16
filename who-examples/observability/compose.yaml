@@ -34,7 +34,7 @@ services:
       - "1025:1025"
       - "8025:8025"
 
-  # Grafana with Loki (logs), Tempo (traces) and Mimir (metrics) behind one OpenTelemetry
+  # Grafana with Loki (logs), Tempo (traces) and Prometheus (metrics) behind one OpenTelemetry
   # collector. Spring Boot sends the app's metrics, traces and logs to it over OTLP. Grafana is
   # http://localhost:3000; the "who" dashboard is provisioned from ./grafana.
   lgtm:
@@ -43,3 +43,6 @@ services:
       - "3000:3000"
       - "4317"
       - "4318"
+    volumes:
+      - ./grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/who.yaml:ro
+      - ./grafana/who-dashboard.json:/otel-lgtm/who-dashboard.json:ro

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Documentation
+
+- A new example, `who-examples/observability`: who's meters, traces and logs in Grafana's LGTM
+  stack (`grafana/otel-lgtm`), with a provisioned dashboard, a traffic generator that makes real
+  requests, and a page whose every request links to its trace and log lines in Grafana.
+
 ## [0.18.0] - 2026-11-16
 
 ### Breaking changes

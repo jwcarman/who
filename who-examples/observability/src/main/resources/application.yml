@@ -23,6 +23,12 @@ who:
     code-secret: this-is-a-development-secret-change-it
 
 management:
+  # Push metrics every 10 seconds, so the dashboard moves while you watch. The default is a minute.
+  otlp:
+    metrics:
+      export:
+        step: 10s
+
   # Every request is traced, so any click on the page has a trace to open. Sample less in production.
   tracing:
     sampling:

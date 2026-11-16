@@ -112,6 +112,9 @@ with Spring Boot's Docker Compose support.
 - [Website and API](https://github.com/jwcarman/who/tree/main/who-examples/web-and-api): one app
   that is both, with a security chain for each: sessions and CSRF for the pages,
   `WhoSecurity.stateless()` for `/api/**`. People manage their API keys on the website.
+- [Observability](https://github.com/jwcarman/who/tree/main/who-examples/observability): who's
+  meters, traces and logs in Grafana's LGTM stack, with a provisioned dashboard, a traffic
+  generator, and a page whose every request links to its trace and log lines.
 
 ## Modules
 
