@@ -354,6 +354,27 @@ class SessionsFilterTest {
   }
 
   @Test
+  void a_session_that_changed_hands_after_loading_is_403() throws Exception {
+    // another request in the same browser signed bob in between loading and answering
+    HttpSession shared = browser(alice, NOW, "a");
+    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
+    request.setParameter("others", "true");
+    request.setSession(shared);
+    SecurityContextHolder.setContext(repository.loadDeferredContext(request).get());
+    HttpSession bobs = browser(bob, NOW, "b");
+    shared.setAttribute(
+        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+        bobs.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE));
+    HttpSession alicesOther = browser(alice, NOW, "c");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    filter.doFilter(request, response, chain);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(sessions.findLive(idOf(alicesOther))).isPresent();
+  }
+
+  @Test
   void a_session_without_a_record_is_signed_out() throws Exception {
     MockHttpSession unrecorded = new MockHttpSession();
     unrecorded.setAttribute(

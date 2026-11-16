@@ -183,7 +183,7 @@ void purgeSessions() {
 
 ## Timeouts and cookies
 
-How long a session lasts without a request is not who's setting. With Spring Boot it is `server.servlet.session.timeout` (default 30 minutes). Spring Session JDBC reads it too, unless you set `spring.session.timeout`. who's record of sessions uses the same value: `spring.session.timeout` when set, else `server.servlet.session.timeout`, with a bare number read as seconds, as Spring Boot reads it. who needs sessions to expire, so a timeout of `0` or less ("never") fails startup. Spring Session deletes expired rows on a schedule, by default every minute (`spring.session.jdbc.cleanup-cron`).
+How long a session lasts without a request is not who's setting. With Spring Boot it is `server.servlet.session.timeout` (default 30 minutes). Spring Session JDBC reads it too, unless you set `spring.session.timeout`. who's record of sessions uses the same value: `spring.session.timeout` when Spring Session is present and it is set, else `server.servlet.session.timeout`, read as Spring Boot reads them: a bare number is seconds, and an empty value is unset. who needs sessions to expire, so a timeout of `0` or less ("never") fails startup. Spring Session deletes expired rows on a schedule, by default every minute (`spring.session.jdbc.cleanup-cron`).
 
 Who does not set the cookie flags. Set them yourself:
 

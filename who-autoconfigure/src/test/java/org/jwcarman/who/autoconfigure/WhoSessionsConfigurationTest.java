@@ -37,6 +37,7 @@ import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -134,6 +135,40 @@ class WhoSessionsConfigurationTest {
                     .rootCause()
                     .hasMessageContaining("server.servlet.session.timeout")
                     .hasMessageContaining("positive"));
+  }
+
+  @Test
+  void an_empty_timeout_keeps_spring_boots_default() {
+    // as server.servlet.session.timeout=${SESSION_TIMEOUT:} with the variable unset
+    runner
+        .withPropertyValues("server.servlet.session.timeout=")
+        .run(
+            context ->
+                assertThat(context.getBean(WhoSessions.class).idleTimeout())
+                    .isEqualTo(Duration.ofMinutes(30)));
+  }
+
+  @Test
+  void a_malformed_timeout_fails_startup_naming_the_property() {
+    runner
+        .withPropertyValues("server.servlet.session.timeout=soon")
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .hasStackTraceContaining(
+                        "server.servlet.session.timeout=soon is not a duration"));
+  }
+
+  @Test
+  void spring_session_timeout_is_ignored_without_spring_session() {
+    // Spring Boot reads it only for Spring Session; without it the container's timeout applies
+    runner
+        .withClassLoader(new FilteredClassLoader("org.springframework.session"))
+        .withPropertyValues("server.servlet.session.timeout=45m", "spring.session.timeout=5m")
+        .run(
+            context ->
+                assertThat(context.getBean(WhoSessions.class).idleTimeout())
+                    .isEqualTo(Duration.ofMinutes(45)));
   }
 
   @Test

@@ -51,7 +51,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -72,6 +74,7 @@ public class WhoSpringSecurityAutoConfiguration {
 
   private static final String SPRING_SESSION_TIMEOUT = "spring.session.timeout";
   private static final String SERVLET_SESSION_TIMEOUT = "server.servlet.session.timeout";
+  private static final String SPRING_SESSION_CLASS = "org.springframework.session.Session";
 
   /** Creates the autoconfiguration; Spring Boot calls it. */
   public WhoSpringSecurityAutoConfiguration() {
@@ -109,6 +112,7 @@ public class WhoSpringSecurityAutoConfiguration {
    * @param clock the current time
    * @param properties who's settings
    * @param environment where the timeout is read
+   * @param resourceLoader tells whether Spring Session is present
    * @return the sessions
    */
   @Bean
@@ -118,28 +122,36 @@ public class WhoSpringSecurityAutoConfiguration {
       WhoEventPublisher whoEventPublisher,
       Clock clock,
       WhoProperties properties,
-      Environment environment) {
+      Environment environment,
+      ResourceLoader resourceLoader) {
     WhoProperties.Sessions settings = properties.getSessions();
     return new WhoSessions(
         repository,
         whoEventPublisher,
         clock,
-        idleTimeout(environment),
+        idleTimeout(
+            environment,
+            ClassUtils.isPresent(SPRING_SESSION_CLASS, resourceLoader.getClassLoader())),
         settings.getLastSeenInterval(),
         settings.getPurgeBatchSize(),
         settings.isAutoPurge());
   }
 
   /*
-   * Reads the session timeout the way Spring Boot does: a bare number is seconds. who needs sessions
-   * to expire, both to refuse an idle one and to know which records are dead.
+   * Reads the session timeout the way Spring Boot does: a bare number is seconds, an empty value is
+   * unset, and spring.session.timeout counts only with Spring Session. who needs sessions to
+   * expire, both to refuse an idle one and to know which records are dead.
    */
-  static Duration idleTimeout(Environment environment) {
+  static Duration idleTimeout(Environment environment, boolean springSession) {
     Binder binder = Binder.get(environment);
-    for (String name : List.of(SPRING_SESSION_TIMEOUT, SERVLET_SESSION_TIMEOUT)) {
-      String value = binder.bind(name, String.class).map(String::trim).orElse(null);
-      if (value != null) {
-        Duration timeout = DurationStyle.detectAndParse(value, ChronoUnit.SECONDS);
+    List<String> names =
+        springSession
+            ? List.of(SPRING_SESSION_TIMEOUT, SERVLET_SESSION_TIMEOUT)
+            : List.of(SERVLET_SESSION_TIMEOUT);
+    for (String name : names) {
+      String value = binder.bind(name, String.class).map(String::trim).orElse("");
+      if (!value.isEmpty()) {
+        Duration timeout = parse(name, value);
         if (timeout.isNegative() || timeout.isZero()) {
           throw new IllegalStateException(
               name
@@ -152,6 +164,15 @@ public class WhoSpringSecurityAutoConfiguration {
       }
     }
     return DEFAULT_SESSION_TIMEOUT;
+  }
+
+  private static Duration parse(String name, String value) {
+    try {
+      return DurationStyle.detectAndParse(value, ChronoUnit.SECONDS);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalStateException(
+          name + "=" + value + " is not a duration: use a number of seconds or one like 30m", e);
+    }
   }
 
   /**
