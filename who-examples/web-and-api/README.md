@@ -73,6 +73,10 @@ Both ways land on the same who identity. `Setup` links alice's identity to her e
 to her Keycloak account, and who signs a person in only through a link the app made: never by
 matching an email address.
 
+The Keys page also lists every browser alice is signed in on, under "Where you're signed in".
+Sign in in a private window too, then sign that one out from here. Signing out another browser
+needs a sign-in in the last 10 minutes; past that, the page sends you to sign in again and back.
+
 ## API keys
 
 Open **API keys**. Make a key: name it, give it a lifetime, and tick what it may do. Only

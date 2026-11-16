@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -142,5 +143,22 @@ class WebAppApplicationTest {
     EmailCredential credential = emailCredentials.register(identity, address);
     rbacService.assignRoleByName(identity, role);
     return WhoTestSessions.signedIn(whoSessions, identity.id(), credential.id());
+  }
+
+  @Test
+  void the_profile_page_lists_sessions() throws Exception {
+    MockHttpSession member = signedInAs("sessions@example.com", TeamRole.MEMBER);
+
+    mockMvc
+        .perform(get("/profile").session(member).accept(MediaType.TEXT_HTML))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("id=\"sessions\"")))
+        .andExpect(content().string(containsString("/js/sessions.js")));
+    mockMvc
+        .perform(get("/who/sessions").session(member))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].current").value(true));
+    mockMvc.perform(get("/js/sessions.js")).andExpect(status().isOk());
   }
 }

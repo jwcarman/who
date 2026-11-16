@@ -46,6 +46,8 @@ On the page, each button makes one request:
 4. **Email a code to an unknown address**: the same answer as for a known one, so nobody can probe
    for accounts. Only the meter tells them apart.
 5. **Sign in with a wrong code**, and **Sign out**.
+6. Sign in from a private window too, then **Sign out** the other browser under "Where you're
+   signed in": `who_sessions_ended_total{reason="revoked"}` counts it.
 
 Under each answer is its trace id, from the app's `X-Trace-Id` header, with two links:
 
@@ -68,7 +70,7 @@ Your requests are tagged `traffic="interactive"` on `http_server_requests`, the 
 | Authenticated requests | `spring_security_authentications_milliseconds_count` |
 | Sign-in emails by outcome | `who_sign_in_emails_total` |
 | Credentials added and revoked | `who_credentials_added_total`, `who_credentials_revoked_total` |
-| Sign-outs and ended sessions | `who_sign_outs_total`, `who_sessions_ended_total` |
+| Sign-outs, ended sessions and purged session records | `who_sign_outs_total`, `who_sessions_ended_total`, `who_sessions_purged_total` |
 | who's own work, average | `who_principal_resolve_*`, `who_sign_in_email_issue_*` |
 | HTTP requests by traffic and status | `http_server_requests_milliseconds_count` |
 | who's log lines | Loki, who's loggers (`org.jwcarman.who.*`, not the example's) |

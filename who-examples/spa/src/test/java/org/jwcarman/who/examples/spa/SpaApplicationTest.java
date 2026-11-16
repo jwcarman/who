@@ -144,4 +144,16 @@ class SpaApplicationTest {
     rbacService.assignRoleByName(identity, role);
     return WhoTestSessions.signedIn(whoSessions, identity.id(), credential.id());
   }
+
+  @Test
+  void the_profile_page_can_list_sessions() throws Exception {
+    MockHttpSession member = signedInAs("sessions@example.com", TeamRole.MEMBER);
+
+    mockMvc
+        .perform(get("/who/sessions").session(member))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].current").value(true))
+        .andExpect(jsonPath("$[0].signInMethod").value("email-code"));
+  }
 }

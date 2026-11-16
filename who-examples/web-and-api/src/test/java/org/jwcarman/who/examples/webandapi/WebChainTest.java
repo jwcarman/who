@@ -16,9 +16,12 @@
 package org.jwcarman.who.examples.webandapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -26,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -34,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKey;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.apikey.NewApiKey;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -270,5 +275,45 @@ class WebChainTest extends AbstractWebAndApiTest {
                 .accept(MediaType.TEXT_HTML))
         .andExpect(status().isOk())
         .andExpect(model().attribute("again", true));
+  }
+
+  @Test
+  void the_keys_page_lists_sessions() throws Exception {
+    Person bob = person(TeamRole.MEMBER);
+
+    mockMvc
+        .perform(get("/keys").session(bob.session()).accept(MediaType.TEXT_HTML))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("id=\"sessions\"")))
+        .andExpect(content().string(containsString("/js/sessions.js")));
+    mockMvc
+        .perform(get("/who/sessions").session(bob.session()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].current").value(true));
+    mockMvc.perform(get("/js/sessions.js")).andExpect(status().isOk());
+  }
+
+  @Test
+  void ending_another_session_needs_a_recent_sign_in() throws Exception {
+    Person bob = person(TeamRole.MEMBER, Instant.now().minus(Duration.ofHours(1)));
+    UUID other =
+        whoSessions
+            .start(bob.identity().id(), UUID.randomUUID(), SignInMethod.EMAIL_CODE, "curl/8.0")
+            .id();
+
+    mockMvc
+        .perform(delete("/who/sessions/{id}", other).session(bob.session()).with(csrf()))
+        .andExpect(status().isUnauthorized());
+    assertThat(whoSessions.findLive(other)).isPresent();
+
+    Person fresh = person(TeamRole.MEMBER);
+    UUID freshOther =
+        whoSessions
+            .start(fresh.identity().id(), UUID.randomUUID(), SignInMethod.EMAIL_CODE, "curl/8.0")
+            .id();
+    mockMvc
+        .perform(delete("/who/sessions/{id}", freshOther).session(fresh.session()).with(csrf()))
+        .andExpect(status().isNoContent());
+    assertThat(whoSessions.findLive(freshOther)).isEmpty();
   }
 }

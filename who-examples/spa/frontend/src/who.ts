@@ -232,3 +232,34 @@ export async function signOut(): Promise<void> {
   await post('/logout');
   await fetch('/who/me', { credentials: 'same-origin' }); // sets a new XSRF-TOKEN cookie
 }
+
+// --- Sessions (Sessions guide, "See and end sessions") ----------------------------------------
+
+// One browser this person is signed in on. The id is who's own, never the session cookie, so the
+// list can be shown without exposing a session.
+export type Session = {
+  id: string;
+  device: string;
+  userAgent: string | null;
+  signInMethod: string;
+  signedInAt: string;
+  lastSeenAt: string;
+  current: boolean;
+};
+
+// Where this person is signed in, newest first.
+export async function listSessions(): Promise<Session[]> {
+  const res = await fetch('/who/sessions', { credentials: 'same-origin' });
+  return res.ok ? res.json() : [];
+}
+
+// Signs one browser out. This browser's own session ends at once; any other needs a recent
+// sign-in. 204 ended, 401 signed in too long ago, 404 not one of yours.
+export async function endSession(id: string): Promise<number> {
+  return (await send('DELETE', '/who/sessions/' + encodeURIComponent(id))).status;
+}
+
+// Signs out every browser but this one. 200 { ended }, 401 signed in too long ago.
+export async function endOtherSessions(): Promise<number> {
+  return (await send('DELETE', '/who/sessions?others=true')).status;
+}

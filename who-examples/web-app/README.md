@@ -48,6 +48,10 @@ Then open <http://localhost:8080>.
    else, sign out at <http://localhost:8280/realms/who-example/account> or use a private window.
 6. **See a closed provider.** With Google or GitHub turned on, sign in with an account no one has
    linked: sign-up is refused, because the policy opens only Keycloak.
+7. **Sign out another browser.** Sign in as the admin in a second browser or a private window.
+   Profile lists both under "Where you're signed in"; choose Sign out on the other one, and its
+   next click lands on the sign-in page. Signing out another browser needs a sign-in in the last
+   10 minutes; signing out this one never does.
 
 ## Google and GitHub
 

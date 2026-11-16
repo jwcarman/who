@@ -315,6 +315,15 @@
           },
           "expr": "sum by (reason) (rate(who_sessions_ended_total[5m]))",
           "legendFormat": "ended {{reason}}"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(who_sessions_purged_total[5m]))",
+          "legendFormat": "records purged"
         }
       ],
       "fieldConfig": {

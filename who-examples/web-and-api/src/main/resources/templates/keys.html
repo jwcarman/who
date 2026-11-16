@@ -48,6 +48,17 @@
       </li>
     </ul>
   </section>
+
+  <section class="stack" id="sessions" data-sign-in-again="/signin?again=/keys">
+    <h2>Where you're signed in</h2>
+    <div class="message warn" data-sessions-message hidden></div>
+    <ul class="list"></ul>
+    <div class="inline">
+      <button type="button" class="secondary" data-end-others hidden>Sign out everywhere else</button>
+    </div>
+    <p class="muted">Signing out another browser needs a sign-in within the last 10 minutes.</p>
+  </section>
 </main>
+<script type="module" src="/js/sessions.js"></script>
 </body>
 </html>

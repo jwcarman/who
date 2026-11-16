@@ -21,6 +21,7 @@ import {
   confirmAddressCode, confirmAddressFromLocation, confirmLink, pendingSignUp, registerPasskey,
   removePasskey, requestAddress, startLink, type PendingSignUp
 } from '../who';
+import { Sessions } from './Sessions';
 
 const TOO_LONG = 'You signed in too long ago. Sign out, sign in again, then try again.';
 
@@ -210,6 +211,8 @@ export function Profile() {
         </div>
         <p className="muted">The provider asks you to sign in again, or to choose the account. Link within 10 minutes of signing in here.</p>
       </section>
+
+      <Sessions />
     </>
   );
 }

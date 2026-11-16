@@ -83,7 +83,18 @@
     </div>
     <p class="muted">The provider asks you to sign in again, or to choose the account. Link within 10 minutes of signing in here.</p>
   </section>
+
+  <section class="stack" id="sessions">
+    <h2>Where you're signed in</h2>
+    <div class="message warn" data-sessions-message hidden></div>
+    <ul class="list"></ul>
+    <div class="inline">
+      <button type="button" class="secondary" data-end-others hidden>Sign out everywhere else</button>
+    </div>
+    <p class="muted">Signing out another browser needs a sign-in within the last 10 minutes.</p>
+  </section>
 </main>
 <script type="module" src="/js/profile.js"></script>
+<script type="module" src="/js/sessions.js"></script>
 </body>
 </html>

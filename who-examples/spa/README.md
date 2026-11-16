@@ -82,6 +82,8 @@ The same goes for production behind a proxy or a CDN: these settings name your p
 5. Sign out, sign in with Keycloak as `bob` (if you did not invite him): the policy lets the local
    realm sign up, so who offers to create the account.
 6. On Profile, add or change an email address, and confirm it from Mailpit.
+7. Sign in in a private window too. Profile lists both browsers under "Where you're signed in":
+   sign the other one out, and its next request is signed out.
 
 ## For production
 
