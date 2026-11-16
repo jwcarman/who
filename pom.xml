@@ -444,8 +444,10 @@ limitations under the License.]]></inlineHeader>
                                     <excludes>
                                         <exclude>**/README</exclude>
                                         <exclude>**/README.md</exclude>
-                                        <exclude>src/test/resources/**</exclude>
-                                        <exclude>src/main/resources/**</exclude>
+                                        <!-- **/ also reaches modules the root build walks into but does not
+                                             list, such as who-native-tests outside its profile -->
+                                        <exclude>**/src/test/resources/**</exclude>
+                                        <exclude>**/src/main/resources/**</exclude>
                                         <exclude>LICENSE</exclude>
                                         <exclude>.github/**</exclude>
                                         <exclude>**/*.txt</exclude>
@@ -458,6 +460,8 @@ limitations under the License.]]></inlineHeader>
                                         <exclude>.superpowers/**</exclude>
                                         <exclude>.worktrees/**</exclude>
                                         <exclude>.claude/**</exclude>
+                                        <!-- the MkDocs build output -->
+                                        <exclude>site/**</exclude>
                                         <!-- the single-page app example's npm packages and build -->
                                         <exclude>**/node_modules/**</exclude>
                                     </excludes>
