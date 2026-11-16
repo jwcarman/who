@@ -22,6 +22,7 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,8 +40,7 @@ class MeController {
   record Me(UUID identityId, Set<String> permissions, String signedInWith) {}
 
   @GetMapping("/api/me")
-  Me me(Authentication authentication) {
-    WhoPrincipal principal = (WhoPrincipal) authentication.getPrincipal();
+  Me me(@AuthenticationPrincipal WhoPrincipal principal, Authentication authentication) {
     return new Me(principal.identity().id(), principal.permissions(), signedInWith(authentication));
   }
 
