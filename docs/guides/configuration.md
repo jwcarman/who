@@ -31,7 +31,8 @@
 | `who.passkey.allowed-origins` | `https://<rp-id>` | Origins a registration or sign-in response may come from: each a scheme (`http` or `https`), a host and an optional port, with no path, such as `http://localhost:8080`. Startup fails on anything else |
 | `who.passkey.from` | none | Sender address of the "passkey added" email. The email is sent only when this is set, `who-email-link` is on and a `JavaMailSender` exists. It does not fall back to `who.email-link.from`. When the email cannot be sent, who logs a warning at startup |
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
-| `who.oidc.failure-url` | `/` | Where every other provider sign-in outcome lands, with `error=no-account`, `already-linked`, `signed-in` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
+| `who.oidc.failure-url` | `/` | Where a pending sign-up lands, with `pending=sign-up`, and every failed provider sign-in, with `error=already-linked`, `signed-in` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
+| `who.oidc.link-url` | `success-url` | Where a link the signed-in person asked for lands: `pending=link` to confirm it, `error=already-linked`, or nothing for an account they already had. A path on this site, such as the account settings page |
 | `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
 | `who.oidc.providers.<id>.enabled` | `true` | Leaves one client registration out of sign-in when `false` |
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints, or an OAuth 2 provider |

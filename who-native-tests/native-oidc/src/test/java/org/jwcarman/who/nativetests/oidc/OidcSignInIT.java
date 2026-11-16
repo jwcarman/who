@@ -156,7 +156,7 @@ class OidcSignInIT {
     openSignUp(false);
     try (WhoClient client = client()) {
       assertThat(signInAtProvider(client, "new-" + UUID.randomUUID()))
-          .endsWith("/?error=no-account");
+          .endsWith("/?pending=sign-up");
       WhoClient.Response pending = client.get("/who/oidc/pending");
       assertThat(pending.status()).isEqualTo(200);
       assertThat(pending.json().path("canSignUp").asBoolean()).isTrue();
@@ -172,7 +172,7 @@ class OidcSignInIT {
     try {
       try (WhoClient client = client()) {
         assertThat(signInAtProvider(client, "new-" + UUID.randomUUID()))
-            .endsWith("/?error=no-account");
+            .endsWith("/?pending=sign-up");
 
         WhoClient.Response signedUp = client.post("/who/oidc/sign-up", null);
 
@@ -195,7 +195,7 @@ class OidcSignInIT {
       String authorize = location(client.post("/who/oidc/link/test", null));
       // in Postgres, so the link's intent went through serialization in the native image
       assertThat(storedAuthorizationRequests()).isPositive();
-      assertThat(finishAtProvider(client, authorize)).endsWith("/?error=no-account");
+      assertThat(finishAtProvider(client, authorize)).endsWith("/?pending=link");
       assertThat(client.get("/who/oidc/pending").json().path("canLink").asBoolean()).isTrue();
 
       WhoClient.Response link = client.post("/who/oidc/link", null);

@@ -178,7 +178,7 @@ Startup fails, naming the property to fix, when:
 - an OAuth 2 registration other than github.com lacks `issuer` or `subject-attribute`;
 - two sign-in registrations have the same issuer;
 - an issuer is one of Entra's shared endpoints;
-- `who.oidc.success-url` or `who.oidc.failure-url` is not a path on this site (it must start with
+- `who.oidc.success-url`, `failure-url` or `link-url` is not a path on this site (it must start with
   `/`, not `//`, and have no scheme).
 
 ## The sign-in page
@@ -195,7 +195,7 @@ The provider sends the person back to who, and who redirects:
 | Outcome | Redirect |
 |---|---|
 | Signed in | `who.oidc.success-url` (default `/`) |
-| An account who does not know | `who.oidc.failure-url?error=no-account` |
+| An account who does not know | `who.oidc.failure-url?pending=sign-up` |
 | An account linked to another identity, reached while signed in | `who.oidc.failure-url?error=already-linked` |
 | An account who does not know, reached by someone signed in who did not ask to [link](#link-an-account-to-someone-signed-in) | `who.oidc.failure-url?error=signed-in` |
 | Anything else: cancelled, refused by the provider, a bad token, an inactive identity | `who.oidc.failure-url?error=signin-failed` |
@@ -203,7 +203,8 @@ The provider sends the person back to who, and who redirects:
 The default for `who.oidc.failure-url` is `/`. Point it at your sign-in page and list that page in
 `who.security.public-paths`: who does not open it for you, and a signed-out person sent there would
 get a `401`. Startup logs a warning when the failure URL is not public. The reason behind
-`signin-failed` is never in the URL; it is in the [events](#events-and-metrics).
+`signin-failed` is never in the URL; it is in the [events](#events-and-metrics). A link someone
+asked for lands elsewhere: see [Link an account](#link-an-account-to-someone-signed-in).
 
 who opens `/oauth2/authorization/**`, `/login/oauth2/code/**`, `GET /who/oidc/pending` and
 `POST /who/oidc/sign-up` to signed-out requests. The sign-in is a session sign-in, like an email
@@ -212,13 +213,13 @@ registration id (see [Sessions](sessions.md)).
 
 ### Sign up
 
-On `error=no-account`, who has kept a pending sign-up in the session: the provider account, nothing
+On `pending=sign-up`, who has kept a pending sign-up in the session: the provider account, nothing
 created yet. It lasts `who.oidc.sign-up-window` (default 10 minutes) and can be used once. Ask
 who about it, and ask the person whether they want an account:
 
 ```js
 const params = new URLSearchParams(location.search);
-if (params.get('error') === 'no-account') {
+if (params.get('pending') === 'sign-up') {
   const response = await fetch('/who/oidc/pending');
   if (response.ok) {
     const pending = await response.json();
@@ -248,7 +249,7 @@ that is signed in cannot sign up (`403`). Answers go through your exception hand
 [Errors](errors.md)).
 
 One click is fine for sign-up: a landing page may call `POST /who/oidc/sign-up` as soon as it sees
-`error=no-account`. Your policy still decides.
+`pending=sign-up`. Your policy still decides.
 
 If two requests confirm the same account at once, one identity is created and both sign in to it.
 
@@ -287,8 +288,10 @@ That is a request, not a check: who cannot tell whether the provider did it. The
 own, the same for every provider: the person must have signed in to your application within
 `who.security.recent-sign-in` when they confirm.
 
-The callback lands on `error=no-account` with a pending sign-up for which `canLink` is `true`.
-Show which account it is, and on confirmation:
+The callback lands on `who.oidc.link-url?pending=link` (default `success-url`), usually the page the
+link started from, such as account settings. who has kept the account as a pending sign-up for
+which `canLink` is `true`: read it from `GET /who/oidc/pending`, show which account it is, and on
+confirmation:
 
 ```js
 const response = await post('/who/oidc/link');   // { "credentialId": "..." }
@@ -308,9 +311,9 @@ passkeys. Listen for `CredentialAdded` with kind `FEDERATED` (see [Events](event
 
 A link answers only the identity that started it. If someone else is signed in when the provider
 calls back, or no one is, nothing is linked or kept (`error=signin-failed`). An account that
-belongs to another identity, active or not, is `error=already-linked`. A pending link is
-also dropped when anyone else signs in. Linking an account the identity already has changes
-nothing and redirects to `who.oidc.success-url`: a link is not a sign-in, so the session keeps the
+belongs to another identity, active or not, is `who.oidc.link-url?error=already-linked`. A pending
+link is also dropped when anyone else signs in. Linking an account the identity already has changes
+nothing and redirects to `who.oidc.link-url`: a link is not a sign-in, so the session keeps the
 credential and sign-in time it had.
 
 A plain sign-in (`/oauth2/authorization/{id}`) never links. Someone signed in who reaches an
@@ -434,7 +437,8 @@ those requests.
 |---|---|---|
 | `who.oidc.enabled` | `true` | Turns provider sign-in off when `false`, with `who-oidc` still on the classpath |
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
-| `who.oidc.failure-url` | `/` | Where every other outcome lands, with `error=<code>`. A path on this site; list it in `who.security.public-paths` |
+| `who.oidc.failure-url` | `/` | Where a pending sign-up (`pending=sign-up`) and every failed sign-in (`error=<code>`) land. A path on this site; list it in `who.security.public-paths` |
+| `who.oidc.link-url` | `success-url` | Where a link the person asked for lands: `pending=link` to confirm, or `error=already-linked`. A path on this site |
 | `who.oidc.sign-up-window` | `10m` | How long a pending sign-up waits for the person to confirm it |
 | `who.oidc.providers.<id>.enabled` | `true` | Leaves one registration out of sign-in when `false` |
 | `who.oidc.providers.<id>.issuer` | none | The issuer, for an OpenID Connect provider configured by endpoints or an OAuth 2 provider |

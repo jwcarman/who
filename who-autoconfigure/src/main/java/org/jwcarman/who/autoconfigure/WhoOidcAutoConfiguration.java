@@ -195,6 +195,8 @@ public class WhoOidcAutoConfiguration {
     WhoProperties.Oidc oidc = properties.getOidc();
     String successUrl = localPath("who.oidc.success-url", oidc.getSuccessUrl());
     String failureUrl = localPath("who.oidc.failure-url", oidc.getFailureUrl());
+    String linkUrl =
+        oidc.getLinkUrl() == null ? successUrl : localPath("who.oidc.link-url", oidc.getLinkUrl());
     warnWhenNotPublic(failureUrl, properties.getSecurity().getPublicPaths());
     return new OidcLoginMethod(
         registrations,
@@ -203,7 +205,7 @@ public class WhoOidcAutoConfiguration {
         sessions,
         signUpService,
         identities,
-        new OidcRedirects(successUrl, failureUrl),
+        new OidcRedirects(successUrl, failureUrl, linkUrl),
         clock,
         oidc.getSignUpWindow(),
         properties.getSecurity().getRecentSignIn());

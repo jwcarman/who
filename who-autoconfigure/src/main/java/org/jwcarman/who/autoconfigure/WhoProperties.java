@@ -853,10 +853,17 @@ public class WhoProperties {
     private String successUrl = "/";
 
     /**
-     * Where every other provider sign-in outcome lands, with an {@code error} code: a path on this
-     * site, such as the sign-in page.
+     * Where a pending sign-up ({@code pending=sign-up}) and every failed provider sign-in ({@code
+     * error=<code>}) land: a path on this site, such as the sign-in page.
      */
     private String failureUrl = "/";
+
+    /**
+     * Where a link the signed-in person asked for lands: {@code pending=link} to confirm it, or
+     * {@code error=already-linked}. A path on this site, such as the account settings page;
+     * defaults to {@code success-url}.
+     */
+    private String linkUrl;
 
     /** How long a pending sign-up waits for the person to confirm it. */
     private Duration signUpWindow = Duration.ofMinutes(10);
@@ -916,6 +923,24 @@ public class WhoProperties {
      */
     public void setFailureUrl(String failureUrl) {
       this.failureUrl = failureUrl;
+    }
+
+    /**
+     * Returns where a link lands.
+     *
+     * @return a path on this site, or null for {@code success-url}
+     */
+    public String getLinkUrl() {
+      return linkUrl;
+    }
+
+    /**
+     * Sets where a link lands.
+     *
+     * @param linkUrl a path on this site
+     */
+    public void setLinkUrl(String linkUrl) {
+      this.linkUrl = linkUrl;
     }
 
     /**

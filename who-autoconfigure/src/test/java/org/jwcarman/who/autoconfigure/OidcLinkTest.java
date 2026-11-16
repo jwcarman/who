@@ -112,8 +112,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
       MvcResult result = linkAtProvider("carol", Map.of());
 
-      assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=no-account");
+      assertThat(result.getResponse().getRedirectedUrl()).isEqualTo(LINK_URL + "?pending=link");
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE))
           .isInstanceOfSatisfying(
               PendingSignUp.class, p -> assertThat(p.createdFor()).isEqualTo(bob.id()));
@@ -143,8 +142,7 @@ class OidcLinkTest extends AbstractOidcTest {
       // prompt=login is a hint; who's check is its own link window, not the provider's auth_time
       MvcResult result = linkAtProvider("carol", Map.of("auth_time", anHourAgo));
 
-      assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=no-account");
+      assertThat(result.getResponse().getRedirectedUrl()).isEqualTo(LINK_URL + "?pending=link");
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNotNull();
     }
 
@@ -260,7 +258,7 @@ class OidcLinkTest extends AbstractOidcTest {
       MvcResult result = linkAtProvider("erin", Map.of());
 
       assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=already-linked");
+          .isEqualTo(LINK_URL + "?error=already-linked");
       assertThat(events.stream(SignInFailed.class)).isEmpty();
       assertThat(me()).isEqualTo(200);
     }
@@ -274,8 +272,7 @@ class OidcLinkTest extends AbstractOidcTest {
       MvcResult result = finishAtProvider(authorize);
       browser.perform(post("/who/oidc/link"));
 
-      assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=no-account");
+      assertThat(result.getResponse().getRedirectedUrl()).isEqualTo(LINK_URL + "?pending=link");
       assertThat(authorize).doesNotContain("prompt=");
       FederatedCredential carol =
           federatedCredentialRepository
@@ -292,7 +289,7 @@ class OidcLinkTest extends AbstractOidcTest {
       MvcResult result = linkAtProvider("alice", Map.of());
 
       assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=already-linked");
+          .isEqualTo(LINK_URL + "?error=already-linked");
       assertThat(sessionAttribute(PendingSignUps.ATTRIBUTE)).isNull();
     }
 
@@ -304,7 +301,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
       MvcResult result = linkAtProvider("bob-here-too", Map.of());
 
-      assertThat(result.getResponse().getRedirectedUrl()).isEqualTo(SUCCESS_URL);
+      assertThat(result.getResponse().getRedirectedUrl()).isEqualTo(LINK_URL);
       assertThat(sessionAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
           .isEqualTo(before);
       assertThat(events.stream(SignInSucceeded.class)).isEmpty();

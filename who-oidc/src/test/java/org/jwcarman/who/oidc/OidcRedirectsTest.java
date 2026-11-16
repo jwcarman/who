@@ -29,7 +29,7 @@ class OidcRedirectsTest {
   void failure_url_keeps_its_query_and_fragment() {
     OidcRedirects redirects = new OidcRedirects("/", "/signin?x=1#top");
 
-    assertThat(redirects.failure("no-account")).isEqualTo("/signin?x=1&error=no-account#top");
+    assertThat(redirects.failure("signed-in")).isEqualTo("/signin?x=1&error=signed-in#top");
   }
 
   @Test
@@ -51,7 +51,33 @@ class OidcRedirectsTest {
           .isInstanceOf(IllegalArgumentException.class);
       assertThatThrownBy(() -> new OidcRedirects("/", url))
           .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> new OidcRedirects("/", "/", url))
+          .isInstanceOf(IllegalArgumentException.class);
     }
+  }
+
+  @Test
+  void a_pending_sign_up_lands_on_the_failure_url() {
+    assertThat(new OidcRedirects("/home", "/signin?x=1#top").pendingSignUp())
+        .isEqualTo("/signin?x=1&pending=sign-up#top");
+  }
+
+  @Test
+  void a_link_lands_on_the_link_url() {
+    OidcRedirects redirects = new OidcRedirects("/home", "/signin", "/settings?tab=accounts");
+
+    assertThat(redirects.pendingLink()).isEqualTo("/settings?tab=accounts&pending=link");
+    assertThat(redirects.link()).isEqualTo("/settings?tab=accounts");
+    assertThat(redirects.linkFailure("already-linked"))
+        .isEqualTo("/settings?tab=accounts&error=already-linked");
+  }
+
+  @Test
+  void the_link_url_defaults_to_the_success_url() {
+    OidcRedirects redirects = new OidcRedirects("/home", "/signin");
+
+    assertThat(redirects.pendingLink()).isEqualTo("/home?pending=link");
+    assertThat(redirects.link()).isEqualTo("/home");
   }
 
   @Test

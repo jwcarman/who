@@ -122,7 +122,7 @@ class OidcSignInTest extends AbstractOidcTest {
       MvcResult result = signInAtProvider("carol", Map.of("email", "carol@example.com"));
 
       assertThat(result.getResponse().getRedirectedUrl())
-          .isEqualTo(FAILURE_URL + "?error=no-account");
+          .isEqualTo(FAILURE_URL + "?pending=sign-up");
       assertThat(jdbcClient.sql("SELECT count(*) FROM who_identity").query(Long.class).single())
           .isEqualTo(identities);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))

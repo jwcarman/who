@@ -1,4 +1,7 @@
-import { confirmAddressCode, confirmAddressFromLocation, registerPasskey, removePasskey, requestAddress } from '/js/who.js';
+import {
+  confirmAddressCode, confirmAddressFromLocation, confirmLink, pendingSignUp, registerPasskey,
+  removePasskey, requestAddress
+} from '/js/who.js';
 
 const $ = id => document.getElementById(id);
 
@@ -74,3 +77,30 @@ $('address-code-form').addEventListener('submit', async e => {
   e.preventDefault();
   confirmed(await confirmAddressCode($('address-code').value));
 });
+
+// --- Back from a provider (who.oidc.link-url points here) ---
+
+const params = new URLSearchParams(location.search);
+if (params.get('error') === 'already-linked') {
+  showError('That account is already linked to someone else. Nothing was changed.');
+} else if (params.get('pending') === 'link') {
+  const pending = await pendingSignUp();
+  if (!pending?.canLink) {
+    showError('That took too long. Start the link again.');
+  } else {
+    // who names the provider by its registration id; show the name its Link button shows.
+    const name = document.querySelector(`[data-provider="${CSS.escape(pending.provider)}"]`)
+      ?.dataset.providerName ?? pending.provider;
+    $('pending-link-title').textContent = `Link ${name}?`;
+    $('pending-link-text').textContent =
+      `Link the ${name} account ${pending.displayName} to your account, so it can sign you in.`;
+    $('pending-link').hidden = false;
+    $('pending-link-confirm').addEventListener('click', async () => {
+      const status = await confirmLink();
+      if (status === 200) location.assign('/profile');
+      else if (status === 401) showError('You signed in too long ago. Sign out, sign in again, then link the account.');
+      else if (status === 409) showError('That account is already linked to someone else.');
+      else showError('That took too long. Start the link again.');
+    }, { once: true });
+  }
+}

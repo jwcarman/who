@@ -368,6 +368,12 @@ class ModuleActivationTest {
     }
 
     @Test
+    void absolute_link_url_fails_startup() {
+      oidc.withPropertyValues("who.oidc.link-url=https://evil.example.com/")
+          .run(context -> assertMissing(context, "who.oidc.link-url", "oidc"));
+    }
+
+    @Test
     void absolute_failure_url_fails_startup() {
       oidc.withPropertyValues("who.oidc.failure-url=https://evil.example.com/")
           .run(context -> assertMissing(context, "who.oidc.failure-url", "oidc"));

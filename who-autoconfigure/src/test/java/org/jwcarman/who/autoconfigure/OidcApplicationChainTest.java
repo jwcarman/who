@@ -48,7 +48,7 @@ class OidcApplicationChainTest extends AbstractOidcTest {
   void pending_sign_up_endpoints_work_in_an_application_chain() throws Exception {
     MvcResult callback = signInAtProvider("carol", Map.of());
     assertThat(callback.getResponse().getRedirectedUrl())
-        .isEqualTo(FAILURE_URL + "?error=no-account");
+        .isEqualTo(FAILURE_URL + "?pending=sign-up");
 
     MvcResult pending = browser.perform(get("/who/oidc/pending")).andReturn();
 

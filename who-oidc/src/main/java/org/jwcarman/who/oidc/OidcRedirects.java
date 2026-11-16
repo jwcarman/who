@@ -28,8 +28,11 @@ public final class OidcRedirects {
   /** The provider sign-in failed; the event says why. */
   public static final String SIGNIN_FAILED = "signin-failed";
 
-  /** No identity has this provider account; a pending sign-up is waiting. */
-  public static final String NO_ACCOUNT = "no-account";
+  /** {@code pending=sign-up}: no identity has this provider account; a sign-up is waiting. */
+  public static final String PENDING_SIGN_UP = "sign-up";
+
+  /** {@code pending=link}: the account the signed-in person asked to link is waiting. */
+  public static final String PENDING_LINK = "link";
 
   /** The provider account belongs to another identity than the one signed in. */
   public static final String ALREADY_LINKED = "already-linked";
@@ -39,17 +42,31 @@ public final class OidcRedirects {
 
   private final String successUrl;
   private final String failureUrl;
+  private final String linkUrl;
+
+  /**
+   * Creates the redirects, with links landing on the success URL.
+   *
+   * @param successUrl where a sign-in lands; a local path
+   * @param failureUrl where a pending sign-up and every failed sign-in land; a local path
+   * @throws IllegalArgumentException when either is not a local path
+   */
+  public OidcRedirects(String successUrl, String failureUrl) {
+    this(successUrl, failureUrl, successUrl);
+  }
 
   /**
    * Creates the redirects.
    *
    * @param successUrl where a sign-in lands; a local path
-   * @param failureUrl where every other outcome lands; a local path
-   * @throws IllegalArgumentException when either is not a local path
+   * @param failureUrl where a pending sign-up and every failed sign-in land; a local path
+   * @param linkUrl where a link the signed-in person asked for lands; a local path
+   * @throws IllegalArgumentException when any is not a local path
    */
-  public OidcRedirects(String successUrl, String failureUrl) {
+  public OidcRedirects(String successUrl, String failureUrl, String linkUrl) {
     this.successUrl = localPath(successUrl, "success-url");
     this.failureUrl = localPath(failureUrl, "failure-url");
+    this.linkUrl = localPath(linkUrl, "link-url");
   }
 
   /**
@@ -68,14 +85,53 @@ public final class OidcRedirects {
   /**
    * The failure URL with {@code error=<code>} added to its query, keeping its fragment.
    *
-   * @param errorCode the code, such as {@link #NO_ACCOUNT}
+   * @param errorCode the code, such as {@link #SIGNIN_FAILED}
    * @return the URL
    */
   public String failure(String errorCode) {
-    return UriComponentsBuilder.fromUriString(failureUrl)
-        .queryParam("error", errorCode)
-        .build()
-        .toUriString();
+    return withParameter(failureUrl, "error", errorCode);
+  }
+
+  /**
+   * The failure URL with {@code pending=sign-up}: the person confirms or abandons the sign-up
+   * there.
+   *
+   * @return the URL
+   */
+  public String pendingSignUp() {
+    return withParameter(failureUrl, "pending", PENDING_SIGN_UP);
+  }
+
+  /**
+   * The link URL as configured: a link to an account the person already had.
+   *
+   * @return the URL
+   */
+  public String link() {
+    return linkUrl;
+  }
+
+  /**
+   * The link URL with {@code pending=link}: the person confirms the link there.
+   *
+   * @return the URL
+   */
+  public String pendingLink() {
+    return withParameter(linkUrl, "pending", PENDING_LINK);
+  }
+
+  /**
+   * The link URL with {@code error=<code>}: a link that cannot be made.
+   *
+   * @param errorCode the code, such as {@link #ALREADY_LINKED}
+   * @return the URL
+   */
+  public String linkFailure(String errorCode) {
+    return withParameter(linkUrl, "error", errorCode);
+  }
+
+  private static String withParameter(String url, String name, String value) {
+    return UriComponentsBuilder.fromUriString(url).queryParam(name, value).build().toUriString();
   }
 
   /**

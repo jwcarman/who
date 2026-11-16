@@ -37,8 +37,8 @@ class SignInController {
 
   /**
    * The sign-in page. Someone already signed in goes to the board, except on the way back from a
-   * provider ({@code ?error=...}): linking an account lands here while signed in, so the page says
-   * so and offers to sign out.
+   * provider ({@code ?error=...}): a provider sign-in by someone signed in lands here, so the page
+   * says so and offers to sign out.
    */
   @GetMapping("/signin")
   String signIn(

@@ -165,7 +165,8 @@ export async function removePasskey(credentialId) {
 
 // --- Provider sign-in (Social Login guide, "Sign up" and "Link an account") -------------------
 
-// After ?error=no-account, who keeps the provider account in the session for a few minutes:
+// After ?pending=sign-up or ?pending=link, who keeps the provider account in the session for a
+// few minutes:
 // { provider, displayName, canSignUp, canLink }, or null when there is none.
 export async function pendingSignUp() {
   const res = await fetch('/who/oidc/pending', { credentials: 'same-origin' });

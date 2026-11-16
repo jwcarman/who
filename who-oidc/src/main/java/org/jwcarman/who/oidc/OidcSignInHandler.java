@@ -179,15 +179,15 @@ public final class OidcSignInHandler
     switch (whoService.resolveDetailed(credential.get())) {
       case Resolution.Resolved(WhoPrincipal principal)
           when signedIn != null && !signedIn.equals(principal.identity().id()) ->
-          alreadyLinked(request, response);
+          alreadyLinked(request, response, link);
       case Resolution.Resolved _ when link -> alreadyYours(request, response);
       case Resolution.Resolved(WhoPrincipal principal) ->
           signIn(request, response, principal, credentialId, account);
       case Resolution.NotLinked _ -> unknownAccount(request, response, account, signedIn, link);
       // a link to an account another identity holds, active or not, is already linked; a sign-in
       // with one is a failed sign-in by that identity
-      case Resolution.Inactive _ when link -> alreadyLinked(request, response);
-      case Resolution.NoIdentity _ when link -> alreadyLinked(request, response);
+      case Resolution.Inactive _ when link -> alreadyLinked(request, response, true);
+      case Resolution.NoIdentity _ when link -> alreadyLinked(request, response, true);
       case Resolution.Inactive(UUID identityId) ->
           fail(request, response, SignInFailureReason.INACTIVE_IDENTITY, identityId, credentialId);
       case Resolution.NoIdentity(UUID identityId) ->
@@ -197,16 +197,25 @@ public final class OidcSignInHandler
 
   /**
    * A link answers only the identity that started it, still signed in, within {@code
-   * who.oidc.link-window} of starting.
+   * who.security.recent-sign-in} of starting.
    */
   private boolean linkStillHolds(LinkIntent intent, UUID signedIn) {
     return intent.identityId().equals(signedIn) && !intent.expired(clock.instant(), linkWindow);
   }
 
-  private void alreadyLinked(HttpServletRequest request, HttpServletResponse response)
+  /**
+   * The account belongs to another identity. A link lands where links do; a plain sign-in by
+   * someone signed in lands with the other failures.
+   */
+  private void alreadyLinked(HttpServletRequest request, HttpServletResponse response, boolean link)
       throws IOException {
     pendingSignUps.consume(request);
-    redirect(request, response, redirects.failure(OidcRedirects.ALREADY_LINKED));
+    redirect(
+        request,
+        response,
+        link
+            ? redirects.linkFailure(OidcRedirects.ALREADY_LINKED)
+            : redirects.failure(OidcRedirects.ALREADY_LINKED));
   }
 
   /**
@@ -225,7 +234,7 @@ public final class OidcSignInHandler
       redirect(request, response, redirects.failure(OidcRedirects.SIGNED_IN));
       return;
     }
-    startPendingSignUp(request, response, account, signedIn);
+    startPendingSignUp(request, response, account, signedIn, link);
   }
 
   /**
@@ -235,7 +244,7 @@ public final class OidcSignInHandler
   private void alreadyYours(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     pendingSignUps.consume(request);
-    redirect(request, response, redirects.success());
+    redirect(request, response, redirects.link());
   }
 
   private void signIn(
@@ -265,11 +274,12 @@ public final class OidcSignInHandler
       HttpServletRequest request,
       HttpServletResponse response,
       ProviderAccount account,
-      UUID signedIn)
+      UUID signedIn,
+      boolean link)
       throws IOException {
     pendingSignUps.save(
         request, PendingSignUp.of(account, signedIn, clock.instant().plus(signUpWindow)));
-    redirect(request, response, redirects.failure(OidcRedirects.NO_ACCOUNT));
+    redirect(request, response, link ? redirects.pendingLink() : redirects.pendingSignUp());
   }
 
   private void fail(

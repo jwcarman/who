@@ -1,5 +1,5 @@
 import {
-  confirmLink, confirmSignUp, ensureCsrfCookie, pendingSignUp, requestLink, signInWithCode,
+  confirmSignUp, ensureCsrfCookie, pendingSignUp, requestLink, signInWithCode,
   signInWithPasskey
 } from '/js/who.js';
 
@@ -50,7 +50,10 @@ if (error === 'already-linked') {
   showError('You are already signed in. To link that account, use Link on your profile; to use it to sign in, sign out first.');
 } else if (error === 'signin-failed') {
   showError('Signing in with the provider did not work. Try again, or sign in another way.');
-} else if (error === 'no-account') {
+}
+
+// --- A provider account who does not know: offer to create an account with it ---
+if (new URLSearchParams(location.search).get('pending') === 'sign-up') {
   const pending = await pendingSignUp();
   if (pending) {
     // who names the provider by its registration id; show the name its button shows.
@@ -59,16 +62,6 @@ if (error === 'already-linked') {
   }
   if (!pending) {
     showError('That took too long. Sign in with the provider again.');
-  } else if (pending.canLink) {
-    offer(`Link ${pending.provider}?`,
-      `Link the ${pending.provider} account ${pending.displayName} to your account, so it can sign you in.`,
-      'Link it', async () => {
-        const status = await confirmLink();
-        if (status === 200) location.assign('/profile');
-        else if (status === 401) showError('Sign in again, then link the account within a few minutes.');
-        else if (status === 409) showError('That account is already linked to someone else.');
-        else showError('That took too long. Start again from your profile.');
-      });
   } else if (pending.canSignUp) {
     offer(`New here?`,
       `No account uses the ${pending.provider} account ${pending.displayName} yet. Create one?`,

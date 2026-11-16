@@ -9,6 +9,16 @@
 
   <div class="message" id="notice" hidden></div>
 
+  <!-- Back from the provider with ?pending=link: who waits for the person to confirm the link. -->
+  <section id="pending-link" hidden>
+    <h2 id="pending-link-title"></h2>
+    <p class="muted" id="pending-link-text"></p>
+    <div class="inline">
+      <button type="button" id="pending-link-confirm">Link it</button>
+      <a class="button secondary" href="/profile">Cancel</a>
+    </div>
+  </section>
+
   <section class="stack">
     <h2>Email</h2>
     <p class="muted" th:if="${#lists.isEmpty(emails)}">No email address. You signed up with a provider.</p>
@@ -67,7 +77,8 @@
     <!-- A form, not a link: who starts a link only from a CSRF-protected POST. -->
     <div class="inline">
       <form method="post" th:each="p : ${providers}" th:action="@{/who/oidc/link/{id}(id=${p.id})}">
-        <button type="submit" class="secondary" th:text="'Link ' + ${p.name}">Link Keycloak</button>
+        <button type="submit" class="secondary" th:text="'Link ' + ${p.name}"
+                th:attr="data-provider=${p.id},data-provider-name=${p.name}">Link Keycloak</button>
       </form>
     </div>
     <p class="muted">The provider asks you to sign in again, or to choose the account. Link within 10 minutes of signing in here.</p>

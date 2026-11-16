@@ -94,6 +94,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
       "who.oidc.enabled=true",
       "who.oidc.success-url=" + AbstractOidcTest.SUCCESS_URL,
       "who.oidc.failure-url=" + AbstractOidcTest.FAILURE_URL,
+      "who.oidc.link-url=" + AbstractOidcTest.LINK_URL,
       // WhoMockMvcBrowser keeps a MockHttpSession, whose attributes these tests read
       "spring.autoconfigure.exclude="
           + "org.springframework.boot.session.jdbc.autoconfigure.JdbcSessionAutoConfiguration",
@@ -117,6 +118,7 @@ abstract class AbstractOidcTest {
   static final StubOidcProvider PLAIN = StubOidcProvider.startGitHub();
   static final String SUCCESS_URL = "/home";
   static final String FAILURE_URL = "/signin";
+  static final String LINK_URL = "/settings/accounts";
   static final Duration LINK_WINDOW = Duration.ofMinutes(10);
 
   private static final HttpClient HTTP =

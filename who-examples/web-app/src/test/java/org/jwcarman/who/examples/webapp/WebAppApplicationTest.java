@@ -113,7 +113,7 @@ class WebAppApplicationTest {
 
     mockMvc
         .perform(
-            get("/signin").param("error", "no-account").session(member).accept(MediaType.TEXT_HTML))
+            get("/signin").param("error", "signed-in").session(member).accept(MediaType.TEXT_HTML))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("You are signed in")))
         .andExpect(content().string(containsString("id=\"sign-out\"")));
