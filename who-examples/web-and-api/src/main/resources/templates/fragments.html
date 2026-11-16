@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${title} + ' · Who Tasks'">Who Tasks</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header th:fragment="header">
+  <span class="brand">Who Tasks</span>
+  <a href="/">Board</a>
+  <a href="/keys">API keys</a>
+  <button type="button" class="link" id="sign-out">Sign out</button>
+  <script type="module" src="/js/nav.js"></script>
+</header>
+</body>
+</html>

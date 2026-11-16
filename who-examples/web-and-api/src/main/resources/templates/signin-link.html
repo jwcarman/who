@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Signing in')}"></head>
+<body>
+<main>
+  <h1>Signing you in…</h1>
+  <section id="failed" hidden>
+    <p>This link did not work. It may have been used already, or be more than a few minutes old.</p>
+    <a class="button" href="/signin">Get a new one</a>
+  </section>
+</main>
+<script type="module" src="/js/signin-link.js"></script>
+</body>
+</html>

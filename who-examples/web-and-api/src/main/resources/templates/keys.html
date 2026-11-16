@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('API keys')}"></head>
+<body>
+<header th:replace="~{fragments :: header}"></header>
+<main>
+  <h1>API keys</h1>
+  <p class="muted">
+    A key lets a machine call the API as you, with only the permissions you pick, until it expires.
+    Send it in the <code>X-API-Key</code> header.
+  </p>
+
+  <div class="message" th:if="${newKey}">
+    <p>Your new key <strong th:text="${newKey.name}">CI</strong>. Copy it now: it is not shown again.</p>
+    <p><code th:text="${newKey.key}">who_…</code></p>
+  </div>
+  <div class="message warn" th:if="${error}" th:text="${error}">That did not work.</div>
+
+  <section class="stack">
+    <h2>Make a key</h2>
+    <form class="stack" method="post" th:action="@{/keys}">
+      <label>Name <input type="text" name="name" maxlength="255" placeholder="Nightly export" required></label>
+      <label>Lifetime in days <input type="number" name="lifetimeDays" min="1" max="365" value="30" required></label>
+      <fieldset>
+        <legend>It may</legend>
+        <label th:each="p : ${permissions}">
+          <input type="checkbox" name="scopes" th:value="${p}"> <span th:text="${p}">task.read</span>
+        </label>
+      </fieldset>
+      <button type="submit">Make the key</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Your keys</h2>
+    <p class="muted" th:if="${#lists.isEmpty(keys)}">You have no keys.</p>
+    <ul class="list">
+      <li th:each="key : ${keys}">
+        <span class="grow">
+          <strong th:text="${key.name}">CI</strong>
+          <span class="muted" th:text="${#strings.setJoin(key.scopes, ', ')}">task.read</span>
+        </span>
+        <span class="muted" th:text="${key.expired} ? 'expired' : 'expires ' + ${#temporals.format(key.expiresAt, 'MMM d')}">expires Jan 1</span>
+        <span class="muted" th:text="${key.lastUsedAt} ? 'used ' + ${#temporals.format(key.lastUsedAt, 'MMM d, HH:mm')} : 'never used'">never used</span>
+        <form method="post" th:action="@{/keys/{id}/revoke(id=${key.id})}">
+          <button type="submit" class="secondary">Revoke</button>
+        </form>
+      </li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

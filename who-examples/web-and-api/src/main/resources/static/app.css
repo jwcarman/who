@@ -1,0 +1,25 @@
+:root { --fg: #1d2330; --muted: #5b6475; --line: #d9dde5; --accent: #2f5bea; --bg: #f7f8fa; --card: #fff; --warn: #9a3412; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+header { display: flex; gap: 1rem; align-items: center; padding: .75rem 1.25rem; background: var(--card); border-bottom: 1px solid var(--line); }
+header .brand { font-weight: 700; margin-right: auto; }
+header a { color: var(--fg); text-decoration: none; }
+main { max-width: 44rem; margin: 2rem auto; padding: 0 1rem; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem; }
+h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+h2 { font-size: 1.1rem; margin: 0 0 .75rem; }
+ul.list { list-style: none; padding: 0; margin: 0; }
+ul.list li { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; border-top: 1px solid var(--line); }
+ul.list li:first-child { border-top: 0; }
+ul.list li .grow { flex: 1; }
+.muted { color: var(--muted); font-size: .9rem; }
+form.inline { display: flex; gap: .5rem; margin: 0; }
+input[type=text], input[type=email] { flex: 1; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+button, .button { padding: .5rem .9rem; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; text-decoration: none; display: inline-block; }
+button.secondary, .button.secondary { background: var(--card); color: var(--accent); }
+button.link { background: none; border: 0; color: var(--accent); padding: 0; }
+.stack > * + * { margin-top: .75rem; }
+.message { padding: .75rem 1rem; border-radius: 6px; background: #eef2ff; margin-bottom: 1.25rem; }
+.message.warn { background: #fff4ed; color: var(--warn); }
+[hidden] { display: none !important; }
+.inline { display: flex; gap: .5rem; flex-wrap: wrap; }

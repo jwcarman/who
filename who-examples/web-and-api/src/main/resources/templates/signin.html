@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Sign in')}"></head>
+<body>
+<main>
+  <h1>Sign in to Who Tasks</h1>
+
+  <div class="message warn" id="error" hidden></div>
+
+  <section class="stack">
+    <h2>Email</h2>
+    <form class="inline" id="email-form">
+      <input type="email" id="email" placeholder="name@example.com" required autocomplete="email">
+      <button type="submit">Email me a link</button>
+    </form>
+    <div id="code-step" hidden class="stack">
+      <p class="muted">
+        Check your inbox (on this machine, <a href="http://localhost:8025" target="_blank">Mailpit</a>)
+        and open the link, or type the code from the email.
+      </p>
+      <form class="inline" id="code-form">
+        <input type="text" id="code" placeholder="K7F-2QM" required autocomplete="one-time-code">
+        <button type="submit">Sign in</button>
+      </form>
+    </div>
+    <p class="muted">On this machine: alice@example.com or bob@example.com.</p>
+  </section>
+
+  <section class="stack">
+    <h2>Keycloak</h2>
+    <p><a class="button secondary" href="/oauth2/authorization/keycloak">Sign in with Keycloak</a></p>
+    <p class="muted">On this machine, Keycloak's users are alice and bob, password <code>password</code>.</p>
+  </section>
+</main>
+<script type="module" src="/js/signin.js"></script>
+</body>
+</html>

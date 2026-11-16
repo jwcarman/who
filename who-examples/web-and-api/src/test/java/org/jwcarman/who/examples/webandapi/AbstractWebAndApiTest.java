@@ -151,11 +151,29 @@ abstract class AbstractWebAndApiTest {
    * @return the session
    */
   MockHttpSession signedInAs(TeamRole role) {
+    return person(role).session();
+  }
+
+  /**
+   * A person signed in to the website.
+   *
+   * @param identity who they are
+   * @param session their browser session
+   */
+  record Person(Identity identity, MockHttpSession session) {}
+
+  /**
+   * A new person with {@code role}, signed in to the website.
+   *
+   * @param role the person's role on the board
+   * @return the person and their session
+   */
+  Person person(TeamRole role) {
     Identity identity = whoService.createIdentity();
     EmailCredential credential =
         emailCredentials.register(identity, UUID.randomUUID() + "@example.com");
     rbacService.assignRoleByName(identity, role);
-    return WhoTestSessions.signedIn(identity.id(), credential.id());
+    return new Person(identity, WhoTestSessions.signedIn(identity.id(), credential.id()));
   }
 
   static String bearer(String token) {
