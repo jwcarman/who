@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { SignedIn } from "./email";
-import { json, nothing, signInRequired, type WhoHttp } from "./http";
-import type { SignInRequired, WhoResult } from "./result";
+import type { SignedIn } from "./email.js";
+import { json, nothing, signInRequired, type WhoHttp } from "./http.js";
+import type { SignInRequired, WhoResult } from "./result.js";
 
 /**
  * The provider account who holds in the session after a provider sign-in it could not finish

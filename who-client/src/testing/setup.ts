@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
-import { checkAllAnswered, clearCsrfCookie, listen, server } from "./server";
+import { checkAllAnswered, clearCsrfCookie, listen, server } from "./server.js";
 
 beforeAll(listen);
 

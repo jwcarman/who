@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { describe, expect, it } from "vitest";
-import { type Cancelled, unwrap, WhoError, type WhoResult } from "./index";
+import { type Cancelled, unwrap, WhoError, type WhoResult } from "./index.js";
 
 describe("unwrap", () => {
   it("gives the value of a success", () => {
@@ -35,13 +35,14 @@ describe("unwrap", () => {
   });
 
   it("throws a WhoError for a cancelled passkey prompt", () => {
-    const result: WhoResult<number, "nope", string> | Cancelled = {
+    // typed as a passkey call answers, so the compiler sees the whole union, not the literal
+    const answer = (): WhoResult<number, "nope", string> | Cancelled => ({
       ok: false,
       reason: "cancelled",
       status: 0,
       detail: undefined,
-    };
+    });
 
-    expect(() => unwrap(result)).toThrow(expect.objectContaining({ reason: "cancelled", status: 0 }));
+    expect(() => unwrap(answer())).toThrow(expect.objectContaining({ reason: "cancelled", status: 0 }));
   });
 });

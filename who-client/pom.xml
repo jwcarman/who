@@ -129,7 +129,9 @@
                         <goals>
                             <goal>npm</goal>
                         </goals>
-                        <phase>package</phase>
+                        <!-- compile, not package: the examples bundle (generate-resources) and copy
+                             (process-resources) dist/ in the same reactor build, even ./mvnw compile -->
+                        <phase>compile</phase>
                         <configuration>
                             <arguments>run build</arguments>
                         </configuration>

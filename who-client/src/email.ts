@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, signInRequired, type WhoHttp } from "./http";
-import type { SignInRequired, WhoResult } from "./result";
+import { json, nothing, signInRequired, type WhoHttp } from "./http.js";
+import type { SignInRequired, WhoResult } from "./result.js";
 
 /** Who signed in. */
 export interface SignedIn {

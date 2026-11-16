@@ -15,8 +15,8 @@
  */
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
-import { createWhoClient, WhoError } from "./index";
-import { at, server, setCsrfCookie } from "./testing/server";
+import { createWhoClient, WhoError } from "./index.js";
+import { at, server, setCsrfCookie } from "./testing/server.js";
 
 /** A fetch that records each request's init, then lets it through to the fake server. */
 function recordingFetch(): { fetch: typeof fetch; calls: [string, RequestInit | undefined][] } {

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { type Email, email } from "./email";
-import { json, nothing, signedOut, type WhoClientOptions, WhoHttp } from "./http";
-import { type Oidc, oidc } from "./oidc";
-import { type Passkeys, passkeys } from "./passkeys";
-import type { WhoResult } from "./result";
-import { type Sessions, sessions } from "./sessions";
+import { type Email, email } from "./email.js";
+import { json, nothing, signedOut, type WhoClientOptions, WhoHttp } from "./http.js";
+import { type Oidc, oidc } from "./oidc.js";
+import { type Passkeys, passkeys } from "./passkeys.js";
+import type { WhoResult } from "./result.js";
+import { type Sessions, sessions } from "./sessions.js";
 
 /** The signed-in identity. */
 export interface Me {

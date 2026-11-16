@@ -82,7 +82,7 @@ const sessions = unwrap(await who.sessions.list());
 
 The client throws, never answers, for what a call does not expect: a network failure (the original error), any other status, `5xx` included, and a success body it cannot read (a `WhoError` with reason `'unexpected'`). An error thrown by your `decodeError` is passed through as it is.
 
-The passkey calls also answer `{ ok: false, reason: 'cancelled', status: 0 }` when the person dismisses the browser's prompt; nothing reached who. Any other browser failure, such as a page on an origin who does not allow, is thrown.
+The passkey calls also answer `{ ok: false, reason: 'cancelled', status: 0 }` when the person dismisses the browser's prompt, and `passkeys.register` answers `'already-registered'` when this device already holds a passkey for the account; nothing reached who, so there is no status or detail. Any other browser failure, such as a page on an origin who does not allow, is thrown.
 
 ### Your error body: `decodeError`
 
@@ -130,7 +130,7 @@ Paths are below `baseUrl`. A call that needs a recent sign-in lists `'signed-out
 | `email.confirmAddress({ token } \| { code })` | `POST /email/addresses/confirm` | none | *sign-in*, `'rejected'`, `'conflict'` |
 | `email.confirmAddressFromLocation()` | the same | a result, or `null` with no `#confirm-address=` | the same |
 | `passkeys.supported()` | (none) | `boolean` | (none) |
-| `passkeys.register(label)` | `POST /passkey/register/options`, `POST /passkey/register` | none | *sign-in*, `'rejected'`, `'cancelled'` |
+| `passkeys.register(label)` | `POST /passkey/register/options`, `POST /passkey/register` | none | *sign-in*, `'rejected'`, `'cancelled'`, `'already-registered'` |
 | `passkeys.signIn()` | `POST /passkey/sign-in/options`, `POST /passkey/sign-in` | `{ identityId }` | `'rejected'`, `'cancelled'` |
 | `passkeys.remove(credentialId)` | `DELETE /passkey/register/{id}` | none | `'signed-out'`, `'refused'` |
 | `oidc.authorizeUrl(registrationId)` | (builds the link) | `string` | (none) |

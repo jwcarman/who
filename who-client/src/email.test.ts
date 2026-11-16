@@ -15,8 +15,8 @@
  */
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createWhoClient } from "./index";
-import { at, server, setCsrfCookie } from "./testing/server";
+import { createWhoClient } from "./index.js";
+import { at, server, setCsrfCookie } from "./testing/server.js";
 
 beforeEach(() => setCsrfCookie("t"));
 afterEach(() => history.replaceState(null, "", "/"));

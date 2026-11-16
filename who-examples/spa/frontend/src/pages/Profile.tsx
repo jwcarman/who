@@ -104,6 +104,7 @@ export function Profile() {
       setLabel('');
       await refresh();
     } else if (result.reason === 'cancelled') setError('No passkey was created.');
+    else if (result.reason === 'already-registered') setError('This device already has a passkey for your account.');
     else if (result.reason === 'rejected') setError('The passkey could not be added.');
     else setError(signInAgain(result.reason, TOO_LONG));
   }

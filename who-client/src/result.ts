@@ -23,15 +23,21 @@ export type WhoResult<T, R extends string, D> =
   { ok: true; value: T } | { ok: false; reason: R; status: number; detail: D };
 
 /**
- * The person dismissed the browser's passkey prompt. Nothing reached who, so there is no status
+ * The browser's passkey prompt ended without a passkey, so nothing reached who: there is no status
  * (0) and no detail.
  */
-export interface Cancelled {
+export interface PromptFailure<R extends string> {
   ok: false;
-  reason: "cancelled";
+  reason: R;
   status: 0;
   detail: undefined;
 }
+
+/** The person dismissed the browser's passkey prompt. */
+export type Cancelled = PromptFailure<"cancelled">;
+
+/** This device already holds a passkey for the account (WebAuthn's `excludeCredentials`). */
+export type AlreadyRegistered = PromptFailure<"already-registered">;
 
 /**
  * The reasons a call that needs a recent sign-in can fail with a 401. who's `Who-Error` header tells
@@ -65,9 +71,14 @@ export class WhoError<D = unknown> extends Error {
  * Gives a result's value, or throws a {@link WhoError} carrying why it failed: for callers who
  * would rather catch than check `ok`.
  */
-export function unwrap<T, R extends string, D>(result: WhoResult<T, R, D>): T {
+export function unwrap<T, R extends string, D>(result: WhoResult<T, R, D> | PromptFailure<string>): T {
   if (result.ok) {
     return result.value;
   }
-  throw new WhoError<D>(`who answered ${result.status}: ${result.reason}`, result.reason, result.status, result.detail);
+  throw new WhoError<D | undefined>(
+    `who answered ${result.status}: ${result.reason}`,
+    result.reason,
+    result.status,
+    result.detail,
+  );
 }

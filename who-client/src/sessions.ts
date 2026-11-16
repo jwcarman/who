@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http";
-import type { SignInRequired, WhoResult } from "./result";
+import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { SignInRequired, WhoResult } from "./result.js";
 
 /**
  * One browser this person is signed in on. The id is who's own, never the session cookie, so the

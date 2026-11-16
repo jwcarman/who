@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { describe, expect, it } from "vitest";
-import { decode, encode } from "./base64url";
+import { decode, encode } from "./base64url.js";
 
 describe("base64url", () => {
   it("round-trips every byte value", () => {

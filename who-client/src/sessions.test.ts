@@ -15,8 +15,8 @@
  */
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createWhoClient } from "./index";
-import { at, server, setCsrfCookie } from "./testing/server";
+import { createWhoClient } from "./index.js";
+import { at, server, setCsrfCookie } from "./testing/server.js";
 
 const SESSION = {
   id: "s1",

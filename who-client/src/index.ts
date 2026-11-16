@@ -13,10 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { createWhoClient, type Me, type WhoClient } from "./client";
-export type { ConfirmAddressFailure, Email, SignedIn } from "./email";
-export type { WhoClientOptions } from "./http";
-export type { Oidc, PendingSignUp } from "./oidc";
-export type { Passkeys } from "./passkeys";
-export { type Cancelled, type SignInRequired, unwrap, WhoError, type WhoResult } from "./result";
-export type { Session, Sessions } from "./sessions";
+export { createWhoClient, type Me, type WhoClient } from "./client.js";
+export type { ConfirmAddressFailure, Email, SignedIn } from "./email.js";
+export type { WhoClientOptions } from "./http.js";
+export type { Oidc, PendingSignUp } from "./oidc.js";
+export type { Passkeys } from "./passkeys.js";
+export {
+  type AlreadyRegistered,
+  type Cancelled,
+  type PromptFailure,
+  type SignInRequired,
+  unwrap,
+  WhoError,
+  type WhoResult,
+} from "./result.js";
+export type { Session, Sessions } from "./sessions.js";

@@ -33,6 +33,7 @@ $('passkey-form').addEventListener('submit', async e => {
   const result = await who.passkeys.register($('passkey-label').value);
   if (result.ok) location.reload();
   else if (result.reason === 'cancelled') showError('No passkey was created.');
+  else if (result.reason === 'already-registered') showError('This device already has a passkey for your account.');
   else if (result.reason === 'rejected') showError('The passkey could not be added.');
   else signInAgain(result.reason, 'You signed in too long ago. Sign out, sign in again, then add the passkey.');
 });

@@ -15,9 +15,9 @@
  */
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { encode } from "./base64url";
-import { createWhoClient } from "./index";
-import { at, server, setCsrfCookie } from "./testing/server";
+import { encode } from "./base64url.js";
+import { createWhoClient } from "./index.js";
+import { at, server, setCsrfCookie } from "./testing/server.js";
 
 const bytes = (...values: number[]) => Uint8Array.from(values).buffer;
 
@@ -165,6 +165,18 @@ describe("passkeys.register", () => {
     await expect(createWhoClient().passkeys.register("Laptop")).resolves.toEqual({
       ok: false,
       reason: "cancelled",
+      status: 0,
+      detail: undefined,
+    });
+  });
+
+  it("answers already-registered when this device holds a passkey for the account", async () => {
+    server.use(http.post(at("/who/passkey/register/options"), () => HttpResponse.json(CREATION_OPTIONS)));
+    create.mockRejectedValue(new DOMException("excluded", "InvalidStateError"));
+
+    await expect(createWhoClient().passkeys.register("Laptop")).resolves.toEqual({
+      ok: false,
+      reason: "already-registered",
       status: 0,
       detail: undefined,
     });

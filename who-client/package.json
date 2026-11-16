@@ -1,6 +1,6 @@
 {
   "name": "@jwcarman/who-client",
-  "version": "0.0.0-dev",
+  "version": "0.0.1",
   "description": "A typed TypeScript client for who's browser endpoints",
   "type": "module",
   "license": "Apache-2.0",

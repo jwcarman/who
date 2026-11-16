@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { decode, encode } from "./base64url";
-import type { SignedIn } from "./email";
-import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http";
-import type { Cancelled, SignInRequired, WhoResult } from "./result";
+import { decode, encode } from "./base64url.js";
+import type { SignedIn } from "./email.js";
+import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { AlreadyRegistered, Cancelled, PromptFailure, SignInRequired, WhoResult } from "./result.js";
 
 /** Signing in with a passkey, and registering and removing them. */
 export interface Passkeys<D> {
@@ -26,7 +26,7 @@ export interface Passkeys<D> {
    * Registers a new passkey for the signed-in person, under `label`. Needs a recent sign-in; who
    * answers that before the browser is asked anything.
    */
-  register(label: string): Promise<WhoResult<void, SignInRequired | "rejected", D> | Cancelled>;
+  register(label: string): Promise<WhoResult<void, SignInRequired | "rejected", D> | Cancelled | AlreadyRegistered>;
   /** Signs in with a passkey this browser can find. */
   signIn(): Promise<WhoResult<SignedIn, "rejected", D> | Cancelled>;
   /**
@@ -56,24 +56,34 @@ interface RequestOptionsJson {
   allowCredentials?: Descriptor[];
 }
 
-const CANCELLED: Cancelled = { ok: false, reason: "cancelled", status: 0, detail: undefined };
+function promptFailure<R extends string>(reason: R): PromptFailure<R> {
+  return { ok: false, reason, status: 0, detail: undefined };
+}
+
+// a DOMException the person can act on, by name; any other is a fault and is thrown
+const DISMISSED = { NotAllowedError: "cancelled" } as const;
+const EXCLUDED = { ...DISMISSED, InvalidStateError: "already-registered" } as const;
 
 function descriptors(list: Descriptor[] | undefined): PublicKeyCredentialDescriptor[] {
   return (list ?? []).map((d) => ({ ...d, id: decode(d.id) }));
 }
 
 /**
- * What the browser's prompt gave, or undefined when the person dismissed it. Any other failure (a
- * wrong origin, an unsupported algorithm) is a fault, not a choice, and is thrown.
+ * What the browser's prompt gave, or the failure `known` names for its DOMException. Any other
+ * failure (a wrong origin, an unsupported algorithm) is a fault, not a choice, and is thrown.
  */
-async function prompt(ask: () => Promise<Credential | null>): Promise<PublicKeyCredential | undefined> {
+async function prompt<R extends string>(
+  ask: () => Promise<Credential | null>,
+  known: Readonly<Record<string, R>>,
+): Promise<PublicKeyCredential | PromptFailure<R>> {
   try {
     return (await ask()) as PublicKeyCredential;
   } catch (e) {
-    if (e instanceof DOMException && e.name === "NotAllowedError") {
-      return undefined;
+    const reason = e instanceof DOMException ? known[e.name] : undefined;
+    if (reason === undefined) {
+      throw e;
     }
-    throw e;
+    return promptFailure(reason);
   }
 }
 
@@ -92,18 +102,20 @@ export function passkeys<D>(http: WhoHttp<D>): Passkeys<D> {
         return options;
       }
       const json_ = options.value;
-      const credential = await prompt(() =>
-        navigator.credentials.create({
-          publicKey: {
-            ...(json_ as unknown as PublicKeyCredentialCreationOptions),
-            challenge: decode(json_.challenge),
-            user: { ...json_.user, id: decode(json_.user.id) },
-            excludeCredentials: descriptors(json_.excludeCredentials),
-          },
-        }),
+      const credential = await prompt(
+        () =>
+          navigator.credentials.create({
+            publicKey: {
+              ...(json_ as unknown as PublicKeyCredentialCreationOptions),
+              challenge: decode(json_.challenge),
+              user: { ...json_.user, id: decode(json_.user.id) },
+              excludeCredentials: descriptors(json_.excludeCredentials),
+            },
+          }),
+        EXCLUDED,
       );
-      if (credential === undefined) {
-        return CANCELLED;
+      if ("ok" in credential) {
+        return credential;
       }
       const response = credential.response as AuthenticatorAttestationResponse;
       return http.call({
@@ -144,17 +156,19 @@ export function passkeys<D>(http: WhoHttp<D>): Passkeys<D> {
         return options;
       }
       const json_ = options.value;
-      const credential = await prompt(() =>
-        navigator.credentials.get({
-          publicKey: {
-            ...(json_ as unknown as PublicKeyCredentialRequestOptions),
-            challenge: decode(json_.challenge),
-            allowCredentials: descriptors(json_.allowCredentials),
-          },
-        }),
+      const credential = await prompt(
+        () =>
+          navigator.credentials.get({
+            publicKey: {
+              ...(json_ as unknown as PublicKeyCredentialRequestOptions),
+              challenge: decode(json_.challenge),
+              allowCredentials: descriptors(json_.allowCredentials),
+            },
+          }),
+        DISMISSED,
       );
-      if (credential === undefined) {
-        return CANCELLED;
+      if ("ok" in credential) {
+        return credential;
       }
       const response = credential.response as AuthenticatorAssertionResponse;
       return http.call({
