@@ -17,6 +17,8 @@ package org.jwcarman.who.spring.security;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -57,6 +59,11 @@ public final class WhoStatelessConfigurer
     extends AbstractHttpConfigurer<WhoStatelessConfigurer, HttpSecurity> {
 
   /** The startup failure when there is nothing to mount. */
+  private static final Logger log = LoggerFactory.getLogger(WhoStatelessConfigurer.class);
+
+  /** The startup line naming the stateless methods a chain accepts. */
+  static final String METHODS_LINE = "who: this chain accepts {}";
+
   public static final String NO_METHODS =
       "WhoSecurity.stateless() found no sign-in methods; add who-jwt or who-apikey to the"
           + " application";
@@ -94,6 +101,7 @@ public final class WhoStatelessConfigurer
     for (StatelessLoginMethod method : methods) {
       method.configure(http);
     }
+    logMethods(log, methods);
     // The one place who turns CSRF off: every credential this chain accepts travels in a header a
     // browser never adds by itself, and the chain ignores the session cookie that it would add.
     http.csrf(csrf -> csrf.disable());
@@ -111,6 +119,15 @@ public final class WhoStatelessConfigurer
     if (!(http.getSharedObject(SecurityContextRepository.class)
         instanceof RequestAttributeSecurityContextRepository)) {
       throw new IllegalStateException(STATELESS_REQUIRED);
+    }
+  }
+
+  /** Logs {@link #METHODS_LINE} for the methods, when there are any. */
+  static void logMethods(Logger logger, List<StatelessLoginMethod> methods) {
+    if (!methods.isEmpty()) {
+      logger.info(
+          METHODS_LINE,
+          String.join(", ", methods.stream().map(StatelessLoginMethod::name).toList()));
     }
   }
 }

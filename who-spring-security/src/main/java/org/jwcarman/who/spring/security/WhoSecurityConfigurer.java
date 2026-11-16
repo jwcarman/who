@@ -75,6 +75,7 @@ public class WhoSecurityConfigurer
     for (StatelessLoginMethod method : stateless) {
       method.configure(http);
     }
+    WhoStatelessConfigurer.logMethods(log, stateless);
     // Only adjust CSRF the chain already has: http.csrf(...) would turn it back on in a chain that
     // turned it off.
     CsrfConfigurer<HttpSecurity> csrf = CsrfConfigurers.of(http);

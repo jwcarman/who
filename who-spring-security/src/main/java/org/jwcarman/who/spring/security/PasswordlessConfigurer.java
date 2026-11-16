@@ -57,6 +57,9 @@ public class PasswordlessConfigurer
       "WhoWebSecurity.passwordless() needs sessions; this chain is STATELESS";
   static final String CSRF_COOKIE = "XSRF-TOKEN";
 
+  /** The startup line naming the browser methods a chain accepts, and the root they live under. */
+  static final String METHODS_LINE = "who: this chain signs browsers in with {} under {}";
+
   private boolean statelessChain;
 
   PasswordlessConfigurer() {}
@@ -126,6 +129,12 @@ public class PasswordlessConfigurer
     }
     for (PasswordlessLoginMethod method : methods) {
       method.configure(http);
+    }
+    if (!methods.isEmpty()) {
+      log.info(
+          METHODS_LINE,
+          String.join(", ", methods.stream().map(PasswordlessLoginMethod::name).toList()),
+          paths.root());
     }
   }
 
