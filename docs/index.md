@@ -106,6 +106,9 @@ with Spring Boot's Docker Compose support.
   pages with email links, passkeys and social login on who's default chain.
 - [Single-page app](https://github.com/jwcarman/who/tree/main/who-examples/spa): the same app in
   React and TypeScript over a JSON backend, built by Maven into the jar or run on Vite's dev server.
+- [API](https://github.com/jwcarman/who/tree/main/who-examples/api): the board as a stateless JSON
+  API, called with access tokens from Keycloak and with API keys, which people make and revoke
+  through it.
 
 ## Modules
 

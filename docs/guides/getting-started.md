@@ -14,38 +14,19 @@ running, `./mvnw spring-boot:run -pl who-examples/web-app` starts it with its Po
 Keycloak. The [single-page app example](https://github.com/jwcarman/who/tree/main/who-examples/spa)
 is the same app in React over a JSON backend.
 
-Or clone the repository and make authenticated API calls in a few minutes:
+The [API example](https://github.com/jwcarman/who/tree/main/who-examples/api) is the same board
+as a stateless JSON API, called with access tokens from Keycloak and with who API keys. Clone the
+repository and start it:
 
 ```bash
 git clone https://github.com/jwcarman/who
 cd who
 ./mvnw install -DskipTests
-./mvnw spring-boot:run -pl who-example
+./mvnw spring-boot:run -pl who-examples/api
 ```
 
-Then:
-
-1. Open `http://localhost:8080` in a browser.
-2. Click **Login** and log in as `alice` / `password`.
-3. Copy the access token shown on the page. The demo shows it for convenience;
-   real apps never display tokens.
-4. Use it:
-
-```bash
-curl http://localhost:8080/api/me \
-  -H "Authorization: Bearer <paste-token-here>"
-
-curl http://localhost:8080/api/tasks \
-  -H "Authorization: Bearer <paste-token-here>"
-```
-
-Pre-configured users:
-
-| Username | Password | Permissions |
-|----------|----------|-------------|
-| alice | password | `task.read` |
-| bob | password | `task.read`, `task.write` |
-| admin | password | `task.read`, `task.write`, `task.delete` |
+Its README gets a token with `curl` and walks through the calls, as `alice` (an admin), `bob` (a
+member) and `carol` (who has a Keycloak account but no who identity, so her token gets `401`).
 
 ## Add the dependency
 

@@ -80,7 +80,6 @@ jobs:
         run: |
           mvn -B -q versions:set -DnewVersion="$RELEASE_TAG" -DprocessAllModules=true
           EXCLUDE=""
-          if [ -d who-example ]; then EXCLUDE="!who-example"; fi
           for m in who-examples who-examples/*/; do
             if [ -f "$m/pom.xml" ]; then EXCLUDE="${EXCLUDE:+$EXCLUDE,}!${m%/}"; fi
           done

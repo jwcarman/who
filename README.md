@@ -81,15 +81,9 @@ Spring Boot starts its Postgres, Mailpit and Keycloak for you:
 Its [README](who-examples/web-app/README.md) says what to try.
 [`who-examples/spa`](who-examples/spa) is the same app as a React single-page app over a JSON
 backend, started the same way (`-pl who-examples/spa`); its [README](who-examples/spa/README.md)
-covers Vite's dev server. The older JWT example runs with:
-
-```bash
-./mvnw spring-boot:run -pl who-example
-```
-
-Open `http://localhost:8080` and log in as `alice` / `password`. See
-[Getting Started](https://jwcarman.github.io/who/guides/getting-started/) for the
-users and the API calls to try.
+covers Vite's dev server. [`who-examples/api`](who-examples/api) is the board as a stateless JSON
+API, called with Keycloak access tokens and who API keys (`-pl who-examples/api`); its
+[README](who-examples/api/README.md) walks through it with `curl`.
 
 ## Upgrading to 0.10.0
 

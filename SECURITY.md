@@ -46,7 +46,7 @@ configuration and their documented use.
 
 Out of scope:
 
-- `who-example`, which is a demonstration application and not published;
+- the applications in `who-examples`, which are demonstrations and not published;
 - weaknesses that need a non-default, documented-as-unsafe configuration;
 - problems in Spring Security, Spring Boot or other dependencies, which should go to those
   projects (tell us too if who uses them in a way that makes it worse);

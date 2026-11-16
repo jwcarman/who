@@ -75,7 +75,7 @@ is a tag.
 - Fuzzing through ClusterFuzzLite, if the weekly Jazzer workflow below isn't enough: fuzzing on
   pull requests and a shared corpus.
 - The OpenSSF Best Practices badge.
-- Javadoc for every public type (the build reports 77 gaps today, most in `who-example`).
+- Javadoc for every public type.
 
 Already in place: a security policy with private reporting, a security model guide, a CycloneDX
 SBOM and build provenance for every release, CodeQL, an OpenSSF Scorecard, hash-pinned
