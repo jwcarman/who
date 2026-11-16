@@ -48,7 +48,8 @@ class WhoBomTest {
   private static final Path BOM_POM = MODULE_DIR.resolve("../who-bom/pom.xml").normalize();
   private static final Path FLATTENED_BOM_POM =
       MODULE_DIR.resolve("../who-bom/.flattened-pom.xml").normalize();
-  private static final Set<String> UNPUBLISHED = Set.of("who-examples", "who-bom");
+  // who-client is published to npm, not Maven Central
+  private static final Set<String> UNPUBLISHED = Set.of("who-examples", "who-bom", "who-client");
 
   @Test
   void bomListsEveryPublishedModule() throws Exception {
