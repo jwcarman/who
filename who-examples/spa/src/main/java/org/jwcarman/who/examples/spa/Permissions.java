@@ -18,9 +18,16 @@ package org.jwcarman.who.examples.spa;
 /** The permission strings the board checks with {@code @RequiresPermission}. */
 public final class Permissions {
 
+  /** Read the board's tasks. */
   public static final String TASK_READ = "task.read";
+
+  /** Add a task. */
   public static final String TASK_CREATE = "task.create";
+
+  /** Delete a task. */
   public static final String TASK_DELETE = "task.delete";
+
+  /** See the team's members and invite new ones. */
   public static final String MEMBER_MANAGE = "member.manage";
 
   private Permissions() {}

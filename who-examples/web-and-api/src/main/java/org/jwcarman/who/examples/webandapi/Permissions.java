@@ -18,8 +18,13 @@ package org.jwcarman.who.examples.webandapi;
 /** The permission strings the board checks with {@code @RequiresPermission}. */
 public final class Permissions {
 
+  /** Read the board's tasks. */
   public static final String TASK_READ = "task.read";
+
+  /** Add a task. */
   public static final String TASK_CREATE = "task.create";
+
+  /** Delete a task. */
   public static final String TASK_DELETE = "task.delete";
 
   private Permissions() {}

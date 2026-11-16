@@ -24,6 +24,16 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan
 public class WebAppApplication {
 
+  /** Creates the application; Spring Boot calls it. */
+  public WebAppApplication() {
+    // nothing to set up: Spring Boot configures the application
+  }
+
+  /**
+   * Starts the example.
+   *
+   * @param args the command line
+   */
   public static void main(String[] args) {
     SpringApplication.run(WebAppApplication.class, args);
   }

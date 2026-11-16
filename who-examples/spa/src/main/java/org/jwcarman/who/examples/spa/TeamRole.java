@@ -19,7 +19,9 @@ import java.util.Set;
 
 /** The board's roles and the permissions each one grants. */
 public enum TeamRole {
+  /** Reads and adds tasks. */
   MEMBER(Set.of(Permissions.TASK_READ, Permissions.TASK_CREATE)),
+  /** Everything a member can, and deletes tasks, sees members and invites new ones. */
   ADMIN(
       Set.of(
           Permissions.TASK_READ,
@@ -33,6 +35,11 @@ public enum TeamRole {
     this.permissions = permissions;
   }
 
+  /**
+   * The permissions this role grants.
+   *
+   * @return the permissions
+   */
   public Set<String> permissions() {
     return permissions;
   }

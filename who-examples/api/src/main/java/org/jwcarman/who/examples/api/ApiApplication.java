@@ -28,6 +28,16 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan
 public class ApiApplication {
 
+  /** Creates the application; Spring Boot calls it. */
+  public ApiApplication() {
+    // nothing to set up: Spring Boot configures the application
+  }
+
+  /**
+   * Starts the example.
+   *
+   * @param args the command line
+   */
   public static void main(String[] args) {
     SpringApplication.run(ApiApplication.class, args);
   }
