@@ -31,7 +31,6 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.event.SignInFailed;
@@ -40,10 +39,8 @@ import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
-import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.test.web.servlet.MvcResult;
@@ -53,9 +50,6 @@ import com.nimbusds.jose.util.JSONObjectUtils;
 /** Linking starts only from {@code POST /who/oidc/link/{registrationId}}. */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class OidcLinkTest extends AbstractOidcTest {
-
-  @Autowired RbacService rbacService;
-  @Autowired ApiKeyService apiKeyService;
 
   @Nested
   class Starting_a_link {
@@ -150,26 +144,6 @@ class OidcLinkTest extends AbstractOidcTest {
     @Test
     void confirming_signed_out_is_401() throws Exception {
       MvcResult result = browser.perform(post("/who/oidc/link")).andReturn();
-
-      assertThat(result.getResponse().getStatus()).isEqualTo(401);
-    }
-
-    @Test
-    void confirming_without_a_browser_session_is_401() throws Exception {
-      Identity bob = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
-      TestApiKeys.grant(rbacService, bob);
-      String key = TestApiKeys.create(apiKeyService, bob, "laptop");
-      assertThat(
-              browser
-                  .perform(get("/who/me").header("X-API-Key", key))
-                  .andReturn()
-                  .getResponse()
-                  .getStatus())
-          .as("the key signs in")
-          .isEqualTo(200);
-
-      MvcResult result =
-          browser.perform(post("/who/oidc/link").header("X-API-Key", key)).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(401);
     }

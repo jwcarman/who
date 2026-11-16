@@ -73,10 +73,15 @@ final class StatelessAnswers {
     };
   }
 
-  /** Whether a challenge already sent names the scheme: schemes are case-insensitive. */
-  private static boolean sameScheme(String present, String scheme) {
-    int end = present.indexOf(' ');
-    String presentScheme = end < 0 ? present : present.substring(0, end);
-    return presentScheme.equalsIgnoreCase(scheme);
+  /** Whether two challenges name the same scheme: schemes are case-insensitive. */
+  private static boolean sameScheme(String present, String challenge) {
+    return scheme(present).equalsIgnoreCase(scheme(challenge));
+  }
+
+  /** A challenge's scheme: its first token. */
+  private static String scheme(String challenge) {
+    String trimmed = challenge.strip();
+    int end = trimmed.indexOf(' ');
+    return end < 0 ? trimmed : trimmed.substring(0, end);
   }
 }

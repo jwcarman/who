@@ -69,6 +69,17 @@ class StatelessAnswersTest {
   }
 
   @Test
+  void a_challenge_with_parameters_coming_back_through_is_not_added_twice() throws Exception {
+    MockHttpServletResponse response = response();
+
+    answer(List.of(bearer("Bearer realm=\"api\"")), response);
+    answer(List.of(bearer("Bearer realm=\"api\"")), response);
+
+    assertThat(response.getHeaders(HttpHeaders.WWW_AUTHENTICATE))
+        .containsExactly("Bearer realm=\"api\"");
+  }
+
+  @Test
   void a_scheme_that_only_starts_like_who_s_keeps_who_s_own() throws Exception {
     MockHttpServletResponse response = response();
     response.addHeader(HttpHeaders.WWW_AUTHENTICATE, "BearerToken");
@@ -108,6 +119,10 @@ class StatelessAnswersTest {
   }
 
   private static StatelessLoginMethod bearer() {
+    return bearer("Bearer");
+  }
+
+  private static StatelessLoginMethod bearer(String challenge) {
     return new StatelessLoginMethod() {
       @Override
       public void configure(HttpSecurity http) {
@@ -121,7 +136,7 @@ class StatelessAnswersTest {
 
       @Override
       public Optional<String> challenge() {
-        return Optional.of("Bearer");
+        return Optional.of(challenge);
       }
     };
   }

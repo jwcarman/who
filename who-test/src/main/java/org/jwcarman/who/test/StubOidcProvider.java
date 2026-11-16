@@ -200,21 +200,26 @@ public final class StubOidcProvider implements AutoCloseable {
 
   private void handle(HttpExchange exchange) throws IOException {
     try (exchange) {
-      String path = exchange.getRequestURI().getPath();
-      switch (path) {
-        case "/.well-known/openid-configuration" -> {
-          if (gitHub) {
-            send(exchange, 404, "{}");
-          } else {
-            json(exchange, discovery());
+      try {
+        String path = exchange.getRequestURI().getPath();
+        switch (path) {
+          case "/.well-known/openid-configuration" -> {
+            if (gitHub) {
+              send(exchange, 404, "{}");
+            } else {
+              json(exchange, discovery());
+            }
           }
+          case "/jwks" -> send(exchange, 200, new JWKSet(key.toPublicJWK()).toString());
+          case "/authorize" -> authorize(exchange);
+          case "/token" -> json(exchange, token(exchange));
+          case "/userinfo", "/user" -> json(exchange, user());
+          case "/user/emails" -> emails(exchange);
+          default -> send(exchange, 404, "{}");
         }
-        case "/jwks" -> send(exchange, 200, new JWKSet(key.toPublicJWK()).toString());
-        case "/authorize" -> authorize(exchange);
-        case "/token" -> json(exchange, token(exchange));
-        case "/userinfo", "/user" -> json(exchange, user());
-        case "/user/emails" -> emails(exchange);
-        default -> send(exchange, 404, "{}");
+      } catch (IllegalArgumentException | IndexOutOfBoundsException malformed) {
+        // a request no real client sends: a bad escape, bad Base64, credentials with no colon
+        send(exchange, 400, "{\"error\":\"invalid_request\"}");
       }
     }
   }

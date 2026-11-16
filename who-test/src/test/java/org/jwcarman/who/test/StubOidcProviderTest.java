@@ -203,6 +203,20 @@ class StubOidcProviderTest {
     }
 
     @Test
+    void a_token_request_with_malformed_basic_credentials_is_400() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        HttpRequest request =
+            HttpRequest.newBuilder(URI.create(provider.issuer() + "/token"))
+                .header("Authorization", "Basic not*base64")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        assertThat(HTTP.send(request, HttpResponse.BodyHandlers.ofString()).statusCode())
+            .isEqualTo(400);
+      }
+    }
+
+    @Test
     void an_unknown_path_is_404() throws Exception {
       try (StubOidcProvider provider = StubOidcProvider.start()) {
         assertThat(get(provider.issuer() + "/nowhere").statusCode()).isEqualTo(404);
