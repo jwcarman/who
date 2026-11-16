@@ -35,6 +35,8 @@ class WhoPropertiesTest {
     assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
     assertThat(props.getApiKey().getPrefix()).isEqualTo("who_");
+    assertThat(props.getApiKey().getMaxLifetime()).isEqualTo(Duration.ofDays(365));
+    assertThat(props.getApiKey().getLastUsedInterval()).isEqualTo(Duration.ofMinutes(5));
     assertThat(props.getMethodSecurity().isEnabled()).isTrue();
   }
 

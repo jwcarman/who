@@ -706,6 +706,27 @@ public class WhoProperties {
     public void setMaxLifetime(Duration maxLifetime) {
       this.maxLifetime = maxLifetime;
     }
+
+    /** How often, at most, an API key's last use is written: a busy key costs one write each. */
+    private Duration lastUsedInterval = Duration.ofMinutes(5);
+
+    /**
+     * Returns how often, at most, an API key's last use is written.
+     *
+     * @return the interval
+     */
+    public Duration getLastUsedInterval() {
+      return lastUsedInterval;
+    }
+
+    /**
+     * Sets how often, at most, an API key's last use is written; positive, or startup fails.
+     *
+     * @param lastUsedInterval the interval
+     */
+    public void setLastUsedInterval(Duration lastUsedInterval) {
+      this.lastUsedInterval = lastUsedInterval;
+    }
   }
 
   /**

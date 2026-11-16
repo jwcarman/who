@@ -119,24 +119,37 @@ public class WhoApiKeyAutoConfiguration {
    * The API key filter. Its provider is not a bean, so it never joins the application's global
    * authentication manager.
    *
-   * @param apiKeyCredentialRepository looks keys up by their hash
+   * @param apiKeyCredentialRepository looks keys up by their hash and records their use
    * @param whoService resolves a key's credential to its identity
-   * @param properties the header name
+   * @param apiKeyFormat checks a key's shape before any lookup
+   * @param properties the header name and {@code who.api-key.last-used-interval}
    * @param whoEventPublisher where API key sign-ins are published
-   * @param clock stamps the events
+   * @param clock decides expiry and stamps the events
    * @return the filter
+   * @throws IllegalStateException if the last-used interval is not positive, so startup fails
    */
   @Bean
   @ConditionalOnMissingBean
   public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(
       ApiKeyCredentialRepository apiKeyCredentialRepository,
       WhoService whoService,
+      ApiKeyFormat apiKeyFormat,
       WhoProperties properties,
       WhoEventPublisher whoEventPublisher,
       Clock clock) {
+    Duration interval = properties.getApiKey().getLastUsedInterval();
+    if (interval == null || interval.isNegative() || interval.isZero()) {
+      throw new IllegalStateException(
+          "who.api-key.last-used-interval must be positive, got " + interval);
+    }
     return new ApiKeyAuthenticationFilter(
         new ApiKeyAuthenticationProvider(
-            apiKeyCredentialRepository, whoService, whoEventPublisher, clock),
+            apiKeyCredentialRepository,
+            whoService,
+            apiKeyFormat,
+            interval,
+            whoEventPublisher,
+            clock),
         properties.getApiKey().getHeaderName());
   }
 

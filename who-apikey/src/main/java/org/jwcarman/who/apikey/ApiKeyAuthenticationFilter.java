@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
@@ -67,6 +68,9 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
  */
 public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
 
+  /** How often, at most, the convenience constructor's provider records a key's use. */
+  public static final Duration DEFAULT_LAST_USED_INTERVAL = Duration.ofMinutes(5);
+
   private final ApiKeyAuthenticationProvider provider;
 
   /** Holds a key's sign-in for the rest of the request, its error and async dispatches included. */
@@ -74,7 +78,8 @@ public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
       new RequestAttributeSecurityContextRepository();
 
   /**
-   * Creates a new filter that publishes no who events.
+   * Creates a new filter that publishes no who events and records a key's use at most every {@link
+   * #DEFAULT_LAST_USED_INTERVAL}.
    *
    * @param apiKeyCredentialRepository repository for looking up hashed API keys
    * @param whoService service for resolving a credential to a principal
@@ -86,7 +91,12 @@ public class ApiKeyAuthenticationFilter extends AuthenticationFilter {
       String headerName) {
     this(
         new ApiKeyAuthenticationProvider(
-            apiKeyCredentialRepository, whoService, WhoEventPublisher.NOOP, Clock.systemUTC()),
+            apiKeyCredentialRepository,
+            whoService,
+            new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+            DEFAULT_LAST_USED_INTERVAL,
+            WhoEventPublisher.NOOP,
+            Clock.systemUTC()),
         headerName);
   }
 

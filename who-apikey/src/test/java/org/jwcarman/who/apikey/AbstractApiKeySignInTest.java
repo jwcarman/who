@@ -16,6 +16,7 @@
 package org.jwcarman.who.apikey;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -90,7 +91,12 @@ abstract class AbstractApiKeySignInTest extends AbstractApiKeyTest {
         ApiKeyCredentialRepository repository, WhoService whoService) {
       return new ApiKeyAuthenticationFilter(
           new ApiKeyAuthenticationProvider(
-              repository, whoService, EVENTS::add, Clock.fixed(NOW, ZoneOffset.UTC)),
+              repository,
+              whoService,
+              new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+              Duration.ofMinutes(5),
+              EVENTS::add,
+              Clock.fixed(NOW, ZoneOffset.UTC)),
           HEADER);
     }
 

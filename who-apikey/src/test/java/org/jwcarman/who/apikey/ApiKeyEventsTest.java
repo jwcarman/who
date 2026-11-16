@@ -81,6 +81,10 @@ import io.micrometer.observation.ObservationRegistry;
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ApiKeyEventsTest extends AbstractApiKeySignInTest {
 
+  /** A key with a valid shape and checksum, so it is looked up. */
+  private static final String WELL_FORMED_KEY =
+      new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX).generate();
+
   /** Successful authentications the application heard about. */
   static final List<AuthenticationSuccessEvent> SUCCESSES = new CopyOnWriteArrayList<>();
 
@@ -257,7 +261,7 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
       ApiKeyCredential credential =
           new ApiKeyCredential(
               UUID.randomUUID(), "events", "hash", Set.of(), Instant.EPOCH, Instant.MAX, null);
-      when(repository.findByKeyHash(ApiKeyService.sha256Hex("who_key")))
+      when(repository.findByKeyHash(ApiKeyService.sha256Hex(WELL_FORMED_KEY)))
           .thenReturn(Optional.of(credential));
       WhoService whoService = mock(WhoService.class);
       UUID deletedIdentity = UUID.randomUUID();
@@ -265,8 +269,13 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
       List<WhoEvent> published = new ArrayList<>();
       ApiKeyAuthenticationProvider provider =
           new ApiKeyAuthenticationProvider(
-              repository, whoService, published::add, Clock.fixed(NOW, ZoneOffset.UTC));
-      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken("who_key");
+              repository,
+              whoService,
+              new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+              Duration.ofMinutes(5),
+              published::add,
+              Clock.fixed(NOW, ZoneOffset.UTC));
+      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken(WELL_FORMED_KEY);
 
       assertThatThrownBy(() -> provider.authenticate(token))
           .isInstanceOf(BadCredentialsException.class);
@@ -288,14 +297,19 @@ class ApiKeyEventsTest extends AbstractApiKeySignInTest {
       ApiKeyCredential credential =
           new ApiKeyCredential(
               UUID.randomUUID(), "events", "hash", Set.of(), Instant.EPOCH, Instant.MAX, null);
-      when(repository.findByKeyHash(ApiKeyService.sha256Hex("who_key")))
+      when(repository.findByKeyHash(ApiKeyService.sha256Hex(WELL_FORMED_KEY)))
           .thenReturn(Optional.of(credential));
       List<WhoEvent> published = new ArrayList<>();
       // the mocked WhoService stubs nothing, so resolveDetailed answers null
       ApiKeyAuthenticationProvider provider =
           new ApiKeyAuthenticationProvider(
-              repository, mock(WhoService.class), published::add, Clock.fixed(NOW, ZoneOffset.UTC));
-      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken("who_key");
+              repository,
+              mock(WhoService.class),
+              new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+              Duration.ofMinutes(5),
+              published::add,
+              Clock.fixed(NOW, ZoneOffset.UTC));
+      ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken(WELL_FORMED_KEY);
 
       assertThatThrownBy(() -> provider.authenticate(token))
           .isInstanceOf(BadCredentialsException.class);

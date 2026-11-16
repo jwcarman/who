@@ -31,6 +31,8 @@ public enum SignInFailureReason {
   INVALID_ASSERTION,
   /** The API key is unknown. */
   UNKNOWN_KEY,
+  /** The API key has expired. */
+  EXPIRED_KEY,
   /** The token lacked required claims. */
   MISSING_CLAIMS,
   /** The credential is not linked to any identity. */

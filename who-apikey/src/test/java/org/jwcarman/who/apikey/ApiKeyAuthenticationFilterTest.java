@@ -77,6 +77,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
 
+  /** A key with a valid shape and checksum, so it is looked up. */
+  private static final String WELL_FORMED_KEY =
+      new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX).generate();
+
   private static final String OPEN = "/open/whoami";
   private static final String SECURE = "/secure/whoami";
 
@@ -271,7 +275,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
     void an_unknown_key_is_401_and_the_chain_stops() throws Exception {
       when(repository.findByKeyHash(any())).thenReturn(Optional.empty());
       MockHttpServletRequest request = new MockHttpServletRequest();
-      request.addHeader(HEADER, "who_unknown");
+      request.addHeader(HEADER, WELL_FORMED_KEY);
       MockHttpServletResponse response = new MockHttpServletResponse();
       MockFilterChain chain = new MockFilterChain();
 
@@ -286,7 +290,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
     void a_fault_looking_up_the_key_propagates_and_authenticates_no_one() {
       when(repository.findByKeyHash(any())).thenThrow(new IllegalStateException("db down"));
       MockHttpServletRequest request = new MockHttpServletRequest();
-      request.addHeader(HEADER, "who_any");
+      request.addHeader(HEADER, WELL_FORMED_KEY);
       MockFilterChain chain = new MockFilterChain();
       MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -336,7 +340,12 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
       List<WhoEvent> events = new ArrayList<>();
       ApiKeyAuthenticationProvider provider =
           new ApiKeyAuthenticationProvider(
-              repository, mock(WhoService.class), events::add, Clock.systemUTC());
+              repository,
+              mock(WhoService.class),
+              new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX),
+              Duration.ofMinutes(5),
+              events::add,
+              Clock.systemUTC());
       ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken(KEY);
       token.eraseCredentials();
 
@@ -391,7 +400,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
       when(whoService.resolveDetailed(any()))
           .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
       MockHttpServletRequest request = new MockHttpServletRequest();
-      request.addHeader(HEADER, "who_valid");
+      request.addHeader(HEADER, WELL_FORMED_KEY);
       filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
       SecurityContextHolder.clearContext();
 
@@ -413,7 +422,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractApiKeySignInTest {
     void continue_without_a_sign_in_when_the_first_made_none(DispatcherType dispatch)
         throws Exception {
       MockHttpServletRequest request = new MockHttpServletRequest();
-      request.addHeader(HEADER, "who_unknown");
+      request.addHeader(HEADER, WELL_FORMED_KEY);
       redispatch(request, dispatch);
       MockHttpServletResponse response = new MockHttpServletResponse();
       MockFilterChain chain = new MockFilterChain();

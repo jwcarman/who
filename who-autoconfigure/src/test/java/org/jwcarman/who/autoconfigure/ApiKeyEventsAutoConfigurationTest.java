@@ -29,6 +29,8 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
@@ -143,5 +145,25 @@ class ApiKeyEventsAutoConfigurationTest {
                         NOW, identity.id(), credentialId, CredentialKind.API_KEY, "Laptop"));
           });
     }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "who.api-key.prefix=who, who.api-key.prefix",
+    "who.api-key.prefix=x-y_, who.api-key.prefix",
+    "who.api-key.max-lifetime=0s, who.api-key.max-lifetime",
+    "who.api-key.max-lifetime=-1d, who.api-key.max-lifetime",
+    "who.api-key.last-used-interval=0s, who.api-key.last-used-interval",
+    "who.api-key.last-used-interval=-5m, who.api-key.last-used-interval"
+  })
+  void a_bad_api_key_setting_fails_startup_naming_it(String setting, String name) {
+    runner
+        .withPropertyValues(setting)
+        .run(
+            context ->
+                assertThat(context)
+                    .hasFailed()
+                    .getFailure()
+                    .hasStackTraceContaining("IllegalStateException: " + name));
   }
 }

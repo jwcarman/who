@@ -50,11 +50,14 @@ class ApiKeyHeaderFuzzTest {
 
   private static final RecordingRepository REPOSITORY = new RecordingRepository();
 
+  private static final ApiKeyFormat FORMAT = new ApiKeyFormat(ApiKeyFormat.DEFAULT_PREFIX);
+
   private static final ApiKeyAuthenticationFilter FILTER =
       new ApiKeyAuthenticationFilter(REPOSITORY, mock(WhoService.class), HEADER);
 
   @FuzzTest(maxDuration = "2m")
-  void any_header_is_looked_up_by_its_hash_and_never_throws(byte[] header) throws Exception {
+  void any_header_is_refused_and_only_a_well_formed_one_is_looked_up(byte[] header)
+      throws Exception {
     // servlet containers decode header bytes as ISO-8859-1
     String value = new String(header, ISO_8859_1);
     MockHttpServletRequest request = new MockHttpServletRequest();
@@ -73,8 +76,12 @@ class ApiKeyHeaderFuzzTest {
         assertThat(REPOSITORY.lookups).isEmpty();
         assertThat(chain.getRequest()).isSameAs(request);
       } else {
-        // a key no one has: refused at once
-        assertThat(REPOSITORY.lookups).containsExactly(sha256Hex(value));
+        // a key no one has: refused at once, and looked up only when it has a key's shape
+        if (FORMAT.looksValid(value)) {
+          assertThat(REPOSITORY.lookups).containsExactly(sha256Hex(value));
+        } else {
+          assertThat(REPOSITORY.lookups).isEmpty();
+        }
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(chain.getRequest()).isNull();
       }
