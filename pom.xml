@@ -72,6 +72,8 @@
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.projectKey>jwcarman_who</sonar.projectKey>
         <sonar.coverage.exclusions>who-examples/**</sonar.coverage.exclusions>
+        <!-- Every module reads the combined report: code tested from another module counts. -->
+        <sonar.coverage.jacoco.xmlReportPaths>${maven.multiModuleProjectDirectory}/who-coverage/target/site/jacoco-aggregate/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 
         <!-- JaCoCo argLine (overridden by jacoco:prepare-agent when ci profile is active) -->
         <jacocoArgLine></jacocoArgLine>
@@ -291,6 +293,10 @@
         </profile>
         <profile>
             <id>ci</id>
+            <!-- After every module it reads, so it is last in the reactor. -->
+            <modules>
+                <module>who-coverage</module>
+            </modules>
             <build>
                 <plugins>
                     <plugin>
