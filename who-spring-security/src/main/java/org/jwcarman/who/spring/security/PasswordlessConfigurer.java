@@ -17,7 +17,9 @@ package org.jwcarman.who.spring.security;
 
 import static org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -32,6 +34,7 @@ import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 
 /**
@@ -57,8 +60,11 @@ public class PasswordlessConfigurer
       "WhoWebSecurity.passwordless() needs sessions; this chain is STATELESS";
   static final String CSRF_COOKIE = "XSRF-TOKEN";
 
-  /** The startup line naming the browser methods a chain accepts, and the root they live under. */
-  static final String METHODS_LINE = "who: this chain signs browsers in with {} under {}";
+  /**
+   * The startup line naming the browser methods a chain accepts, the root they live under, and the
+   * human check, when there is one.
+   */
+  static final String METHODS_LINE = "who: this chain signs browsers in with {} under {}{}";
 
   private boolean statelessChain;
 
@@ -131,11 +137,21 @@ public class PasswordlessConfigurer
       method.configure(http);
     }
     context.getBeanProvider(BrowserEndpoints.class).orderedStream().forEach(e -> e.configure(http));
+    Map<String, String> checked = new LinkedHashMap<>();
+    methods.forEach(method -> checked.putAll(method.humanCheckedPaths()));
+    WhoHumanCheck check = context.getBeanProvider(WhoHumanCheck.class).getIfAvailable();
+    String checkedBy = "";
+    if (check != null && !checked.isEmpty()) {
+      // after CSRF, so a forged request costs no call to the check's vendor
+      http.addFilterAfter(new HumanCheckFilter(check, handoff, checked), CsrfFilter.class);
+      checkedBy = ", human check: " + check.name();
+    }
     if (!methods.isEmpty()) {
       log.info(
           METHODS_LINE,
           String.join(", ", methods.stream().map(PasswordlessLoginMethod::name).toList()),
-          paths.root());
+          paths.root(),
+          checkedBy);
     }
   }
 

@@ -22,6 +22,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.mockito.ArgumentCaptor;
@@ -77,6 +79,9 @@ class EmailLinkLoginMethodTest {
             failure);
     assertThat(method.publicPaths())
         .containsExactlyInAnyOrder("/auth/email/send", "/auth/email/sign-in");
+    assertThat(method.humanCheckedPaths())
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of("/auth/email/send", "email-send", "/auth/email/sign-in", "email-sign-in"));
 
     HttpSecurity http = mock(HttpSecurity.class);
     method.configure(http);

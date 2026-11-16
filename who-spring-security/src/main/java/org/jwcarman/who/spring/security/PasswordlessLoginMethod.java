@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.spring.security;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -43,6 +44,17 @@ public interface PasswordlessLoginMethod {
    */
   default Set<String> publicPaths() {
     return Set.of();
+  }
+
+  /**
+   * Returns the paths whose POSTs the application's {@link WhoHumanCheck}, when it has one, must
+   * pass first, each mapped to the action the check is told, such as {@code email-send}. Only
+   * endpoints a signed-out caller can use to make the application do something costly belong here.
+   *
+   * @return full paths mapped to actions, empty by default
+   */
+  default Map<String, String> humanCheckedPaths() {
+    return Map.of();
   }
 
   /**

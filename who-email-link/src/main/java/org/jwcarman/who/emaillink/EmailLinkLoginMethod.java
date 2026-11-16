@@ -17,6 +17,7 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
@@ -91,6 +92,15 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
   @Override
   public Set<String> publicPaths() {
     return Set.of(paths.of(SEND), paths.of(SIGN_IN));
+  }
+
+  /**
+   * Both endpoints, when the application has a human check: sending makes the application email
+   * someone, and signing in with a code is a guess at it.
+   */
+  @Override
+  public Map<String, String> humanCheckedPaths() {
+    return Map.of(paths.of(SEND), "email-send", paths.of(SIGN_IN), "email-sign-in");
   }
 
   @Override

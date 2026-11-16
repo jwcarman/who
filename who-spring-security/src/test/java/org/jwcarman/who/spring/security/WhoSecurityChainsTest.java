@@ -18,16 +18,21 @@ package org.jwcarman.who.spring.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.springframework.security.config.Customizer.withDefaults;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -39,8 +44,11 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -278,6 +286,170 @@ class WhoSecurityChainsTest {
   @Test
   void all_with_no_methods_logs_no_methods_line() {
     assertThat(infoLines(AllWithNothing.class)).isEmpty();
+  }
+
+  @Configuration
+  @EnableWebSecurity
+  static class Checked {
+    @Bean
+    PasswordlessLoginMethod checked() {
+      return new PasswordlessLoginMethod() {
+        @Override
+        public void configure(HttpSecurity http) {
+          // no endpoint: a request the check lets through reaches authorization, a 401
+        }
+
+        @Override
+        public Set<String> publicPaths() {
+          return Set.of("/who/email/send");
+        }
+
+        @Override
+        public Map<String, String> humanCheckedPaths() {
+          return Map.of("/who/email/send", "email-send");
+        }
+
+        @Override
+        public String name() {
+          return "checked";
+        }
+      };
+    }
+
+    @Bean
+    WhoSessionSecurityContextRepository whoSessionSecurityContextRepository() {
+      Clock clock = Clock.systemUTC();
+      return new WhoSessionSecurityContextRepository(
+          mock(WhoService.class),
+          InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP),
+          clock,
+          WhoEventPublisher.NOOP);
+    }
+  }
+
+  static final AtomicInteger CHECKS = new AtomicInteger();
+
+  @Configuration
+  static class Refusing {
+    @Bean
+    WhoHumanCheck robots() {
+      return new WhoHumanCheck() {
+        @Override
+        public boolean passes(HumanCheckRequest request) {
+          CHECKS.incrementAndGet();
+          return false;
+        }
+
+        @Override
+        public String name() {
+          return "robots";
+        }
+      };
+    }
+  }
+
+  @Test
+  void with_a_check_the_checked_endpoints_are_checked() {
+    CHECKS.set(0);
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Checked.class, Refusing.class, PasswordlessChain.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              mockMvc(context)
+                  .perform(post("/who/email/send").with(csrf()))
+                  .andExpect(status().isForbidden())
+                  .andExpect(header().string("Who-Error", "human-check-failed"));
+              mockMvc(context).perform(get("/anything")).andExpect(status().isUnauthorized());
+            });
+    assertThat(CHECKS).hasValue(1);
+  }
+
+  @Test
+  void csrf_refuses_before_the_check() {
+    CHECKS.set(0);
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Checked.class, Refusing.class, PasswordlessChain.class)
+        .run(
+            context ->
+                mockMvc(context)
+                    .perform(post("/who/email/send"))
+                    .andExpect(status().isForbidden())
+                    .andExpect(header().doesNotExist("Who-Error")));
+    assertThat(CHECKS).hasValue(0);
+  }
+
+  @Test
+  void without_a_check_the_endpoints_are_not_checked() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Checked.class, PasswordlessChain.class)
+        .run(
+            context ->
+                mockMvc(context)
+                    .perform(post("/who/email/send").with(csrf()))
+                    .andExpect(status().isUnauthorized()));
+  }
+
+  @Test
+  void the_startup_line_names_the_check() {
+    assertThat(infoLines(Checked.class, Refusing.class, PasswordlessChain.class))
+        .containsExactly(
+            "who: this chain signs browsers in with checked under /who, human check: robots");
+  }
+
+  @Test
+  void the_startup_line_does_not_name_a_check_no_path_uses() {
+    assertThat(infoLines(Magic.class, Refusing.class, PasswordlessChain.class))
+        .containsExactly("who: this chain signs browsers in with magic under /who");
+  }
+
+  @Configuration
+  static class OneTimeTokens {
+    @Bean
+    PasswordlessLoginMethod oneTimeTokens() {
+      return new PasswordlessLoginMethod() {
+        @Override
+        public void configure(HttpSecurity http) {
+          http.oneTimeTokenLogin(
+              ott ->
+                  ott.tokenGeneratingUrl("/who/email/send")
+                      .loginProcessingUrl("/who/email/sign-in")
+                      .tokenService(new InMemoryOneTimeTokenService())
+                      .tokenGenerationSuccessHandler((request, response, token) -> {})
+                      .authenticationProvider(mock(AuthenticationProvider.class))
+                      .showDefaultSubmitPage(false));
+        }
+
+        @Override
+        public Map<String, String> humanCheckedPaths() {
+          return Map.of("/who/email/send", "email-send", "/who/email/sign-in", "email-sign-in");
+        }
+      };
+    }
+  }
+
+  @Test
+  void the_check_sits_after_csrf_and_before_the_one_time_token_filters() {
+    new WebApplicationContextRunner()
+        .withUserConfiguration(
+            Magic.class, OneTimeTokens.class, Refusing.class, PasswordlessChain.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              List<String> filters =
+                  context
+                      .getBean(FilterChainProxy.class)
+                      .getFilterChains()
+                      .getFirst()
+                      .getFilters()
+                      .stream()
+                      .map(filter -> filter.getClass().getSimpleName())
+                      .toList();
+              assertThat(filters.indexOf("HumanCheckFilter"))
+                  .isEqualTo(filters.indexOf("CsrfFilter") + 1)
+                  .isLessThan(filters.indexOf("GenerateOneTimeTokenFilter"))
+                  .isLessThan(filters.indexOf("OneTimeTokenAuthenticationFilter"));
+            });
   }
 
   /** Starts a context from the configurations and returns the who configurers' INFO lines. */
