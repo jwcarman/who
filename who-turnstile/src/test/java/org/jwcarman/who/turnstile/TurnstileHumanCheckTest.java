@@ -31,12 +31,18 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.spring.security.HumanCheckRequest;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class TurnstileHumanCheckTest {
@@ -170,6 +176,28 @@ class TurnstileHumanCheckTest {
     cloudflareAnswers("{\"success\":false,\"error-codes\":[\"timeout-or-duplicate\"]}");
 
     assertThat(check(Set.of(), true).passes(SEND)).isFalse();
+  }
+
+  @Test
+  void never_logs_the_secret_or_the_token() {
+    Logger spring = (Logger) LoggerFactory.getLogger("org.springframework.web");
+    Level before = spring.getLevel();
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.start();
+    spring.addAppender(logs);
+    spring.setLevel(Level.TRACE);
+    try {
+      cloudflareAnswers("{\"success\":true,\"action\":\"email-send\"}");
+      check(Set.of(), false).passes(SEND);
+    } finally {
+      spring.detachAppender(logs);
+      spring.setLevel(before);
+    }
+
+    assertThat(logs.list)
+        .isNotEmpty()
+        .extracting(ILoggingEvent::getFormattedMessage)
+        .noneMatch(line -> line.contains(SECRET) || line.contains("tok"));
   }
 
   @Test

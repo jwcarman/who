@@ -17,6 +17,8 @@ package org.jwcarman.who.turnstile;
 
 import static java.util.Objects.requireNonNull;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -27,8 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -93,23 +93,31 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
 
   /** Cloudflare's answer, or empty when it could not be had. */
   private Optional<Map<String, Object>> verify(HumanCheckRequest request) {
-    MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-    form.add("secret", secretKey);
-    form.add("response", request.token().orElseThrow());
-    form.add("remoteip", request.clientIp());
+    String form =
+        field("secret", secretKey)
+            + "&"
+            + field("response", request.token().orElseThrow())
+            + "&"
+            + field("remoteip", request.clientIp());
     try {
       return Optional.ofNullable(
           restClient
               .post()
               .uri(VERIFY_URL)
               .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-              .body(form)
+              // written as raw bytes: a form map would pass through Spring's message converters,
+              // which log the body, secret and token included, at DEBUG
+              .body(out -> out.write(form.getBytes(StandardCharsets.UTF_8)))
               .retrieve()
               .body(ANSWER));
     } catch (RestClientException e) {
       log.warn("Cloudflare Turnstile could not be asked: {}", e.getClass().getName());
       return Optional.empty();
     }
+  }
+
+  private static String field(String name, String value) {
+    return name + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 
   @Override

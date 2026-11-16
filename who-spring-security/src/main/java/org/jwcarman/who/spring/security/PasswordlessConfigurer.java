@@ -36,6 +36,7 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.savedrequest.NullRequestCache;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 /**
  * Makes a browser chain safe for session sign-in, using only Spring Security's own types: Spring's
@@ -143,7 +144,17 @@ public class PasswordlessConfigurer
     String checkedBy = "";
     if (check != null && !checked.isEmpty()) {
       // after CSRF, so a forged request costs no call to the check's vendor
-      http.addFilterAfter(new HumanCheckFilter(check, handoff, checked), CsrfFilter.class);
+      // match paths as the chain's own endpoints do (the application's MVC path parser), so no
+      // spelling of a checked path reaches its endpoint unchecked
+      PathPatternRequestMatcher.Builder matchers =
+          http.getSharedObject(PathPatternRequestMatcher.Builder.class);
+      http.addFilterAfter(
+          new HumanCheckFilter(
+              check,
+              handoff,
+              matchers != null ? matchers : PathPatternRequestMatcher.withDefaults(),
+              checked),
+          CsrfFilter.class);
       checkedBy = ", human check: " + check.name();
     }
     if (!methods.isEmpty()) {

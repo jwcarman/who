@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import java.time.Duration;
+
 import org.jwcarman.who.spring.security.WhoHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileHumanCheck;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -70,9 +72,17 @@ public class WhoTurnstileAutoConfiguration {
           "is an unresolved placeholder",
           "Set the environment variable or property it names." + TURN_OFF);
     }
+    Duration timeout = properties.getTimeout();
+    // zero, or a negative value the request factory ignores, would wait on Cloudflare forever
+    if (timeout == null || !timeout.isPositive()) {
+      throw new WhoConfigurationException(
+          "who.turnstile.timeout",
+          "must be longer than zero",
+          "Set how long to wait for Cloudflare, such as 3s, or leave it out.");
+    }
     SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-    requestFactory.setConnectTimeout(properties.getTimeout());
-    requestFactory.setReadTimeout(properties.getTimeout());
+    requestFactory.setConnectTimeout(timeout);
+    requestFactory.setReadTimeout(timeout);
     return new TurnstileHumanCheck(
         RestClient.builder().requestFactory(requestFactory).build(),
         secretKey.strip(),

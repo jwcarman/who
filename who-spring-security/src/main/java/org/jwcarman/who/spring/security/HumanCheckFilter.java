@@ -55,12 +55,17 @@ final class HumanCheckFilter extends OncePerRequestFilter {
    *
    * @param check decides each request
    * @param handoff answers a refusal through the application's exception handling
+   * @param matchers the chain's own path matching, so a path the endpoint answers is always checked
    * @param actions each checked path, mapped to the action the check is told
    */
-  HumanCheckFilter(WhoHumanCheck check, WhoExceptionHandoff handoff, Map<String, String> actions) {
+  HumanCheckFilter(
+      WhoHumanCheck check,
+      WhoExceptionHandoff handoff,
+      PathPatternRequestMatcher.Builder matchers,
+      Map<String, String> actions) {
     this.check = requireNonNull(check, "check must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
-    PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
+    requireNonNull(matchers, "matchers must not be null");
     requireNonNull(actions, "actions must not be null")
         .forEach(
             (path, action) -> this.actions.put(matchers.matcher(HttpMethod.POST, path), action));

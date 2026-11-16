@@ -55,6 +55,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -362,6 +363,31 @@ class WhoSecurityChainsTest {
                   .andExpect(header().string("Who-Error", "human-check-failed"));
               mockMvc(context).perform(get("/anything")).andExpect(status().isUnauthorized());
             });
+    assertThat(CHECKS).hasValue(1);
+  }
+
+  @Configuration
+  static class CaseInsensitivePaths {
+    @Bean
+    PathPatternParser mvcPatternParser() {
+      PathPatternParser parser = new PathPatternParser();
+      parser.setCaseSensitive(false);
+      return parser;
+    }
+  }
+
+  @Test
+  void the_check_matches_paths_as_the_chain_does() {
+    CHECKS.set(0);
+    new WebApplicationContextRunner()
+        .withUserConfiguration(
+            Checked.class, Refusing.class, CaseInsensitivePaths.class, PasswordlessChain.class)
+        .run(
+            context ->
+                mockMvc(context)
+                    .perform(post("/who/email/SEND").with(csrf()))
+                    .andExpect(status().isForbidden())
+                    .andExpect(header().string("Who-Error", "human-check-failed")));
     assertThat(CHECKS).hasValue(1);
   }
 

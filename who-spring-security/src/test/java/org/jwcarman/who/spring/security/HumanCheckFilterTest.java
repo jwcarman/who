@@ -30,6 +30,7 @@ import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class HumanCheckFilterTest {
@@ -43,7 +44,8 @@ class HumanCheckFilterTest {
       throws Exception {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
-    new HumanCheckFilter(check, new WhoExceptionHandoff(null), ACTIONS)
+    new HumanCheckFilter(
+            check, new WhoExceptionHandoff(null), PathPatternRequestMatcher.withDefaults(), ACTIONS)
         .doFilter(request, response, chain);
     reached = chain.getRequest() != null;
     return response;

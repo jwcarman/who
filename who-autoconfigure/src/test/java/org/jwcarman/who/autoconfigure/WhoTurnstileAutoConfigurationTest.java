@@ -20,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.spring.security.WhoHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileHumanCheck;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -69,6 +71,21 @@ class WhoTurnstileAutoConfigurationTest {
     runner
         .withPropertyValues("who.turnstile.secret-key=${TURNSTILE_SECRET_NOT_SET}")
         .run(WhoTurnstileAutoConfigurationTest::assertSecretRefused);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0s", "-1s"})
+  void a_timeout_that_is_not_positive_fails_startup(String timeout) {
+    runner
+        .withPropertyValues(SECRET, "who.turnstile.timeout=" + timeout)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOfSatisfying(
+                        WhoConfigurationException.class,
+                        e -> assertThat(e.property()).isEqualTo("who.turnstile.timeout")));
   }
 
   @Test
