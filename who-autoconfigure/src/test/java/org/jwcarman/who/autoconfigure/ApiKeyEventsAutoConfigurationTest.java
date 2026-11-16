@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -52,6 +53,7 @@ import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfigu
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * The API key beans the autoconfiguration makes publish through the application's {@link
@@ -87,6 +89,12 @@ class ApiKeyEventsAutoConfigurationTest {
   @BeforeEach
   void clearEvents() {
     events.clear();
+  }
+
+  /** signIn runs the filter outside a chain, so nothing else clears what it signed in. */
+  @AfterEach
+  void clearSignIn() {
+    SecurityContextHolder.clearContext();
   }
 
   private static int signIn(AssertableApplicationContext context, String key) throws Exception {
