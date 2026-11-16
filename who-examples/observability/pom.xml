@@ -84,6 +84,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-opentelemetry</artifactId>
         </dependency>
+        <!-- Hands Logback's events to OpenTelemetry, which Spring Boot exports to Loki over OTLP.
+             2.28.x is built against OpenTelemetry 1.62, the version Spring Boot 4.1.2 manages. -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-logback-appender-1.0</artifactId>
+            <version>2.28.1-alpha</version>
+        </dependency>
 
         <!-- Starts compose.yaml (Postgres, Mailpit, Grafana LGTM) with the app; development only. -->
         <dependency>

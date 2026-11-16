@@ -21,3 +21,15 @@ who:
     from: who@example.com
     subject: Your who code
     code-secret: this-is-a-development-secret-change-it
+
+management:
+  # Every request is traced, so any click on the page has a trace to open. Sample less in production.
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    # who logs why each sign-in failed at DEBUG. With the trace id on each line, a failure on the
+    # dashboard leads to its log line, and the log line to its trace.
+    org.jwcarman.who: DEBUG
