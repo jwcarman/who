@@ -217,7 +217,7 @@ public final class StubOidcProvider implements AutoCloseable {
           case "/user/emails" -> emails(exchange);
           default -> send(exchange, 404, "{}");
         }
-      } catch (IllegalArgumentException | IndexOutOfBoundsException malformed) {
+      } catch (IllegalArgumentException | IndexOutOfBoundsException _) {
         // a request no real client sends: a bad escape, bad Base64, credentials with no colon
         send(exchange, 400, "{\"error\":\"invalid_request\"}");
       }

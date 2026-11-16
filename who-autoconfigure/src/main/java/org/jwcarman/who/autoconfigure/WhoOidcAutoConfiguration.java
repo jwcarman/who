@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import static java.util.Objects.requireNonNullElse;
+
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -223,11 +225,11 @@ public class WhoOidcAutoConfiguration {
 
   /**
    * who does not make the failure URL public; a signed-out person sent there needs it to be. The
-   * URL is a local path by now, so its path is never empty.
+   * URL is a local path by now, so it has a path; Spring declares it nullable, so "/" stands in.
    */
   private static void warnWhenNotPublic(String failureUrl, List<String> publicPaths) {
     String path = UriComponentsBuilder.fromUriString(failureUrl).build().getPath();
-    PathContainer container = PathContainer.parsePath(path);
+    PathContainer container = PathContainer.parsePath(requireNonNullElse(path, "/"));
     boolean isPublic =
         publicPaths.stream()
             .map(PathPatternParser.defaultInstance::parse)
