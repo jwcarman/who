@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('Sign in')}"></head>
-<body>
+<body th:attr="data-turnstile-site-key=${turnstileSiteKey}">
 <main>
   <h1>Sign in to Who Tasks</h1>
 
@@ -38,6 +38,8 @@
         <button type="submit">Sign in</button>
       </form>
     </div>
+    <!-- Turnstile shows a challenge here only when it needs the person to act -->
+    <div id="human-check"></div>
   </section>
 
   <section class="stack">
@@ -55,6 +57,8 @@
     <p class="muted">On this machine, Keycloak's users are alice and bob, password <code>password</code>.</p>
   </section>
 </main>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        th:if="${!#strings.isEmpty(turnstileSiteKey)}"></script>
 <script type="module" src="/js/signin.js"></script>
 <script type="module" src="/js/nav.js" th:if="${signedIn}"></script>
 </body>

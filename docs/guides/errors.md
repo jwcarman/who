@@ -18,6 +18,7 @@ Provider sign-in adds four, for its [confirm endpoints](social-login.md#sign-up)
 
 | Exception | Status if unmapped | When |
 |---|---|---|
+| `HumanCheckFailedException` | 403 | The application's [human check](email-links.md#human-check) refused a request to `/who/email/send` or `/who/email/sign-in`, or could not decide it. It is an `AccessDeniedException`. |
 | `SignUpRefusedException` | 403 | `POST /who/oidc/sign-up` refused by the sign-up policy, or sent by a browser that is signed in. |
 | `UnknownProviderException` | 404 | `POST /who/oidc/link/{registrationId}` named a registration who does not sign in with. |
 | `PendingSignUpNotFoundException` | 404 | No pending sign-up, or an expired or used one, at `GET /who/oidc/pending`, `POST /who/oidc/sign-up` or `POST /who/oidc/link`. |
@@ -51,6 +52,7 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `email-address-not-found` | `EmailCredentialNotFoundException` |
 | `email-address-taken` | `EmailAddressTakenException` |
 | `no-pending-sign-up` | `PendingSignUpNotFoundException` |
+| `human-check-failed` | `HumanCheckFailedException` |
 | `sign-up-refused` | `SignUpRefusedException` |
 | `unknown-provider` | `UnknownProviderException` |
 | `already-linked` | `AlreadyLinkedException` |

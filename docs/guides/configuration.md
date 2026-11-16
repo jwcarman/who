@@ -9,6 +9,7 @@
 | `who.passkey.enabled` | `true` | Turns passkeys off when `false`, with `who-passkey` still on the classpath |
 | `who.api-key.enabled` | `true` | Turns API keys off when `false`, with `who-apikey` still on the classpath |
 | `who.jwt.enabled` | `true` | Turns JWT sign-in off when `false`, with `who-jwt` still on the classpath. When Spring Boot builds the decoder, `spring.security.oauth2.resourceserver.jwt.audiences` is required |
+| `who.turnstile.enabled` | `true` | Turns the Turnstile human check off when `false`, with `who-turnstile` still on the classpath |
 | `who.oidc.enabled` | `true` | Turns provider sign-in off when `false`, with `who-oidc` still on the classpath |
 | `who.enrollment.enabled` | `true` | Turns enrollment tokens off when `false`, with `who-enrollment` still on the classpath |
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
@@ -33,6 +34,10 @@
 | `who.email-link.code-length` | `6` | Number of characters in the typed sign-in code. At least 6 |
 | `who.email-link.code-max-attempts` | `5` | Wrong guesses a sign-in code survives before it is burnt. The link still works. At least 1 |
 | `who.email-link.code-secret` | none | Secret that keys the code hash. Required with `who-email-link`, at least 32 characters, the same on every instance. Never stored in the database |
+| `who.turnstile.secret-key` | none | The Turnstile widget's secret key. Required with `who-turnstile`: a missing, blank or unresolved value fails startup. See [Human check](email-links.md#human-check) |
+| `who.turnstile.hostnames` | none | Hostnames a Turnstile token may be made on. Empty accepts any |
+| `who.turnstile.timeout` | `3s` | How long to wait for Cloudflare, to connect and to answer |
+| `who.turnstile.fail-open` | `false` | Lets requests through when Cloudflare cannot be reached or answers an error. A token Cloudflare refuses always fails |
 | `who.passkey.rp-id` | none | The application's own host, such as `app.example.com`. Required with `who-passkey`: startup fails without it. Never use a registrable domain that other apps share |
 | `who.passkey.rp-name` | `who` | Name of the relying party, shown by authenticators. Must not be blank |
 | `who.passkey.allowed-origins` | `https://<rp-id>` | Origins a registration or sign-in response may come from: each a scheme (`http` or `https`), a host and an optional port, with no path, such as `http://localhost:8080`. Startup fails on anything else |

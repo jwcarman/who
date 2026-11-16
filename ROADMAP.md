@@ -67,6 +67,8 @@ these moved to 0.20.
   attacked.
 - Sign in with Apple. Its callback is a cross-site `form_post`, which needs a CSRF-exempt callback
   or a cookie-backed authorization-request store.
+- **Human check.** (Done: `WhoHumanCheck` guards the email endpoints, and `who-turnstile` adds
+  Cloudflare Turnstile; see [Email Links](docs/guides/email-links.md#human-check).)
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
 - Sign-up through `WhoSignUpPolicy` for email links.
 

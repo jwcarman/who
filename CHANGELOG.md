@@ -10,8 +10,11 @@ All notable changes to this project are documented here. The format follows
 
 - `EmailAddressEndpoints` implements the new `BrowserEndpoints` instead of `PasswordlessLoginMethod`: it is not a way to sign in. A browser chain applies every `BrowserEndpoints` bean after its sign-in methods, so the email-address endpoints work as before; code that looked them up as a `PasswordlessLoginMethod` no longer finds them.
 
+- `email.send` in the TypeScript client returns a `WhoResult` instead of `void`, so a page can see `'human-check-failed'`.
+
 ### Added
 
+- A human check on `POST /who/email/send` and `POST /who/email/sign-in`: with a `WhoHumanCheck` bean, who refuses a request the check does not pass before the endpoint runs, answering `403` with `Who-Error: human-check-failed` (`HumanCheckFailedException`). `who-turnstile` provides Cloudflare Turnstile (`who.turnstile.secret-key`). The TypeScript client's email calls take `{ humanCheck }`. See [Email Links](docs/guides/email-links.md#human-check).
 - At startup, each who security chain logs at INFO the sign-in methods it accepts, such as `who: this chain signs browsers in with email-link, passkey, oidc (github, google) under /who` and `who: this chain accepts api-key, jwt`. `PasswordlessLoginMethod` and `StatelessLoginMethod` gain `name()`, which defaults to the class's simple name. See [Observability](docs/guides/observability.md#startup-log).
 
 ## [0.19.0] - 2026-11-16

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { who } from '/js/client.js';
+import { humanCheck } from '/js/human-check.js';
 
 const $ = id => document.getElementById(id);
 
@@ -22,18 +23,29 @@ function showError(text) {
   $('error').hidden = false;
 }
 
+const HUMAN_CHECK_FAILED = 'The check that you are a person did not pass. Try again.';
+
 // --- Email link and code ---
 $('email-form').addEventListener('submit', async e => {
   e.preventDefault();
-  await who.email.send($('email').value);
+  const sent = await who.email.send($('email').value, { humanCheck: await humanCheck('email-send') });
+  if (!sent.ok) {
+    showError(HUMAN_CHECK_FAILED);
+    return;
+  }
   $('code-step').hidden = false;
   $('code').focus();
 });
 
 $('code-form').addEventListener('submit', async e => {
   e.preventDefault();
-  if ((await who.email.signIn({ email: $('email').value, code: $('code').value })).ok) {
+  const result = await who.email.signIn(
+    { email: $('email').value, code: $('code').value },
+    { humanCheck: await humanCheck('email-sign-in') });
+  if (result.ok) {
     location.assign('/');
+  } else if (result.reason === 'human-check-failed') {
+    showError(HUMAN_CHECK_FAILED);
   } else {
     showError('That code did not work. Check it, or ask for a new email.');
   }

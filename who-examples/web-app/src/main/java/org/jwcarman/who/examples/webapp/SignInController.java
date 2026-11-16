@@ -16,6 +16,7 @@
 package org.jwcarman.who.examples.webapp;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -30,9 +31,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 class SignInController {
 
   private final Providers providers;
+  private final String turnstileSiteKey;
 
-  SignInController(Providers providers) {
+  SignInController(
+      Providers providers, @Value("${example.turnstile-site-key:}") String turnstileSiteKey) {
     this.providers = providers;
+    this.turnstileSiteKey = turnstileSiteKey;
   }
 
   /**
@@ -50,12 +54,15 @@ class SignInController {
     }
     model.addAttribute("signedIn", principal != null);
     model.addAttribute("providers", providers.all());
+    // the turnstile profile sets it; the page then gets a Turnstile token for each email request
+    model.addAttribute("turnstileSiteKey", turnstileSiteKey);
     return "signin";
   }
 
   /** The page {@code who.email-link.link-base-url} points at: it redeems the link's token. */
   @GetMapping("/signin/link")
-  String link() {
+  String link(Model model) {
+    model.addAttribute("turnstileSiteKey", turnstileSiteKey);
     return "signin-link";
   }
 }

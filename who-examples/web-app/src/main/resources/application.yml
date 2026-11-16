@@ -56,6 +56,10 @@ who:
     # the same on every instance.
     code-secret: this-is-a-development-secret-change-it
 
+  # Cloudflare Turnstile guards the email endpoints only with the turnstile profile (below).
+  turnstile:
+    enabled: false
+
   passkey:
     rp-id: localhost
     # Emails the owner when a passkey is added to their account (it lands in Mailpit).
@@ -108,3 +112,22 @@ spring:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
             scope: read:user,user:email
+
+---
+# Cloudflare Turnstile in front of the email endpoints: create a widget at
+# https://dash.cloudflare.com/?to=/:account/turnstile with the hostname localhost, then run with
+# TURNSTILE_SITE_KEY and TURNSTILE_SECRET set and the turnstile profile on. Cloudflare's test keys
+# do not work here: their answers carry no action, so who refuses them.
+spring:
+  config:
+    activate:
+      on-profile: turnstile
+
+who:
+  turnstile:
+    enabled: true
+    secret-key: ${TURNSTILE_SECRET}
+    hostnames: localhost
+
+example:
+  turnstile-site-key: ${TURNSTILE_SITE_KEY}

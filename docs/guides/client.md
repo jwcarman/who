@@ -123,9 +123,9 @@ Paths are below `baseUrl`. A call that needs a recent sign-in lists `'signed-out
 | `sessions.list()` | `GET /sessions` | `Session[]` | `'signed-out'` |
 | `sessions.end(id)` | `DELETE /sessions/{id}` | none | *sign-in*, `'not-found'` |
 | `sessions.endOthers()` | `DELETE /sessions?others=true` | `{ ended }` | *sign-in* |
-| `email.send(email)` | `POST /email/send` | (throws on failure) | (none) |
-| `email.signIn({ token } \| { email, code })` | `POST /email/sign-in` | `{ identityId }` | `'rejected'` |
-| `email.signInFromLocation()` | the same | a result, or `null` with no `#token=` | `'rejected'` |
+| `email.send(email, options?)` | `POST /email/send` | none | `'human-check-failed'` |
+| `email.signIn({ token } \| { email, code }, options?)` | `POST /email/sign-in` | `{ identityId }` | `'rejected'`, `'human-check-failed'` |
+| `email.signInFromLocation(options?)` | the same | a result, or `null` with no `#token=` | the same |
 | `email.addAddress(address, replaces?)` | `POST /email/addresses` | none | *sign-in*, `'not-found'` |
 | `email.confirmAddress({ token } \| { code })` | `POST /email/addresses/confirm` | none | *sign-in*, `'rejected'`, `'conflict'` |
 | `email.confirmAddressFromLocation()` | the same | a result, or `null` with no `#confirm-address=` | the same |
@@ -152,6 +152,8 @@ What the reasons mean:
 ### Email links
 
 `email.send` answers the same whether or not the address is known, so it tells an attacker nothing. The link in the email puts its token in the URL fragment, which never reaches a server. On the page the link opens, `email.signInFromLocation()` takes the token out of the address bar and history first, then signs in; `email.confirmAddressFromLocation()` does the same for an address confirmation. See [Email Links](email-links.md).
+
+When your application has a [human check](email-links.md#human-check), pass each call a fresh token from its widget: `{ humanCheck: token }`. The client sends it in the `Who-Human-Check` header. A refusal answers `'human-check-failed'`; show the widget again and retry.
 
 ### Passkeys
 

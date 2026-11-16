@@ -345,6 +345,68 @@ TaskDecorator contextPropagatingTaskDecorator() {
 
 To use your own executor instead, define a bean named `whoEmailLinkExecutor`.
 
+## Human check
+
+Anyone can call `/who/email/send` and `/who/email/sign-in` while signed out. A script can make your app email your users over and over, or guess codes across many addresses. A human check, such as Cloudflare Turnstile, makes that expensive. who runs one in front of both endpoints whenever your application has a `WhoHumanCheck` bean; with none, it checks nothing.
+
+### Cloudflare Turnstile
+
+Add `who-turnstile`. Its jar turns the check on, and it needs the widget's secret key:
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-turnstile</artifactId>
+    <version>0.20.0</version>
+</dependency>
+```
+
+```yaml
+who:
+  turnstile:
+    secret-key: ${TURNSTILE_SECRET}   # required: startup fails without it
+    hostnames: app.example.com        # optional: a token made on another hostname fails
+    timeout: 3s                       # optional
+    fail-open: false                  # optional
+```
+
+The startup line then ends `human check: turnstile`. Turn the check off with `who.turnstile.enabled=false`.
+
+Your page runs Turnstile's widget, with its site key, and gets a fresh token for each request. Give the widget the endpoint's action, `email-send` or `email-sign-in`: who refuses a token made for any other action, so a token from elsewhere on your site cannot be spent here. Send the token in the `Who-Human-Check` header. With the [TypeScript client](client.md#email-links):
+
+```javascript
+const token = await turnstileToken('email-send');   // your page's widget
+const sent = await who.email.send(email, { humanCheck: token });
+if (!sent.ok) {
+  // sent.reason === 'human-check-failed': show the widget again and retry
+}
+```
+
+Turnstile also guards the page your sign-in links open, since it posts the link's token to `/who/email/sign-in`. That page needs the widget and an `email-sign-in` token too. The [web-app example](https://github.com/jwcarman/who/tree/main/who-examples/web-app) does all of this with its `turnstile` profile.
+
+A request with no token, a token Cloudflare refuses, a wrong action or a hostname not listed fails with `HumanCheckFailedException`: `403`, `Who-Error: human-check-failed`. The endpoint never runs, so no email is sent and no code is tried. When Cloudflare cannot be reached in time or answers an error, the request fails too, unless `fail-open: true`; with it, those requests go through, but a token Cloudflare refuses still fails.
+
+Cloudflare's test keys do not work with who. A test secret's answer carries no action, so who refuses every test token. Test with your own widget, with `localhost` among its hostnames.
+
+### Behind a proxy
+
+who sends Cloudflare the client's address as the servlet container reports it. Behind a load balancer, set `server.forward-headers-strategy` so that address is the client's, not the proxy's.
+
+### Your own check
+
+Any other vendor plugs in as a bean, and it replaces Turnstile's:
+
+```java
+@Bean
+WhoHumanCheck humanCheck(MyVendorClient vendor) {
+  return request -> request.token()
+      .map(token -> vendor.verify(token, request.clientIp(), request.action()))
+      .orElse(false);
+}
+```
+
+`HumanCheckRequest` holds the `Who-Human-Check` header (empty when the page sent none), the client's address and the action. who reads the request itself, so a check never sees the body. A check that throws refuses the request. In tests, `WhoHumanCheck.ALLOW_ALL` turns the check on and lets everyone through.
+
 ## Rate limiting at the ingress
 
 The attempt limit is per address, not per client. Who does not limit requests by client IP and never reads `X-Forwarded-For`. Put per-IP limits on `/who/email/send` and `/who/email/sign-in` at the load balancer, WAF or ingress, where the real client address is known. With [Passkeys](passkeys.md) on, limit `/who/passkey/sign-in/options` and `/who/passkey/sign-in` the same way: the options endpoint creates a session for any anonymous caller. For example, with nginx:

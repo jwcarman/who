@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 import { who } from '/js/client.js';
+import { humanCheck } from '/js/human-check.js';
 
-if ((await who.email.signInFromLocation())?.ok) {
+if ((await who.email.signInFromLocation({ humanCheck: await humanCheck('email-sign-in') }))?.ok) {
   location.assign('/');
 } else {
   document.getElementById('failed').hidden = false;
