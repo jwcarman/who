@@ -24,8 +24,10 @@ import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
 
 /**
  * How a chain with no browser sign-in answers: {@code 401} for a signed-out request, naming each
@@ -45,9 +47,26 @@ final class StatelessAnswers {
     http.exceptionHandling(
         e ->
             e.authenticationEntryPoint(entryPoint(handoff, methods))
-                .accessDeniedHandler(
-                    (request, response, denied) ->
-                        handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)));
+                .accessDeniedHandler(deniedHandler(handoff)));
+  }
+
+  /**
+   * The denied answer: {@code 403} through the handoff, except for a URL rule that needs a recent
+   * sign-in, which answers with that rule's own refusal and challenge.
+   */
+  static AccessDeniedHandler deniedHandler(WhoExceptionHandoff handoff) {
+    return (request, response, denied) -> {
+      if (denied instanceof AuthorizationDeniedException authorization
+          && authorization.getAuthorizationResult() instanceof RecentSignInDecision decision
+          && decision.refusal() != null) {
+        decision
+            .challenge()
+            .ifPresent(challenge -> response.setHeader(HttpHeaders.WWW_AUTHENTICATE, challenge));
+        handoff.handOff(request, response, decision.refusal(), HttpStatus.FORBIDDEN);
+        return;
+      }
+      handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN);
+    };
   }
 
   /**

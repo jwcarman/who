@@ -21,13 +21,17 @@ import java.time.Clock;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
+import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
+import org.springframework.aop.Advisor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -36,6 +40,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Role;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
@@ -144,6 +149,37 @@ public class WhoSpringSecurityAutoConfiguration {
               ? null
               : (request, response, exception) ->
                   mvc.resolveException(request, response, null, exception) != null);
+    }
+  }
+
+  /**
+   * Decides whether the caller signed in within {@code who.security.recent-sign-in}: behind
+   * {@code @RequiresRecentSignIn}, and for URL rules, {@code .access(recentSignIn)}.
+   *
+   * @param properties who's properties, for the window
+   * @param clock the current time
+   * @return the manager
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public RecentSignInAuthorizationManager whoRecentSignIn(WhoProperties properties, Clock clock) {
+    return new RecentSignInAuthorizationManager(properties.getSecurity().getRecentSignIn(), clock);
+  }
+
+  /**
+   * Enforces {@code @RequiresRecentSignIn}, whether method security was turned on by who or by the
+   * application.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.spring.security.RequiresRecentSignIn")
+  @ConditionalOnBooleanProperty(name = "who.method-security.enabled", matchIfMissing = true)
+  static class RecentSignInMethodSecurityConfiguration {
+
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    static Advisor whoRecentSignInInterceptor(
+        ObjectProvider<RecentSignInAuthorizationManager> recentSignIn) {
+      return RecentSignInMethodInterceptor.create(recentSignIn::getObject);
     }
   }
 

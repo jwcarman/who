@@ -17,17 +17,29 @@ package org.jwcarman.who.spring.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -139,5 +151,54 @@ class StatelessAnswersTest {
         return Optional.of(challenge);
       }
     };
+  }
+
+  private static final String STEP_UP =
+      "Bearer error=\"insufficient_user_authentication\", "
+          + "error_description=\"A more recent sign-in is required\", max_age=600";
+
+  private static MockHttpServletResponse deny(AccessDeniedException denied) throws Exception {
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    StatelessAnswers.deniedHandler(new WhoExceptionHandoff(null))
+        .handle(new MockHttpServletRequest(), response, denied);
+    return response;
+  }
+
+  @Test
+  void a_plain_denial_is_403() throws Exception {
+    MockHttpServletResponse response = deny(new AccessDeniedException("no"));
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE)).isNull();
+  }
+
+  @Test
+  void a_stale_bearer_token_on_a_url_rule_gets_the_challenge() throws Exception {
+    Instant now = Instant.parse("2026-11-16T10:00:00Z");
+    RecentSignInDecision decision =
+        new RecentSignInAuthorizationManager(
+                Duration.ofMinutes(10), Clock.fixed(now, ZoneOffset.UTC))
+            .authorize(
+                () ->
+                    WhoAuthenticationToken.signedIn(
+                        new WhoPrincipal(Identity.create(), Set.of()),
+                        UUID.randomUUID(),
+                        SignInMethod.JWT,
+                        now.minusSeconds(3600)),
+                null);
+
+    MockHttpServletResponse response =
+        deny(new AuthorizationDeniedException("Access Denied", decision));
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE)).isEqualTo(STEP_UP);
+  }
+
+  @Test
+  void a_denial_by_another_rule_is_403() throws Exception {
+    MockHttpServletResponse response =
+        deny(new AuthorizationDeniedException("Access Denied", new AuthorizationDecision(false)));
+
+    assertThat(response.getStatus()).isEqualTo(403);
   }
 }

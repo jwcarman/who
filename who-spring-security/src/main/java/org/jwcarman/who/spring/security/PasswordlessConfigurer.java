@@ -96,9 +96,7 @@ public class PasswordlessConfigurer
                                 response,
                                 new NotSignedInException(),
                                 HttpStatus.UNAUTHORIZED))
-                    .accessDeniedHandler(
-                        (request, response, denied) ->
-                            handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)))
+                    .accessDeniedHandler(StatelessAnswers.deniedHandler(handoff)))
         .logout(
             l ->
                 l.addLogoutHandler(
