@@ -80,7 +80,7 @@ SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
 }
 ```
 
-`passwordless()` configures Spring's `webAuthn()` itself, with Spring's default registration page turned off. Do not also call `webAuthn()` on the chain. It also makes the session id change at sign-in and rotates the CSRF token, which Spring's WebAuthn filter does not do by default. Everything `passwordless()` does for email links applies here too (see [Email Links](email-links.md#wire-the-chain)).
+`passwordless()` adds Spring Security's passkey filters to the chain itself, at who's paths, without Spring's `webAuthn()` (which fixes the paths) and without a registration page. Do not also call `webAuthn()` on the chain. It also makes the session id change at sign-in and rotates the CSRF token, which Spring's WebAuthn filter does not do by default. Everything `passwordless()` does for email links applies here too (see [Email Links](email-links.md#wire-the-chain)).
 
 The three registration endpoints need a signed-in caller, but `anyRequest().authenticated()` protects only two of them. Spring runs the filter for `POST /who/passkey/register/options` before the authorization filter, so your rules never see it. Who's `PasskeyRegistrationGuardFilter` covers it, and `POST /who/passkey/register`, with a `401` for a caller who is signed out (`NotSignedInException`) or signed in too long ago (`ReauthenticationRequiredException`); your application formats both (see [Errors](errors.md)). Each endpoint is protected like this:
 
@@ -90,9 +90,7 @@ The three registration endpoints need a signed-in caller, but `anyRequest().auth
 
 Do not put these paths under `permitAll()`.
 
-If your app has no `UserDetailsService` bean, who supplies one that finds no users. Spring's WebAuthn configurer will not start without one. Who's sign-in never uses it.
-
-If your app defines its own `PublicKeyCredentialUserEntityRepository` or `UserCredentialRepository` bean for another chain that calls `webAuthn()`, that chain falls back to in-memory storage, because Spring finds two beans of one type. Who's chain is not affected: who shares its own repositories with its own chain directly.
+If your app defines its own `PublicKeyCredentialUserEntityRepository` or `UserCredentialRepository` bean for another chain that calls `webAuthn()`, that chain falls back to in-memory storage, because Spring finds two beans of one type. Who's chain is not affected: who hands its own repositories to its passkey filters directly.
 
 ## The browser flow
 

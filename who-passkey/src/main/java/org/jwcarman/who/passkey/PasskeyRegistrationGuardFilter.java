@@ -115,8 +115,8 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       WhoEventPublisher eventPublisher) {
     requireNonNull(paths, "paths must not be null");
     PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
-    this.options = matchers.matcher(HttpMethod.POST, paths.of(PasskeyFilterPaths.REGISTER_OPTIONS));
-    this.registration = matchers.matcher(HttpMethod.POST, paths.of(PasskeyFilterPaths.REGISTER));
+    this.options = matchers.matcher(HttpMethod.POST, paths.of(PasskeyFilters.REGISTER_OPTIONS));
+    this.registration = matchers.matcher(HttpMethod.POST, paths.of(PasskeyFilters.REGISTER));
     this.sessionRepository =
         requireNonNull(sessionRepository, "sessionRepository must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");

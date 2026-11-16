@@ -239,13 +239,7 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
     }
 
     @Bean
-    static PasskeyFilterPaths passkeyFilterPaths() {
-      return new PasskeyFilterPaths();
-    }
-
-    @Bean
     PasskeyLoginMethod passkeyLoginMethod(
-        PasskeyFilterPaths filterPaths,
         JdbcWhoPasskeyUserRepository userRepository,
         JdbcWhoPasskeyCredentialRepository credentialRepository,
         WebAuthnRelyingPartyOperations relyingPartyOperations,
@@ -255,7 +249,6 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
         Clock clock) {
       return new PasskeyLoginMethod(
           WhoPaths.defaults(),
-          filterPaths,
           userRepository,
           credentialRepository,
           new WhoPasskeyAuthenticationProvider(

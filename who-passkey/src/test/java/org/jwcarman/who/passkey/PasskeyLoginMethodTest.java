@@ -18,7 +18,6 @@ package org.jwcarman.who.passkey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -32,6 +31,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.Filter;
 
@@ -51,7 +51,6 @@ import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -62,6 +61,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
@@ -71,7 +71,6 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -80,6 +79,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
+import org.springframework.security.web.webauthn.authentication.PublicKeyCredentialRequestOptionsFilter;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import org.springframework.security.web.webauthn.registration.DefaultWebAuthnRegistrationPageGeneratingFilter;
@@ -167,13 +167,7 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     }
 
     @Bean
-    static PasskeyFilterPaths passkeyFilterPaths() {
-      return new PasskeyFilterPaths();
-    }
-
-    @Bean
     PasskeyLoginMethod passkeyLoginMethod(
-        PasskeyFilterPaths filterPaths,
         JdbcWhoPasskeyUserRepository userRepository,
         JdbcWhoPasskeyCredentialRepository credentialRepository,
         WebAuthnRelyingPartyOperations relyingPartyOperations,
@@ -183,7 +177,6 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
         Clock clock) {
       return new PasskeyLoginMethod(
           WhoPaths.defaults(),
-          filterPaths,
           userRepository,
           credentialRepository,
           new WhoPasskeyAuthenticationProvider(
@@ -315,7 +308,6 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
   private PasskeyLoginMethod standalone() {
     return new PasskeyLoginMethod(
         WhoPaths.defaults(),
-        new PasskeyFilterPaths(),
         mock(JdbcWhoPasskeyUserRepository.class),
         mock(JdbcWhoPasskeyCredentialRepository.class),
         mock(WhoPasskeyAuthenticationProvider.class),
@@ -325,10 +317,9 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
         Duration.ofMinutes(10));
   }
 
-  private static HttpSecurity http(UserDetailsService shared, UserDetailsService bean) {
+  private static HttpSecurity mockHttp() {
     HttpSecurity http = mock(HttpSecurity.class);
     ApplicationContext context = mock(ApplicationContext.class);
-    ObjectProvider<UserDetailsService> beans = mock();
     ObjectProvider<WhoExceptionHandoff> handoffs = mock();
     when(context.getBeanProvider(WhoExceptionHandoff.class)).thenReturn(handoffs);
     when(handoffs.getIfAvailable(any())).thenReturn(new WhoExceptionHandoff(null));
@@ -338,40 +329,76 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     ObjectProvider<LastSignInCookie> cookies = mock();
     when(context.getBeanProvider(LastSignInCookie.class)).thenReturn(cookies);
     when(http.getSharedObject(ApplicationContext.class)).thenReturn(context);
-    when(http.getSharedObject(UserDetailsService.class)).thenReturn(shared);
-    when(context.getBeanProvider(UserDetailsService.class)).thenReturn(beans);
-    when(beans.getIfUnique()).thenReturn(bean);
     return http;
   }
 
+  /**
+   * who adds Spring's passkey filters itself, so nothing (no stub UserDetailsService) is shared.
+   */
   @Test
-  void sharesANoUsersUserDetailsServiceWhenThereIsNone() {
-    HttpSecurity http = http(null, null);
+  void nothing_is_shared_with_the_chain() {
+    HttpSecurity http = mockHttp();
 
     standalone().configure(http);
 
-    ArgumentCaptor<UserDetailsService> stub = ArgumentCaptor.forClass(UserDetailsService.class);
-    verify(http).setSharedObject(eq(UserDetailsService.class), stub.capture());
-    UserDetailsService noUsers = stub.getValue();
-    assertThatThrownBy(() -> noUsers.loadUserByUsername("anyone"))
-        .isInstanceOf(UsernameNotFoundException.class);
+    verify(http, never()).setSharedObject(any(), any());
+  }
+
+  /**
+   * Whether the filter takes the request for itself rather than passing it on. A filter that takes
+   * it may fail on the empty request; that still means it took it.
+   */
+  private static boolean takes(Filter filter, String method, String path) throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+    MockFilterChain next = new MockFilterChain();
+    try {
+      filter.doFilter(request, new MockHttpServletResponse(), next);
+    } catch (RuntimeException e) {
+      return true;
+    }
+    return next.getRequest() == null;
   }
 
   @Test
-  void keepsASharedUserDetailsService() {
-    HttpSecurity http = http(mock(UserDetailsService.class), null);
+  void each_passkey_filter_answers_at_who_s_path_only() throws Exception {
+    Filter signIn = filter(WebAuthnAuthenticationFilter.class);
+    Filter signInOptions = filter(PublicKeyCredentialRequestOptionsFilter.class);
+    Filter registrationOptions = filter(PublicKeyCredentialCreationOptionsFilter.class);
+    Filter registration = filter(WebAuthnRegistrationFilter.class);
 
-    standalone().configure(http);
+    assertThat(takes(signIn, "POST", "/who/passkey/sign-in")).isTrue();
+    assertThat(takes(signInOptions, "POST", "/who/passkey/sign-in/options")).isTrue();
+    assertThat(takes(registrationOptions, "POST", "/who/passkey/register/options")).isTrue();
+    assertThat(takes(registration, "POST", "/who/passkey/register")).isTrue();
+    assertThat(takes(registration, "DELETE", "/who/passkey/register/abc")).isTrue();
 
-    verify(http, never()).setSharedObject(eq(UserDetailsService.class), any());
+    assertThat(takes(signIn, "POST", "/login/webauthn")).isFalse();
+    assertThat(takes(signInOptions, "POST", "/webauthn/authenticate/options")).isFalse();
+    assertThat(takes(registrationOptions, "POST", "/webauthn/register/options")).isFalse();
+    assertThat(takes(registration, "POST", "/webauthn/register")).isFalse();
+    assertThat(takes(registration, "DELETE", "/webauthn/register/abc")).isFalse();
   }
 
+  private static Set<Class<?>> passkeyFilterTypes(SecurityFilterChain chain) {
+    return chain.getFilters().stream()
+        .<Class<?>>map(Object::getClass)
+        .filter(
+            type -> type.getPackageName().startsWith("org.springframework.security.web.webauthn"))
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * who wires Spring's passkey filters instead of calling {@code webAuthn()}: a Spring release that
+   * adds, drops or swaps one fails here, so who's wiring is revisited.
+   */
   @Test
-  void keepsAUserDetailsServiceBean() {
-    HttpSecurity http = http(null, mock(UserDetailsService.class));
+  void who_adds_the_passkey_filters_spring_s_webAuthn_adds() throws Exception {
+    HttpSecurity springs = applicationContext.getBean(HttpSecurity.class);
+    springs.setSharedObject(UserDetailsService.class, username -> null);
+    springs.webAuthn(w -> w.rpId("app.test").disableDefaultRegistrationPage(true));
 
-    standalone().configure(http);
-
-    verify(http, never()).setSharedObject(eq(UserDetailsService.class), any());
+    assertThat(passkeyFilterTypes(chain))
+        .isNotEmpty()
+        .isEqualTo(passkeyFilterTypes(springs.build()));
   }
 }

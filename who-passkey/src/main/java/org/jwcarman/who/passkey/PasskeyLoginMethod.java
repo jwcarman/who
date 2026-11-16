@@ -35,28 +35,22 @@ import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
-import org.springframework.security.web.webauthn.management.PublicKeyCredentialUserEntityRepository;
-import org.springframework.security.web.webauthn.management.UserCredentialRepository;
 
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Passkey sign-in and registration through Spring Security's {@code webAuthn()}, at who's URLs
- * under {@code who.base-path} (see {@link PasskeyFilterPaths}), with who's collaborators where
- * Spring hard-wires its own.
+ * Passkey sign-in and registration with Spring Security's passkey filters, at who's URLs under
+ * {@code who.base-path}. who adds the filters itself (see {@link PasskeyFilters}) rather than
+ * calling Spring's {@code webAuthn()}, which fixes their URLs, and gives them who's collaborators:
  *
  * <ul>
- *   <li>who's two repositories are shared with the chain, so Spring never looks them up as beans
- *       (two beans of one type would make it fall back to in-memory maps).
- *   <li>Spring requires a {@link UserDetailsService} even though who's provider never calls one; if
- *       the chain has none to find, a stub that finds no users is shared.
+ *   <li>who's two repositories and the application's {@code WebAuthnRelyingPartyOperations} bean.
  *   <li>The sign-in filter gets who's provider, observed and publishing events as Spring's own
  *       managers do, {@link WhoSessionSecurityContextRepository}, the chain's shared {@link
  *       SessionAuthenticationStrategy} (so the session id changes and CSRF rotates at sign-in;
@@ -75,14 +69,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class PasskeyLoginMethod implements PasswordlessLoginMethod {
 
-  /** Satisfies Spring's {@code UserDetailsService} requirement; who's sign-in never calls it. */
-  static final UserDetailsService NO_USERS =
-      username -> {
-        throw new UsernameNotFoundException("Passkey sign-in does not use a UserDetailsService");
-      };
-
   private final WhoPaths paths;
-  private final PasskeyFilterPaths filterPaths;
   private final JdbcWhoPasskeyUserRepository userRepository;
   private final JdbcWhoPasskeyCredentialRepository credentialRepository;
   private final AuthenticationProvider authenticationProvider;
@@ -95,7 +82,6 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
    * Creates the login method.
    *
    * @param paths where the passkey endpoints live
-   * @param filterPaths re-points Spring's passkey filters once the chain is built
    * @param userRepository who's user entities
    * @param credentialRepository who's credential records
    * @param authenticationProvider signs in with a verified passkey
@@ -106,7 +92,6 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
    */
   public PasskeyLoginMethod(
       WhoPaths paths,
-      PasskeyFilterPaths filterPaths,
       JdbcWhoPasskeyUserRepository userRepository,
       JdbcWhoPasskeyCredentialRepository credentialRepository,
       AuthenticationProvider authenticationProvider,
@@ -115,7 +100,6 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
       Clock clock,
       Duration registrationWindow) {
     this.paths = requireNonNull(paths, "paths must not be null");
-    this.filterPaths = requireNonNull(filterPaths, "filterPaths must not be null");
     this.userRepository = requireNonNull(userRepository, "userRepository must not be null");
     this.credentialRepository =
         requireNonNull(credentialRepository, "credentialRepository must not be null");
@@ -132,8 +116,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   /** The endpoints a signed-out browser uses to sign in with a passkey. */
   @Override
   public Set<String> publicPaths() {
-    return Set.of(
-        paths.of(PasskeyFilterPaths.SIGN_IN_OPTIONS), paths.of(PasskeyFilterPaths.SIGN_IN));
+    return Set.of(paths.of(PasskeyFilters.SIGN_IN_OPTIONS), paths.of(PasskeyFilters.SIGN_IN));
   }
 
   @Override
@@ -154,19 +137,14 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
             eventPublisher,
             clock,
             context.getBeanProvider(LastSignInCookie.class).getIfAvailable());
-    http.setSharedObject(PublicKeyCredentialUserEntityRepository.class, userRepository);
-    http.setSharedObject(UserCredentialRepository.class, credentialRepository);
-    // Spring finds a UserDetailsService as a shared object, then as a unique bean
-    if (http.getSharedObject(UserDetailsService.class) == null
-        && context.getBeanProvider(UserDetailsService.class).getIfUnique() == null) {
-      http.setSharedObject(UserDetailsService.class, NO_USERS);
-    }
-    http.webAuthn(
-        webAuthn ->
-            webAuthn
-                .disableDefaultRegistrationPage(true)
-                .withObjectPostProcessor(signInPostProcessor(http, context, handlers)));
-    // WebAuthn's own filters are added later, so anchor to a filter that is already there; this
+    http.with(
+        new PasskeyFilters(
+            paths,
+            userRepository,
+            credentialRepository,
+            signIn -> setUpSignIn(signIn, http, context, handlers)),
+        Customizer.withDefaults());
+    // the passkey filters are added later, so anchor to a filter that is already there; this
     // sorts before all of them
     http.addFilterAfter(
         new PasskeyRegistrationGuardFilter(
@@ -175,11 +153,11 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   }
 
   /**
-   * Applies what Spring applies to the authentication managers it builds. Spring's own {@code
-   * webAuthn()} builds its manager by hand too and skips this, so passkey sign-ins would go
-   * unobserved. Today that means an observation of each sign-in when the application has an {@code
-   * ObservationRegistry} (Spring Boot provides one with Actuator), honoring the application's
-   * {@code SecurityObservationSettings}.
+   * Applies what Spring applies to the authentication managers it builds. who builds the passkey
+   * manager by hand, as Spring's own {@code webAuthn()} does, so without this passkey sign-ins
+   * would go unobserved. Today that means an observation of each sign-in when the application has
+   * an {@code ObservationRegistry} (Spring Boot provides one with Actuator), honoring the
+   * application's {@code SecurityObservationSettings}.
    *
    * <p>Reported upstream as <a
    * href="https://github.com/spring-projects/spring-security/issues/20112">spring-security#20112</a>;
@@ -194,32 +172,28 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     return postProcessor.getIfUnique(ObjectPostProcessor::identity).postProcess(manager);
   }
 
-  // An anonymous class, not a lambda, so Spring can tell which type it post-processes.
-  private ObjectPostProcessor<WebAuthnAuthenticationFilter> signInPostProcessor(
-      HttpSecurity http, ApplicationContext context, JsonAuthenticationHandlers handlers) {
-    return new ObjectPostProcessor<>() {
-      @Override
-      public <O extends WebAuthnAuthenticationFilter> O postProcess(O filter) {
-        ProviderManager manager = new ProviderManager(authenticationProvider);
-        context
-            .getBeanProvider(AuthenticationEventPublisher.class)
-            .ifUnique(manager::setAuthenticationEventPublisher);
-        filter.setAuthenticationManager(postProcessed(context, manager));
-        filter.setSecurityContextRepository(sessionRepository);
-        // read now, during configure: SessionManagementConfigurer.init has shared it by then
-        SessionAuthenticationStrategy sessionStrategy =
-            http.getSharedObject(SessionAuthenticationStrategy.class);
-        if (sessionStrategy == null) {
-          throw new IllegalStateException(
-              "Passkey sign-in needs the chain's session management (session fixation"
-                  + " protection and CSRF rotation); it is disabled on this chain");
-        }
-        filter.setSessionAuthenticationStrategy(sessionStrategy);
-        filter.setAuthenticationSuccessHandler(handlers.success());
-        filter.setAuthenticationFailureHandler(handlers.failure());
-        filterPaths.mark(filter, paths);
-        return filter;
-      }
-    };
+  /** Gives the sign-in filter who's collaborators; runs in the chain's configure phase. */
+  private void setUpSignIn(
+      WebAuthnAuthenticationFilter filter,
+      HttpSecurity http,
+      ApplicationContext context,
+      JsonAuthenticationHandlers handlers) {
+    ProviderManager manager = new ProviderManager(authenticationProvider);
+    context
+        .getBeanProvider(AuthenticationEventPublisher.class)
+        .ifUnique(manager::setAuthenticationEventPublisher);
+    filter.setAuthenticationManager(postProcessed(context, manager));
+    filter.setSecurityContextRepository(sessionRepository);
+    // read now, during configure: SessionManagementConfigurer.init has shared it by then
+    SessionAuthenticationStrategy sessionStrategy =
+        http.getSharedObject(SessionAuthenticationStrategy.class);
+    if (sessionStrategy == null) {
+      throw new IllegalStateException(
+          "Passkey sign-in needs the chain's session management (session fixation"
+              + " protection and CSRF rotation); it is disabled on this chain");
+    }
+    filter.setSessionAuthenticationStrategy(sessionStrategy);
+    filter.setAuthenticationSuccessHandler(handlers.success());
+    filter.setAuthenticationFailureHandler(handlers.failure());
   }
 }

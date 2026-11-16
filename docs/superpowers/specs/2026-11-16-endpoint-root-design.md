@@ -90,20 +90,25 @@ The owner chose A, and chose feature-grouped names over Spring's names with a pr
   who cannot serve would otherwise fail only at the provider, as a confusing mismatch error.)*
   Every application must update the redirect URI registered at each provider; the upgrade guide
   says so first.
-- **Passkeys.** who keeps Spring's `webAuthn()` and only maps its filters to new paths; it
-  rebuilds none of Spring's setup.
-  - `WebAuthnAuthenticationFilter` (`/passkey/sign-in`) already passes through who's object
-    post-processor; who sets its request matcher there.
-  - The other three (`PublicKeyCredentialCreationOptionsFilter`, `WebAuthnRegistrationFilter`,
-    `PublicKeyCredentialRequestOptionsFilter`) are built inside `webAuthn()` without a
-    post-processing hook, but each has public matcher setters (`setRequestMatcher`,
-    `setRegisterCredentialMatcher`, `setRemoveCredentialMatcher`). A `BeanPostProcessor` on
-    `SecurityFilterChain` beans finds them in the built chain (`getFilters()`) and sets their
-    matchers from `WhoPaths`.
-  - It touches only chains where who's passkey method ran, recognized by the sign-in filter
-    instance who's post-processor saw. An application's own `webAuthn()` chain is left alone.
-  - If a Spring upgrade changes how `webAuthn()` builds these filters, the end-to-end test fails:
-    a new path stops answering, or an old one starts.
+- **Passkeys.** who uses Spring's four passkey filters as they are, but adds them to the chain
+  itself instead of calling `webAuthn()`. `webAuthn()` hard-codes three of the four paths and
+  post-processes only the sign-in filter, so mapping its filters after the fact needed a
+  `BeanPostProcessor` that could fail open (old paths live, outside the registration guard)
+  whenever it did not see the chain. *(Revised 2026-11-16 after the whole-branch review; the
+  owner chose this over the post-processor.)*
+  - who creates `WebAuthnAuthenticationFilter`, `WebAuthnRegistrationFilter`,
+    `PublicKeyCredentialCreationOptionsFilter` and `PublicKeyCredentialRequestOptionsFilter`
+    with Spring's public constructors, sets each matcher from `WhoPaths` through Spring's own
+    setters, and adds them at the positions `webAuthn()` uses. Deleting a passkey keeps
+    Spring's owner check, `CredentialRecordOwnerAuthorizationManager`.
+  - This is wiring, not rebuilding: the challenges, verification and owner check stay Spring's.
+    It drops two workarounds `webAuthn()` forced (a stub `UserDetailsService` and sharing
+    who's repositories through the chain) and `webAuthn()`'s redirect to `/login` for a missing
+    passkey factor.
+  - The cost: a Spring release that changes what `webAuthn()` wires is not picked up by itself.
+    A drift test builds a chain with Spring's `webAuthn()` and one with who's passkey method and
+    fails if their sets of WebAuthn filter types differ.
+  - An application's own `webAuthn()` chain is untouched: who never calls `webAuthn()`.
 
   `PasskeyRegistrationGuardFilter` guards the new paths. Passkeys already registered keep
   working: they are bound to the domain, not the path.
@@ -136,6 +141,5 @@ The owner chose A, and chose feature-grouped names over Spring's names with a pr
 - Whether the provider callback is set by rewriting the registrations or by customizing the
   authorization request. Either works, as long as the authorization request and the token
   exchange send the same `redirect_uri`.
-- How the post-processor marks a chain as who's (an identity set of the sign-in filters it saw,
-  or a marker that travels with the chain), and failing startup if a marked chain lacks one of
-  the three filters, so a Spring change is caught at startup as well as in tests.
+- How the passkey filters reach the chain's session strategy, which is shared only once
+  session management is set up.

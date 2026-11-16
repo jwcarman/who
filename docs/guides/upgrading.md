@@ -37,9 +37,11 @@ default root, and move with it if you set another.
 - **Code that builds who's pieces itself.** `PendingSignUpFilter`'s `PENDING_URL`, `SIGN_UP_URL`
   and `LINK_URL` are gone. `PendingSignUpFilter`, `OidcLoginMethod`, `EmailLinkLoginMethod`,
   `EmailAddressEndpoints`, `PasskeyLoginMethod` and `PasskeyRegistrationGuardFilter` take a
-  `WhoPaths` first (`WhoPaths.defaults()` for `/who`); `PasskeyLoginMethod` also takes the
-  `PasskeyFilterPaths` bean.
-- **An application's own `webAuthn()` chain** keeps Spring's paths; only who's chains move.
+  `WhoPaths` first (`WhoPaths.defaults()` for `/who`).
+- **Passkeys no longer go through Spring's `webAuthn()`.** who adds Spring's passkey filters to
+  its chain itself, at its own paths. It no longer needs a `UserDetailsService`, and no longer
+  shares its passkey repositories with the chain. An application's own `webAuthn()` chain is
+  untouched and keeps Spring's paths.
 
 ### Signed-in sessions
 
