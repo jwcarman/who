@@ -42,8 +42,6 @@ import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import com.nimbusds.jose.JOSEException;
@@ -68,7 +66,6 @@ import com.nimbusds.jwt.SignedJWT;
     })
 @Import(AbstractApiTest.IssuerCheck.class)
 @AutoConfigureMockMvc
-@Testcontainers
 abstract class AbstractApiTest {
 
   static final String ISSUER = "http://localhost:8280/realms/who-tasks";
@@ -77,8 +74,17 @@ abstract class AbstractApiTest {
   static final String BOB = "b0b00000-0000-4000-8000-000000000002";
   static final String CAROL = "ca201000-0000-4000-8000-000000000003";
 
-  @Container @ServiceConnection
+  /**
+   * One database for every test class: started once, not per class, because the classes share one
+   * cached Spring context, which must not outlive its database. Testcontainers removes it after the
+   * run.
+   */
+  @ServiceConnection
   static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17");
+
+  static {
+    POSTGRES.start();
+  }
 
   static final KeyPair SIGNING_KEY = rsa();
   static final Path PUBLIC_KEY = publicKeyPem(SIGNING_KEY);
