@@ -155,8 +155,12 @@ itself and lets no one claim an address they do not own.
 
 Single-tenant Microsoft Entra ID works with its tenant's issuer,
 `https://login.microsoftonline.com/<tenant-id>/v2.0`. The shared `common`, `organizations` and
-`consumers` endpoints fail startup: multi-tenant Entra is not supported yet. Neither is Sign in
-with Apple.
+`consumers` endpoints fail startup: multi-tenant Entra is not supported yet.
+
+who does not talk to Sign in with Apple directly. To offer it, sign in through a broker that
+supports Apple, such as Auth0 or Keycloak, and configure the broker here as an OpenID Connect
+provider. who then knows those people by the broker's issuer and subject, not Apple's: leaving
+the broker later means linking them again.
 
 ### An OAuth 2 provider without OpenID Connect
 

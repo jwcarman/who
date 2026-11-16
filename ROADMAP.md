@@ -65,8 +65,10 @@ these moved to 0.20.
   see [Observability](docs/guides/observability.md#startup-log).) An Actuator `info` contributor
   was dropped: it would tell anyone who can read `/actuator/info` how the application can be
   attacked.
-- Sign in with Apple. Its callback is a cross-site `form_post`, which needs a CSRF-exempt callback
-  or a cookie-backed authorization-request store.
+- **Sign in with Apple.** Dropped: its cross-site `form_post` callback, signed client secret and
+  one-time name need an Apple-only design, and it can be tested only on a public HTTPS domain.
+  Apple can still reach who through a broker, such as Auth0 or Keycloak, as an ordinary OpenID
+  Connect provider.
 - **Human check.** (Done: `WhoHumanCheck` guards the email endpoints, and `who-turnstile` adds
   Cloudflare Turnstile; see [Email Links](docs/guides/email-links.md#human-check).)
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
