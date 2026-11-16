@@ -272,15 +272,21 @@ class WhoBasePathEndToEndTest {
           POST | /login/webauthn               | {}
           GET  | /oauth2/authorization/stub    |
           GET  | /login/oauth2/code/stub       |
+          DELETE | /webauthn/register/AAAA     |
           GET  | /who/me                       |
           GET  | /who/sessions                 |
+          POST | /who/email/addresses          | {"email":"bob@example.com"}
+          GET  | /who/oidc/pending             |
+          GET  | /who/oidc/link/stub           |
           """)
   void no_old_path_reaches_who(String method, String path, String body) throws Exception {
     signIn();
 
     HttpResponse<String> response = send(method, path, body == null ? "" : body);
 
-    assertThat(response.statusCode()).isGreaterThanOrEqualTo(400);
+    // a signed-in request to a path nothing serves: a filter still at an old path would answer
+    // 400 or 401 instead
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(404);
     assertThat(response.headers().firstValue("Location")).isEmpty();
     assertThat(SENT).isEmpty();
     // still signed in: the old sign-out did nothing
