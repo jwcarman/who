@@ -38,7 +38,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResp
  */
 public class OidcRuntimeHints implements RuntimeHintsRegistrar {
 
-  /** Creates the registrar. Spring creates it from {@code aot.factories}. */
+  /** Creates the registrar; Spring calls it, listed in {@code aot.factories}. */
   public OidcRuntimeHints() {
     // stateless: the hints are registered by registerHints
   }

@@ -17,12 +17,15 @@ package org.jwcarman.who.core.domain;
 
 /** Lifecycle status of an {@link Identity}. */
 public enum IdentityStatus {
-  /** Signs in: its credentials resolve to it. */
+  /** May sign in: its credentials resolve to it. */
   ACTIVE,
-  /** Signs in nowhere: no credential resolves to it. who never sets it; an application may. */
+  /**
+   * May not sign in: no credential resolves to it. who never sets it, though {@code
+   * WhoService.reactivate} clears it and {@code WhoService.deactivate} replaces it.
+   */
   SUSPENDED,
   /**
-   * Signs in nowhere: no credential resolves to it. {@code WhoService.deactivate} sets it and
+   * May not sign in: no credential resolves to it. {@code WhoService.deactivate} sets it, and
    * {@code WhoService.reactivate} clears it.
    */
   DISABLED

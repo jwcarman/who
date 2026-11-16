@@ -98,7 +98,7 @@ public class WhoEmailLinkAutoConfiguration {
 
   /**
    * Email-link sign-in's settings, from {@code who.email-link.*}. Startup fails when the link's
-   * base URL or the code secret is missing, or a value is out of range.
+   * base URL or the code secret is missing or unusable.
    *
    * @param properties who's properties
    * @return the settings
@@ -237,7 +237,7 @@ public class WhoEmailLinkAutoConfiguration {
    *
    * @param jsonMapper writes the answer; a default one when the application has none
    * @param handoff hands failures to the application's exception handling, when present
-   * @param whoEventPublisher publishes sign-in events
+   * @param whoEventPublisher publishes the sign-in-succeeded event
    * @param clock stamps events
    * @param lastSignInCookie remembers the method used, unless turned off
    * @return the handlers
@@ -259,14 +259,15 @@ public class WhoEmailLinkAutoConfiguration {
   }
 
   /**
-   * Issues a sign-in link and code and sends them, to a known address only. Startup fails when no
-   * {@code EmailLinkSender} can be had.
+   * Issues a sign-in link and code and sends them, only to the address of an active identity and
+   * not again within the resend interval. Startup fails when there is no {@code EmailLinkSender}:
+   * no bean, and no Spring mail.
    *
    * @param emailCredentialService finds the address's credential
    * @param whoService finds the credential's identity
    * @param emailLinkTokenRepository stores the issued token's hash
    * @param emailLinkSender sends the email: the application's, or Spring mail's
-   * @param settings the link's base URL and the code secret
+   * @param settings the email-link settings
    * @param clock stamps the token and events
    * @param whoEventPublisher publishes the link-issued event
    * @param observationRegistry observes each issue, when the application has one
@@ -372,7 +373,7 @@ public class WhoEmailLinkAutoConfiguration {
    * @param handlers answer a sign-in
    * @param whoService resolves a token's credential to its identity
    * @param emailLinkTokenRepository finds and uses up the issued token
-   * @param settings the code secret, code length and attempts
+   * @param settings the email-link settings
    * @param clock checks expiry and stamps events
    * @param whoEventPublisher publishes sign-in events
    * @return the login method
@@ -415,13 +416,14 @@ public class WhoEmailLinkAutoConfiguration {
 
   /**
    * Adds or replaces an address only once its owner confirms it, by link or code. The link goes to
-   * {@code who.email-link.address-confirmation-url}, or the sign-in link's base URL.
+   * {@code who.email-link.address-confirmation-url}, or the sign-in link's base URL. Startup fails
+   * when there is no {@code EmailLinkSender}: no bean, and no Spring mail.
    *
    * @param emailCredentialService adds and revokes the addresses
    * @param emailAddressRequestRepository the pending changes
    * @param emailLinkSender sends the confirmation and the notice to the old address
    * @param resourceLoader checks whether Spring's mail support is on the classpath
-   * @param settings the code secret, code length, attempts and resend interval
+   * @param settings the email-link settings
    * @param properties who's properties, for the confirmation URL
    * @param clock stamps the request and events
    * @param whoEventPublisher publishes address events

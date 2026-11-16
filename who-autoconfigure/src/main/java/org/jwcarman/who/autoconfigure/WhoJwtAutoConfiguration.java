@@ -44,11 +44,6 @@ import org.springframework.util.StringUtils;
 @ConditionalOnBooleanProperty(name = "who.jwt.enabled", matchIfMissing = true)
 public class WhoJwtAutoConfiguration {
 
-  /** Creates the autoconfiguration; Spring Boot calls it. */
-  public WhoJwtAutoConfiguration() {
-    // nothing to set up: every bean is built by a method below
-  }
-
   private static final String JWT_PROPERTIES = "spring.security.oauth2.resourceserver.jwt.";
   private static final String AUDIENCES = JWT_PROPERTIES + "audiences";
   private static final List<String> DECODER_PROPERTIES =
@@ -56,6 +51,11 @@ public class WhoJwtAutoConfiguration {
           JWT_PROPERTIES + "issuer-uri",
           JWT_PROPERTIES + "jwk-set-uri",
           JWT_PROPERTIES + "public-key-location");
+
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoJwtAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
 
   /**
    * The converter that signs JWTs in, publishing the sign-in events.

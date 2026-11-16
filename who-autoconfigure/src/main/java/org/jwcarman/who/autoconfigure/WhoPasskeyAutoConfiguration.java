@@ -85,7 +85,8 @@ public class WhoPasskeyAutoConfiguration {
 
   /**
    * The relying party passkeys are bound to, from {@code who.passkey.*}. Startup fails without
-   * {@code who.passkey.rp-id}; the allowed origins default to {@code https://} and the RP id.
+   * {@code who.passkey.rp-id}; the allowed origins default to {@code https://} followed by the RP
+   * id.
    *
    * @param properties who's properties
    * @return the settings

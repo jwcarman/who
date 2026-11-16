@@ -29,7 +29,7 @@ import org.springframework.aot.hint.TypeReference;
  */
 public class WhoSessionRuntimeHints implements RuntimeHintsRegistrar {
 
-  /** Creates the registrar. Spring creates it from {@code aot.factories}. */
+  /** Creates the registrar; Spring calls it, listed in {@code aot.factories}. */
   public WhoSessionRuntimeHints() {
     // stateless: the hints are registered by registerHints
   }

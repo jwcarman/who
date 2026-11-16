@@ -39,11 +39,6 @@ import org.springframework.util.ClassUtils;
  */
 public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
 
-  /** Creates the registrar. Spring creates it from {@code aot.factories}. */
-  public PasskeyRuntimeHints() {
-    // stateless: the hints are registered by registerHints
-  }
-
   /** Packages whose every class (nested classes included, subpackages not) is registered. */
   public static final List<String> FAMILIES =
       List.of(
@@ -94,6 +89,11 @@ public class PasskeyRuntimeHints implements RuntimeHintsRegistrar {
           TypeReference.of(byte[].class));
 
   private static final String CLASS_SUFFIX = ".class";
+
+  /** Creates the registrar; Spring calls it, listed in {@code aot.factories}. */
+  public PasskeyRuntimeHints() {
+    // stateless: the hints are registered by registerHints
+  }
 
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {

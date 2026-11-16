@@ -74,17 +74,17 @@ import org.springframework.util.ClassUtils;
 @ConditionalOnMissingBean(SecurityFilterChain.class)
 public class WhoWebSecurityAutoConfiguration {
 
-  /** Creates the autoconfiguration; Spring Boot calls it. */
-  public WhoWebSecurityAutoConfiguration() {
-    // nothing to set up: every bean is built by a method below
-  }
-
   /** A request that brings no session, so a forged copy of it would be signed out too. */
   private static final RequestMatcher NO_SESSION =
       request -> request.getRequestedSessionId() == null;
 
   private static final String ACTUATOR =
       "org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointAutoConfiguration";
+
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoWebSecurityAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
 
   /**
    * The default chain.

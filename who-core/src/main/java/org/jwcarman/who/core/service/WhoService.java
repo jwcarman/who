@@ -245,7 +245,8 @@ public class WhoService {
    * Deactivates an identity: sets it {@link IdentityStatus#DISABLED}. It keeps its credentials,
    * roles and history, but no credential resolves to it ({@link #resolve(Credential)}), so its next
    * request is unauthenticated, and its sign-in links and passkeys are refused, until it is
-   * {@linkplain #reactivate(UUID) reactivated}. Deactivating an inactive identity changes nothing.
+   * {@linkplain #reactivate(UUID) reactivated}. Deactivating a disabled identity changes nothing; a
+   * {@link IdentityStatus#SUSPENDED suspended} one becomes disabled.
    *
    * @param identityId the identity to deactivate
    * @return {@code true} if the identity exists, {@code false} if there is no such identity

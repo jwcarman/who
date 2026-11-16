@@ -25,7 +25,7 @@ import org.springframework.boot.diagnostics.FailureAnalysis;
 public final class WhoConfigurationFailureAnalyzer
     extends AbstractFailureAnalyzer<WhoConfigurationException> {
 
-  /** Creates the analyzer. Spring Boot creates it from {@code spring.factories}. */
+  /** Creates the analyzer; Spring Boot calls it, listed in {@code spring.factories}. */
   public WhoConfigurationFailureAnalyzer() {
     // stateless
   }

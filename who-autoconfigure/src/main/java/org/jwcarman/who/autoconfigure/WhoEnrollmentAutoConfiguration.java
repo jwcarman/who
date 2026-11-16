@@ -45,7 +45,7 @@ public class WhoEnrollmentAutoConfiguration {
   }
 
   /**
-   * The enrollment tokens handed out to invite people, kept until used or expired.
+   * The enrollment tokens handed out to invite people, with each one's status.
    *
    * @param jdbcClient the database
    * @return the repository

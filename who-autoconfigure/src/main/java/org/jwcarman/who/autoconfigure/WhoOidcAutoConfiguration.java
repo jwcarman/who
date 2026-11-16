@@ -67,15 +67,15 @@ import org.springframework.web.util.pattern.PathPatternParser;
 @ConditionalOnBooleanProperty(name = "who.oidc.enabled", matchIfMissing = true)
 public class WhoOidcAutoConfiguration {
 
-  /** Creates the autoconfiguration; Spring Boot calls it. */
-  public WhoOidcAutoConfiguration() {
-    // nothing to set up: every bean is built by a method below
-  }
-
   private static final Logger log = LoggerFactory.getLogger(WhoOidcAutoConfiguration.class);
 
   private static final String OFF_SWITCH =
       " Or turn provider sign-in off with who.oidc.enabled=false.";
+
+  /** Creates the autoconfiguration; Spring Boot calls it. */
+  public WhoOidcAutoConfiguration() {
+    // nothing to set up: every bean is built by a method below
+  }
 
   /**
    * The sign-up policy: closed, so nobody signs up until the application says who may.

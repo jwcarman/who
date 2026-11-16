@@ -56,8 +56,9 @@ public class WhoSpringSecurityAutoConfiguration {
   }
 
   /**
-   * Keeps only who's session ids in the HTTP session and resolves the principal again on every
-   * request, so a suspension or a revoked credential takes effect at once.
+   * Keeps only a {@code WhoSession} (ids and the sign-in time) in the HTTP session and resolves the
+   * principal again on every request, so a deactivated identity or a revoked credential takes
+   * effect at once.
    *
    * @param whoService resolves the principal
    * @param clock stamps the sign-in time
