@@ -22,7 +22,9 @@ package org.jwcarman.who.core.signup;
 public final class ClosedSignUpPolicy implements WhoSignUpPolicy {
 
   /** Creates the policy. */
-  public ClosedSignUpPolicy() {}
+  public ClosedSignUpPolicy() {
+    // the policy holds no state
+  }
 
   /**
    * Refuses.

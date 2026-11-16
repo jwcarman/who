@@ -61,7 +61,9 @@ class SignUpPolicyTest {
     void claims_are_immutable() {
       SignUpRequest request = request(new HashMap<>(Map.of("hd", "example.com")));
 
-      assertThatThrownBy(() -> request.claims().put("x", 1))
+      Map<String, Object> claims = request.claims();
+
+      assertThatThrownBy(() -> claims.put("x", 1))
           .isInstanceOf(UnsupportedOperationException.class);
     }
 

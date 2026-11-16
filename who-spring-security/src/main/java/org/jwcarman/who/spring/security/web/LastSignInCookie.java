@@ -42,7 +42,9 @@ public final class LastSignInCookie {
   private static final Duration MAX_AGE = Duration.ofDays(30);
 
   /** Creates the cookie writer. */
-  public LastSignInCookie() {}
+  public LastSignInCookie() {
+    // the writer holds no state
+  }
 
   /**
    * Sets the cookie on the response.

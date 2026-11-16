@@ -31,7 +31,9 @@ class WhoPublicPathsTest {
   private static PasswordlessLoginMethod method(String... paths) {
     return new PasswordlessLoginMethod() {
       @Override
-      public void configure(HttpSecurity http) {}
+      public void configure(HttpSecurity http) {
+        // only the public paths matter here
+      }
 
       @Override
       public Set<String> publicPaths() {

@@ -58,14 +58,6 @@ public class WhoSpringSecurityAutoConfiguration {
   }
 
   /**
-   * The paths a signed-out request may reach: the error page, each sign-in method's endpoints and
-   * {@code who.security.public-paths}.
-   *
-   * @param methods the browser sign-in methods
-   * @param properties the application's own public paths
-   * @return the paths
-   */
-  /**
    * Remembers in the browser which way someone last signed in. Turn it off with {@code
    * who.security.last-sign-in-cookie.enabled=false}.
    *
@@ -80,6 +72,14 @@ public class WhoSpringSecurityAutoConfiguration {
     return new LastSignInCookie();
   }
 
+  /**
+   * The paths a signed-out request may reach: the error page, each sign-in method's endpoints and
+   * {@code who.security.public-paths}.
+   *
+   * @param methods the browser sign-in methods
+   * @param properties the application's own public paths
+   * @return the paths
+   */
   @Bean
   @ConditionalOnMissingBean
   public WhoPublicPaths whoPublicPaths(

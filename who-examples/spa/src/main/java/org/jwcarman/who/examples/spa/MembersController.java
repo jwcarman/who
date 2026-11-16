@@ -91,10 +91,10 @@ class MembersController {
     try {
       invitations.invite(invite.email() == null ? "" : invite.email().strip());
       return ResponseEntity.noContent().build();
-    } catch (EmailAddressTakenException e) {
+    } catch (EmailAddressTakenException _) {
       return ResponseEntity.status(HttpStatus.CONFLICT)
           .body(ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Already has an account"));
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException _) {
       return ResponseEntity.badRequest()
           .body(
               ProblemDetail.forStatusAndDetail(

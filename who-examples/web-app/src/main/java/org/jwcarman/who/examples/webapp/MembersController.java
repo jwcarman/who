@@ -81,14 +81,16 @@ class MembersController {
   @PostMapping("/members")
   @RequiresPermission(Permissions.MEMBER_MANAGE)
   String invite(@RequestParam String email, RedirectAttributes redirect) {
+    String message;
     try {
       invitations.invite(email.strip());
-      redirect.addFlashAttribute("message", "Invited " + email.strip() + ".");
-    } catch (EmailAddressTakenException e) {
-      redirect.addFlashAttribute("message", email.strip() + " already has an account.");
-    } catch (IllegalArgumentException e) {
-      redirect.addFlashAttribute("message", "That is not an email address.");
+      message = "Invited " + email.strip() + ".";
+    } catch (EmailAddressTakenException _) {
+      message = email.strip() + " already has an account.";
+    } catch (IllegalArgumentException _) {
+      message = "That is not an email address.";
     }
+    redirect.addFlashAttribute("message", message);
     return "redirect:/members";
   }
 }
