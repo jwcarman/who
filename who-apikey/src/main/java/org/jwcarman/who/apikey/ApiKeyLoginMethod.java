@@ -26,8 +26,9 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * API-key sign-in as a {@link StatelessLoginMethod}: adds the {@link ApiKeyAuthenticationFilter} as
  * {@link WhoApiKeySecurity#apiKey(ApiKeyAuthenticationFilter)} does, and matches the requests the
  * key would sign in: the header is present and not blank, and the request is not already signed in.
- * A request with a session ignores the header, as {@link ApiKeyAuthenticationConverter} does, so
- * the header does not exempt it from CSRF either.
+ * A request already signed in from a session ignores the header, as {@link
+ * ApiKeyAuthenticationConverter} does, so the header does not exempt it from CSRF either. (On a
+ * {@code WhoSecurity.stateless()} chain no session is visible, so the key is always read.)
  */
 public final class ApiKeyLoginMethod implements StatelessLoginMethod {
 

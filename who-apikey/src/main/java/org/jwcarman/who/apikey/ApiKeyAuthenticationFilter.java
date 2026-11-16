@@ -54,7 +54,8 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
  *       anonymously): the request goes on as it is.
  *   <li>A key that signs in: the request is authenticated as the key's identity, for this request
  *       only (no session is created to hold it), and goes on. As with every Spring {@link
- *       AuthenticationFilter}, a session the request already has gets a new id. An error page the
+ *       AuthenticationFilter}, a session the request already has gets a new id (on a {@code
+ *       WhoSecurity.stateless()} chain, which hides the session, none does). An error page the
  *       request is forwarded to sees the same sign-in; the key is not checked again.
  *   <li>A key that does not sign in (unknown, revoked, or of an inactive identity): the request is
  *       refused at once with {@code 401}, even where anonymous access is permitted. The refusal is

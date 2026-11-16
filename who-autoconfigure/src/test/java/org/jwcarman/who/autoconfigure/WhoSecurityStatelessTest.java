@@ -72,6 +72,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -166,7 +167,8 @@ class WhoSecurityStatelessTest {
     SecurityFilterChain api(HttpSecurity http) {
       http.securityMatcher("/api/**")
           .with(WhoSecurity.stateless(), withDefaults())
-          .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+          .authorizeHttpRequests(
+              a -> a.requestMatchers("/api/denied").denyAll().anyRequest().authenticated());
       return http.build();
     }
 
@@ -282,6 +284,14 @@ class WhoSecurityStatelessTest {
     return HttpRequest.newBuilder(uri(path)).POST(HttpRequest.BodyPublishers.noBody());
   }
 
+  private String sessionCookie() {
+    return cookies.getCookieStore().getCookies().stream()
+        .filter(c -> c.getName().equals("SESSION"))
+        .map(HttpCookie::getValue)
+        .findFirst()
+        .orElseThrow();
+  }
+
   private String csrfToken() throws Exception {
     send(getting("/open/ping"));
     return cookies.getCookieStore().getCookies().stream()
@@ -341,6 +351,27 @@ class WhoSecurityStatelessTest {
 
     assertThat(response.statusCode()).isEqualTo(401);
     assertThat(response.headers().allValues("Set-Cookie")).isEmpty();
+  }
+
+  @Test
+  void a_key_with_a_session_cookie_leaves_the_session_alone() throws Exception {
+    signIn();
+    String before = sessionCookie();
+
+    HttpResponse<String> response = send(getting("/api/ping").header("X-API-Key", apiKey));
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    assertThat(response.headers().allValues("Set-Cookie")).isEmpty();
+    assertThat(sessionCookie()).isEqualTo(before);
+    assertThat(send(getting("/web/ping")).statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void a_denied_request_is_403_without_a_challenge() throws Exception {
+    HttpResponse<String> response = send(getting("/api/denied").header("X-API-Key", apiKey));
+
+    assertThat(response.statusCode()).isEqualTo(403);
+    assertThat(response.headers().allValues("WWW-Authenticate")).isEmpty();
   }
 
   @Test
@@ -438,16 +469,90 @@ class WhoSecurityStatelessTest {
           .run(
               context -> {
                 assertThat(context).hasNotFailed();
-                MockMvc mockMvc =
-                    MockMvcBuilders.webAppContextSetup((WebApplicationContext) context)
-                        .apply(springSecurity())
-                        .build();
-                mockMvc
+                mockMvc(context)
                     .perform(get("/anything"))
                     .andExpect(status().isUnauthorized())
                     .andExpect(header().doesNotExist("WWW-Authenticate"));
               });
     }
+  }
+
+  @Nested
+  class Without_a_matcher {
+
+    @Test
+    void logout_is_not_mounted() {
+      apiOnly()
+          .withPropertyValues("who.jwt.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                mockMvc(context).perform(get("/logout")).andExpect(status().isUnauthorized());
+              });
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class SessionsAfterwards {
+    @Bean
+    SecurityFilterChain chain(HttpSecurity http) {
+      http.with(WhoSecurity.stateless(), withDefaults())
+          .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+          .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
+  @Nested
+  class With_sessions_turned_back_on {
+
+    @Test
+    void startup_fails() {
+      new WebApplicationContextRunner()
+          .withConfiguration(
+              WhoTestAutoConfigurations.who(
+                  SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
+          .withUserConfiguration(WhoSecurityAllTest.Database.class, SessionsAfterwards.class)
+          .withPropertyValues(
+              "who.email-link.enabled=false", "who.passkey.enabled=false", "who.jwt.enabled=false")
+          .run(
+              context ->
+                  assertThat(context.getStartupFailure())
+                      .isNotNull()
+                      .rootCause()
+                      .isInstanceOf(IllegalStateException.class)
+                      .hasMessage(WhoStatelessConfigurer.STATELESS_REQUIRED));
+    }
+  }
+
+  /** {@link WhoSecurity#all()} with no browser method answers as {@code stateless()} does. */
+  @Nested
+  class All_without_a_browser_method {
+
+    @Test
+    void the_signed_out_401_challenges_with_bearer() {
+      new WebApplicationContextRunner()
+          .withConfiguration(
+              WhoTestAutoConfigurations.who(
+                  SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
+          .withUserConfiguration(
+              WhoSecurityAllTest.Database.class,
+              WhoSecurityAllTest.Decoder.class,
+              WhoSecurityAllTest.OwnChain.class)
+          .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                mockMvc(context)
+                    .perform(get("/anything"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(header().string("WWW-Authenticate", "Bearer"));
+              });
+    }
+  }
+
+  private static MockMvc mockMvc(WebApplicationContext context) {
+    return MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
   }
 
   @Nested

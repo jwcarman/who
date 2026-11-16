@@ -41,13 +41,21 @@ final class StatelessAnswers {
             .getBeanProvider(WhoExceptionHandoff.class)
             .getIfAvailable(() -> new WhoExceptionHandoff(null));
     List<String> challenges =
-        methods.stream().map(StatelessLoginMethod::challenge).flatMap(Optional::stream).toList();
+        methods.stream()
+            .map(StatelessLoginMethod::challenge)
+            .flatMap(Optional::stream)
+            .distinct()
+            .toList();
     http.exceptionHandling(
         e ->
             e.authenticationEntryPoint(
                     (request, response, authException) -> {
-                      // set before the handoff, so an application's own answer keeps it
-                      challenges.forEach(c -> response.addHeader(HttpHeaders.WWW_AUTHENTICATE, c));
+                      // set before the handoff, so an application's own answer keeps it; once,
+                      // even when an error page comes back through here
+                      if (!response.containsHeader(HttpHeaders.WWW_AUTHENTICATE)) {
+                        challenges.forEach(
+                            c -> response.addHeader(HttpHeaders.WWW_AUTHENTICATE, c));
+                      }
                       handoff.handOff(
                           request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
                     })

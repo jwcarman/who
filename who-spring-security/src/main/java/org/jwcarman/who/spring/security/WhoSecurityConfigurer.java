@@ -35,7 +35,9 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
  *   <li>every {@link StatelessLoginMethod} bean, and, when the chain has CSRF protection, an
  *       exemption for the requests that one of their credentials signs in;
  *   <li>a {@code 401} for a signed-out request and a {@code 403} for a denied one, handed to the
- *       application's exception handling.
+ *       application's exception handling. Without a browser method, the {@code 401} also names each
+ *       stateless method's scheme in {@code WWW-Authenticate}, as {@link WhoSecurity#stateless()}
+ *       does.
  * </ul>
  *
  * <p>It does not authorize requests: the chain's own {@code authorizeHttpRequests} does, with

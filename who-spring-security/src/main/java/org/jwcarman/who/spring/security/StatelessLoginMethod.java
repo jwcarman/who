@@ -49,7 +49,8 @@ public interface StatelessLoginMethod {
   /**
    * The authentication scheme a signed-out {@code 401} names in its {@code WWW-Authenticate}
    * header, so a client learns how to sign in (RFC 9110, section 11.6.1), such as {@code Bearer}
-   * (RFC 6750). Empty for a method with no standard scheme, which adds no header.
+   * (RFC 6750). The value is written as the header's value, verbatim, once even when several
+   * methods name it. Empty for a method with no standard scheme, which adds no header.
    *
    * @return the scheme, or empty
    */
