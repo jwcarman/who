@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { type Email, email } from "./email";
 import { json, nothing, signedOut, type WhoClientOptions, WhoHttp } from "./http";
 import type { WhoResult } from "./result";
 import { type Sessions, sessions } from "./sessions";
@@ -31,6 +32,8 @@ export interface WhoClient<D> {
   signOut(): Promise<void>;
   /** Where this person is signed in. */
   sessions: Sessions<D>;
+  /** Signing in by email link or code, and email addresses. */
+  email: Email<D>;
 }
 
 /**
@@ -47,5 +50,6 @@ export function createWhoClient<D = unknown>(options: WhoClientOptions<D> = {}):
       await http.refreshCsrf();
     },
     sessions: sessions(http),
+    email: email(http),
   };
 }

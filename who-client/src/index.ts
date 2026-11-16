@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 export { createWhoClient, type Me, type WhoClient } from "./client";
+export type { ConfirmAddressFailure, Email, SignedIn } from "./email";
 export type { WhoClientOptions } from "./http";
 export { type SignInRequired, unwrap, WhoError, type WhoResult } from "./result";
 export type { Session, Sessions } from "./sessions";
