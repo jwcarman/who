@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -217,6 +218,32 @@ class PasswordlessConfigurerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].current").value(true));
     mvc.perform(get("/who/sessions")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void endingTheCurrentSessionIsAFullSignOut() throws Exception {
+    resolvesTo(Set.of());
+    MockHttpSession session = signedIn();
+    UUID current =
+        ((WhoSession) session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
+            .sessionId();
+    Cookie xsrf =
+        mvc.perform(get("/who/me").session(session))
+            .andReturn()
+            .getResponse()
+            .getCookie("XSRF-TOKEN");
+    assertThat(xsrf).isNotNull();
+
+    // the same handlers as POST /logout: here, the chain's deleteCookies clears the XSRF cookie
+    mvc.perform(
+            delete("/who/sessions/" + current)
+                .session(session)
+                .cookie(xsrf)
+                .header("X-XSRF-TOKEN", xsrf.getValue()))
+        .andExpect(status().isNoContent())
+        .andExpect(cookie().maxAge("XSRF-TOKEN", 0));
+    assertThat(session.isInvalid()).isTrue();
+    assertThat(sessions.findLive(current)).isEmpty();
   }
 
   @Test

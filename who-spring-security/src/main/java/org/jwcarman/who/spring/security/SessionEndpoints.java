@@ -23,7 +23,11 @@ import java.time.Duration;
 import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.authentication.logout.CompositeLogoutHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -72,12 +76,30 @@ public class SessionEndpoints {
    * Adds the endpoints' filter to a browser chain.
    *
    * @param http the chain
+   * @param logout the chain's logout, whose handlers sign this browser out
    */
-  public void configure(HttpSecurity http) {
+  void configure(HttpSecurity http, LogoutConfigurer<HttpSecurity> logout) {
     // before authorization, as the email address endpoints, so a signed-out caller gets who's
     // answer
     http.addFilterAfter(
-        new SessionsFilter(sessions, repository, handoff, jsonMapper, clock, recentSignIn),
+        new SessionsFilter(
+            sessions, repository, handoff, jsonMapper, clock, recentSignIn, signOutHandler(logout)),
         ExceptionTranslationFilter.class);
+  }
+
+  /*
+   * Signing out this browser through the endpoints runs the same handlers as the chain's logout:
+   * who's, the app's own, CSRF's and cookie clearing, the context's, and LogoutSuccessEvent. The
+   * chain adds the last two when it is built, so the handlers are read when a request needs them.
+   * Should the app turn logout off, those two never come, so the context is always ended after
+   * them too; ending it twice is harmless.
+   */
+  static LogoutHandler signOutHandler(LogoutConfigurer<HttpSecurity> logout) {
+    LogoutHandler endContext = new SecurityContextLogoutHandler();
+    return (request, response, authentication) -> {
+      new CompositeLogoutHandler(logout.getLogoutHandlers())
+          .logout(request, response, authentication);
+      endContext.logout(request, response, authentication);
+    };
   }
 }

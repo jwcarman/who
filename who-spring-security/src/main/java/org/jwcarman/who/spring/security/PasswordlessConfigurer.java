@@ -98,13 +98,18 @@ public class PasswordlessConfigurer
                                 HttpStatus.UNAUTHORIZED))
                     .accessDeniedHandler(StatelessAnswers.deniedHandler(handoff)))
         .logout(
-            l ->
-                l.addLogoutHandler(
-                        (request, response, authentication) ->
-                            repository.onLogout(request, authentication))
-                    .logoutSuccessHandler(
-                        new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
-                    .deleteCookies(CSRF_COOKIE))
+            l -> {
+              l.addLogoutHandler(
+                      (request, response, authentication) ->
+                          repository.onLogout(request, authentication))
+                  .logoutSuccessHandler(
+                      new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
+                  .deleteCookies(CSRF_COOKIE);
+              // every browser chain lets its signed-in person see and end their sessions
+              context
+                  .getBeanProvider(SessionEndpoints.class)
+                  .ifAvailable(e -> e.configure(http, l));
+            })
         .headers(h -> h.referrerPolicy(r -> r.policy(NO_REFERRER)));
 
     List<PasswordlessLoginMethod> methods =
@@ -115,8 +120,6 @@ public class PasswordlessConfigurer
     for (PasswordlessLoginMethod method : methods) {
       method.configure(http);
     }
-    // every browser chain lets its signed-in person see and end their sessions
-    context.getBeanProvider(SessionEndpoints.class).ifAvailable(e -> e.configure(http));
   }
 
   @Override

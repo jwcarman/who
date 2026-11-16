@@ -565,7 +565,7 @@ class EmailSignInEventsTest {
     }
 
     @Test
-    void has_one_debug_line_with_the_reason_and_the_address_only_at_debug() throws Exception {
+    void has_one_debug_line_with_the_reason_and_ids_never_the_address() throws Exception {
       Browser browser = new Browser(mvc);
       SentLink sent = requestLink(browser);
 
@@ -578,7 +578,7 @@ class EmailSignInEventsTest {
           .contains("EMAIL_CODE")
           .contains("WRONG_CODE")
           .contains(credential.id().toString())
-          .contains(ADDRESS)
+          .doesNotContainIgnoringCase(ADDRESS)
           .doesNotContain(sent.code());
     }
   }

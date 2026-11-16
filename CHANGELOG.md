@@ -20,6 +20,7 @@ See [Upgrading](docs/guides/upgrading.md#upgrading-to-0190).
 - People can see where they are signed in and sign any browser out: `GET /who/sessions`, `DELETE /who/sessions/{id}` and `DELETE /who/sessions?others=true` on every browser chain. Ending another session needs a recent sign-in; ending your own never does. The list shows a device label, the sign-in method and times, and who's own id, never the session cookie, and keeps no IP address. See [Sessions](docs/guides/sessions.md#see-and-end-sessions).
 - `WhoSessions`, for your own code: `list`, `end`, `endAll`, `endAllExcept` and `purgeEndedSessions`. Ended sessions publish `SessionEnded` with the new reason `REVOKED`.
 - Ended and abandoned session records are deleted 100 at a time on each sign-in (`who.sessions.auto-purge`, `who.sessions.purge-batch-size`), publishing `EndedSessionsPurged` and counted by the `who.sessions.purged` meter. `who.sessions.last-seen-interval` (default `5m`) limits how often a session's last use is written. A purge that fails is logged and never fails the sign-in.
+- Signing out the current browser through `DELETE /who/sessions/{id}` runs the chain's logout handlers, as `POST /logout` does. The session endpoints answer only the authentication the browser session loaded, so an API key or bearer token sent beside a session cookie gets `403`.
 - `InMemorySessionRecordRepository` in `who-test`, for tests without a database.
 
 - `@RequiresRecentSignIn`: an action, on a method or a type, that needs a sign-in within `who.security.recent-sign-in` or its own `within`. A stale browser session gets `401` `ReauthenticationRequiredException`; a JWT whose `auth_time` is too old gets `401` `InsufficientUserAuthenticationException` with the RFC 9470 step-up challenge (`error="insufficient_user_authentication"`, `max_age`); a JWT without `auth_time`, and an API key, get `403` `RecentSignInUnavailableException`. The `RecentSignInAuthorizationManager` bean does the same for URL rules. See [Recent sign-in](docs/guides/security-model.md#recent-sign-in).
@@ -29,6 +30,7 @@ See [Upgrading](docs/guides/upgrading.md#upgrading-to-0190).
 
 - `WhoSession` records how the session signed in. A session saved before 0.19 still loads, but must sign in again for an action marked `@RequiresRecentSignIn`.
 - who's own recent-sign-in checks (adding a passkey, a provider account or an email address) share the rule, and a sign-in exactly one window old is now too old.
+- A failed email sign-in's DEBUG log names the identity and credential ids, no longer the email address. `SignInFailed` still carries the address for your own handling.
 
 ### Documentation
 

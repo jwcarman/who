@@ -44,6 +44,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -75,6 +76,7 @@ final class SessionsFilter extends OncePerRequestFilter {
   private final JsonMapper jsonMapper;
   private final Clock clock;
   private final Duration recentSignIn;
+  private final LogoutHandler signOut;
 
   SessionsFilter(
       WhoSessions sessions,
@@ -82,13 +84,15 @@ final class SessionsFilter extends OncePerRequestFilter {
       WhoExceptionHandoff handoff,
       JsonMapper jsonMapper,
       Clock clock,
-      Duration recentSignIn) {
+      Duration recentSignIn,
+      LogoutHandler signOut) {
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
+    this.signOut = requireNonNull(signOut, "signOut must not be null");
   }
 
   @Override
@@ -106,10 +110,10 @@ final class SessionsFilter extends OncePerRequestFilter {
       return;
     }
     UUID identityId = token.getPrincipal().identity().id();
+    // only the authentication the browser session loaded, whose record is live and whose
+    // identity matches; an API key or bearer token beside a session cookie does not count
     Optional<WhoSession> current =
-        repository
-            .currentSession(request)
-            .filter(s -> s.identityId().equals(identityId) && s.sessionId() != null);
+        repository.isLoaded(request, token) ? repository.currentSession(request) : Optional.empty();
     if (current.isEmpty()) {
       // an API key or a bearer token has no browser session to list or keep
       handoff.handOff(
@@ -186,7 +190,7 @@ final class SessionsFilter extends OncePerRequestFilter {
       return;
     }
     if (target.get().id().equals(current.sessionId())) {
-      signOut(request, token);
+      signOut.logout(request, response, token);
       response.setStatus(HttpServletResponse.SC_NO_CONTENT);
       return;
     }
@@ -195,13 +199,6 @@ final class SessionsFilter extends OncePerRequestFilter {
     }
     sessions.end(target.get().id());
     response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-  }
-
-  /** Signs this browser out, as logout does: closes the record, then ends the servlet session. */
-  private void signOut(HttpServletRequest request, WhoAuthenticationToken token) {
-    repository.onLogout(request, token);
-    WhoSessionSecurityContextRepository.invalidate(request);
-    SecurityContextHolder.clearContext();
   }
 
   private boolean recent(

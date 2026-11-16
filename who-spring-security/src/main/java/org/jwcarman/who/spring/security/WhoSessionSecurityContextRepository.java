@@ -176,6 +176,14 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    * @param request the current request
    * @return the session's id, or empty when there is no who session or it has no record
    */
+  /**
+   * Whether {@code authentication} is the one this repository loaded from the browser session for
+   * {@code request}, rather than one another filter put in its place.
+   */
+  boolean isLoaded(HttpServletRequest request, Authentication authentication) {
+    return authentication != null && authentication == request.getAttribute(LOADED_ATTRIBUTE);
+  }
+
   public Optional<UUID> currentSessionId(HttpServletRequest request) {
     return currentSession(request).map(WhoSession::sessionId);
   }

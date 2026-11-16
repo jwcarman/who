@@ -112,10 +112,14 @@ Each session in the list looks like this:
 
 The `id` is who's own, not the session cookie, so showing it exposes nothing that could take a session over. `device` is a rough label read from the `User-Agent`; `signInMethod` is `email-link`, `email-code`, `passkey` or `oidc`.
 
+`userAgent`, and `device` read from it, are whatever the browser sent at sign-in, so treat them as untrusted text: render them as text (`textContent`, or your framework's default escaping), never as HTML.
+
+Signing out the current browser through `DELETE /who/sessions/{id}` runs the chain's logout handlers, the same as `POST /logout`: who's, any you added, CSRF's, clearing the `XSRF-TOKEN` cookie, and Spring Security's `LogoutSuccessEvent`. It answers `204` rather than running the logout success handler.
+
 Answers, through your exception handling like who's other endpoints:
 
 - `401` when signed out, or when ending another session with a sign-in older than `who.security.recent-sign-in`. Sign in again and retry.
-- `403` for a caller that is not a browser session, such as an API key or a bearer token.
+- `403` for a caller who is signed in, but not by this browser's session: an API key or a bearer token sent on a chain that also accepts browser sessions, even with a session cookie beside it. A chain that accepts only keys or tokens has no session endpoints: there `/who/sessions` is answered like any other path of yours.
 - `404` for an id that is not one of the caller's live sessions, whether it is someone else's, unknown or malformed.
 - `400` for `DELETE /who/sessions` without `others=true`, so a stray request cannot end everything.
 

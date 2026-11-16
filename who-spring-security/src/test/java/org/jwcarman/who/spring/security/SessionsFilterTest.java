@@ -16,7 +16,9 @@
 package org.jwcarman.who.spring.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -34,6 +36,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -43,12 +46,16 @@ import org.jwcarman.who.core.event.SessionEnded;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.SignedOut;
 import org.jwcarman.who.core.event.WhoEvent;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.service.WhoSessions;
+import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -64,16 +71,40 @@ class SessionsFilterTest {
   private final MutableClock clock = new MutableClock(NOW);
   private final List<WhoEvent> events = new ArrayList<>();
   private final WhoSessions sessions = InMemorySessionRecords.sessions(clock, events::add);
+  private final WhoService whoService = mock(WhoService.class);
   private final WhoSessionSecurityContextRepository repository =
-      new WhoSessionSecurityContextRepository(mock(WhoService.class), sessions, clock, events::add);
+      new WhoSessionSecurityContextRepository(whoService, sessions, clock, events::add);
   private final JsonMapper json = JsonMapper.builder().build();
   private final SessionsFilter filter =
-      new SessionsFilter(sessions, repository, new WhoExceptionHandoff(null), json, clock, RECENT);
+      new SessionsFilter(
+          sessions,
+          repository,
+          new WhoExceptionHandoff(null),
+          json,
+          clock,
+          RECENT,
+          SessionEndpoints.signOutHandler(
+              new LogoutConfigurer<HttpSecurity>()
+                  .addLogoutHandler(
+                      (request, response, authentication) ->
+                          repository.onLogout(request, authentication))));
 
   private final Identity alice = Identity.create();
   private final Identity bob = Identity.create();
   private final AtomicBoolean reachedChain = new AtomicBoolean();
   private final FilterChain chain = (req, res) -> reachedChain.set(true);
+
+  @BeforeEach
+  void resolveCredentials() {
+    // each browser signs in with a credential whose id is its identity's
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenAnswer(
+            call -> {
+              Identity identity =
+                  call.<Credential>getArgument(0).id().equals(alice.id()) ? alice : bob;
+              return new Resolution.Resolved(new WhoPrincipal(identity, Set.of()));
+            });
+  }
 
   @AfterEach
   void clear() {
@@ -107,17 +138,15 @@ class SessionsFilterTest {
   /** Sends a request from {@code session}, signed in as its identity. */
   private MockHttpServletResponse send(String method, String uri, HttpSession session)
       throws Exception {
-    MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+    return send(new MockHttpServletRequest(method, uri), session);
+  }
+
+  /** Sends {@code request} from {@code session}, authenticated as the session loads. */
+  private MockHttpServletResponse send(MockHttpServletRequest request, HttpSession session)
+      throws Exception {
     if (session != null) {
       request.setSession(session);
-      WhoSession who =
-          (WhoSession) session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE);
-      SecurityContextHolder.getContext()
-          .setAuthentication(
-              new WhoAuthenticationToken(
-                  new WhoPrincipal(who.identityId().equals(alice.id()) ? alice : bob, Set.of()),
-                  who.credentialId(),
-                  SignInMethod.PASSKEY));
+      SecurityContextHolder.setContext(repository.loadDeferredContext(request).get());
     }
     MockHttpServletResponse response = new MockHttpServletResponse();
     filter.doFilter(request, response, chain);
@@ -236,13 +265,7 @@ class SessionsFilterTest {
 
     MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
     request.setParameter("others", "true");
-    request.setSession(mine);
-    SecurityContextHolder.getContext()
-        .setAuthentication(
-            new WhoAuthenticationToken(
-                new WhoPrincipal(alice, Set.of()), alice.id(), SignInMethod.PASSKEY));
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
+    MockHttpServletResponse response = send(request, mine);
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(json.readTree(response.getContentAsString()).get("ended").asInt()).isEqualTo(2);
@@ -279,6 +302,22 @@ class SessionsFilterTest {
   }
 
   @Test
+  void an_api_key_sent_with_a_browser_session_is_403() throws Exception {
+    // on a mixed chain the key's authentication replaces the session's, but the cookie still rides
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/sessions");
+    request.setSession(browser(alice, NOW, "a"));
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new WhoAuthenticationToken(
+                new WhoPrincipal(alice, Set.of()), UUID.randomUUID(), SignInMethod.API_KEY));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    filter.doFilter(request, response, chain);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+  }
+
+  @Test
   void other_paths_pass_through() throws Exception {
     MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -294,23 +333,15 @@ class SessionsFilterTest {
 
     MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
     request.setParameter("others", "true");
-    request.setSession(stale);
-    SecurityContextHolder.getContext()
-        .setAuthentication(
-            new WhoAuthenticationToken(
-                new WhoPrincipal(alice, Set.of()), alice.id(), SignInMethod.PASSKEY));
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
 
-    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(send(request, stale).getStatus()).isEqualTo(401);
     assertThat(sessions.findLive(idOf(other))).isPresent();
   }
 
   @Test
-  void a_session_of_someone_else_than_the_caller_is_403() throws Exception {
-    HttpSession bobs = browser(bob, NOW, "b");
+  void a_token_not_loaded_from_the_browser_session_is_403() throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/sessions");
-    request.setSession(bobs);
+    request.setSession(browser(alice, NOW, "a"));
     SecurityContextHolder.getContext()
         .setAuthentication(
             new WhoAuthenticationToken(
@@ -323,13 +354,13 @@ class SessionsFilterTest {
   }
 
   @Test
-  void a_session_without_a_record_is_403() throws Exception {
+  void a_session_without_a_record_is_signed_out() throws Exception {
     MockHttpSession unrecorded = new MockHttpSession();
     unrecorded.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
         new WhoSession(alice.id(), alice.id(), NOW, SignInMethod.PASSKEY));
 
-    assertThat(send("GET", "/who/sessions", unrecorded).getStatus()).isEqualTo(403);
+    assertThat(send("GET", "/who/sessions", unrecorded).getStatus()).isEqualTo(401);
   }
 
   private static final class MutableClock extends Clock {
