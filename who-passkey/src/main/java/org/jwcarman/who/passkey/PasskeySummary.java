@@ -25,7 +25,7 @@ import java.util.UUID;
  *
  * @param id the passkey's credential UUID, as {@link PasskeyService#revoke(UUID)} takes it
  * @param credentialId the passkey's WebAuthn credential id, base64url as Spring encodes it: the
- *     {@code {id}} of Spring's {@code DELETE /webauthn/register/{id}}
+ *     {@code {id}} of {@code DELETE /who/passkey/register/{id}}
  * @param label the label given when the passkey was registered
  * @param created when the passkey was registered
  * @param lastUsed when the passkey was last used, or {@code null} if unknown

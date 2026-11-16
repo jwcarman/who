@@ -73,8 +73,8 @@ final class PasskeyDevice {
   }
 
   /**
-   * Answers {@code POST /webauthn/register/options} as {@code navigator.credentials.create()}
-   * would, and returns the body for {@code POST /webauthn/register}.
+   * Answers {@code POST /who/passkey/register/options} as {@code navigator.credentials.create()}
+   * would, and returns the body for {@code POST /who/passkey/register}.
    */
   String register(String creationOptionsJson, String label) {
     JsonNode options = json.readTree(creationOptionsJson);
@@ -126,8 +126,8 @@ final class PasskeyDevice {
   }
 
   /**
-   * Answers {@code POST /webauthn/authenticate/options} as {@code navigator.credentials.get()}
-   * would, verifying the user, and returns the body for {@code POST /login/webauthn}.
+   * Answers {@code POST /who/passkey/sign-in/options} as {@code navigator.credentials.get()} would,
+   * verifying the user, and returns the body for {@code POST /who/passkey/sign-in}.
    */
   String signIn(String requestOptionsJson) {
     return signIn(requestOptionsJson, null);

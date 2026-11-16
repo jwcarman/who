@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
@@ -47,8 +48,9 @@ import org.springframework.security.web.webauthn.management.UserCredentialReposi
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Passkey sign-in and registration through Spring Security's {@code webAuthn()}, at its default
- * URLs, with who's collaborators where Spring hard-wires its own.
+ * Passkey sign-in and registration through Spring Security's {@code webAuthn()}, at who's URLs
+ * under {@code who.base-path} (see {@link PasskeyFilterPaths}), with who's collaborators where
+ * Spring hard-wires its own.
  *
  * <ul>
  *   <li>who's two repositories are shared with the chain, so Spring never looks them up as beans
@@ -79,6 +81,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         throw new UsernameNotFoundException("Passkey sign-in does not use a UserDetailsService");
       };
 
+  private final WhoPaths paths;
+  private final PasskeyFilterPaths filterPaths;
   private final JdbcWhoPasskeyUserRepository userRepository;
   private final JdbcWhoPasskeyCredentialRepository credentialRepository;
   private final AuthenticationProvider authenticationProvider;
@@ -90,6 +94,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   /**
    * Creates the login method.
    *
+   * @param paths where the passkey endpoints live
+   * @param filterPaths re-points Spring's passkey filters once the chain is built
    * @param userRepository who's user entities
    * @param credentialRepository who's credential records
    * @param authenticationProvider signs in with a verified passkey
@@ -99,6 +105,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
    * @param registrationWindow how long after signing in a passkey may be registered
    */
   public PasskeyLoginMethod(
+      WhoPaths paths,
+      PasskeyFilterPaths filterPaths,
       JdbcWhoPasskeyUserRepository userRepository,
       JdbcWhoPasskeyCredentialRepository credentialRepository,
       AuthenticationProvider authenticationProvider,
@@ -106,6 +114,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
       JsonMapper jsonMapper,
       Clock clock,
       Duration registrationWindow) {
+    this.paths = requireNonNull(paths, "paths must not be null");
+    this.filterPaths = requireNonNull(filterPaths, "filterPaths must not be null");
     this.userRepository = requireNonNull(userRepository, "userRepository must not be null");
     this.credentialRepository =
         requireNonNull(credentialRepository, "credentialRepository must not be null");
@@ -122,7 +132,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   /** The endpoints a signed-out browser uses to sign in with a passkey. */
   @Override
   public Set<String> publicPaths() {
-    return Set.of("/webauthn/authenticate/options", "/login/webauthn");
+    return Set.of(
+        paths.of(PasskeyFilterPaths.SIGN_IN_OPTIONS), paths.of(PasskeyFilterPaths.SIGN_IN));
   }
 
   @Override
@@ -159,7 +170,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     // sorts before all of them
     http.addFilterAfter(
         new PasskeyRegistrationGuardFilter(
-            sessionRepository, clock, registrationWindow, handoff, eventPublisher),
+            paths, sessionRepository, clock, registrationWindow, handoff, eventPublisher),
         ExceptionTranslationFilter.class);
   }
 
@@ -206,6 +217,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
         filter.setSessionAuthenticationStrategy(sessionStrategy);
         filter.setAuthenticationSuccessHandler(handlers.success());
         filter.setAuthenticationFailureHandler(handlers.failure());
+        filterPaths.mark(filter, paths);
         return filter;
       }
     };

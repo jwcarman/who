@@ -30,6 +30,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoSignInFactors;
@@ -49,7 +50,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * The answers Spring's passkey registration has no hook for. It applies only to {@code POST
- * /webauthn/register/options} and {@code POST /webauthn/register}:
+ * <root>/passkey/register/options} and {@code POST <root>/passkey/register}:
  *
  * <ul>
  *   <li>signed out: {@link NotSignedInException} (Spring alone answers {@code 400});
@@ -68,13 +69,8 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
 
   private static final Logger log = LoggerFactory.getLogger(PasskeyRegistrationGuardFilter.class);
 
-  static final String REGISTRATION_OPTIONS_URL = "/webauthn/register/options";
-  static final String REGISTRATION_URL = "/webauthn/register";
-
-  private static final RequestMatcher OPTIONS =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, REGISTRATION_OPTIONS_URL);
-  private static final RequestMatcher REGISTRATION =
-      PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, REGISTRATION_URL);
+  private final RequestMatcher options;
+  private final RequestMatcher registration;
 
   private final WhoSessionSecurityContextRepository sessionRepository;
   private final Clock clock;
@@ -85,22 +81,25 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
   /**
    * Creates a guard that publishes no events.
    *
+   * @param paths where the registration endpoints live
    * @param sessionRepository where the current {@link WhoSession} is read from
    * @param clock the current time
    * @param registrationWindow how long after signing in a passkey may be registered
    * @param handoff hands the guard's errors to the application
    */
   public PasskeyRegistrationGuardFilter(
+      WhoPaths paths,
       WhoSessionSecurityContextRepository sessionRepository,
       Clock clock,
       Duration registrationWindow,
       WhoExceptionHandoff handoff) {
-    this(sessionRepository, clock, registrationWindow, handoff, WhoEventPublisher.NOOP);
+    this(paths, sessionRepository, clock, registrationWindow, handoff, WhoEventPublisher.NOOP);
   }
 
   /**
    * Creates the guard.
    *
+   * @param paths where the registration endpoints live
    * @param sessionRepository where the current {@link WhoSession} is read from
    * @param clock the current time, which also stamps the events
    * @param registrationWindow how long after signing in a passkey may be registered
@@ -108,11 +107,16 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
    * @param eventPublisher where {@link PasskeyRegistrationRefused} is published
    */
   public PasskeyRegistrationGuardFilter(
+      WhoPaths paths,
       WhoSessionSecurityContextRepository sessionRepository,
       Clock clock,
       Duration registrationWindow,
       WhoExceptionHandoff handoff,
       WhoEventPublisher eventPublisher) {
+    requireNonNull(paths, "paths must not be null");
+    PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
+    this.options = matchers.matcher(HttpMethod.POST, paths.of(PasskeyFilterPaths.REGISTER_OPTIONS));
+    this.registration = matchers.matcher(HttpMethod.POST, paths.of(PasskeyFilterPaths.REGISTER));
     this.sessionRepository =
         requireNonNull(sessionRepository, "sessionRepository must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
@@ -124,7 +128,7 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !OPTIONS.matches(request) && !REGISTRATION.matches(request);
+    return !options.matches(request) && !registration.matches(request);
   }
 
   @Override
@@ -148,14 +152,14 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    if (!REGISTRATION.matches(request)) {
+    if (!registration.matches(request)) {
       chain.doFilter(request, response);
       return;
     }
     try {
       chain.doFilter(request, response);
     } catch (AccessDeniedException | AuthenticationException e) {
-      // the app's own rules for /webauthn/register; ExceptionTranslationFilter answers those
+      // the app's own rules for the registration endpoint; ExceptionTranslationFilter answers those
       throw e;
     } catch (RuntimeException | ServletException e) {
       if (response.isCommitted()) {

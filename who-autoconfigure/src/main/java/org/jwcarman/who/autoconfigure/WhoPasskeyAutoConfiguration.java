@@ -29,12 +29,14 @@ import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyCredentialRemover;
+import org.jwcarman.who.passkey.PasskeyFilterPaths;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyNameResolver;
 import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.passkey.PasskeySettings;
 import org.jwcarman.who.passkey.WhoPasskeyAuthenticationProvider;
 import org.jwcarman.who.passkey.WhoRelyingPartyOperations;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,6 +252,8 @@ public class WhoPasskeyAutoConfiguration {
    * AuthenticationProvider} bean would become Spring Security's global one and switch off the
    * application's {@code UserDetailsService}. The login method builds the registration guard.
    *
+   * @param paths where the passkey endpoints live
+   * @param filterPaths re-points Spring's passkey filters under the root
    * @param userRepository who's WebAuthn user entities
    * @param credentialRepository who's passkey records
    * @param rpOperations the relying party
@@ -264,6 +268,8 @@ public class WhoPasskeyAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public PasskeyLoginMethod passkeyLoginMethod(
+      WhoPaths paths,
+      PasskeyFilterPaths filterPaths,
       JdbcWhoPasskeyUserRepository userRepository,
       JdbcWhoPasskeyCredentialRepository credentialRepository,
       WebAuthnRelyingPartyOperations rpOperations,
@@ -274,6 +280,8 @@ public class WhoPasskeyAutoConfiguration {
       PasskeySettings settings,
       WhoEventPublisher whoEventPublisher) {
     return new PasskeyLoginMethod(
+        paths,
+        filterPaths,
         userRepository,
         credentialRepository,
         new WhoPasskeyAuthenticationProvider(
@@ -282,6 +290,18 @@ public class WhoPasskeyAutoConfiguration {
         jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
         settings.registrationWindow());
+  }
+
+  /**
+   * Puts Spring's passkey endpoints under {@code who.base-path} in who's chains. Static, with no
+   * dependencies, because it is a {@code BeanPostProcessor}.
+   *
+   * @return the post-processor
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public static PasskeyFilterPaths whoPasskeyFilterPaths() {
+    return new PasskeyFilterPaths();
   }
 
   /**

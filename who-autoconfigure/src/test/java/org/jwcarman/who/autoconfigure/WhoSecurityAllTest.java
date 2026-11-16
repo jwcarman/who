@@ -468,7 +468,7 @@ class WhoSecurityAllTest {
       String token = csrfToken();
       HttpResponse<String> response =
           send(
-              HttpRequest.newBuilder(uri("/webauthn/authenticate/options"))
+              HttpRequest.newBuilder(uri("/who/passkey/sign-in/options"))
                   .header("X-XSRF-TOKEN", token)
                   .POST(HttpRequest.BodyPublishers.noBody()));
 

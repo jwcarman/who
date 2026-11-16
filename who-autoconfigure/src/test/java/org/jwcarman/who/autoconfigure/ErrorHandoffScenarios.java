@@ -182,17 +182,18 @@ abstract class ErrorHandoffScenarios {
     Browser owner = signedIn();
     device.register(
         owner
-            .performWithCsrf(post("/webauthn/register/options"))
+            .performWithCsrf(post("/who/passkey/register/options"))
             .getResponse()
             .getContentAsString(),
         "never sent");
     Browser browser = new Browser(mvc);
     String options =
         browser
-            .performWithCsrf(post("/webauthn/authenticate/options"))
+            .performWithCsrf(post("/who/passkey/sign-in/options"))
             .getResponse()
             .getContentAsString();
-    return browser.performWithCsrf(json(post("/login/webauthn")).content(device.signIn(options)));
+    return browser.performWithCsrf(
+        json(post("/who/passkey/sign-in")).content(device.signIn(options)));
   }
 
   MvcResult signedOutGuarded() throws Exception {
@@ -212,23 +213,23 @@ abstract class ErrorHandoffScenarios {
   }
 
   MvcResult registrationSignedOut() throws Exception {
-    return new Browser(mvc).performWithCsrf(post("/webauthn/register/options"));
+    return new Browser(mvc).performWithCsrf(post("/who/passkey/register/options"));
   }
 
   MvcResult registrationOutsideTheWindow() throws Exception {
     Browser browser = signedIn();
     clock.advance(Duration.ofMinutes(10).plusSeconds(1));
-    return browser.performWithCsrf(post("/webauthn/register/options"));
+    return browser.performWithCsrf(post("/who/passkey/register/options"));
   }
 
   MvcResult invalidRegistration() throws Exception {
     Browser browser = signedIn();
     String options =
         browser
-            .performWithCsrf(post("/webauthn/register/options"))
+            .performWithCsrf(post("/who/passkey/register/options"))
             .getResponse()
             .getContentAsString();
     String body = new PasskeyDevice("https://evil.example.com").register(options, "x");
-    return browser.performWithCsrf(json(post("/webauthn/register")).content(body));
+    return browser.performWithCsrf(json(post("/who/passkey/register")).content(body));
   }
 }

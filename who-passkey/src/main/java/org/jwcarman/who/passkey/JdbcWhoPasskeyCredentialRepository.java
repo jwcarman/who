@@ -63,7 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
  * accepts a missing {@code last_used} rather than failing.
  *
  * <p>Deleting a record publishes {@link CredentialRevoked}, whoever deletes it: Spring's {@code
- * DELETE /webauthn/register/{id}} calls {@link #delete(Bytes)} directly.
+ * DELETE /who/passkey/register/{id}} calls {@link #delete(Bytes)} directly.
  */
 public class JdbcWhoPasskeyCredentialRepository implements UserCredentialRepository {
 

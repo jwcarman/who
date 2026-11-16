@@ -45,6 +45,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
@@ -166,7 +167,13 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     }
 
     @Bean
+    static PasskeyFilterPaths passkeyFilterPaths() {
+      return new PasskeyFilterPaths();
+    }
+
+    @Bean
     PasskeyLoginMethod passkeyLoginMethod(
+        PasskeyFilterPaths filterPaths,
         JdbcWhoPasskeyUserRepository userRepository,
         JdbcWhoPasskeyCredentialRepository credentialRepository,
         WebAuthnRelyingPartyOperations relyingPartyOperations,
@@ -175,6 +182,8 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
         JsonMapper jsonMapper,
         Clock clock) {
       return new PasskeyLoginMethod(
+          WhoPaths.defaults(),
+          filterPaths,
           userRepository,
           credentialRepository,
           new WhoPasskeyAuthenticationProvider(
@@ -305,6 +314,8 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
 
   private PasskeyLoginMethod standalone() {
     return new PasskeyLoginMethod(
+        WhoPaths.defaults(),
+        new PasskeyFilterPaths(),
         mock(JdbcWhoPasskeyUserRepository.class),
         mock(JdbcWhoPasskeyCredentialRepository.class),
         mock(WhoPasskeyAuthenticationProvider.class),

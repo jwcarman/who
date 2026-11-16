@@ -282,7 +282,7 @@ class PasskeySignInTest {
   }
 
   private static MvcResult creationOptions(Browser browser) throws Exception {
-    return browser.performWithCsrf(post("/webauthn/register/options"));
+    return browser.performWithCsrf(post("/who/passkey/register/options"));
   }
 
   private static String creationOptionsJson(Browser browser) throws Exception {
@@ -292,7 +292,7 @@ class PasskeySignInTest {
   }
 
   private static MvcResult register(Browser browser, String body) throws Exception {
-    return browser.performWithCsrf(json(post("/webauthn/register")).content(body));
+    return browser.performWithCsrf(json(post("/who/passkey/register")).content(body));
   }
 
   /** Registers a passkey on the device from the signed-in browser. */
@@ -304,13 +304,13 @@ class PasskeySignInTest {
   }
 
   private static String requestOptionsJson(Browser browser) throws Exception {
-    MvcResult options = browser.performWithCsrf(post("/webauthn/authenticate/options"));
+    MvcResult options = browser.performWithCsrf(post("/who/passkey/sign-in/options"));
     assertThat(options.getResponse().getStatus()).isEqualTo(200);
     return options.getResponse().getContentAsString();
   }
 
   private static MvcResult signInWithPasskey(Browser browser, String assertion) throws Exception {
-    return browser.performWithCsrf(json(post("/login/webauthn")).content(assertion));
+    return browser.performWithCsrf(json(post("/who/passkey/sign-in")).content(assertion));
   }
 
   private static MvcResult signInWithPasskey(Browser browser, PasskeyDevice device)
@@ -362,6 +362,19 @@ class PasskeySignInTest {
   }
 
   // ---------------------------------------------------------------- the flow
+
+  @Test
+  void theOldEndpointsAreGone() throws Exception {
+    MvcResult signInOptions =
+        new Browser(mvc).performWithCsrf(post("/webauthn/authenticate/options"));
+    MvcResult registrationOptions =
+        signedInByEmail(OWNER).performWithCsrf(post("/webauthn/register/options"));
+
+    for (MvcResult old : List.of(signInOptions, registrationOptions)) {
+      assertThat(old.getResponse().getStatus()).isIn(401, 403, 404);
+      assertThat(old.getResponse().getContentAsString()).doesNotContain("challenge");
+    }
+  }
 
   @Test
   void registerThenSignInEndToEnd() throws Exception {
@@ -522,11 +535,11 @@ class PasskeySignInTest {
     assertThat(laptopSession.me()).isEqualTo(401);
     assertInvalidCredential(signInWithPasskey(new Browser(mvc), laptop));
 
-    // through Spring's DELETE /webauthn/register/{id}, from the passkey's own session
+    // through Spring's DELETE /who/passkey/register/{id}, from the passkey's own session
     Browser phoneSession = new Browser(mvc);
     assertSignedInAs(signInWithPasskey(phoneSession, phone), owner);
     MvcResult deleted =
-        phoneSession.performWithCsrf(delete("/webauthn/register/" + phone.credentialId()));
+        phoneSession.performWithCsrf(delete("/who/passkey/register/" + phone.credentialId()));
     assertThat(deleted.getResponse().getStatus()).isEqualTo(204);
     assertThat(phoneSession.me()).isEqualTo(401);
     assertThat(
@@ -556,7 +569,7 @@ class PasskeySignInTest {
     assertThat(listed.credentialId()).isEqualTo(device.credentialId());
 
     MvcResult deleted =
-        browser.performWithCsrf(delete("/webauthn/register/" + listed.credentialId()));
+        browser.performWithCsrf(delete("/who/passkey/register/" + listed.credentialId()));
 
     assertThat(deleted.getResponse().getStatus()).isEqualTo(204);
     assertThat(passkeyService.list(owner.id())).isEmpty();
@@ -569,12 +582,12 @@ class PasskeySignInTest {
     Browser intruder = signedInByEmail(OTHER);
     // with and without a passkey user entity of its own
     MvcResult refused =
-        intruder.performWithCsrf(delete("/webauthn/register/" + ownerDevice.credentialId()));
+        intruder.performWithCsrf(delete("/who/passkey/register/" + ownerDevice.credentialId()));
     assertThat(refused.getResponse().getStatus()).isEqualTo(403);
     registerPasskey(intruder, new PasskeyDevice(ORIGIN), "Intruder");
 
     MvcResult refusedAgain =
-        intruder.performWithCsrf(delete("/webauthn/register/" + ownerDevice.credentialId()));
+        intruder.performWithCsrf(delete("/who/passkey/register/" + ownerDevice.credentialId()));
 
     assertThat(refusedAgain.getResponse().getStatus()).isEqualTo(403);
     assertSignedInAs(signInWithPasskey(new Browser(mvc), ownerDevice), owner);

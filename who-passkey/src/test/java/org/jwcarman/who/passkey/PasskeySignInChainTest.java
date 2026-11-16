@@ -45,6 +45,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.SignInFailedException;
@@ -238,7 +239,13 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
     }
 
     @Bean
+    static PasskeyFilterPaths passkeyFilterPaths() {
+      return new PasskeyFilterPaths();
+    }
+
+    @Bean
     PasskeyLoginMethod passkeyLoginMethod(
+        PasskeyFilterPaths filterPaths,
         JdbcWhoPasskeyUserRepository userRepository,
         JdbcWhoPasskeyCredentialRepository credentialRepository,
         WebAuthnRelyingPartyOperations relyingPartyOperations,
@@ -247,6 +254,8 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
         JsonMapper jsonMapper,
         Clock clock) {
       return new PasskeyLoginMethod(
+          WhoPaths.defaults(),
+          filterPaths,
           userRepository,
           credentialRepository,
           new WhoPasskeyAuthenticationProvider(
@@ -316,14 +325,14 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
   }
 
   private String requestOptions() throws Exception {
-    MockHttpServletResponse options = perform(post("/webauthn/authenticate/options").with(csrf()));
+    MockHttpServletResponse options = perform(post("/who/passkey/sign-in/options").with(csrf()));
     assertThat(options.getStatus()).isEqualTo(200);
     return options.getContentAsString();
   }
 
   private MockHttpServletResponse signIn(String assertion) throws Exception {
     return perform(
-        post("/login/webauthn")
+        post("/who/passkey/sign-in")
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(assertion));
@@ -417,7 +426,7 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
 
     MockHttpServletResponse deleted =
         perform(
-            delete("/webauthn/register/" + registered.getCredentialId().toBase64UrlString())
+            delete("/who/passkey/register/" + registered.getCredentialId().toBase64UrlString())
                 .with(csrf()));
 
     assertThat(deleted.getStatus()).isEqualTo(204);

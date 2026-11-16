@@ -38,6 +38,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
@@ -54,8 +55,8 @@ class PasskeyRegistrationGuardFilterTest {
 
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
   private static final Duration WINDOW = Duration.ofMinutes(10);
-  private static final String OPTIONS = "/webauthn/register/options";
-  private static final String REGISTER = "/webauthn/register";
+  private static final String OPTIONS = "/who/passkey/register/options";
+  private static final String REGISTER = "/who/passkey/register";
 
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
   private final WhoSessionSecurityContextRepository sessions =
@@ -67,7 +68,11 @@ class PasskeyRegistrationGuardFilterTest {
   private final List<Exception> handedOff = new ArrayList<>();
   private final PasskeyRegistrationGuardFilter guard =
       new PasskeyRegistrationGuardFilter(
-          sessions, clock, WINDOW, new WhoExceptionHandoff((req, res, e) -> !handedOff.add(e)));
+          WhoPaths.defaults(),
+          sessions,
+          clock,
+          WINDOW,
+          new WhoExceptionHandoff((req, res, e) -> !handedOff.add(e)));
 
   private final MockHttpServletResponse response = new MockHttpServletResponse();
   private final AtomicBoolean reachedChain = new AtomicBoolean();
@@ -248,8 +253,8 @@ class PasskeyRegistrationGuardFilterTest {
     "GET," + OPTIONS,
     "DELETE," + REGISTER + "/abc",
     "POST," + REGISTER + "/abc",
-    "POST,/webauthn/authenticate/options",
-    "POST,/login/webauthn",
+    "POST,/who/passkey/sign-in/options",
+    "POST,/who/passkey/sign-in",
     "POST,/who/email/send",
   })
   void guardIgnoresEverythingElse(String method, String path) throws ServletException, IOException {

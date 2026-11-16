@@ -59,7 +59,7 @@ final class PasskeyEmulator {
     return new PasskeyEmulator(origin, false);
   }
 
-  /** Answers the options, as {@code POST /webauthn/register} would carry it. */
+  /** Answers the options, as {@code POST /who/passkey/register} would carry it. */
   RelyingPartyRegistrationRequest register(
       PublicKeyCredentialCreationOptions options, String label) {
     EmulatedAuthenticator.Attestation attestation =
@@ -86,7 +86,7 @@ final class PasskeyEmulator {
 
   /**
    * Answers the request options with a credential this device registered, as {@code POST
-   * /login/webauthn} would carry it. The device verifies the user unless it was made {@link
+   * /who/passkey/sign-in} would carry it. The device verifies the user unless it was made {@link
    * #withoutUserVerification(String) without user verification}.
    */
   RelyingPartyAuthenticationRequest authenticate(PublicKeyCredentialRequestOptions options) {
@@ -103,8 +103,9 @@ final class PasskeyEmulator {
   }
 
   /**
-   * Answers the JSON of {@code POST /webauthn/authenticate/options} as {@code
-   * navigator.credentials.get()} would, and returns the JSON body for {@code POST /login/webauthn}.
+   * Answers the JSON of {@code POST /who/passkey/sign-in/options} as {@code
+   * navigator.credentials.get()} would, and returns the JSON body for {@code POST
+   * /who/passkey/sign-in}.
    */
   String signIn(String requestOptionsJson) {
     JsonMapper json = JsonMapper.builder().build();
