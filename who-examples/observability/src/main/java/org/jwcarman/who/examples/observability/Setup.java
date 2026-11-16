@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.examples.observability;
 
+import java.util.List;
+
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
@@ -28,14 +30,21 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The one person this example signs in: {@value #DEMO_EMAIL}, holding both of the API's
- * permissions. An example shortcut; a real application decides who may sign in.
+ * The people this example signs in, each holding both of the API's permissions: {@value
+ * #DEMO_EMAIL} for the page, and two for the traffic generator. An example shortcut; a real
+ * application decides who may sign in.
  */
 @Component
 class Setup implements ApplicationRunner {
 
   /** The demo person's address. Every sign-in email lands in Mailpit. */
   static final String DEMO_EMAIL = "demo@example.com";
+
+  /** The traffic generator's own person: it signs in by code and owns the generator's keys. */
+  static final String TRAFFIC_EMAIL = "traffic@example.com";
+
+  /** The person the traffic generator signs in as with wrong codes. */
+  static final String WRONG_CODE_EMAIL = "wrong-code@example.com";
 
   /** The role that holds the API's permissions. */
   static final String ROLE = "DEMO";
@@ -60,11 +69,13 @@ class Setup implements ApplicationRunner {
       rbacService.addPermissionToRole(role, Permissions.GREETING_READ);
       rbacService.addPermissionToRole(role, Permissions.GREETING_WRITE);
     }
-    if (emailCredentials.findByAddress(DEMO_EMAIL).isEmpty()) {
-      Identity identity = whoService.createIdentity();
-      emailCredentials.register(identity, DEMO_EMAIL);
-      rbacService.assignRoleByName(identity, ROLE);
-      log.info("Created {}: sign in with an email code", DEMO_EMAIL);
+    for (String address : List.of(DEMO_EMAIL, TRAFFIC_EMAIL, WRONG_CODE_EMAIL)) {
+      if (emailCredentials.findByAddress(address).isEmpty()) {
+        Identity identity = whoService.createIdentity();
+        emailCredentials.register(identity, address);
+        rbacService.assignRoleByName(identity, ROLE);
+        log.info("Created {}", address);
+      }
     }
   }
 }
