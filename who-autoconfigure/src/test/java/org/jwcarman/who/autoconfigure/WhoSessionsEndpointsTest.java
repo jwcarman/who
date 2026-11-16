@@ -209,7 +209,7 @@ class WhoSessionsEndpointsTest {
     Browser phone = new Browser().signIn();
     assertThat(phone.sessions())
         .hasSize(2)
-        .allSatisfy(s -> assertThat(s.get("device")).isEqualTo("Firefox on Linux"));
+        .allSatisfy(s -> assertThat(s).containsEntry("device", "Firefox on Linux"));
 
     assertThat(
             laptop

@@ -358,7 +358,7 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     MockFilterChain next = new MockFilterChain();
     try {
       filter.doFilter(request, new MockHttpServletResponse(), next);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException _) {
       return true;
     }
     return next.getRequest() == null;

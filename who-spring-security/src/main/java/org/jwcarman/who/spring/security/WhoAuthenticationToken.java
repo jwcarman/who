@@ -200,6 +200,6 @@ public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), credentialId, signInMethod, signInFactor);
+    return Objects.hash(super.hashCode(), credentialId, signInMethod);
   }
 }

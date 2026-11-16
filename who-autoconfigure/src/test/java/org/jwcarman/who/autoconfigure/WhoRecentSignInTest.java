@@ -238,7 +238,7 @@ class WhoRecentSignInTest {
     String recover() {
       try {
         return guarded.make();
-      } catch (InsufficientUserAuthenticationException e) {
+      } catch (InsufficientUserAuthenticationException _) {
         return "recovered";
       }
     }

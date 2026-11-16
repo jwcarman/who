@@ -78,9 +78,9 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
   /** Confirms a link, below the root. */
   static final String LINK = "/oidc/link";
 
-  private final RequestMatcher pending;
-  private final RequestMatcher signUp;
-  private final RequestMatcher link;
+  private final RequestMatcher pendingRequest;
+  private final RequestMatcher signUpRequest;
+  private final RequestMatcher linkRequest;
   private final OidcSignUpService signUpService;
   private final IdentityRepository identities;
   private final WhoSessionSecurityContextRepository sessions;
@@ -121,9 +121,9 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
       Duration linkWindow) {
     requireNonNull(paths, "paths must not be null");
     PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
-    this.pending = matchers.matcher(HttpMethod.GET, paths.of(PENDING));
-    this.signUp = matchers.matcher(HttpMethod.POST, paths.of(SIGN_UP));
-    this.link = matchers.matcher(HttpMethod.POST, paths.of(LINK));
+    this.pendingRequest = matchers.matcher(HttpMethod.GET, paths.of(PENDING));
+    this.signUpRequest = matchers.matcher(HttpMethod.POST, paths.of(SIGN_UP));
+    this.linkRequest = matchers.matcher(HttpMethod.POST, paths.of(LINK));
     this.signUpService = requireNonNull(signUpService, "signUpService must not be null");
     this.identities = requireNonNull(identities, "identities must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
@@ -138,16 +138,18 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !pending.matches(request) && !signUp.matches(request) && !link.matches(request);
+    return !pendingRequest.matches(request)
+        && !signUpRequest.matches(request)
+        && !linkRequest.matches(request);
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    if (pending.matches(request)) {
+    if (pendingRequest.matches(request)) {
       describe(request, response);
-    } else if (signUp.matches(request)) {
+    } else if (signUpRequest.matches(request)) {
       signUp(request, response);
     } else {
       link(request, response);

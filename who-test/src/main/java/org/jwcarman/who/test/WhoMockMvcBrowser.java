@@ -138,7 +138,7 @@ public class WhoMockMvcBrowser {
               + " WebApplicationContext");
     }
     WhoSession whoSession =
-        WhoTestSessions.record(
+        WhoTestSessions.recordSignIn(
             context.getBean(WhoSessions.class), identityId, credentialId, signedInAt);
     Optional<Cookie> sessionCookie =
         SPRING_SESSION_PRESENT ? SpringSessionSignIn.signIn(context, whoSession) : Optional.empty();

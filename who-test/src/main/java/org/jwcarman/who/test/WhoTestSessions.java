@@ -54,7 +54,7 @@ public final class WhoTestSessions {
    * @return a new session, to pass to {@code MockHttpServletRequestBuilder.session(...)}
    */
   public static MockHttpSession signedIn(WhoSessions sessions, UUID identityId, UUID credentialId) {
-    return session(record(sessions, identityId, credentialId, null));
+    return session(recordSignIn(sessions, identityId, credentialId, null));
   }
 
   /**
@@ -71,7 +71,7 @@ public final class WhoTestSessions {
   public static MockHttpSession signedIn(
       WhoSessions sessions, UUID identityId, UUID credentialId, Instant signedInAt) {
     return session(
-        record(
+        recordSignIn(
             sessions,
             identityId,
             credentialId,
@@ -79,7 +79,7 @@ public final class WhoTestSessions {
   }
 
   /** Records a sign-in by email code and returns what the HTTP session holds for it. */
-  static WhoSession record(
+  static WhoSession recordSignIn(
       WhoSessions sessions, UUID identityId, UUID credentialId, Instant signedInAt) {
     requireNonNull(sessions, "sessions must not be null");
     SessionRecord row =

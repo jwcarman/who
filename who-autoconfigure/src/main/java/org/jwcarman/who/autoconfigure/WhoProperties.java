@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
@@ -46,7 +47,7 @@ public class WhoProperties {
   /**
    * The root every who endpoint lives under, such as {@code /who} (the default) or {@code /auth}.
    */
-  private String basePath = "/who";
+  private String basePath = WhoPaths.DEFAULT_ROOT;
 
   private Enrollment enrollment = new Enrollment();
   private ApiKey apiKey = new ApiKey();

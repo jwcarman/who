@@ -337,6 +337,9 @@ public class WhoSpringSecurityAutoConfiguration {
   @ConditionalOnClass(name = "org.jwcarman.who.spring.security.RequiresRecentSignIn")
   static class RecentSignInMethodSecurityConfiguration {
 
+    // only a static bean method: Spring creates this class, nothing else should
+    RecentSignInMethodSecurityConfiguration() {}
+
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     static Advisor whoRecentSignInInterceptor(

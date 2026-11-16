@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "who.base-path",
+      "defaultValue": "/who"
+    }
+  ]
+}

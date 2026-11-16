@@ -70,7 +70,7 @@ class WhoSessionsTest {
 
   private final WhoSessions sessions = sessions(false);
 
-  private SessionRecord record(Instant lastSeenAt, Instant endedAt) {
+  private SessionRecord sessionRecord(Instant lastSeenAt, Instant endedAt) {
     return new SessionRecord(
         UUID.randomUUID(),
         identityId,
@@ -146,7 +146,7 @@ class WhoSessionsTest {
   @Test
   void a_busy_session_whose_last_write_lags_is_still_live() {
     // used every few minutes, but last written just over the idle timeout ago
-    SessionRecord busy = stored(record(NOW.minus(IDLE).minusSeconds(60), null));
+    SessionRecord busy = stored(sessionRecord(NOW.minus(IDLE).minusSeconds(60), null));
 
     assertThat(sessions.findLive(busy.id())).contains(busy);
   }
@@ -179,8 +179,8 @@ class WhoSessionsTest {
 
   @Test
   void an_idle_session_is_not_live() {
-    SessionRecord idle = stored(record(DEAD_BEFORE.minusSeconds(1), null));
-    SessionRecord recent = stored(record(DEAD_BEFORE.plusSeconds(1), null));
+    SessionRecord idle = stored(sessionRecord(DEAD_BEFORE.minusSeconds(1), null));
+    SessionRecord recent = stored(sessionRecord(DEAD_BEFORE.plusSeconds(1), null));
 
     assertThat(sessions.findLive(idle.id())).isEmpty();
     assertThat(sessions.findLive(recent.id())).contains(recent);
@@ -188,7 +188,7 @@ class WhoSessionsTest {
 
   @Test
   void an_ended_or_unknown_session_is_not_live() {
-    SessionRecord ended = stored(record(NOW, NOW));
+    SessionRecord ended = stored(sessionRecord(NOW, NOW));
 
     assertThat(sessions.findLive(ended.id())).isEmpty();
     assertThat(sessions.findLive(UUID.randomUUID())).isEmpty();
@@ -196,14 +196,14 @@ class WhoSessionsTest {
 
   @Test
   void seen_does_not_write_within_the_interval() {
-    sessions.seen(record(NOW.minus(SEEN).plusSeconds(1), null));
+    sessions.seen(sessionRecord(NOW.minus(SEEN).plusSeconds(1), null));
 
     verify(repository, never()).touch(any(), any(), any());
   }
 
   @Test
   void seen_writes_after_the_interval() {
-    SessionRecord session = record(NOW.minus(SEEN).minusSeconds(1), null);
+    SessionRecord session = sessionRecord(NOW.minus(SEEN).minusSeconds(1), null);
 
     sessions.seen(session);
 
@@ -212,7 +212,7 @@ class WhoSessionsTest {
 
   @Test
   void list_reads_live_sessions() {
-    List<SessionRecord> live = List.of(record(NOW, null));
+    List<SessionRecord> live = List.of(sessionRecord(NOW, null));
     when(repository.findLiveByIdentity(identityId, DEAD_BEFORE)).thenReturn(live);
 
     assertThat(sessions.list(identityId)).isEqualTo(live);
@@ -220,7 +220,7 @@ class WhoSessionsTest {
 
   @Test
   void end_publishes_revoked() {
-    SessionRecord session = stored(record(NOW, null));
+    SessionRecord session = stored(sessionRecord(NOW, null));
     when(repository.end(session.id(), NOW)).thenReturn(true);
 
     assertThat(sessions.end(session.id())).isTrue();
@@ -232,8 +232,8 @@ class WhoSessionsTest {
 
   @Test
   void ending_a_dead_session_does_nothing() {
-    SessionRecord ended = stored(record(NOW, NOW));
-    SessionRecord idle = stored(record(NOW.minus(Duration.ofHours(1)), null));
+    SessionRecord ended = stored(sessionRecord(NOW, NOW));
+    SessionRecord idle = stored(sessionRecord(NOW.minus(Duration.ofHours(1)), null));
 
     assertThat(sessions.end(ended.id())).isFalse();
     assertThat(sessions.end(idle.id())).isFalse();
@@ -244,7 +244,7 @@ class WhoSessionsTest {
 
   @Test
   void a_session_ended_by_a_concurrent_call_publishes_nothing() {
-    SessionRecord session = stored(record(NOW, null));
+    SessionRecord session = stored(sessionRecord(NOW, null));
     when(repository.end(session.id(), NOW)).thenReturn(false);
 
     assertThat(sessions.end(session.id())).isFalse();
@@ -253,7 +253,7 @@ class WhoSessionsTest {
 
   @Test
   void end_all_ends_every_live_session() {
-    List<SessionRecord> live = List.of(record(NOW, null), record(NOW, null));
+    List<SessionRecord> live = List.of(sessionRecord(NOW, null), sessionRecord(NOW, null));
     when(repository.findLiveByIdentity(identityId, DEAD_BEFORE)).thenReturn(live);
     live.forEach(s -> when(repository.end(s.id(), NOW)).thenReturn(true));
 
@@ -263,8 +263,8 @@ class WhoSessionsTest {
 
   @Test
   void end_all_except_keeps_one() {
-    SessionRecord keep = record(NOW, null);
-    List<SessionRecord> live = List.of(record(NOW, null), keep, record(NOW, null));
+    SessionRecord keep = sessionRecord(NOW, null);
+    List<SessionRecord> live = List.of(sessionRecord(NOW, null), keep, sessionRecord(NOW, null));
     when(repository.findLiveByIdentity(identityId, DEAD_BEFORE)).thenReturn(live);
     live.forEach(s -> when(repository.end(s.id(), NOW)).thenReturn(true));
 

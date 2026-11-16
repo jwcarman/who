@@ -210,7 +210,7 @@ class WhoSecurityAllTest {
     String recover() {
       try {
         return recentAction.run();
-      } catch (InsufficientUserAuthenticationException e) {
+      } catch (InsufficientUserAuthenticationException _) {
         return "recovered";
       }
     }

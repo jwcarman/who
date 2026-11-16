@@ -175,7 +175,7 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
     Instant authTime;
     try {
       authTime = jwt.getClaimAsInstant(AUTH_TIME);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException _) {
       // IllegalArgumentException for a string, ConversionFailedException for a number too large
       log.warn("JWT auth_time is not a time; treating it as absent");
       return Optional.empty();

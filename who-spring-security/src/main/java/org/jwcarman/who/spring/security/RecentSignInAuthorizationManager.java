@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -62,6 +63,9 @@ import org.springframework.security.core.authority.FactorGrantedAuthority;
  * factor who stamps, each requiring that factor within the window.
  */
 public final class RecentSignInAuthorizationManager implements AuthorizationManager<Object> {
+
+  /** Stands in for a missing secured object, which the factor check never reads. */
+  private static final Object NO_OBJECT = new Object();
 
   private static final Logger log = LoggerFactory.getLogger(RecentSignInAuthorizationManager.class);
 
@@ -153,7 +157,9 @@ public final class RecentSignInAuthorizationManager implements AuthorizationMana
     }
     Authentication onlyTheFactor =
         UsernamePasswordAuthenticationToken.authenticated("factor", null, List.of(factor));
-    FactorAuthorizationDecision decision = manager.authorize(() -> onlyTheFactor, object);
+    // the factor check never reads the secured object, but Spring's signature takes no null
+    FactorAuthorizationDecision decision =
+        manager.authorize(() -> onlyTheFactor, Objects.requireNonNullElse(object, NO_OBJECT));
     return decision.isGranted();
   }
 

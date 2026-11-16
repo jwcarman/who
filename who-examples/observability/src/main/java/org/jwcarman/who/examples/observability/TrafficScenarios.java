@@ -45,6 +45,10 @@ import org.springframework.web.client.RestClient;
 @Component
 class TrafficScenarios {
 
+  private static final String SEND_CODE = "/who/email/send";
+  private static final String SIGN_IN = "/who/email/sign-in";
+  private static final String EMAIL = "email";
+
   private static final String XSRF_COOKIE = "XSRF-TOKEN";
 
   private final RestClient.Builder clients;
@@ -99,10 +103,8 @@ class TrafficScenarios {
       case UNKNOWN_KEY -> readGreeting("who_not-a-key-who-issued");
       case REVOKED_KEY -> revokedKey();
       case EXPIRED_KEY -> readGreeting(expiredKey().key());
-      case CODE_FOR_KNOWN_ADDRESS ->
-          new Browser().post("/who/email/send", email(Setup.TRAFFIC_EMAIL));
-      case CODE_FOR_UNKNOWN_ADDRESS ->
-          new Browser().post("/who/email/send", email("nobody@example.com"));
+      case CODE_FOR_KNOWN_ADDRESS -> new Browser().post(SEND_CODE, email(Setup.TRAFFIC_EMAIL));
+      case CODE_FOR_UNKNOWN_ADDRESS -> new Browser().post(SEND_CODE, email("nobody@example.com"));
       case WRONG_CODE -> wrongCode();
       case CODE_SIGN_IN -> codeSignIn();
     };
@@ -136,20 +138,18 @@ class TrafficScenarios {
 
   private int wrongCode() {
     Browser browser = new Browser();
-    browser.post("/who/email/send", email(Setup.WRONG_CODE_EMAIL));
-    return browser.post(
-        "/who/email/sign-in", Map.of("email", Setup.WRONG_CODE_EMAIL, "code", "000-000"));
+    browser.post(SEND_CODE, email(Setup.WRONG_CODE_EMAIL));
+    return browser.post(SIGN_IN, Map.of(EMAIL, Setup.WRONG_CODE_EMAIL, "code", "000-000"));
   }
 
   private int codeSignIn() {
     Browser browser = new Browser();
-    browser.post("/who/email/send", email(Setup.TRAFFIC_EMAIL));
+    browser.post(SEND_CODE, email(Setup.TRAFFIC_EMAIL));
     String code =
         mailpit
             .latestCode(Setup.TRAFFIC_EMAIL)
             .orElseThrow(() -> new IllegalStateException("No sign-in email in Mailpit yet"));
-    int status =
-        browser.post("/who/email/sign-in", Map.of("email", Setup.TRAFFIC_EMAIL, "code", code));
+    int status = browser.post(SIGN_IN, Map.of(EMAIL, Setup.TRAFFIC_EMAIL, "code", code));
     if (status == 200) {
       browser.get("/who/me");
       browser.post("/who/logout", null);
@@ -202,7 +202,7 @@ class TrafficScenarios {
   }
 
   private static Map<String, String> email(String address) {
-    return Map.of("email", address);
+    return Map.of(EMAIL, address);
   }
 
   private static void sleep(Duration duration) {

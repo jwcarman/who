@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 /** HTTP metrics say whether the generator or a person made the request. */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -57,7 +58,7 @@ class TrafficTagTest extends AbstractObservabilityTest {
 
   private double count(String traffic) {
     return meters.find("http.server.requests").tag("traffic", traffic).timers().stream()
-        .mapToDouble(t -> t.count())
+        .mapToDouble(Timer::count)
         .sum();
   }
 }

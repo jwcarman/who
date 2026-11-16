@@ -21,30 +21,28 @@ import static java.util.Objects.requireNonNull;
  * Where every who endpoint lives: one root, such as {@code /who} (the default) or {@code /auth},
  * and each endpoint's path below it. Sign-in methods, who's own filters and {@code /me} all take
  * their paths from here, so they cannot disagree.
+ *
+ * @param root a path such as {@code /who}: starting with {@code /}, not ending with one, and with
+ *     no wildcard, template, query, fragment, parameter or whitespace characters
  */
-public final class WhoPaths {
+public record WhoPaths(String root) {
 
   /** The root when none is configured. */
   public static final String DEFAULT_ROOT = "/who";
 
   private static final String FORBIDDEN = "*{}?#;";
 
-  private final String root;
-
   /**
    * Creates the paths under {@code root}.
    *
-   * @param root a path such as {@code /who}: starting with {@code /}, not ending with one, and with
-   *     no wildcard, template, query, fragment, parameter or whitespace characters
    * @throws IllegalArgumentException when {@code root} is not such a path
    */
-  public WhoPaths(String root) {
+  public WhoPaths {
     requireNonNull(root, "root must not be null");
     String problem = problem(root);
     if (problem != null) {
       throw new IllegalArgumentException("\"" + root + "\" " + problem);
     }
-    this.root = root;
   }
 
   /**
@@ -54,15 +52,6 @@ public final class WhoPaths {
    */
   public static WhoPaths defaults() {
     return new WhoPaths(DEFAULT_ROOT);
-  }
-
-  /**
-   * Returns the root.
-   *
-   * @return the root, such as {@code /who}
-   */
-  public String root() {
-    return root;
   }
 
   /**
@@ -99,16 +88,7 @@ public final class WhoPaths {
     return null;
   }
 
-  @Override
-  public boolean equals(Object other) {
-    return other instanceof WhoPaths paths && root.equals(paths.root);
-  }
-
-  @Override
-  public int hashCode() {
-    return root.hashCode();
-  }
-
+  /** Returns the root, as the paths print in logs and messages. */
   @Override
   public String toString() {
     return root;
