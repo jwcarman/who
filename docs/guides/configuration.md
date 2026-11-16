@@ -35,6 +35,7 @@
 | `who.email-link.code-max-attempts` | `5` | Wrong guesses a sign-in code survives before it is burnt. The link still works. At least 1 |
 | `who.email-link.code-secret` | none | Secret that keys the code hash. Required with `who-email-link`, at least 32 characters, the same on every instance. Never stored in the database |
 | `who.turnstile.secret-key` | none | The Turnstile widget's secret key. Required with `who-turnstile`: a missing, blank or unresolved value fails startup. See [Human check](email-links.md#human-check) |
+| `who.turnstile.verify-url` | `https://challenges.cloudflare.com/turnstile/v0/siteverify` | Where tokens are verified. Point it at a stand-in, such as WireMock, in tests. An absolute `http` or `https` URL; anything else fails startup |
 | `who.turnstile.hostnames` | none | Hostnames a Turnstile token may be made on. Empty accepts any |
 | `who.turnstile.timeout` | `3s` | How long to wait for Cloudflare, to connect and to answer |
 | `who.turnstile.fail-open` | `false` | Lets requests through when Cloudflare cannot be reached or answers an error. A token Cloudflare refuses always fails |

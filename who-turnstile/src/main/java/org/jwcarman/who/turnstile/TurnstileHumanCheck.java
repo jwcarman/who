@@ -17,6 +17,7 @@ package org.jwcarman.who.turnstile;
 
 import static java.util.Objects.requireNonNull;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -45,8 +46,8 @@ import org.springframework.web.client.RestClientException;
  */
 public final class TurnstileHumanCheck implements WhoHumanCheck {
 
-  /** Cloudflare's siteverify endpoint. */
-  public static final String VERIFY_URL =
+  /** Cloudflare's siteverify endpoint, the default verify URL. */
+  public static final String DEFAULT_VERIFY_URL =
       "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
   private static final Logger log = LoggerFactory.getLogger(TurnstileHumanCheck.class);
@@ -55,6 +56,7 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
       new ParameterizedTypeReference<>() {};
 
   private final RestClient restClient;
+  private final URI verifyUrl;
   private final String secretKey;
   private final Set<String> hostnames;
   private final boolean failOpen;
@@ -63,14 +65,21 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
    * Creates the check.
    *
    * @param restClient calls Cloudflare; its timeouts bound how long a request waits
+   * @param verifyUrl the siteverify endpoint, normally {@link #DEFAULT_VERIFY_URL}; another for a
+   *     stand-in in tests
    * @param secretKey the widget's secret key
    * @param hostnames the hostnames a token may be made on; empty for any
    * @param failOpen true to let requests through when Cloudflare cannot be reached or answers an
    *     error
    */
   public TurnstileHumanCheck(
-      RestClient restClient, String secretKey, Set<String> hostnames, boolean failOpen) {
+      RestClient restClient,
+      URI verifyUrl,
+      String secretKey,
+      Set<String> hostnames,
+      boolean failOpen) {
     this.restClient = requireNonNull(restClient, "restClient must not be null");
+    this.verifyUrl = requireNonNull(verifyUrl, "verifyUrl must not be null");
     this.secretKey = requireNonNull(secretKey, "secretKey must not be null");
     this.hostnames = Set.copyOf(requireNonNull(hostnames, "hostnames must not be null"));
     this.failOpen = failOpen;
@@ -103,7 +112,7 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
       return Optional.ofNullable(
           restClient
               .post()
-              .uri(VERIFY_URL)
+              .uri(verifyUrl)
               .contentType(MediaType.APPLICATION_FORM_URLENCODED)
               // written as raw bytes: a form map would pass through Spring's message converters,
               // which log the body, secret and token included, at DEBUG

@@ -17,11 +17,18 @@ package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Optional;
+
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.jwcarman.who.spring.security.HumanCheckRequest;
 import org.jwcarman.who.spring.security.WhoHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileHumanCheck;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -30,6 +37,8 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import com.sun.net.httpserver.HttpServer;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoTurnstileAutoConfigurationTest {
@@ -86,6 +95,84 @@ class WhoTurnstileAutoConfigurationTest {
                     .isInstanceOfSatisfying(
                         WhoConfigurationException.class,
                         e -> assertThat(e.property()).isEqualTo("who.turnstile.timeout")));
+  }
+
+  /**
+   * A local siteverify that answers after {@code delay}, saying the token is good for email-send.
+   */
+  private static HttpServer siteverify(Duration delay) throws IOException {
+    HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/siteverify",
+        exchange -> {
+          try {
+            Thread.sleep(delay);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] body =
+              "{\"success\":true,\"action\":\"email-send\"}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          exchange.getResponseBody().write(body);
+          exchange.close();
+        });
+    server.start();
+    return server;
+  }
+
+  private static String verifyUrl(HttpServer server) {
+    return "who.turnstile.verify-url=http://127.0.0.1:"
+        + server.getAddress().getPort()
+        + "/siteverify";
+  }
+
+  private static final HumanCheckRequest SEND =
+      new HumanCheckRequest(Optional.of("tok"), "203.0.113.7", "email-send");
+
+  @Test
+  void the_check_asks_the_configured_verify_url() throws IOException {
+    HttpServer server = siteverify(Duration.ZERO);
+    try {
+      runner
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isTrue());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void the_configured_timeout_bounds_the_wait() throws IOException {
+    HttpServer server = siteverify(Duration.ofSeconds(2));
+    try {
+      runner
+          .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
+          .run(
+              context -> {
+                long start = System.nanoTime();
+                assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse();
+                assertThat(Duration.ofNanos(System.nanoTime() - start))
+                    .isLessThan(Duration.ofSeconds(1));
+              });
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"not a url", "/siteverify", "ftp://example.com/siteverify"})
+  void a_verify_url_that_is_not_http_fails_startup(String url) {
+    runner
+        .withPropertyValues(SECRET, "who.turnstile.verify-url=" + url)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOfSatisfying(
+                        WhoConfigurationException.class,
+                        e -> assertThat(e.property()).isEqualTo("who.turnstile.verify-url")));
   }
 
   @Test

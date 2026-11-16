@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 
 import org.jwcarman.who.spring.security.WhoHumanCheck;
@@ -80,13 +82,36 @@ public class WhoTurnstileAutoConfiguration {
           "must be longer than zero",
           "Set how long to wait for Cloudflare, such as 3s, or leave it out.");
     }
+    URI verifyUrl = verifyUrl(properties.getVerifyUrl());
     SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
     requestFactory.setConnectTimeout(timeout);
     requestFactory.setReadTimeout(timeout);
     return new TurnstileHumanCheck(
         RestClient.builder().requestFactory(requestFactory).build(),
+        verifyUrl,
         secretKey.strip(),
         properties.getHostnames(),
         properties.isFailOpen());
+  }
+
+  /** The verify URL, which must be an absolute http or https URL. */
+  private static URI verifyUrl(String value) {
+    URI uri = null;
+    if (StringUtils.hasText(value)) {
+      try {
+        uri = new URI(value.strip());
+      } catch (URISyntaxException _) {
+        // reported below
+      }
+    }
+    if (uri == null
+        || uri.getHost() == null
+        || !("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()))) {
+      throw new WhoConfigurationException(
+          "who.turnstile.verify-url",
+          "must be an absolute http or https URL",
+          "Leave it out to use Cloudflare's siteverify, or point it at a stand-in in tests.");
+    }
+    return uri;
   }
 }

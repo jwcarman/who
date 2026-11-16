@@ -386,6 +386,8 @@ Turnstile also guards the page your sign-in links open, since it posts the link'
 
 A request with no token, a token Cloudflare refuses, a wrong action or a hostname not listed fails with `HumanCheckFailedException`: `403`, `Who-Error: human-check-failed`. The endpoint never runs, so no email is sent and no code is tried. When Cloudflare cannot be reached in time or answers an error, the request fails too, unless `fail-open: true`; with it, those requests go through, but a token Cloudflare refuses still fails.
 
+In your own tests, point `who.turnstile.verify-url` at a stand-in for Cloudflare, such as WireMock, that answers like siteverify: `{"success": true, "action": "email-send", "hostname": "app.example.com"}`.
+
 Cloudflare's test keys do not work with who. A test secret's answer carries no action, so who refuses every test token. Test with your own widget, with `localhost` among its hostnames.
 
 ### Behind a proxy

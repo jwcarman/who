@@ -838,6 +838,9 @@ public class WhoProperties {
     /** The widget's secret key, from the Cloudflare dashboard. Required. */
     private String secretKey;
 
+    /** Where to verify tokens: Cloudflare's siteverify, or a stand-in such as WireMock in tests. */
+    private String verifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
     /** The hostnames a token may be made on; empty accepts any. */
     private Set<String> hostnames = new LinkedHashSet<>();
 
@@ -881,6 +884,24 @@ public class WhoProperties {
      */
     public void setSecretKey(String secretKey) {
       this.secretKey = secretKey;
+    }
+
+    /**
+     * Returns where tokens are verified.
+     *
+     * @return the siteverify URL
+     */
+    public String getVerifyUrl() {
+      return verifyUrl;
+    }
+
+    /**
+     * Sets where tokens are verified, such as a stand-in in tests.
+     *
+     * @param verifyUrl an absolute http or https URL
+     */
+    public void setVerifyUrl(String verifyUrl) {
+      this.verifyUrl = verifyUrl;
     }
 
     /**
