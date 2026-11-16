@@ -1,6 +1,6 @@
 # Roadmap
 
-Where who is going after 0.17.0. Each release below is a theme, not a promise: order and scope
+Where who is going after 0.18.0. Each release below is a theme, not a promise: order and scope
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 
@@ -39,15 +39,18 @@ is a tag.
   `who-oidc`, on Spring's `oauth2Login`, sharing the `(issuer, subject)` credential with JWT
   sign-in (`JwtCredential` became `FederatedCredential`). Sign-up is closed until a
   `WhoSignUpPolicy` opens it, and linking is an explicit, confirmed step. Never by email address.
-- **Actuator `info` contributor** naming the sign-in methods that are on (moved from 0.17). Each
+- **Actuator `info` contributor** (moved to 0.19) naming the sign-in methods that are on (moved from 0.17). Each
   method now has its own switch, so this can report them.
-- **Recent sign-in (step-up).** Require a sign-in within the last N minutes before adding a
+- **Recent sign-in (step-up).** (Partly done in 0.18.0: `who.security.recent-sign-in` guards
+  adding a passkey, a provider account or an email address. The annotation moved to 0.19.) Require a sign-in within the last N minutes before adding a
   passkey, changing an address, creating an API key or deleting an account, for example
   `@RequiresRecentSignIn(minutes = 5)` beside `@RequiresPermission`.
-- **Changing an email address,** confirmed by a link or code sent to the new address.
-- **Sessions.** List an identity's sessions (device, last seen) and sign out one of them, beside
+- **Changing an email address,** confirmed by a link or code sent to the new address. (Done in
+  0.18.0: the old address is told of the change.)
+- **Sessions.** (Moved to 0.19.) List an identity's sessions (device, last seen) and sign out one of them, beside
   today's "sign out everywhere".
-- **Security notifications** for a changed address or a new API key, as `PasskeyAddedNotifier`
+- **Security notifications** (moved to 0.19; a changed address is notified since 0.18.0) for a
+  changed address or a new API key, as `PasskeyAddedNotifier`
   does for passkeys. Built on the 0.17 events.
 - **API keys that are ready for production.** (Done in 0.18.0, moved from 0.19: see [API
   Keys](docs/guides/api-keys.md).) Every key expires and records its last use; a key holds only

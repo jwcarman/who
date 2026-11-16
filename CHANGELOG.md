@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-16
+
 ### Breaking changes
 
 - `who-spring-boot-starter` brings the base only: `who-core`, `who-spring-security`, `who-jdbc`, `who-rbac` and the autoconfiguration. Add `who-email-link`, `who-passkey`, `who-apikey`, `who-jwt` or `who-enrollment` for each feature you use. See [Upgrading to 0.18.0](docs/guides/upgrading.md#upgrading-to-0180).
@@ -378,7 +380,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.17.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.18.0...HEAD
+[0.18.0]: https://github.com/jwcarman/who/releases/tag/0.18.0
 [0.17.0]: https://github.com/jwcarman/who/releases/tag/0.17.0
 [0.16.0]: https://github.com/jwcarman/who/releases/tag/0.16.0
 [0.15.0]: https://github.com/jwcarman/who/releases/tag/0.15.0
