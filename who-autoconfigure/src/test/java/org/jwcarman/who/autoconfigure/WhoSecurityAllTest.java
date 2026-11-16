@@ -46,8 +46,10 @@ import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.RequiresPermission;
+import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
+import org.jwcarman.who.spring.security.web.InsufficientUserAuthenticationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
@@ -94,6 +96,7 @@ class WhoSecurityAllTest {
 
   static final String ISSUER = "https://issuer.example.com";
   static final String GOOD_TOKEN = "good-token";
+  static final String STALE_TOKEN = "stale-token";
   static final String SUBJECT = "alice";
   static final String ADDRESS = "alice@example.com";
   static final List<EmailLinkMessage> SENT = new CopyOnWriteArrayList<>();
@@ -129,8 +132,13 @@ class WhoSecurityAllTest {
     }
 
     @Bean
-    PingController pingController() {
-      return new PingController();
+    PingController pingController(RecentAction recentAction) {
+      return new PingController(recentAction);
+    }
+
+    @Bean
+    RecentAction recentAction() {
+      return new RecentAction();
     }
 
     @Bean
@@ -147,10 +155,19 @@ class WhoSecurityAllTest {
   }
 
   static Jwt decode(String token) {
+    Instant now = Instant.now();
+    if (STALE_TOKEN.equals(token)) {
+      // signed in an hour ago: too long for a recent sign-in
+      return new Jwt(
+          token,
+          now,
+          now.plusSeconds(60),
+          Map.of("alg", "none"),
+          Map.of("iss", ISSUER, "sub", SUBJECT, "auth_time", now.minusSeconds(3600)));
+    }
     if (!GOOD_TOKEN.equals(token)) {
       throw new BadJwtException("not a good token");
     }
-    Instant now = Instant.now();
     return new Jwt(
         token,
         now,
@@ -159,8 +176,37 @@ class WhoSecurityAllTest {
         Map.of("iss", ISSUER, "sub", SUBJECT));
   }
 
+  /** A service method that needs a recent sign-in. */
+  static class RecentAction {
+    @RequiresRecentSignIn
+    String run() {
+      return "ran";
+    }
+  }
+
   @RestController
   static class PingController {
+
+    private final RecentAction recentAction;
+
+    PingController(RecentAction recentAction) {
+      this.recentAction = recentAction;
+    }
+
+    @GetMapping("/secure/recent")
+    String recent() {
+      return recentAction.run();
+    }
+
+    /** Calls the guarded method and, refused, answers something else, as an app may. */
+    @GetMapping("/secure/recover")
+    String recover() {
+      try {
+        return recentAction.run();
+      } catch (InsufficientUserAuthenticationException e) {
+        return "recovered";
+      }
+    }
 
     @GetMapping({"/open/ping", "/secure/ping"})
     String get(@AuthenticationPrincipal Object principal) {
@@ -210,6 +256,10 @@ class WhoSecurityAllTest {
 
   private HttpResponse<String> send(HttpRequest.Builder request) throws Exception {
     return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpRequest.Builder getting(String path) {
+    return HttpRequest.newBuilder(uri(path)).GET();
   }
 
   private HttpRequest.Builder post(String path) {
@@ -335,6 +385,32 @@ class WhoSecurityAllTest {
     void a_bogus_bearer_token_is_unauthorized() throws Exception {
       assertThat(send(post("/secure/ping").header("Authorization", "Bearer bogus")).statusCode())
           .isEqualTo(401);
+    }
+  }
+
+  @Nested
+  class Step_up_challenges {
+
+    @Test
+    void a_stale_bearer_token_gets_the_challenge_with_its_401() throws Exception {
+      HttpResponse<String> refused =
+          send(getting("/secure/recent").header("Authorization", "Bearer " + STALE_TOKEN));
+
+      assertThat(refused.statusCode()).isEqualTo(401);
+      assertThat(refused.headers().allValues("WWW-Authenticate"))
+          .singleElement()
+          .asString()
+          .contains("insufficient_user_authentication");
+    }
+
+    @Test
+    void a_refusal_the_app_recovers_from_sends_no_challenge() throws Exception {
+      HttpResponse<String> recovered =
+          send(getting("/secure/recover").header("Authorization", "Bearer " + STALE_TOKEN));
+
+      assertThat(recovered.statusCode()).isEqualTo(200);
+      assertThat(recovered.body()).isEqualTo("recovered");
+      assertThat(recovered.headers().allValues("WWW-Authenticate")).isEmpty();
     }
   }
 

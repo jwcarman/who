@@ -99,6 +99,33 @@ class StepUpChallengeFilterTest {
   }
 
   @Test
+  void an_answer_with_its_own_bearer_challenge_keeps_it() throws Exception {
+    String own = "Bearer error=\"insufficient_user_authentication\", scope=\"keys\"";
+    run(
+        (req, res) -> {
+          StepUpChallenges.offer(req, res, STEP_UP);
+          // as advice does with ResponseEntity.status(401).header(...): headers, then status
+          res.setHeader(HttpHeaders.WWW_AUTHENTICATE, own);
+          res.setStatus(401);
+        });
+
+    assertThat(response.getHeaders(HttpHeaders.WWW_AUTHENTICATE)).containsExactly(own);
+  }
+
+  @Test
+  void an_answer_challenging_another_scheme_gets_the_step_up_beside_it() throws Exception {
+    run(
+        (req, res) -> {
+          StepUpChallenges.offer(req, res, STEP_UP);
+          res.addHeader(HttpHeaders.WWW_AUTHENTICATE, "DPoP algs=\"ES256\"");
+          res.sendError(401);
+        });
+
+    assertThat(response.getHeaders(HttpHeaders.WWW_AUTHENTICATE))
+        .containsExactly("DPoP algs=\"ES256\"", STEP_UP);
+  }
+
+  @Test
   void a_401_with_no_refusal_gets_no_step_up_challenge() throws Exception {
     run((req, res) -> res.sendError(401, "who?"));
 

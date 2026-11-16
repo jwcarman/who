@@ -16,6 +16,7 @@
 package org.jwcarman.who.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 
 import java.io.IOException;
 import java.net.URI;
@@ -280,7 +281,9 @@ class StubOidcProviderTest {
 
         String body = get(provider.issuer() + "/user/emails").body();
 
-        assertThat(JSONObjectUtils.parse("{\"e\":" + body + "}").get("e")).asList().hasSize(1);
+        assertThat(JSONObjectUtils.parse("{\"e\":" + body + "}").get("e"))
+            .asInstanceOf(LIST)
+            .hasSize(1);
       }
     }
   }

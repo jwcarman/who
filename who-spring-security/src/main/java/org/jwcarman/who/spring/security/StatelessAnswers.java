@@ -102,7 +102,7 @@ final class StatelessAnswers {
   }
 
   /** Whether two challenges name the same scheme: schemes are case-insensitive. */
-  private static boolean sameScheme(String present, String challenge) {
+  static boolean sameScheme(String present, String challenge) {
     return scheme(present).equalsIgnoreCase(scheme(challenge));
   }
 

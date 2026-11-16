@@ -70,10 +70,18 @@ final class StepUpChallengeFilter extends OncePerRequestFilter {
       super.sendError(status, message);
     }
 
+    /**
+     * Adds the challenge beside any other scheme's, unless the answer already challenges with
+     * Bearer: an application that wrote its own (a realm, a scope) keeps it.
+     */
     private void challenge(int status) {
       String challenge = StepUpChallenges.pending(request);
-      if (status == HttpServletResponse.SC_UNAUTHORIZED && challenge != null && !isCommitted()) {
-        setHeader(HttpHeaders.WWW_AUTHENTICATE, challenge);
+      if (status == HttpServletResponse.SC_UNAUTHORIZED
+          && challenge != null
+          && !isCommitted()
+          && getHeaders(HttpHeaders.WWW_AUTHENTICATE).stream()
+              .noneMatch(present -> StatelessAnswers.sameScheme(present, challenge))) {
+        addHeader(HttpHeaders.WWW_AUTHENTICATE, challenge);
       }
     }
   }

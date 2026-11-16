@@ -136,7 +136,7 @@ An action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) ask
 
     The client has the person sign in again, sending `max_age` (the seconds from the challenge) on its authorization request, so the server asks for the password if the sign-in is older than that, and retries with the new token.
 
-    On who's chains the challenge goes only with a `401`, whoever writes it: who, your advice, or Spring MVC. If your advice answers the refusal with another status, or your code catches it and carries on, the response gets no challenge to contradict it. On a chain you build without who's configurers, who sets the header as it refuses.
+    On who's chains the challenge goes only with a `401`, whoever writes it: who, your advice, or Spring MVC. If your advice answers the refusal with another status, or your code catches it and carries on, the response gets no challenge to contradict it. If your `401` sets its own `Bearer` challenge, who leaves it as it is. On a chain you build without who's configurers, who sets the header as it refuses.
 - No `auth_time`: `403`. who cannot tell when the person signed in, and signing in again would bring another token without it.
 
 An `auth_time` a little in the future, from clock skew, counts as now. Tokens without `auth_time` work as before everywhere else; only marked actions refuse them.

@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -81,6 +82,9 @@ public class PasswordlessConfigurer
 
     // Spring's SPA setup: script-readable XSRF-TOKEN cookie, token loaded on every request,
     // BREACH-safe rendered tokens and plain header values accepted
+    // a bearer token on a mixed chain may be refused for an old sign-in: its challenge goes only
+    // with a 401, whoever answers the refusal
+    http.addFilterBefore(new StepUpChallengeFilter(), ExceptionTranslationFilter.class);
     http.csrf(CsrfConfigurer::spa)
         .securityContext(c -> c.securityContextRepository(repository))
         // a saved request would only copy headers and cookies into the session
