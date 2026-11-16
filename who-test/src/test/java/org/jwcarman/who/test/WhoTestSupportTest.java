@@ -46,6 +46,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
@@ -253,7 +254,7 @@ class WhoTestSupportTest {
     MockHttpSession session = WhoTestSessions.signedIn(identity.id(), credentialId, earlier);
 
     assertThat(session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isEqualTo(new WhoSession(identity.id(), credentialId, earlier));
+        .isEqualTo(new WhoSession(identity.id(), credentialId, earlier, SignInMethod.EMAIL_CODE));
     mvc.perform(get("/who/me").session(session)).andExpect(status().isOk());
   }
 
@@ -264,7 +265,7 @@ class WhoTestSupportTest {
 
     assertThat(
             browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isEqualTo(new WhoSession(identity.id(), credentialId, NOW));
+        .isEqualTo(new WhoSession(identity.id(), credentialId, NOW, SignInMethod.EMAIL_CODE));
     browser.perform(get("/who/me")).andExpect(status().isOk());
   }
 

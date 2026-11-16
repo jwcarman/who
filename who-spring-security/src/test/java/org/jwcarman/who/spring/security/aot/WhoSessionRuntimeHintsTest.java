@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -35,7 +36,10 @@ class WhoSessionRuntimeHintsTest {
     RuntimeHints hints = new RuntimeHints();
     new WhoSessionRuntimeHints().registerHints(hints, getClass().getClassLoader());
 
-    for (Class<?> type : new Class<?>[] {WhoSession.class, UUID.class, Instant.class}) {
+    for (Class<?> type :
+        new Class<?>[] {
+          WhoSession.class, UUID.class, Instant.class, SignInMethod.class, Enum.class
+        }) {
       assertThat(RuntimeHintsPredicates.reflection().onJavaSerialization(type, true))
           .as(type.getName())
           .accepts(hints);

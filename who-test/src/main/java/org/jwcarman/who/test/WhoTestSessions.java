@@ -18,6 +18,7 @@ package org.jwcarman.who.test;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.mock.web.MockHttpSession;
@@ -66,7 +67,7 @@ public final class WhoTestSessions {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identityId, credentialId, signedInAt));
+        new WhoSession(identityId, credentialId, signedInAt, SignInMethod.EMAIL_CODE));
     session.setAttribute(
         WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
     return session;

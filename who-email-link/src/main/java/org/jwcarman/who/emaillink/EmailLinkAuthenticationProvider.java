@@ -189,7 +189,7 @@ public class EmailLinkAuthenticationProvider implements AuthenticationProvider {
     return switch (Objects.requireNonNullElse(
         whoService.resolveDetailed(() -> credentialId), new NotLinked())) {
       case Resolved(WhoPrincipal principal) ->
-          new WhoAuthenticationToken(principal, credentialId, method);
+          WhoAuthenticationToken.signedIn(principal, credentialId, method, now);
       case Inactive(UUID identityId) ->
           throw failed(
               now,

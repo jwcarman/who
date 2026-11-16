@@ -186,8 +186,8 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
     }
     UUID identityId = signedUp.principal().identity().id();
     WhoAuthenticationToken token =
-        new WhoAuthenticationToken(
-            signedUp.principal(), signedUp.credentialId(), SignInMethod.OIDC);
+        WhoAuthenticationToken.signedIn(
+            signedUp.principal(), signedUp.credentialId(), SignInMethod.OIDC, clock.instant());
     sessionStrategy.onAuthentication(token, request, response);
     SecurityContext context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(token);

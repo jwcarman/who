@@ -39,6 +39,7 @@ import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution.Inactive;
 import org.jwcarman.who.core.service.Resolution.NoIdentity;
 import org.jwcarman.who.core.service.Resolution.Resolved;
@@ -50,6 +51,7 @@ import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
@@ -270,5 +272,31 @@ class WhoPasskeyAuthenticationProviderTest {
         .hasMessage("invalid_credential")
         .satisfies(e -> assertThat(e.getCause()).isNull())
         .satisfies(e -> assertThat(e.toString()).doesNotContain(rawId.toBase64UrlString()));
+  }
+
+  @Test
+  void a_passkey_sign_in_is_stamped_with_its_time() {
+    Instant now = Instant.parse("2026-11-16T10:00:00Z");
+    WhoPasskeyAuthenticationProvider fixed =
+        new WhoPasskeyAuthenticationProvider(
+            rpOperations,
+            credentialRepository,
+            whoService,
+            WhoEventPublisher.NOOP,
+            Clock.fixed(now, ZoneOffset.UTC));
+    verifiedAssertion();
+    when(credentialRepository.credentialUuid(rawId)).thenReturn(Optional.of(credentialUuid));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolved(new WhoPrincipal(Identity.create(), Set.of("read"))));
+
+    WhoAuthenticationToken who = (WhoAuthenticationToken) fixed.authenticate(token);
+
+    assertThat(who.signInFactor())
+        .hasValueSatisfying(
+            factor -> {
+              assertThat(factor.getAuthority())
+                  .isEqualTo(FactorGrantedAuthority.WEBAUTHN_AUTHORITY);
+              assertThat(factor.getIssuedAt()).isEqualTo(now);
+            });
   }
 }

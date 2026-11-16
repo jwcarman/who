@@ -132,7 +132,7 @@ public class WhoPasskeyAuthenticationProvider implements AuthenticationProvider 
     }
     return switch (Objects.requireNonNullElse(resolution, new NotLinked())) {
       case Resolved(WhoPrincipal principal) ->
-          new WhoAuthenticationToken(principal, uuid, SignInMethod.PASSKEY);
+          WhoAuthenticationToken.signedIn(principal, uuid, SignInMethod.PASSKEY, clock.instant());
       case Inactive(UUID identityId) ->
           throw failed(SignInFailureReason.INACTIVE_IDENTITY, identityId, uuid);
       // revoked after the relying party read it, or its identity is gone: an unknown credential

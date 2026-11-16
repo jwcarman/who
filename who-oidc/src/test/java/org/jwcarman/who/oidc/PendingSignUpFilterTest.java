@@ -16,12 +16,19 @@
 package org.jwcarman.who.oidc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -37,9 +44,12 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 
@@ -83,5 +93,56 @@ class PendingSignUpFilterTest {
 
     assertThat(response.getStatus()).isEqualTo(401);
     verifyNoInteractions(identities, signUpService);
+  }
+
+  @Test
+  void a_sign_up_signs_in_stamped_with_its_time() throws Exception {
+    Instant now = Instant.parse("2026-11-16T10:00:00Z");
+    SessionAuthenticationStrategy strategy = mock(SessionAuthenticationStrategy.class);
+    PendingSignUps pendingSignUps = new PendingSignUps();
+    PendingSignUpFilter fixed =
+        new PendingSignUpFilter(
+            signUpService,
+            identities,
+            new WhoSessionSecurityContextRepository(
+                mock(WhoService.class), Clock.fixed(now, ZoneOffset.UTC)),
+            strategy,
+            pendingSignUps,
+            new WhoExceptionHandoff(null),
+            WhoEventPublisher.NOOP,
+            null,
+            Clock.fixed(now, ZoneOffset.UTC),
+            Duration.ofMinutes(10));
+    MockHttpServletRequest request =
+        new MockHttpServletRequest("POST", PendingSignUpFilter.SIGN_UP_URL);
+    request.setServletPath(PendingSignUpFilter.SIGN_UP_URL);
+    pendingSignUps.save(
+        request,
+        new PendingSignUp(
+            "google",
+            "https://accounts.google.com",
+            "alice-sub",
+            "alice@example.com",
+            "alice@example.com",
+            Map.of(),
+            null,
+            now.plusSeconds(600)));
+    Identity alice = Identity.create(IdentityStatus.ACTIVE);
+    when(signUpService.signUp(any()))
+        .thenReturn(
+            new OidcSignUpService.SignedUp(new WhoPrincipal(alice, Set.of()), UUID.randomUUID()));
+
+    fixed.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+    ArgumentCaptor<Authentication> signedIn = ArgumentCaptor.forClass(Authentication.class);
+    verify(strategy).onAuthentication(signedIn.capture(), any(), any());
+    WhoAuthenticationToken who = (WhoAuthenticationToken) signedIn.getValue();
+    assertThat(who.signInFactor())
+        .hasValueSatisfying(
+            factor -> {
+              assertThat(factor.getAuthority())
+                  .isEqualTo(FactorGrantedAuthority.AUTHORIZATION_CODE_AUTHORITY);
+              assertThat(factor.getIssuedAt()).isEqualTo(now);
+            });
   }
 }

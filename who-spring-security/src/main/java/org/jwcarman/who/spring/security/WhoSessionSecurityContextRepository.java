@@ -32,6 +32,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.context.DeferredSecurityContext;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -120,7 +121,9 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       }
       HttpSession session = request.getSession(true);
       session.setAttribute(
-          SESSION_ATTRIBUTE, new WhoSession(identityId, credentialId, clock.instant()));
+          SESSION_ATTRIBUTE,
+          new WhoSession(
+              identityId, credentialId, clock.instant(), token.signInMethod().orElse(null)));
       session.setAttribute(PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
     } else {
       HttpSession session = request.getSession(false);
@@ -163,7 +166,9 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
     Resolution resolution = whoService.resolveDetailed(() -> credentialId);
     if (resolution instanceof Resolution.Resolved(WhoPrincipal principal)
         && principal.identity().id().equals(whoSession.identityId())) {
-      WhoAuthenticationToken token = new WhoAuthenticationToken(principal, credentialId);
+      // not a sign-in, so no method; the factor still says when the person signed in
+      WhoAuthenticationToken token =
+          new WhoAuthenticationToken(principal, credentialId, null, signInFactor(whoSession));
       context.setAuthentication(token);
       request.setAttribute(LOADED_ATTRIBUTE, token);
     } else {
@@ -173,6 +178,12 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       invalidate(request);
     }
     return context;
+  }
+
+  private static FactorGrantedAuthority signInFactor(WhoSession whoSession) {
+    return whoSession.signInMethod() == null
+        ? null
+        : WhoSignInFactors.of(whoSession.signInMethod(), whoSession.signedInAt()).orElse(null);
   }
 
   private void publishEnded(WhoSession whoSession, Resolution resolution) {

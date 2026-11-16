@@ -19,6 +19,8 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.SignInMethod;
+
 /**
  * What a browser session remembers about a signed-in identity: ids only. The principal is
  * re-resolved from the database on every request.
@@ -26,6 +28,22 @@ import java.util.UUID;
  * @param identityId the identity that signed in
  * @param credentialId the credential used to sign in
  * @param signedInAt when the session was first established for that credential
+ * @param signInMethod how the person signed in, or {@code null} for a session saved before who
+ *     stored it
  */
-public record WhoSession(UUID identityId, UUID credentialId, Instant signedInAt)
-    implements Serializable {}
+public record WhoSession(
+    UUID identityId, UUID credentialId, Instant signedInAt, SignInMethod signInMethod)
+    implements Serializable {
+
+  /**
+   * A session that does not say how the person signed in. It carries no sign-in factor, so an
+   * action that needs a recent sign-in asks the person to sign in again.
+   *
+   * @param identityId the identity that signed in
+   * @param credentialId the credential used to sign in
+   * @param signedInAt when the session was first established for that credential
+   */
+  public WhoSession(UUID identityId, UUID credentialId, Instant signedInAt) {
+    this(identityId, credentialId, signedInAt, null);
+  }
+}

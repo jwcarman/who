@@ -18,6 +18,7 @@ package org.jwcarman.who.spring.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 class WhoAuthenticationTokenTest {
@@ -171,5 +173,33 @@ class WhoAuthenticationTokenTest {
         .isEqualTo(same)
         .hasSameHashCodeAs(same)
         .isNotEqualTo(new WhoAuthenticationToken(principal, UUID.randomUUID()));
+  }
+
+  @Test
+  void a_sign_in_carries_its_factor_beside_the_permissions() {
+    Instant at = Instant.parse("2026-11-16T10:00:00Z");
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("a"));
+
+    WhoAuthenticationToken token =
+        WhoAuthenticationToken.signedIn(principal, UUID.randomUUID(), SignInMethod.PASSKEY, at);
+
+    assertThat(token.signInMethod()).contains(SignInMethod.PASSKEY);
+    assertThat(token.signInFactor().map(FactorGrantedAuthority::getIssuedAt)).contains(at);
+    assertThat(token.getAuthorities())
+        .extracting("authority")
+        .containsExactlyInAnyOrder("a", FactorGrantedAuthority.WEBAUTHN_AUTHORITY);
+  }
+
+  @Test
+  void tokens_with_different_factors_differ() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("a"));
+    UUID credentialId = UUID.randomUUID();
+    Instant at = Instant.parse("2026-11-16T10:00:00Z");
+
+    assertThat(WhoAuthenticationToken.signedIn(principal, credentialId, SignInMethod.JWT, at))
+        .isNotEqualTo(
+            WhoAuthenticationToken.signedIn(
+                principal, credentialId, SignInMethod.JWT, at.plusSeconds(1)))
+        .isEqualTo(WhoAuthenticationToken.signedIn(principal, credentialId, SignInMethod.JWT, at));
   }
 }

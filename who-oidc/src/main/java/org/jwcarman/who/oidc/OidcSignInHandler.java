@@ -255,7 +255,8 @@ public final class OidcSignInHandler
       ProviderAccount account)
       throws IOException {
     WhoAuthenticationToken who =
-        new WhoAuthenticationToken(principal, credentialId, SignInMethod.OIDC);
+        WhoAuthenticationToken.signedIn(
+            principal, credentialId, SignInMethod.OIDC, clock.instant());
     sessionStrategy.onAuthentication(who, request, response);
     SecurityContext context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(who);

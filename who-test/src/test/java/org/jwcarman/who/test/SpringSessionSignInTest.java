@@ -31,6 +31,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.mock.env.MockEnvironment;
@@ -78,7 +79,7 @@ class SpringSessionSignInTest {
             Cookie::getValue);
     assertThat(
             saved.<WhoSession>getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isEqualTo(new WhoSession(identityId, credentialId, SIGNED_IN_AT));
+        .isEqualTo(new WhoSession(identityId, credentialId, SIGNED_IN_AT, SignInMethod.EMAIL_CODE));
     assertThat(
             saved.<String>getAttribute(
                 WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE))

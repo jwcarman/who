@@ -57,6 +57,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.authentication.ott.InvalidOneTimeTokenException;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 
 class EmailLinkAuthenticationProviderTest {
 
@@ -97,6 +98,12 @@ class EmailLinkAuthenticationProviderTest {
     WhoAuthenticationToken who = (WhoAuthenticationToken) result;
     assertThat(who.getPrincipal()).isEqualTo(principal);
     assertThat(who.credentialId()).contains(credentialId);
+    assertThat(who.signInFactor())
+        .hasValueSatisfying(
+            factor -> {
+              assertThat(factor.getAuthority()).isEqualTo(FactorGrantedAuthority.OTT_AUTHORITY);
+              assertThat(factor.getIssuedAt()).isEqualTo(NOW);
+            });
     ArgumentCaptor<Credential> credential = ArgumentCaptor.forClass(Credential.class);
     verify(whoService).resolveDetailed(credential.capture());
     assertThat(credential.getValue().id()).isEqualTo(credentialId);

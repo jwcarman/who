@@ -19,7 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution.NotLinked;
 import org.jwcarman.who.core.service.Resolution.Resolved;
 import org.jwcarman.who.core.service.WhoService;
@@ -39,6 +43,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 @ExtendWith(MockitoExtension.class)
@@ -193,5 +198,70 @@ class WhoJwtAuthenticationConverterTest {
         now.plusSeconds(3600),
         Map.of("alg", "RS256"),
         Map.of("iss", issuer, "sub", subject));
+  }
+
+  private static final Instant NOW = Instant.parse("2026-11-16T10:00:00Z");
+
+  private WhoAuthenticationToken convertWithClaims(Map<String, Object> extra) {
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of("read:data"));
+    when(federatedCredentialRepository.findByIssuerAndSubject(ISSUER, SUBJECT))
+        .thenReturn(Optional.of(credential));
+    when(whoService.resolveDetailed(credential)).thenReturn(new Resolved(principal));
+    Map<String, Object> claims = new HashMap<>(Map.of("iss", ISSUER, "sub", SUBJECT));
+    claims.putAll(extra);
+    Jwt jwt = new Jwt("token-value", NOW, NOW.plusSeconds(3600), Map.of("alg", "RS256"), claims);
+    WhoJwtAuthenticationConverter fixed =
+        new WhoJwtAuthenticationConverter(
+            federatedCredentialRepository,
+            whoService,
+            WhoEventPublisher.NOOP,
+            Clock.fixed(NOW, ZoneOffset.UTC));
+    return (WhoAuthenticationToken) fixed.convert(jwt);
+  }
+
+  @Test
+  void auth_time_is_the_factor_time() {
+    Instant authTime = NOW.minusSeconds(900);
+
+    WhoAuthenticationToken token = convertWithClaims(Map.of("auth_time", authTime));
+
+    assertThat(token.signInFactor())
+        .hasValueSatisfying(
+            factor -> {
+              assertThat(factor.getAuthority()).isEqualTo(FactorGrantedAuthority.BEARER_AUTHORITY);
+              assertThat(factor.getIssuedAt()).isEqualTo(authTime);
+            });
+  }
+
+  @Test
+  void a_numeric_auth_time_is_read_as_seconds() {
+    WhoAuthenticationToken token =
+        convertWithClaims(Map.of("auth_time", NOW.minusSeconds(60).getEpochSecond()));
+
+    assertThat(token.signInFactor().map(FactorGrantedAuthority::getIssuedAt))
+        .contains(NOW.minusSeconds(60));
+  }
+
+  @Test
+  void no_auth_time_no_factor() {
+    WhoAuthenticationToken token = convertWithClaims(Map.of());
+
+    assertThat(token.signInFactor()).isEmpty();
+    assertThat(token.getAuthorities()).extracting("authority").containsExactly("read:data");
+  }
+
+  @Test
+  void an_auth_time_in_the_future_is_now() {
+    WhoAuthenticationToken token = convertWithClaims(Map.of("auth_time", NOW.plusSeconds(30)));
+
+    assertThat(token.signInFactor().map(FactorGrantedAuthority::getIssuedAt)).contains(NOW);
+  }
+
+  @Test
+  void an_unreadable_auth_time_is_no_factor() {
+    WhoAuthenticationToken token = convertWithClaims(Map.of("auth_time", "yesterday"));
+
+    assertThat(token.signInFactor()).isEmpty();
   }
 }

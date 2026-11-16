@@ -18,6 +18,7 @@ package org.jwcarman.who.jwt;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,6 +73,9 @@ import org.springframework.security.oauth2.jwt.JwtClaimNames;
 public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
   private static final Logger log = LoggerFactory.getLogger(WhoJwtAuthenticationConverter.class);
+
+  /** When the person signed in, from OpenID Connect Core 1.0 and RFC 9470. */
+  private static final String AUTH_TIME = "auth_time";
 
   private final FederatedCredentialRepository federatedCredentialRepository;
   private final WhoService whoService;
@@ -131,7 +135,7 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
     UUID credentialId = found.get().id();
     return switch (Objects.requireNonNullElse(
         whoService.resolveDetailed(found.get()), new NotLinked())) {
-      case Resolved(WhoPrincipal principal) -> succeeded(principal, credentialId);
+      case Resolved(WhoPrincipal principal) -> succeeded(principal, credentialId, jwt);
       case Inactive(UUID identityId) ->
           throw failed(
               SignInFailureReason.INACTIVE_IDENTITY,
@@ -145,8 +149,31 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
     };
   }
 
-  private static WhoAuthenticationToken succeeded(WhoPrincipal principal, UUID credentialId) {
-    return new WhoAuthenticationToken(principal, credentialId, SignInMethod.JWT);
+  /**
+   * The token, with its {@code FACTOR_BEARER} stamped at the JWT's {@code auth_time}: when the
+   * person signed in at the identity provider, not when the token was presented. A JWT without a
+   * readable {@code auth_time} gets no factor, so it cannot satisfy a recent-sign-in rule.
+   */
+  private WhoAuthenticationToken succeeded(WhoPrincipal principal, UUID credentialId, Jwt jwt) {
+    return authTime(jwt)
+        .map(at -> WhoAuthenticationToken.signedIn(principal, credentialId, SignInMethod.JWT, at))
+        .orElseGet(() -> new WhoAuthenticationToken(principal, credentialId, SignInMethod.JWT));
+  }
+
+  /** The {@code auth_time} claim; one a little in the future, from clock skew, counts as now. */
+  private Optional<Instant> authTime(Jwt jwt) {
+    Instant authTime;
+    try {
+      authTime = jwt.getClaimAsInstant(AUTH_TIME);
+    } catch (IllegalArgumentException e) {
+      log.debug("JWT auth_time is not a time; treating it as absent");
+      return Optional.empty();
+    }
+    if (authTime == null) {
+      return Optional.empty();
+    }
+    Instant now = clock.instant();
+    return Optional.of(authTime.isAfter(now) ? now : authTime);
   }
 
   private BadCredentialsException unknown(

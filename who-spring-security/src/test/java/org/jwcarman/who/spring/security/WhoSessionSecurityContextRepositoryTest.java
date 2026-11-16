@@ -35,6 +35,7 @@ import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.Credential;
@@ -42,6 +43,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -420,5 +422,52 @@ class WhoSessionSecurityContextRepositoryTest {
     assertThat(loaded.getAuthentication()).isNull();
     assertThat(session.isInvalid()).isTrue();
     assertThat(request.getSession(false)).isNull();
+  }
+
+  @Test
+  void a_session_remembers_how_it_signed_in() {
+    SecurityContext context = new SecurityContextImpl();
+    context.setAuthentication(
+        new WhoAuthenticationToken(
+            new WhoPrincipal(identity, Set.of("a")), credId, SignInMethod.EMAIL_CODE));
+
+    repository.saveContext(context, request, response);
+
+    assertThat(repository.currentSession(request))
+        .contains(new WhoSession(identity.id(), credId, NOW, SignInMethod.EMAIL_CODE));
+  }
+
+  @Test
+  void a_session_token_carries_its_sign_in_time() {
+    request.setSession(
+        sessionWith(new WhoSession(identity.id(), credId, NOW, SignInMethod.EMAIL_CODE)));
+    clock.set(NOW.plusSeconds(300));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
+
+    WhoAuthenticationToken token =
+        (WhoAuthenticationToken) repository.loadDeferredContext(request).get().getAuthentication();
+
+    assertThat(token.signInFactor())
+        .hasValueSatisfying(
+            factor -> {
+              assertThat(factor.getAuthority()).isEqualTo(FactorGrantedAuthority.OTT_AUTHORITY);
+              assertThat(factor.getIssuedAt()).isEqualTo(NOW);
+            });
+    assertThat(token.getAuthorities()).contains(token.signInFactor().get());
+    assertThat(token.signInMethod()).isEmpty();
+  }
+
+  @Test
+  void a_session_without_a_method_has_no_factor() {
+    request.setSession(sessionWith(new WhoSession(identity.id(), credId, NOW)));
+    when(whoService.resolveDetailed(any(Credential.class)))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
+
+    WhoAuthenticationToken token =
+        (WhoAuthenticationToken) repository.loadDeferredContext(request).get().getAuthentication();
+
+    assertThat(token.signInFactor()).isEmpty();
+    assertThat(token.getAuthorities()).containsExactly(new SimpleGrantedAuthority("b"));
   }
 }

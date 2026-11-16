@@ -18,6 +18,7 @@ package org.jwcarman.who.spring.security.aot;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -39,6 +40,8 @@ public class WhoSessionRuntimeHints implements RuntimeHintsRegistrar {
     hints.reflection().registerJavaSerialization(WhoSession.class);
     hints.reflection().registerJavaSerialization(UUID.class);
     hints.reflection().registerJavaSerialization(Instant.class);
+    hints.reflection().registerJavaSerialization(SignInMethod.class);
+    hints.reflection().registerJavaSerialization(Enum.class);
     // java.time.Ser is package-private, and Instant serializes through it.
     hints
         .reflection()

@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
 
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -71,7 +72,7 @@ final class SpringSessionSignIn {
     S session = repository.createSession();
     session.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identityId, credentialId, signedInAt));
+        new WhoSession(identityId, credentialId, signedInAt, SignInMethod.EMAIL_CODE));
     session.setAttribute(
         WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
     repository.save(session);

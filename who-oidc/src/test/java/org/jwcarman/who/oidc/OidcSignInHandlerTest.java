@@ -18,6 +18,7 @@ package org.jwcarman.who.oidc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -28,12 +29,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.WhoEvent;
@@ -41,11 +45,15 @@ import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -210,5 +218,28 @@ class OidcSignInHandlerTest {
 
     assertThat(response.getRedirectedUrl()).isEqualTo("/settings?error=already-linked");
     assertThat(events).isEmpty();
+  }
+
+  @Test
+  void a_provider_sign_in_is_stamped_with_its_time() throws Exception {
+    FederatedCredential credential = FederatedCredential.create(ISSUER, "alice");
+    when(credentials.findByIssuerAndSubject(ISSUER, "alice")).thenReturn(Optional.of(credential));
+    when(whoService.resolveDetailed(any()))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(Identity.create(), Set.of())));
+    OAuth2AuthenticationToken token =
+        new OAuth2AuthenticationToken(oidcUser("alice"), AuthorityUtils.NO_AUTHORITIES, "idp");
+
+    handler.onAuthenticationSuccess(request, response, token);
+
+    ArgumentCaptor<SecurityContext> saved = ArgumentCaptor.forClass(SecurityContext.class);
+    verify(sessions).saveContext(saved.capture(), any(), any());
+    WhoAuthenticationToken who = (WhoAuthenticationToken) saved.getValue().getAuthentication();
+    assertThat(who.signInFactor())
+        .hasValueSatisfying(
+            factor -> {
+              assertThat(factor.getAuthority())
+                  .isEqualTo(FactorGrantedAuthority.AUTHORIZATION_CODE_AUTHORITY);
+              assertThat(factor.getIssuedAt()).isEqualTo(NOW);
+            });
   }
 }
