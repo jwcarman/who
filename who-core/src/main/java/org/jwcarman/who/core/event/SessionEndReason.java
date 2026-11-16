@@ -20,5 +20,9 @@ public enum SessionEndReason {
   /** The identity was deactivated. */
   IDENTITY_INACTIVE,
   /** The credential that established the session was revoked. */
-  CREDENTIAL_REVOKED
+  CREDENTIAL_REVOKED,
+  /**
+   * The session was ended deliberately, by its owner from another session or by the application.
+   */
+  REVOKED
 }
