@@ -248,8 +248,12 @@ No pending sign-up, or an expired one, is `404` with `PendingSignUpNotFoundExcep
 that is signed in cannot sign up (`403`). Answers go through your exception handling (see
 [Errors](errors.md)).
 
-One click is fine for sign-up: a landing page may call `POST /who/oidc/sign-up` as soon as it sees
-`pending=sign-up`. Your policy still decides.
+Let the person confirm: show the `displayName` and call `POST /who/oidc/sign-up` only when they
+click. Do not call it as soon as the page sees `pending=sign-up`. The confirmation is the one place
+the person sees which provider account they are about to sign up with. If an attacker has signed
+their browser in to the attacker's own account at the provider (login CSRF), a page that confirms
+by itself signs them up to an identity the attacker can sign in to as well, and anything they add
+there is the attacker's to see. Your policy still decides who may sign up at all.
 
 If two requests confirm the same account at once, one identity is created and both sign in to it.
 

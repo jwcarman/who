@@ -59,6 +59,10 @@ All notable changes to this project are documented here. The format follows
 
 - An application with email links and its own `oauth2ResourceServer` refused every bearer token: Spring's resource server took who's one-time-token converter bean as its own and read each request as a sign-in code.
 
+### Documentation
+
+- The Social login guide says to confirm a provider sign-up only when the person clicks, never as soon as the page sees `pending=sign-up`: the confirmation is where the person sees which account they are signing up with, and confirming by itself lets a login CSRF at the provider sign them up to an attacker's account.
+
 ## [0.17.0] - 2026-11-14
 
 ### Breaking changes
