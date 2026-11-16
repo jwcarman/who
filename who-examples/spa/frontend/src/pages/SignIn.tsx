@@ -138,7 +138,7 @@ export function SignIn() {
           <div className="inline">
             {/* a full page load to the provider, not fetch: its sign-in page has to open */}
             {providers.map(p => (
-              <a key={p.id} className="button secondary" href={`/oauth2/authorization/${p.id}`}>{p.name}</a>
+              <a key={p.id} className="button secondary" href={`/who/oidc/authorize/${p.id}`}>{p.name}</a>
             ))}
           </div>
         </section>

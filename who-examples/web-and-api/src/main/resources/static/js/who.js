@@ -55,7 +55,7 @@ export async function ensureCsrfCookie() {
 // Always 202, whether or not the address is known, so the answer tells an attacker nothing.
 export async function requestLink(email) {
   await ensureCsrfCookie();
-  return post('/ott/generate', { email });
+  return post('/who/email/send', { email });
 }
 
 // The token is in the URL fragment, never sent to a server. Take it out of the address bar.
@@ -64,13 +64,13 @@ export async function redeemLinkFromLocation() {
   history.replaceState(null, '', location.pathname);
   if (!token) return false;
   await ensureCsrfCookie();
-  const res = await post('/login/ott', { token });
+  const res = await post('/who/email/sign-in', { token });
   return res.ok;
 }
 
 export async function signInWithCode(email, code) {
   await ensureCsrfCookie();
-  const res = await post('/login/ott', { email, code });
+  const res = await post('/who/email/sign-in', { email, code });
   return res.ok;
 }
 
@@ -112,7 +112,7 @@ const b64u = {
 // Needs a recent sign-in (who.security.recent-sign-in). Answers the status: 200 registered,
 // 401 signed out or signed in too long ago, 400 failed verification.
 export async function registerPasskey(label) {
-  const optionsRes = await post('/webauthn/register/options');
+  const optionsRes = await post('/who/passkey/register/options');
   if (!optionsRes.ok) return optionsRes.status;
   const options = await optionsRes.json();
 
@@ -123,7 +123,7 @@ export async function registerPasskey(label) {
 
   const credential = await navigator.credentials.create({ publicKey: options });
 
-  const res = await post('/webauthn/register', {
+  const res = await post('/who/passkey/register', {
     publicKey: {
       credential: {
         id: credential.id,
@@ -145,7 +145,7 @@ export async function registerPasskey(label) {
 
 export async function signInWithPasskey() {
   await ensureCsrfCookie();
-  const optionsRes = await post('/webauthn/authenticate/options');
+  const optionsRes = await post('/who/passkey/sign-in/options');
   const options = await optionsRes.json();
 
   options.challenge = b64u.decode(options.challenge);
@@ -154,7 +154,7 @@ export async function signInWithPasskey() {
 
   const credential = await navigator.credentials.get({ publicKey: options });
 
-  const res = await post('/login/webauthn', {
+  const res = await post('/who/passkey/sign-in', {
     id: credential.id,
     rawId: b64u.encode(credential.rawId),
     type: credential.type,
@@ -174,7 +174,7 @@ export async function signInWithPasskey() {
 // The {id} is the passkey's WebAuthn credential id (PasskeySummary.credentialId), not who's UUID.
 // Spring checks that it belongs to the caller. 204 removed, 403 not yours.
 export async function removePasskey(credentialId) {
-  const res = await send('DELETE', '/webauthn/register/' + encodeURIComponent(credentialId));
+  const res = await send('DELETE', '/who/passkey/register/' + encodeURIComponent(credentialId));
   return res.ok;
 }
 
@@ -203,7 +203,7 @@ export async function confirmLink() {
 // --- Sign out (Email Links guide, "The sign-in flow") -----------------------------------------
 
 export async function signOut() {
-  await post('/logout');
+  await post('/who/logout');
   await fetch('/who/me', { credentials: 'same-origin' }); // sets a new XSRF-TOKEN cookie
 }
 

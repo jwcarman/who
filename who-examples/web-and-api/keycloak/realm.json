@@ -42,7 +42,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:8080/login/oauth2/code/keycloak"
+        "http://localhost:8080/who/oidc/callback/keycloak"
       ],
       "webOrigins": [
         "http://localhost:8080"

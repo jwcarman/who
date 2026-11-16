@@ -48,7 +48,7 @@
   <section class="stack" th:unless="${#lists.isEmpty(providers)}">
     <h2>Provider</h2>
     <p>
-      <a class="button secondary" th:each="p : ${providers}" th:href="@{/oauth2/authorization/{id}(id=${p.id})}"
+      <a class="button secondary" th:each="p : ${providers}" th:href="@{/who/oidc/authorize/{id}(id=${p.id})}"
          th:attr="data-provider=${p.id},data-provider-name=${p.name}"
          th:text="'Sign in with ' + ${p.name}">Sign in with Keycloak</a>
     </p>

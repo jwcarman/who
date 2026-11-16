@@ -33,7 +33,7 @@ class Providers {
   /**
    * A provider's button.
    *
-   * @param id the registration id, as in {@code /oauth2/authorization/{id}}
+   * @param id the registration id, as in {@code /who/oidc/authorize/{id}}
    * @param name the name to show
    */
   record Provider(String id, String name) {}

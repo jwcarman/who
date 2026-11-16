@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 /**
  * The signed-in person's ways in: their email address, their passkeys and the provider accounts
  * linked to them. Adding a passkey, removing one and confirming a link go through {@code who.js};
- * linking starts with a plain link to {@code /oauth2/authorization/{id}}.
+ * linking starts with a plain link to {@code /who/oidc/authorize/{id}}.
  */
 @Controller
 class ProfileController {

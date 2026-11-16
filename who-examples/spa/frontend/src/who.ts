@@ -55,7 +55,7 @@ export async function ensureCsrfCookie(): Promise<void> {
 // Always 202, whether or not the address is known, so the answer tells an attacker nothing.
 export async function requestLink(email: string): Promise<void> {
   await ensureCsrfCookie();
-  await post('/ott/generate', { email });
+  await post('/who/email/send', { email });
 }
 
 // The token is in the URL fragment, never sent to a server. Take it out of the address bar.
@@ -64,12 +64,12 @@ export async function redeemLinkFromLocation(): Promise<boolean> {
   history.replaceState(null, '', location.pathname);
   if (!token) return false;
   await ensureCsrfCookie();
-  return (await post('/login/ott', { token })).ok;
+  return (await post('/who/email/sign-in', { token })).ok;
 }
 
 export async function signInWithCode(email: string, code: string): Promise<boolean> {
   await ensureCsrfCookie();
-  return (await post('/login/ott', { email, code })).ok;
+  return (await post('/who/email/sign-in', { email, code })).ok;
 }
 
 // --- Email addresses (Email Links guide, "Adding or changing an address") ---------------------
@@ -114,7 +114,7 @@ function descriptors(list?: Descriptor[]): PublicKeyCredentialDescriptor[] {
 // Needs a recent sign-in (who.security.recent-sign-in). Answers the status: 200 registered,
 // 401 signed out or signed in too long ago, 400 failed verification.
 export async function registerPasskey(label: string): Promise<number> {
-  const optionsRes = await post('/webauthn/register/options');
+  const optionsRes = await post('/who/passkey/register/options');
   if (!optionsRes.ok) return optionsRes.status;
   const options = await optionsRes.json();
   const credential = await navigator.credentials.create({
@@ -126,7 +126,7 @@ export async function registerPasskey(label: string): Promise<number> {
     }
   }) as PublicKeyCredential;
   const response = credential.response as AuthenticatorAttestationResponse;
-  const res = await post('/webauthn/register', {
+  const res = await post('/who/passkey/register', {
     publicKey: {
       credential: {
         id: credential.id,
@@ -148,7 +148,7 @@ export async function registerPasskey(label: string): Promise<number> {
 
 export async function signInWithPasskey(): Promise<boolean> {
   await ensureCsrfCookie();
-  const options = await (await post('/webauthn/authenticate/options')).json();
+  const options = await (await post('/who/passkey/sign-in/options')).json();
   const credential = await navigator.credentials.get({
     publicKey: {
       ...options,
@@ -157,7 +157,7 @@ export async function signInWithPasskey(): Promise<boolean> {
     }
   }) as PublicKeyCredential;
   const response = credential.response as AuthenticatorAssertionResponse;
-  const res = await post('/login/webauthn', {
+  const res = await post('/who/passkey/sign-in', {
     id: credential.id,
     rawId: b64u.encode(credential.rawId),
     type: credential.type,
@@ -176,12 +176,12 @@ export async function signInWithPasskey(): Promise<boolean> {
 // The {id} is the passkey's WebAuthn credential id (PasskeySummary.credentialId), not who's UUID.
 // Spring checks that it belongs to the caller. 204 removed, 403 not yours.
 export async function removePasskey(credentialId: string): Promise<boolean> {
-  return (await send('DELETE', '/webauthn/register/' + encodeURIComponent(credentialId))).ok;
+  return (await send('DELETE', '/who/passkey/register/' + encodeURIComponent(credentialId))).ok;
 }
 
 // --- Provider sign-in (Social Login guide, "Sign up" and "Link an account") -------------------
 
-// A provider's button is a plain link to /oauth2/authorization/{id}: no CSRF, a full page load.
+// A provider's button is a plain link to /who/oidc/authorize/{id}: no CSRF, a full page load.
 // Both a sign-in and a link come back to who.oidc.failure-url?pending=sign-up or
 // link-url?pending=link.
 
@@ -229,7 +229,7 @@ export async function startLink(registrationId: string): Promise<number> {
 // --- Sign out (Email Links guide, "The sign-in flow") -----------------------------------------
 
 export async function signOut(): Promise<void> {
-  await post('/logout');
+  await post('/who/logout');
   await fetch('/who/me', { credentials: 'same-origin' }); // sets a new XSRF-TOKEN cookie
 }
 

@@ -33,8 +33,8 @@ For hot reload, run the backend with the `vite` profile, and Vite's dev server b
 cd who-examples/spa/frontend && npm install && npm run dev
 ```
 
-Then open <http://localhost:5173>. Vite answers the front end itself and forwards `/api`, `/who`,
-`/ott`, `/login`, `/logout`, `/webauthn` and `/oauth2` to Spring on 8080, keeping the browser's
+Then open <http://localhost:5173>. Vite answers the front end itself and forwards `/api` (the app's own)
+and `/who` (every who endpoint) to Spring on 8080, keeping the browser's
 `Host`. The browser sees one origin, 5173, so cookies, CSRF and same-origin `fetch` work as they do
 on 8080. No CORS, and no `SameSite=None`.
 
@@ -50,7 +50,7 @@ browser sees, not the one Spring listens on:
 | `who.passkey.allowed-origins` | `http://localhost:8080` | `http://localhost:5173` |
 
 The provider settings need no change. `who.oidc.*-url` are paths, and Spring builds the provider's
-return address (`{baseUrl}/login/oauth2/code/keycloak`) from the `Host` Vite forwards, so Keycloak
+return address (`{baseUrl}/who/oidc/callback/keycloak`) from the `Host` Vite forwards, so Keycloak
 sends the browser back to 5173. The realm allows both. For Google or GitHub, register the 5173
 address too (GitHub allows one callback per OAuth app, so make a second app).
 

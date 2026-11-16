@@ -22,7 +22,7 @@ spring:
             client-secret: who-example-secret
             scope: openid,email,profile
             authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "{baseUrl}/who/oidc/callback/{registrationId}"
         provider:
           # Keycloak's endpoints rather than its issuer-uri, so the app starts without waiting for
           # Keycloak. Spring then checks no issuer, so who.oidc.providers.keycloak.issuer gives it.
@@ -103,7 +103,7 @@ who:
 
 ---
 # Sign in with Google: create an OAuth client at https://console.cloud.google.com/apis/credentials
-# with the redirect URI http://localhost:8080/login/oauth2/code/google (and 5173 for the vite profile), then run with
+# with the redirect URI http://localhost:8080/who/oidc/callback/google (and 5173 for the vite profile), then run with
 # GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET set and the google profile on.
 spring:
   config:
@@ -119,7 +119,7 @@ spring:
 
 ---
 # Sign in with GitHub: create an OAuth app at https://github.com/settings/developers with the
-# callback URL http://localhost:8080/login/oauth2/code/github (a GitHub OAuth app has one callback URL, so make a second app for 5173), then run with GITHUB_CLIENT_ID and
+# callback URL http://localhost:8080/who/oidc/callback/github (a GitHub OAuth app has one callback URL, so make a second app for 5173), then run with GITHUB_CLIENT_ID and
 # GITHUB_CLIENT_SECRET set and the github profile on.
 spring:
   config:

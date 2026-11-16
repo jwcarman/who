@@ -84,23 +84,23 @@ function withKey(method, value, body) {
 // --- The actions -----------------------------------------------------------------------------------
 
 const actions = {
-  'request-code': async () => show(`POST /ott/generate (${DEMO})`, await post('/ott/generate', { email: DEMO }),
+  'request-code': async () => show(`POST /who/email/send (${DEMO})`, await post('/who/email/send', { email: DEMO }),
     () => 'Answered alike whether or not the address is known. who.sign-in.emails counts it sent, or suppressed if you asked within a minute. Open Mailpit for the code.'),
 
-  'unknown-address': async () => show('POST /ott/generate (nobody@example.com)',
-    await post('/ott/generate', { email: 'nobody@example.com' }),
+  'unknown-address': async () => show('POST /who/email/send (nobody@example.com)',
+    await post('/who/email/send', { email: 'nobody@example.com' }),
     () => 'The same answer as for a known address, so nobody can probe for accounts. who.sign-in.emails counts it unknown-address.'),
 
-  'wrong-code': async () => show('POST /login/ott (wrong code)', await post('/login/ott', { email: DEMO, code: '000-000' }),
+  'wrong-code': async () => show('POST /who/email/sign-in (wrong code)', await post('/who/email/sign-in', { email: DEMO, code: '000-000' }),
     s => s === 401 ? 'Refused: who.sign-ins counts an email-code failure, reason wrong-code (or no-live-code if you have no code waiting). Each wrong guess uses up an attempt on your code.' : 'Unexpected.'),
 
   'sign-out': async () => {
-    const res = await post('/logout');
+    const res = await post('/who/logout');
     await ensureCsrfCookie(); // signing out clears the CSRF cookie; get a new one
     key = null;
     showKey();
     await refreshSignedIn();
-    show('POST /logout', res, () => 'Signed out: who.sign-outs counts it.');
+    show('POST /who/logout', res, () => 'Signed out: who.sign-outs counts it.');
   },
 
   'make-key': async () => {
@@ -151,9 +151,9 @@ document.querySelectorAll('[data-action]').forEach(button =>
 document.getElementById('code-form').addEventListener('submit', async event => {
   event.preventDefault();
   const code = document.getElementById('code').value;
-  const res = await post('/login/ott', { email: DEMO, code });
+  const res = await post('/who/email/sign-in', { email: DEMO, code });
   await refreshSignedIn();
-  show('POST /login/ott', res,
+  show('POST /who/email/sign-in', res,
     s => s === 200 ? 'Signed in: who.sign-ins counts an email-code success.' : 'Refused: wrong, used or expired code.');
 });
 

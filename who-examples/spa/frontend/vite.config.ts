@@ -19,7 +19,8 @@ import react from '@vitejs/plugin-react';
 // What Spring answers, rather than Vite. The browser sees one origin, localhost:5173, so the
 // session cookie, the CSRF cookie and same-origin fetch all work as they do on 8080.
 const spring = 'http://localhost:8080';
-const forwarded = ['/api', '/who', '/ott', '/login', '/logout', '/webauthn', '/oauth2'];
+// every who endpoint lives under /who; /api is the app's own
+const forwarded = ['/api', '/who'];
 
 export default defineConfig({
   plugins: [react()],
@@ -27,7 +28,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // changeOrigin stays false: Spring must see the browser's Host, localhost:5173, so the
-    // provider's return address ({baseUrl}/login/oauth2/code/...) points back here.
+    // provider's return address ({baseUrl}/who/oidc/callback/...) points back here.
     proxy: Object.fromEntries(forwarded.map(path => [path, { target: spring }]))
   },
   build: {

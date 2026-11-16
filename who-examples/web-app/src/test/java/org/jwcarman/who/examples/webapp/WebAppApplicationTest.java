@@ -135,7 +135,7 @@ class WebAppApplicationTest {
     mockMvc
         .perform(get("/signin").accept(MediaType.TEXT_HTML))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("/oauth2/authorization/keycloak")));
+        .andExpect(content().string(containsString("/who/oidc/authorize/keycloak")));
   }
 
   private MockHttpSession signedInAs(String address, TeamRole role) {
