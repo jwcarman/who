@@ -27,11 +27,11 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 
 /**
- * The application's registrations, each sending the provider back to who's callback: {@code
- * <root>/oidc/callback/{registrationId}}. A registration left at Spring Security's default redirect
- * URI ({@value #SPRING_DEFAULT}, which {@code CommonOAuth2Provider} and an {@code issuer-uri}
- * registration get) is pointed at who's callback; any other is used as written, and {@link
- * #problem} says when who cannot serve it.
+ * The application's registrations, each one who signs in with sending the provider back to who's
+ * callback: {@code <root>/oidc/callback/{registrationId}}. Such a registration left at Spring
+ * Security's default redirect URI ({@value #SPRING_DEFAULT}, which {@code CommonOAuth2Provider} and
+ * an {@code issuer-uri} registration get) is pointed at who's callback; any other is used as
+ * written, and {@link #problem} says when who cannot serve it.
  */
 public final class CallbackRegistrations
     implements ClientRegistrationRepository, Iterable<ClientRegistration> {
@@ -40,16 +40,20 @@ public final class CallbackRegistrations
   public static final String SPRING_DEFAULT = "{baseUrl}/{action}/oauth2/code/{registrationId}";
 
   private final ClientRegistrationRepository delegate;
+  private final SignInRegistrations signIn;
   private final String callbackTemplate;
 
   /**
    * Wraps the application's registrations.
    *
    * @param delegate the application's registrations
+   * @param signIn the registrations who signs in with; only these are pointed at who's callback
    * @param paths where who's callback lives
    */
-  public CallbackRegistrations(ClientRegistrationRepository delegate, WhoPaths paths) {
+  public CallbackRegistrations(
+      ClientRegistrationRepository delegate, SignInRegistrations signIn, WhoPaths paths) {
     this.delegate = requireNonNull(delegate, "delegate must not be null");
+    this.signIn = requireNonNull(signIn, "signIn must not be null");
     this.callbackTemplate = "{baseUrl}" + callbackPath(paths);
   }
 
@@ -103,7 +107,9 @@ public final class CallbackRegistrations
   }
 
   private ClientRegistration pointed(ClientRegistration registration) {
-    if (!SPRING_DEFAULT.equals(registration.getRedirectUri())) {
+    // a registration who does not sign in with is the application's, for its own oauth2Client()
+    if (!SPRING_DEFAULT.equals(registration.getRedirectUri())
+        || signIn.find(registration.getRegistrationId()).isEmpty()) {
       return registration;
     }
     return ClientRegistration.withClientRegistration(registration)

@@ -24,6 +24,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -113,6 +114,23 @@ class OidcLoginMethodTest {
     }
   }
 
+  /** Records the registrations the chain shares after who configures it. */
+  @Configuration
+  static class ChainRecordingShared {
+    static final AtomicReference<ClientRegistrationRepository> SHARED = new AtomicReference<>();
+
+    @Bean
+    SecurityFilterChain chain(
+        HttpSecurity http, OidcLoginMethod method, ClientRegistrationRepository clients) {
+      // as an application's own oauth2Client() would find it
+      http.setSharedObject(ClientRegistrationRepository.class, clients);
+      method.configure(http);
+      SHARED.set(http.getSharedObject(ClientRegistrationRepository.class));
+      http.authorizeHttpRequests(a -> a.anyRequest().authenticated());
+      return http.build();
+    }
+  }
+
   @Configuration
   static class ChainWithoutSessionManagement {
     @Bean
@@ -140,6 +158,20 @@ class OidcLoginMethodTest {
                       .getResponse()
                       .getRedirectedUrl();
               assertThat(location).startsWith("https://idp.example.com/authorize");
+            });
+  }
+
+  @Test
+  void the_chain_keeps_sharing_the_application_s_registrations() {
+    ChainRecordingShared.SHARED.set(null);
+    new WebApplicationContextRunner()
+        .withUserConfiguration(Method.class, Clients.class, ChainRecordingShared.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              // an application's own oauth2Client() on the chain reads this one
+              assertThat(ChainRecordingShared.SHARED.get())
+                  .isSameAs(context.getBean(ClientRegistrationRepository.class));
             });
   }
 

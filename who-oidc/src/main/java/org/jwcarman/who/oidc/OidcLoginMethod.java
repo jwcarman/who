@@ -140,7 +140,11 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
     // application's own oauth2Client() keeps Spring Boot's
     OAuth2AuthorizedClientRepository shared =
         http.getSharedObject(OAuth2AuthorizedClientRepository.class);
-    ClientRegistrationRepository callbacks = new CallbackRegistrations(clients, paths);
+    // likewise the registrations: who's callback is for who's sign-in only
+    ClientRegistrationRepository sharedClients =
+        http.getSharedObject(ClientRegistrationRepository.class);
+    ClientRegistrationRepository callbacks =
+        new CallbackRegistrations(clients, registrations, paths);
     OidcAuthorizationRequests resolver =
         new OidcAuthorizationRequests(callbacks, registrations, paths.of(AUTHORIZE));
     http.oauth2Login(
@@ -162,6 +166,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
                 .withObjectPostProcessor(idTokenIssuerCheck())
                 .withObjectPostProcessor(signInPostProcessor(http, context, resolver)));
     http.setSharedObject(OAuth2AuthorizedClientRepository.class, shared);
+    http.setSharedObject(ClientRegistrationRepository.class, sharedClients);
   }
 
   private static OAuth2AuthenticationToken signInResult(OAuth2LoginAuthenticationToken result) {

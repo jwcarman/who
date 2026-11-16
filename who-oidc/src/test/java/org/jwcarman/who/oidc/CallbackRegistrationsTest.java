@@ -17,6 +17,8 @@ package org.jwcarman.who.oidc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -32,20 +34,37 @@ class CallbackRegistrationsTest {
 
   private static final WhoPaths PATHS = new WhoPaths("/auth");
 
+  private static final List<ClientRegistration> ALL =
+      List.of(
+          registration("springs", CallbackRegistrations.SPRING_DEFAULT),
+          registration("explicit", "https://app.example.com/auth/oidc/callback/explicit"),
+          registration("off", CallbackRegistrations.SPRING_DEFAULT));
+
   private final CallbackRegistrations registrations =
       new CallbackRegistrations(
-          new InMemoryClientRegistrationRepository(
-              registration("springs", CallbackRegistrations.SPRING_DEFAULT),
-              registration("explicit", "https://app.example.com/auth/oidc/callback/explicit")),
+          new InMemoryClientRegistrationRepository(ALL),
+          SignInRegistrations.of(
+              ALL,
+              Map.of(
+                  "springs", settings(true, "springs"),
+                  "explicit", settings(true, "explicit"),
+                  "off", settings(false, "off"))),
           PATHS);
+
+  private static ProviderSettings settings(boolean enabled, String id) {
+    return new ProviderSettings(enabled, "https://" + id + ".example.com", "id", null);
+  }
 
   private static ClientRegistration registration(String id, String redirectUri) {
     return ClientRegistration.withRegistrationId(id)
         .clientId("client")
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
         .redirectUri(redirectUri)
+        .scope("read:user")
         .authorizationUri("https://idp.example.com/authorize")
         .tokenUri("https://idp.example.com/token")
+        .userInfoUri("https://idp.example.com/user")
+        .userNameAttributeName("id")
         .build();
   }
 
@@ -62,6 +81,12 @@ class CallbackRegistrationsTest {
   }
 
   @Test
+  void a_registration_who_does_not_sign_in_with_is_used_as_written() {
+    assertThat(registrations.findByRegistrationId("off").getRedirectUri())
+        .isEqualTo(CallbackRegistrations.SPRING_DEFAULT);
+  }
+
+  @Test
   void an_unknown_registration_is_null() {
     assertThat(registrations.findByRegistrationId("unknown")).isNull();
   }
@@ -72,7 +97,8 @@ class CallbackRegistrationsTest {
         .extracting(ClientRegistration::getRedirectUri)
         .containsExactlyInAnyOrder(
             "{baseUrl}/auth/oidc/callback/{registrationId}",
-            "https://app.example.com/auth/oidc/callback/explicit");
+            "https://app.example.com/auth/oidc/callback/explicit",
+            CallbackRegistrations.SPRING_DEFAULT);
   }
 
   @Test
