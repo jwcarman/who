@@ -61,3 +61,35 @@ updates:
       include: "scope"
     reviewers:
       - "jwcarman"
+    groups:
+      # CodeQL refuses to run with its steps on different versions: bump them together
+      codeql:
+        patterns:
+          - "github/codeql-action*"
+
+  # npm: the TypeScript client, its lint tools, and the spa example's front end
+  - package-ecosystem: "npm"
+    directories:
+      - "/who-client"
+      - "/who-client/lint-tools"
+      - "/who-examples/spa/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "automated"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    reviewers:
+      - "jwcarman"
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
