@@ -18,6 +18,7 @@ package org.jwcarman.who.examples.webandapi;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.jwcarman.who.spring.security.web.NotSignedInException;
+import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -49,6 +50,25 @@ class Errors {
             ProblemDetail.forStatusAndDetail(
                 HttpStatus.UNAUTHORIZED,
                 isApi(request) ? "Send an access token or an API key" : "Sign in to continue"));
+  }
+
+  /**
+   * The person signed in too long ago for this action, such as making a key: a page goes to sign in
+   * again and back; the API says so.
+   */
+  @ExceptionHandler(ReauthenticationRequiredException.class)
+  ResponseEntity<ProblemDetail> signInAgain(HttpServletRequest request) {
+    if (!isApi(request) && wantsPage(request)) {
+      return ResponseEntity.status(HttpStatus.SEE_OTHER)
+          .header(
+              HttpHeaders.LOCATION,
+              "/signin?again="
+                  + request.getRequestURI().substring(request.getContextPath().length()))
+          .build();
+    }
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(
+            ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Sign in again to do this"));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

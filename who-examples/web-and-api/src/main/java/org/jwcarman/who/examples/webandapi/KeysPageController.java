@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -55,8 +56,12 @@ class KeysPageController {
   /**
    * Makes a key and shows it, this once: who keeps only its hash. who refuses a blank or long name,
    * a lifetime over {@code who.api-key.max-lifetime}, no scopes, or a scope the person lacks.
+   *
+   * <p>A key outlives the session that made it, so making one needs a recent sign-in: a stolen
+   * session cookie must not be enough to mint a key that works for months.
    */
   @PostMapping("/keys")
+  @RequiresRecentSignIn
   String make(
       @RequestParam String name,
       @RequestParam int lifetimeDays,

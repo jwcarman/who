@@ -2,6 +2,10 @@ import { ensureCsrfCookie, requestLink, signInWithCode } from '/js/who.js';
 
 const $ = id => document.getElementById(id);
 
+// Sent here to sign in again (?again=/keys): go back there after, but only to a page of this site.
+const again = new URLSearchParams(location.search).get('again');
+const next = again && again.startsWith('/') && !again.startsWith('//') ? again : '/';
+
 function showError(text) {
   $('error').textContent = text;
   $('error').hidden = false;
@@ -12,6 +16,12 @@ await ensureCsrfCookie();
 $('email-form').addEventListener('submit', async e => {
   e.preventDefault();
   await requestLink($('email').value);
+  try {
+    // the link opens on /signin/link, which goes back here after
+    localStorage.setItem('who-next', next);
+  } catch {
+    // no storage: the link goes to the board
+  }
   $('code-step').hidden = false;
   $('code').focus();
 });
@@ -19,7 +29,7 @@ $('email-form').addEventListener('submit', async e => {
 $('code-form').addEventListener('submit', async e => {
   e.preventDefault();
   if (await signInWithCode($('email').value, $('code').value)) {
-    location.assign('/');
+    location.assign(next);
   } else {
     showError('That code did not work. Check it, or ask for a new email.');
   }

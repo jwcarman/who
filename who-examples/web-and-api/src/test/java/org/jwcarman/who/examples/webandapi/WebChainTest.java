@@ -24,6 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.time.Instant;
+
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -219,5 +222,53 @@ class WebChainTest extends AbstractWebAndApiTest {
             .get("newKey");
     assertThat(shown).isInstanceOf(NewApiKey.class);
     return (NewApiKey) shown;
+  }
+
+  @Test
+  void making_a_key_needs_a_recent_sign_in() throws Exception {
+    Person bob = person(TeamRole.MEMBER, Instant.now().minus(Duration.ofMinutes(11)));
+
+    mockMvc
+        .perform(
+            post("/keys")
+                .session(bob.session())
+                .with(csrf())
+                .accept(MediaType.TEXT_HTML)
+                .param("name", "CI")
+                .param("lifetimeDays", "30")
+                .param("scopes", "task.read"))
+        .andExpect(status().isSeeOther())
+        .andExpect(header().string(HttpHeaders.LOCATION, "/signin?again=/keys"));
+    mockMvc
+        .perform(
+            post("/keys")
+                .session(bob.session())
+                .with(csrf())
+                .param("name", "CI")
+                .param("lifetimeDays", "30")
+                .param("scopes", "task.read"))
+        .andExpect(status().isUnauthorized());
+
+    assertThat(apiKeys.findByIdentity(bob.identity().id())).isEmpty();
+    mockMvc
+        .perform(get("/keys").session(bob.session()).accept(MediaType.TEXT_HTML))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void signing_in_again_shows_the_sign_in_page_to_someone_signed_in() throws Exception {
+    Person bob = person(TeamRole.MEMBER);
+
+    mockMvc
+        .perform(get("/signin").session(bob.session()).accept(MediaType.TEXT_HTML))
+        .andExpect(status().is3xxRedirection());
+    mockMvc
+        .perform(
+            get("/signin")
+                .param("again", "/keys")
+                .session(bob.session())
+                .accept(MediaType.TEXT_HTML))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("again", true));
   }
 }

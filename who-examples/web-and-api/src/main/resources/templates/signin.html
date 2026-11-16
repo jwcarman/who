@@ -5,6 +5,10 @@
 <main>
   <h1>Sign in to Who Tasks</h1>
 
+  <div class="message" th:if="${again}">
+    You signed in a while ago. Sign in again to make a key: a key outlives this session, so a recent
+    sign-in shows it is really you.
+  </div>
   <div class="message warn" id="error" hidden></div>
 
   <section class="stack">

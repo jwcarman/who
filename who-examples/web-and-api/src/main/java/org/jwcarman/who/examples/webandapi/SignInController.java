@@ -18,15 +18,27 @@ package org.jwcarman.who.examples.webandapi;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /** The website's sign-in pages: email link or code, and Keycloak. */
 @Controller
 class SignInController {
 
-  /** The sign-in page; someone already signed in goes to the board. */
+  /**
+   * The sign-in page; someone already signed in goes to the board, unless they were sent to sign in
+   * again, as making a key asks of a sign-in more than {@code who.security.recent-sign-in} old.
+   */
   @GetMapping("/signin")
-  String signIn(@AuthenticationPrincipal WhoPrincipal principal) {
+  String signIn(
+      @AuthenticationPrincipal WhoPrincipal principal,
+      @RequestParam(required = false) String again,
+      Model model) {
+    if (again != null) {
+      model.addAttribute("again", true);
+      return "signin";
+    }
     return principal == null ? "signin" : "redirect:/";
   }
 
