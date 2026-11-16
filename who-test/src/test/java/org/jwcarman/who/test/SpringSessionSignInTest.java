@@ -48,14 +48,16 @@ class SpringSessionSignInTest {
 
   private final UUID identityId = UUID.randomUUID();
   private final UUID credentialId = UUID.randomUUID();
+  private final WhoSession whoSession =
+      new WhoSession(
+          identityId, credentialId, SIGNED_IN_AT, SignInMethod.EMAIL_CODE, UUID.randomUUID());
 
   @Test
   void withoutASessionRepositoryNothingIsSaved() {
     GenericWebApplicationContext context = context(new MockEnvironment());
     context.refresh();
 
-    assertThat(SpringSessionSignIn.signIn(context, identityId, credentialId, SIGNED_IN_AT))
-        .isEmpty();
+    assertThat(SpringSessionSignIn.signIn(context, whoSession)).isEmpty();
   }
 
   @Test
@@ -66,8 +68,7 @@ class SpringSessionSignInTest {
     context.registerBean(MapSessionRepository.class, () -> new MapSessionRepository(store));
     context.refresh();
 
-    Optional<Cookie> cookie =
-        SpringSessionSignIn.signIn(context, identityId, credentialId, SIGNED_IN_AT);
+    Optional<Cookie> cookie = SpringSessionSignIn.signIn(context, whoSession);
 
     assertThat(store).hasSize(1);
     MapSession saved = (MapSession) store.values().iterator().next();
@@ -79,7 +80,7 @@ class SpringSessionSignInTest {
             Cookie::getValue);
     assertThat(
             saved.<WhoSession>getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isEqualTo(new WhoSession(identityId, credentialId, SIGNED_IN_AT, SignInMethod.EMAIL_CODE));
+        .isEqualTo(whoSession);
     assertThat(
             saved.<String>getAttribute(
                 WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE))
@@ -94,8 +95,7 @@ class SpringSessionSignInTest {
     context.registerBean(CookieSerializer.class, SilentCookieSerializer::new);
     context.refresh();
 
-    assertThatThrownBy(
-            () -> SpringSessionSignIn.signIn(context, identityId, credentialId, SIGNED_IN_AT))
+    assertThatThrownBy(() -> SpringSessionSignIn.signIn(context, whoSession))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("Expected the session CookieSerializer to write one cookie, but it wrote 0");
   }

@@ -49,6 +49,7 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -126,7 +127,11 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
         WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+      return new WhoSessionSecurityContextRepository(
+          whoService,
+          InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+          clock,
+          WhoEventPublisher.NOOP);
     }
 
     @Bean

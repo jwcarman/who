@@ -16,6 +16,7 @@
 package org.jwcarman.who.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -47,8 +48,10 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -87,9 +90,15 @@ class WhoTestSupportTest {
     }
 
     @Bean
+    WhoSessions whoSessions(Clock clock) {
+      return InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP);
+    }
+
+    @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
-        WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+        WhoService whoService, WhoSessions sessions, Clock clock) {
+      return new WhoSessionSecurityContextRepository(
+          whoService, sessions, clock, WhoEventPublisher.NOOP);
     }
 
     @Bean
@@ -154,6 +163,7 @@ class WhoTestSupportTest {
   @MockitoBean private WhoService whoService;
 
   @Autowired private WebApplicationContext context;
+  @Autowired private WhoSessions sessions;
 
   private MockMvc mvc;
 
@@ -169,7 +179,7 @@ class WhoTestSupportTest {
 
   @Test
   void signedInSessionIsResolvedOnTheNextRequest() throws Exception {
-    MockHttpSession session = WhoTestSessions.signedIn(identity.id(), credentialId);
+    MockHttpSession session = WhoTestSessions.signedIn(sessions, identity.id(), credentialId);
 
     mvc.perform(get("/who/me").session(session))
         .andExpect(status().isOk())
@@ -251,10 +261,14 @@ class WhoTestSupportTest {
   @Test
   void signedInAtFollowsTheGivenInstant() throws Exception {
     Instant earlier = NOW.minusSeconds(60);
-    MockHttpSession session = WhoTestSessions.signedIn(identity.id(), credentialId, earlier);
+    MockHttpSession session =
+        WhoTestSessions.signedIn(sessions, identity.id(), credentialId, earlier);
 
-    assertThat(session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isEqualTo(new WhoSession(identity.id(), credentialId, earlier, SignInMethod.EMAIL_CODE));
+    WhoSession stored =
+        (WhoSession) session.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE);
+    assertThat(stored.signedInAt()).isEqualTo(earlier);
+    assertThat(stored.signInMethod()).isEqualTo(SignInMethod.EMAIL_CODE);
+    assertThat(sessions.findLive(stored.sessionId())).isPresent();
     mvc.perform(get("/who/me").session(session)).andExpect(status().isOk());
   }
 
@@ -263,15 +277,17 @@ class WhoTestSupportTest {
     WhoMockMvcBrowser browser =
         new WhoMockMvcBrowser(mvc).signedInAs(identity.id(), credentialId, NOW);
 
-    assertThat(
-            browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isEqualTo(new WhoSession(identity.id(), credentialId, NOW, SignInMethod.EMAIL_CODE));
+    WhoSession stored =
+        (WhoSession)
+            browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE);
+    assertThat(stored.signedInAt()).isEqualTo(NOW);
+    assertThat(sessions.findLive(stored.sessionId())).isPresent();
     browser.perform(get("/who/me")).andExpect(status().isOk());
   }
 
   @Test
   void signedInSessionCarriesThePrincipalIndexAsProductionDoes() {
-    MockHttpSession session = WhoTestSessions.signedIn(identity.id(), credentialId);
+    MockHttpSession session = WhoTestSessions.signedIn(sessions, identity.id(), credentialId);
 
     assertThat(session.getAttribute(WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE))
         .isEqualTo(identity.id().toString());
@@ -385,17 +401,14 @@ class WhoTestSupportTest {
   }
 
   @Test
-  void aMockMvcWithoutAWebContextFallsBackToAMockHttpSession() {
+  void aMockMvcWithoutAWebContextCannotSignIn() {
     MockMvc detached = mock(MockMvc.class);
     when(detached.getDispatcherServlet()).thenReturn(new DispatcherServlet());
+    WhoMockMvcBrowser browser = new WhoMockMvcBrowser(detached);
 
-    WhoMockMvcBrowser browser =
-        new WhoMockMvcBrowser(detached).signedInAs(identity.id(), credentialId);
-
-    assertThat(
-            browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE))
-        .isNotNull();
-    assertThat(browser.cookie("SESSION")).isEmpty();
+    assertThatIllegalStateException()
+        .isThrownBy(() -> browser.signedInAs(identity.id(), credentialId))
+        .withMessageContaining("WhoSessions");
   }
 
   @Test

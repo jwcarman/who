@@ -26,7 +26,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,8 +39,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.jwcarman.who.autoconfigure.EmailLinkSignInTest.RecordingSender;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.domain.SessionRecord;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.SignUpDecision;
 import org.jwcarman.who.core.signup.SignUpRequest;
@@ -240,6 +242,7 @@ abstract class AbstractOidcTest {
   @Autowired WebApplicationContext context;
   @Autowired JdbcClient jdbcClient;
   @Autowired IdentityRepository identityRepository;
+  @Autowired WhoSessions whoSessions;
   @Autowired FederatedCredentialService federatedCredentialService;
   @Autowired FederatedCredentialRepository federatedCredentialRepository;
   @Autowired WhoService whoService;
@@ -346,10 +349,12 @@ abstract class AbstractOidcTest {
   Identity signedInIdentityKeepingSession(String issuer, String subject) {
     Identity identity = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
     FederatedCredential credential = federatedCredentialService.link(identity, issuer, subject);
+    SessionRecord row = whoSessions.start(identity.id(), credential.id(), SignInMethod.OIDC, null);
     HttpSession session = browser.session();
     session.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identity.id(), credential.id(), Instant.now()));
+        new WhoSession(
+            identity.id(), credential.id(), row.signedInAt(), SignInMethod.OIDC, row.id()));
     session.setAttribute(
         WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE, identity.id().toString());
     return identity;

@@ -15,13 +15,10 @@
  */
 package org.jwcarman.who.test;
 
-import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
 
-import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -55,26 +52,24 @@ final class SpringSessionSignIn {
    * @return the session cookie the browser must present, or empty if the application has no session
    *     repository
    */
-  static Optional<Cookie> signIn(
-      WebApplicationContext context, UUID identityId, UUID credentialId, Instant signedInAt) {
+  static Optional<Cookie> signIn(WebApplicationContext context, WhoSession whoSession) {
     ObjectProvider<SessionRepository<?>> repositories =
         context.getBeanProvider(ResolvableType.forClass(SessionRepository.class));
     SessionRepository<?> repository = repositories.getIfUnique();
     if (repository == null) {
       return Optional.empty();
     }
-    String sessionId = save(repository, identityId, credentialId, signedInAt);
+    String sessionId = save(repository, whoSession);
     return Optional.of(cookie(context, sessionId));
   }
 
   private static <S extends Session> String save(
-      SessionRepository<S> repository, UUID identityId, UUID credentialId, Instant signedInAt) {
+      SessionRepository<S> repository, WhoSession whoSession) {
     S session = repository.createSession();
+    session.setAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE, whoSession);
     session.setAttribute(
-        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identityId, credentialId, signedInAt, SignInMethod.EMAIL_CODE));
-    session.setAttribute(
-        WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
+        WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE,
+        whoSession.identityId().toString());
     repository.save(session);
     return session.getId();
   }

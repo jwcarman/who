@@ -44,6 +44,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -62,7 +63,7 @@ class PendingSignUpFilterTest {
       new PendingSignUpFilter(
           signUpService,
           identities,
-          new WhoSessionSecurityContextRepository(mock(WhoService.class), Clock.systemUTC()),
+          whoSessionRepository(mock(WhoService.class), Clock.systemUTC()),
           mock(SessionAuthenticationStrategy.class),
           new PendingSignUps(),
           new WhoExceptionHandoff(null),
@@ -104,8 +105,7 @@ class PendingSignUpFilterTest {
         new PendingSignUpFilter(
             signUpService,
             identities,
-            new WhoSessionSecurityContextRepository(
-                mock(WhoService.class), Clock.fixed(now, ZoneOffset.UTC)),
+            whoSessionRepository(mock(WhoService.class), Clock.fixed(now, ZoneOffset.UTC)),
             strategy,
             pendingSignUps,
             new WhoExceptionHandoff(null),
@@ -144,5 +144,14 @@ class PendingSignUpFilterTest {
                   .isEqualTo(FactorGrantedAuthority.AUTHORIZATION_CODE_AUTHORITY);
               assertThat(factor.getIssuedAt()).isEqualTo(now);
             });
+  }
+
+  private static WhoSessionSecurityContextRepository whoSessionRepository(
+      WhoService whoService, Clock clock) {
+    return new WhoSessionSecurityContextRepository(
+        whoService,
+        InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+        clock,
+        WhoEventPublisher.NOOP);
   }
 }

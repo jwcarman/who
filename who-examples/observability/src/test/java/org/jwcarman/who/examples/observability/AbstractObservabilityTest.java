@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.rbac.RbacService;
@@ -57,6 +58,7 @@ abstract class AbstractObservabilityTest {
 
   @Autowired MockMvc mockMvc;
   @Autowired WhoService whoService;
+  @Autowired WhoSessions whoSessions;
   @Autowired EmailCredentialService emailCredentials;
   @Autowired RbacService rbacService;
 
@@ -80,6 +82,6 @@ abstract class AbstractObservabilityTest {
     EmailCredential credential =
         emailCredentials.register(identity, UUID.randomUUID() + "@example.com");
     rbacService.assignRoleByName(identity, Setup.ROLE);
-    return WhoTestSessions.signedIn(identity.id(), credential.id(), signedInAt);
+    return WhoTestSessions.signedIn(whoSessions, identity.id(), credential.id(), signedInAt);
   }
 }

@@ -38,6 +38,7 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
@@ -49,6 +50,7 @@ import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.SignInFailedException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
@@ -149,7 +151,11 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
     @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
         WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+      return new WhoSessionSecurityContextRepository(
+          whoService,
+          InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+          clock,
+          WhoEventPublisher.NOOP);
     }
 
     @Bean

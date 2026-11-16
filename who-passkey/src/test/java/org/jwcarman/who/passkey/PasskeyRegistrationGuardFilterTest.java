@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -43,6 +44,7 @@ import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
@@ -57,7 +59,11 @@ class PasskeyRegistrationGuardFilterTest {
 
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
   private final WhoSessionSecurityContextRepository sessions =
-      new WhoSessionSecurityContextRepository(mock(WhoService.class), clock);
+      new WhoSessionSecurityContextRepository(
+          mock(WhoService.class),
+          InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+          clock,
+          WhoEventPublisher.NOOP);
   private final List<Exception> handedOff = new ArrayList<>();
   private final PasskeyRegistrationGuardFilter guard =
       new PasskeyRegistrationGuardFilter(

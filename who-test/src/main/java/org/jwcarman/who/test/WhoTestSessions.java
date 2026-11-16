@@ -15,10 +15,14 @@
  */
 package org.jwcarman.who.test;
 
+import static java.util.Objects.requireNonNull;
+
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.mock.web.MockHttpSession;
@@ -26,50 +30,72 @@ import org.springframework.mock.web.MockHttpSession;
 /**
  * Signed-in HTTP sessions for tests.
  *
- * <p>who keeps only a {@link WhoSession} (ids) in the HTTP session and re-resolves the principal
- * from its {@code WhoService} on every request, so the identity and credential must exist, and be
- * usable, in the application under test.
+ * <p>who keeps only a {@link WhoSession} (ids) in the HTTP session, checks on every request that
+ * who's record of the session is live, and re-resolves the principal from its {@code WhoService},
+ * so the identity and credential must exist, and be usable, in the application under test. These
+ * methods record the session through the application's {@link WhoSessions}, as a real sign-in does.
  */
 public final class WhoTestSessions {
 
   private WhoTestSessions() {}
 
   /**
-   * Creates a session holding a {@link WhoSession} signed in now ({@link Instant#now()}) and the
-   * principal index, as who stores them after a successful sign-in. When the application's {@code
-   * Clock} is fixed, use {@link #signedIn(UUID, UUID, Instant)} with the clock's instant instead.
+   * Creates a session signed in now, by the application's {@code Clock}, holding a {@link
+   * WhoSession} and the principal index as who stores them after a successful sign-in.
    *
    * <p>The session is a {@code MockHttpSession}, which MockMvc gives to the request. With Spring
    * Session in the filter chain, its request wrapper ignores that session, so every request would
    * be signed out; use {@link WhoMockMvcBrowser#signedInAs(UUID, UUID)} there, which stores the
    * session in the application's {@code SessionRepository}.
    *
+   * @param sessions the application's {@code WhoSessions} bean
    * @param identityId the signed-in identity
    * @param credentialId the credential the identity signed in with
    * @return a new session, to pass to {@code MockHttpServletRequestBuilder.session(...)}
    */
-  public static MockHttpSession signedIn(UUID identityId, UUID credentialId) {
-    return signedIn(identityId, credentialId, Instant.now());
+  public static MockHttpSession signedIn(WhoSessions sessions, UUID identityId, UUID credentialId) {
+    return session(record(sessions, identityId, credentialId, null));
   }
 
   /**
-   * Creates a session holding a {@link WhoSession} signed in at the given instant, as who stores it
-   * after a successful sign-in. Use this overload when the application's {@code Clock} is fixed, so
-   * the sign-in time follows that clock. Like {@link #signedIn(UUID, UUID)}, it does not work with
-   * Spring Session in the filter chain.
+   * Creates a session signed in at the given instant, as {@link #signedIn(WhoSessions, UUID, UUID)}
+   * does. Use it to sign in a while ago, for instance to test a recent sign-in requirement; the
+   * session counts as used now, so it is not idle.
    *
+   * @param sessions the application's {@code WhoSessions} bean
    * @param identityId the signed-in identity
    * @param credentialId the credential the identity signed in with
    * @param signedInAt when the identity signed in
    * @return a new session, to pass to {@code MockHttpServletRequestBuilder.session(...)}
    */
-  public static MockHttpSession signedIn(UUID identityId, UUID credentialId, Instant signedInAt) {
+  public static MockHttpSession signedIn(
+      WhoSessions sessions, UUID identityId, UUID credentialId, Instant signedInAt) {
+    return session(
+        record(
+            sessions,
+            identityId,
+            credentialId,
+            requireNonNull(signedInAt, "signedInAt must not be null")));
+  }
+
+  /** Records a sign-in by email code and returns what the HTTP session holds for it. */
+  static WhoSession record(
+      WhoSessions sessions, UUID identityId, UUID credentialId, Instant signedInAt) {
+    requireNonNull(sessions, "sessions must not be null");
+    SessionRecord row =
+        signedInAt == null
+            ? sessions.start(identityId, credentialId, SignInMethod.EMAIL_CODE, null)
+            : sessions.start(identityId, credentialId, SignInMethod.EMAIL_CODE, null, signedInAt);
+    return new WhoSession(
+        identityId, credentialId, row.signedInAt(), SignInMethod.EMAIL_CODE, row.id());
+  }
+
+  static MockHttpSession session(WhoSession whoSession) {
     MockHttpSession session = new MockHttpSession();
+    session.setAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE, whoSession);
     session.setAttribute(
-        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identityId, credentialId, signedInAt, SignInMethod.EMAIL_CODE));
-    session.setAttribute(
-        WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
+        WhoSessionSecurityContextRepository.PRINCIPAL_INDEX_ATTRIBUTE,
+        whoSession.identityId().toString());
     return session;
   }
 }

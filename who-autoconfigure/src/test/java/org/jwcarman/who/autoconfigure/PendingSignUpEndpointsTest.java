@@ -278,13 +278,22 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
           federatedCredentialService.link(bob, "https://other.example.com", "bob");
       browser.signedInAs(bob.id(), bobs.id());
       linkAtProvider("carol", Map.of());
-      // the sign-in grows old between the provider's answer and the confirmation
+      // the sign-in grows old between the provider's answer and the confirmation; the session
+      // itself stays live
+      WhoSession live =
+          (WhoSession)
+              browser.session().getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE);
       browser
           .session()
           .setAttribute(
               WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
               new WhoSession(
-                  bob.id(), bobs.id(), Instant.now().minus(LINK_WINDOW).minusSeconds(60)));
+                  bob.id(),
+                  bobs.id(),
+                  Instant.now().minus(LINK_WINDOW).minusSeconds(60),
+                  live.signInMethod(),
+                  live.sessionId()));
+      assertThat(me()).isEqualTo(200);
 
       assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(401);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))

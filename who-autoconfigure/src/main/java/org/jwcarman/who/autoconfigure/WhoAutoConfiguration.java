@@ -23,11 +23,13 @@ import javax.sql.DataSource;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.repository.SessionRecordRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
+import org.jwcarman.who.jdbc.JdbcSessionRecordRepository;
 import org.jwcarman.who.rbac.IdentityRoleRepository;
 import org.jwcarman.who.rbac.JdbcIdentityRoleRepository;
 import org.jwcarman.who.rbac.JdbcRolePermissionRepository;
@@ -171,6 +173,12 @@ public class WhoAutoConfiguration {
     @ConditionalOnMissingBean
     public CredentialIdentityRepository credentialIdentityRepository(JdbcClient jdbcClient) {
       return new JdbcCredentialIdentityRepository(jdbcClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SessionRecordRepository sessionRecordRepository(JdbcClient jdbcClient) {
+      return new JdbcSessionRecordRepository(jdbcClient);
     }
   }
 

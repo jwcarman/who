@@ -51,6 +51,7 @@ public class WhoProperties {
   private Jwt jwt = new Jwt();
   private Security security = new Security();
   private Oidc oidc = new Oidc();
+  private Sessions sessions = new Sessions();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -807,6 +808,106 @@ public class WhoProperties {
      */
     public void setEnabled(boolean enabled) {
       this.enabled = enabled;
+    }
+  }
+
+  /**
+   * Returns who's record of browser sessions.
+   *
+   * @return session properties
+   */
+  public Sessions getSessions() {
+    return sessions;
+  }
+
+  /**
+   * Sets who's record of browser sessions.
+   *
+   * @param sessions session properties
+   */
+  public void setSessions(Sessions sessions) {
+    this.sessions = sessions;
+  }
+
+  /**
+   * who's record of browser sessions, which lets a person see where they are signed in and end a
+   * session. How long a session lasts without a request is Spring Boot's setting ({@code
+   * spring.session.timeout}, else {@code server.servlet.session.timeout}), not who's.
+   */
+  public static class Sessions {
+
+    /** Creates the settings with their defaults. */
+    public Sessions() {
+      // defaults are set on the fields
+    }
+
+    /**
+     * Whether each sign-in also deletes one batch of ended or abandoned session records. Turn it
+     * off to call {@code WhoSessions.purgeEndedSessions()} on a schedule of your own instead.
+     */
+    private boolean autoPurge = true;
+
+    /** The most session records one purge deletes. */
+    private int purgeBatchSize = 100;
+
+    /**
+     * How often a busy session's last-seen time is written: at most once per interval, so a session
+     * making many requests costs one write every few minutes, not one per request.
+     */
+    private Duration lastSeenInterval = Duration.ofMinutes(5);
+
+    /**
+     * Returns whether each sign-in purges one batch.
+     *
+     * @return whether auto-purge is on
+     */
+    public boolean isAutoPurge() {
+      return autoPurge;
+    }
+
+    /**
+     * Sets whether each sign-in purges one batch.
+     *
+     * @param autoPurge false to purge on your own schedule
+     */
+    public void setAutoPurge(boolean autoPurge) {
+      this.autoPurge = autoPurge;
+    }
+
+    /**
+     * Returns the most records one purge deletes.
+     *
+     * @return the batch size
+     */
+    public int getPurgeBatchSize() {
+      return purgeBatchSize;
+    }
+
+    /**
+     * Sets the most records one purge deletes.
+     *
+     * @param purgeBatchSize the batch size
+     */
+    public void setPurgeBatchSize(int purgeBatchSize) {
+      this.purgeBatchSize = purgeBatchSize;
+    }
+
+    /**
+     * Returns how often a busy session's last-seen time is written.
+     *
+     * @return the interval
+     */
+    public Duration getLastSeenInterval() {
+      return lastSeenInterval;
+    }
+
+    /**
+     * Sets how often a busy session's last-seen time is written.
+     *
+     * @param lastSeenInterval the interval
+     */
+    public void setLastSeenInterval(Duration lastSeenInterval) {
+      this.lastSeenInterval = lastSeenInterval;
     }
   }
 

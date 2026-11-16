@@ -17,13 +17,17 @@
 package org.jwcarman.who.autoconfigure;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.repository.SessionRecordRepository;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
+import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -38,9 +42,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
@@ -55,6 +61,9 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @ConditionalOnClass(name = "org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository")
 public class WhoSpringSecurityAutoConfiguration {
 
+  /** Spring Boot's own default for {@code server.servlet.session.timeout}. */
+  private static final Duration DEFAULT_SESSION_TIMEOUT = Duration.ofMinutes(30);
+
   /** Creates the autoconfiguration; Spring Boot calls it. */
   public WhoSpringSecurityAutoConfiguration() {
     // nothing to set up: every bean is built by a method below
@@ -66,6 +75,7 @@ public class WhoSpringSecurityAutoConfiguration {
    * effect at once.
    *
    * @param whoService resolves the principal
+   * @param whoSessions records each sign-in and says whether its session is live
    * @param clock stamps the sign-in time
    * @param whoEventPublisher publishes session events
    * @return the repository
@@ -73,8 +83,66 @@ public class WhoSpringSecurityAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
-      WhoService whoService, Clock clock, WhoEventPublisher whoEventPublisher) {
-    return new WhoSessionSecurityContextRepository(whoService, clock, whoEventPublisher);
+      WhoService whoService,
+      WhoSessions whoSessions,
+      Clock clock,
+      WhoEventPublisher whoEventPublisher) {
+    return new WhoSessionSecurityContextRepository(
+        whoService, whoSessions, clock, whoEventPublisher);
+  }
+
+  /**
+   * who's record of browser sessions. The idle timeout is Spring Boot's: {@code
+   * spring.session.timeout} when set, else {@code server.servlet.session.timeout}, else 30 minutes.
+   *
+   * @param repository where sessions are kept
+   * @param whoEventPublisher publishes ended and purged sessions
+   * @param clock the current time
+   * @param properties who's settings
+   * @param environment where the timeout is read
+   * @return the sessions
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public WhoSessions whoSessions(
+      SessionRecordRepository repository,
+      WhoEventPublisher whoEventPublisher,
+      Clock clock,
+      WhoProperties properties,
+      Environment environment) {
+    WhoProperties.Sessions settings = properties.getSessions();
+    return new WhoSessions(
+        repository,
+        whoEventPublisher,
+        clock,
+        idleTimeout(environment),
+        settings.getLastSeenInterval(),
+        settings.getPurgeBatchSize(),
+        settings.isAutoPurge());
+  }
+
+  static Duration idleTimeout(Environment environment) {
+    Binder binder = Binder.get(environment);
+    return binder
+        .bind("spring.session.timeout", Duration.class)
+        .orElseGet(
+            () ->
+                binder
+                    .bind("server.servlet.session.timeout", Duration.class)
+                    .orElse(DEFAULT_SESSION_TIMEOUT));
+  }
+
+  /**
+   * Ends who's record of a session when the servlet container destroys it. Spring Boot registers it
+   * with the embedded container.
+   *
+   * @param whoSessions who's record of sessions
+   * @return the listener
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public WhoSessionEndListener whoSessionEndListener(WhoSessions whoSessions) {
+    return new WhoSessionEndListener(whoSessions);
   }
 
   /**

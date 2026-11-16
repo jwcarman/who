@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.test;
 
+import static java.util.Objects.requireNonNull;
+
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -25,6 +27,8 @@ import java.util.UUID;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpSession;
 
+import org.jwcarman.who.core.service.WhoSessions;
+import org.jwcarman.who.spring.security.WhoSession;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
@@ -90,31 +94,31 @@ public class WhoMockMvcBrowser {
   }
 
   /**
-   * Starts a new session signed in now ({@link Instant#now()}) as the given identity and
-   * credential, replacing the current session. Other cookies are kept. When the application's
-   * {@code Clock} is fixed, use {@link #signedInAs(UUID, UUID, Instant)} with the clock's instant
-   * instead.
+   * Starts a new session signed in now, by the application's {@code Clock}, as the given identity
+   * and credential, replacing the current session. Other cookies are kept. The sign-in is recorded
+   * through the application's {@code WhoSessions}, taken from the {@code MockMvc}'s application
+   * context.
    *
    * <p>If Spring Session is on the classpath and the application has a {@code SessionRepository}
    * bean, the session is saved in that repository and the browser holds its session cookie, written
    * by the application's {@code CookieSerializer} (or, without one, named by {@code
    * server.servlet.session.cookie.name}, default {@code SESSION}). Spring Session's filter ignores
    * a {@code MockHttpSession}, so this is the only way to sign in under it. Otherwise the browser
-   * holds a {@code MockHttpSession} like {@link WhoTestSessions#signedIn(UUID, UUID)}.
+   * holds a {@code MockHttpSession} like {@link WhoTestSessions#signedIn(WhoSessions, UUID, UUID)}.
    *
    * @param identityId the signed-in identity
    * @param credentialId the credential it signed in with
    * @return this browser
    */
   public WhoMockMvcBrowser signedInAs(UUID identityId, UUID credentialId) {
-    return signedInAs(identityId, credentialId, Instant.now());
+    return signIn(identityId, credentialId, null);
   }
 
   /**
    * Starts a new session signed in as the given identity and credential at the given instant,
    * replacing the current session, as {@link #signedInAs(UUID, UUID)} does (with Spring Session
-   * too). Use this overload when the application's {@code Clock} is fixed, so the sign-in time
-   * follows that clock. Other cookies are kept.
+   * too). Use it to sign in a while ago, for instance to test a recent sign-in requirement. Other
+   * cookies are kept.
    *
    * @param identityId the signed-in identity
    * @param credentialId the credential it signed in with
@@ -122,16 +126,27 @@ public class WhoMockMvcBrowser {
    * @return this browser
    */
   public WhoMockMvcBrowser signedInAs(UUID identityId, UUID credentialId, Instant signedInAt) {
-    Optional<Cookie> sessionCookie = Optional.empty();
+    return signIn(
+        identityId, credentialId, requireNonNull(signedInAt, "signedInAt must not be null"));
+  }
+
+  private WhoMockMvcBrowser signIn(UUID identityId, UUID credentialId, Instant signedInAt) {
     WebApplicationContext context = mvc.getDispatcherServlet().getWebApplicationContext();
-    if (SPRING_SESSION_PRESENT && context != null) {
-      sessionCookie = SpringSessionSignIn.signIn(context, identityId, credentialId, signedInAt);
+    if (context == null) {
+      throw new IllegalStateException(
+          "Signing in needs the application's WhoSessions: build the MockMvc from a"
+              + " WebApplicationContext");
     }
+    WhoSession whoSession =
+        WhoTestSessions.record(
+            context.getBean(WhoSessions.class), identityId, credentialId, signedInAt);
+    Optional<Cookie> sessionCookie =
+        SPRING_SESSION_PRESENT ? SpringSessionSignIn.signIn(context, whoSession) : Optional.empty();
     if (sessionCookie.isPresent()) {
       session = new MockHttpSession();
       cookies.put(sessionCookie.get().getName(), sessionCookie.get());
     } else {
-      session = WhoTestSessions.signedIn(identityId, credentialId, signedInAt);
+      session = WhoTestSessions.session(whoSession);
     }
     return this;
   }

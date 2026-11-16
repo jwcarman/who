@@ -35,8 +35,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
@@ -78,9 +80,15 @@ class WhoMockMvcBrowserSpringSessionTest {
     }
 
     @Bean
+    WhoSessions whoSessions(Clock clock) {
+      return InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP);
+    }
+
+    @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
-        WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+        WhoService whoService, WhoSessions sessions, Clock clock) {
+      return new WhoSessionSecurityContextRepository(
+          whoService, sessions, clock, WhoEventPublisher.NOOP);
     }
 
     @Bean

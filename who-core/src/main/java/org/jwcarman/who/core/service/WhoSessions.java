@@ -87,6 +87,42 @@ public class WhoSessions {
     this.autoPurge = autoPurge;
   }
 
+  /**
+   * Returns how long a session lasts without a request.
+   *
+   * @return the idle timeout
+   */
+  public Duration idleTimeout() {
+    return idleTimeout;
+  }
+
+  /**
+   * Returns how often a busy session's last-seen time is written.
+   *
+   * @return the interval
+   */
+  public Duration lastSeenInterval() {
+    return lastSeenInterval;
+  }
+
+  /**
+   * Returns the most dead sessions one purge deletes.
+   *
+   * @return the batch size
+   */
+  public int purgeBatchSize() {
+    return purgeBatchSize;
+  }
+
+  /**
+   * Returns whether each sign-in purges one batch of dead sessions.
+   *
+   * @return whether auto-purge is on
+   */
+  public boolean autoPurge() {
+    return autoPurge;
+  }
+
   private static Duration positive(Duration duration, String name) {
     requireNonNull(duration, name + " must not be null");
     if (duration.isNegative() || duration.isZero()) {

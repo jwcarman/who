@@ -29,6 +29,7 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.rbac.RbacService;
@@ -57,6 +58,7 @@ class SpaApplicationTest {
   @Autowired MockMvc mockMvc;
   @Autowired TaskStore tasks;
   @Autowired WhoService whoService;
+  @Autowired WhoSessions whoSessions;
   @Autowired EmailCredentialService emailCredentials;
   @Autowired RbacService rbacService;
 
@@ -140,6 +142,6 @@ class SpaApplicationTest {
     Identity identity = whoService.createIdentity();
     EmailCredential credential = emailCredentials.register(identity, address);
     rbacService.assignRoleByName(identity, role);
-    return WhoTestSessions.signedIn(identity.id(), credential.id());
+    return WhoTestSessions.signedIn(whoSessions, identity.id(), credential.id());
   }
 }

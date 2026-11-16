@@ -28,10 +28,12 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -77,7 +79,11 @@ class OidcLoginMethodTest {
           SignInRegistrations.of(List.of(ACME), Map.of()),
           whoService,
           mock(FederatedCredentialRepository.class),
-          new WhoSessionSecurityContextRepository(whoService, clock),
+          new WhoSessionSecurityContextRepository(
+              whoService,
+              InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+              clock,
+              WhoEventPublisher.NOOP),
           mock(OidcSignUpService.class),
           mock(IdentityRepository.class),
           new OidcRedirects("/", "/signin"),

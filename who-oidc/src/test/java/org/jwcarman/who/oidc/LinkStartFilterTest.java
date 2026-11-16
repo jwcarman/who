@@ -37,11 +37,13 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -81,7 +83,7 @@ class LinkStartFilterTest {
               new InMemoryClientRegistrationRepository(ACME),
               SignInRegistrations.of(List.of(ACME), Map.of())),
           saved,
-          new WhoSessionSecurityContextRepository(mock(WhoService.class), Clock.systemUTC()),
+          whoSessionRepository(mock(WhoService.class), Clock.systemUTC()),
           new WhoExceptionHandoff(null),
           Clock.fixed(NOW, ZoneOffset.UTC),
           RECENT_SIGN_IN);
@@ -251,5 +253,14 @@ class LinkStartFilterTest {
     filter.doFilter(request, new MockHttpServletResponse(), chain);
 
     assertThat(chain.getRequest()).isSameAs(request);
+  }
+
+  private static WhoSessionSecurityContextRepository whoSessionRepository(
+      WhoService whoService, Clock clock) {
+    return new WhoSessionSecurityContextRepository(
+        whoService,
+        InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+        clock,
+        WhoEventPublisher.NOOP);
   }
 }

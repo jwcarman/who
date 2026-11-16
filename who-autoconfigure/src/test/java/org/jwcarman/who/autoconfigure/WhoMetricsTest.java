@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.EndedSessionsPurged;
 import org.jwcarman.who.core.event.IdentityCreated;
 import org.jwcarman.who.core.event.SessionEndReason;
 import org.jwcarman.who.core.event.SessionEnded;
@@ -150,6 +151,14 @@ class WhoMetricsTest {
       metrics.on(new SessionEnded(NOW, IDENTITY, CREDENTIAL, SessionEndReason.CREDENTIAL_REVOKED));
 
       assertThat(count("who.sessions.ended", "reason", "credential-revoked")).isEqualTo(1.0);
+    }
+
+    @Test
+    void purged_sessions_are_counted() {
+      metrics.on(new EndedSessionsPurged(NOW, 7));
+      metrics.on(new EndedSessionsPurged(NOW, 3));
+
+      assertThat(registry.get("who.sessions.purged").counter().count()).isEqualTo(10.0);
     }
 
     @Test

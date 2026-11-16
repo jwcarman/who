@@ -57,6 +57,7 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.jwcarman.who.spring.security.web.WhoMeController;
+import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
@@ -177,7 +178,11 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
     @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
         WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+      return new WhoSessionSecurityContextRepository(
+          whoService,
+          InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+          clock,
+          WhoEventPublisher.NOOP);
     }
 
     @Bean

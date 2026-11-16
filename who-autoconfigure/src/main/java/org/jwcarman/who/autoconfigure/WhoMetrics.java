@@ -19,6 +19,7 @@ import static org.jwcarman.who.core.observation.WhoObservations.tagValue;
 
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialRevoked;
+import org.jwcarman.who.core.event.EndedSessionsPurged;
 import org.jwcarman.who.core.event.SessionEnded;
 import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInSucceeded;
@@ -47,6 +48,9 @@ public final class WhoMetrics {
 
   /** Sessions who ended, tagged {@code reason}. */
   public static final String SESSIONS_ENDED = "who.sessions.ended";
+
+  /** Counter of ended or abandoned session records deleted. */
+  public static final String SESSIONS_PURGED = "who.sessions.purged";
 
   /** Credentials added, tagged {@code kind}. */
   public static final String CREDENTIALS_ADDED = "who.credentials.added";
@@ -101,6 +105,11 @@ public final class WhoMetrics {
               .tag(REASON, tagValue(ended.reason()))
               .register(registry)
               .increment();
+      case EndedSessionsPurged purged ->
+          Counter.builder(SESSIONS_PURGED)
+              .description("Ended or abandoned session records deleted")
+              .register(registry)
+              .increment(purged.count());
       case CredentialAdded added ->
           Counter.builder(CREDENTIALS_ADDED)
               .description("Credentials added, by kind")

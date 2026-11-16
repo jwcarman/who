@@ -64,6 +64,7 @@ class LiquibaseChangelogTest {
       List.of(
           "who_identity",
           "who_credential_identity",
+          "who_session",
           "who_role",
           "who_role_permission",
           "who_identity_role",
