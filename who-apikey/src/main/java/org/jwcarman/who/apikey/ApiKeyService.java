@@ -54,6 +54,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ApiKeyService {
 
   /** The longest a rotated key's predecessor may keep working. */
+  /** The longest name or scope a key may have: the width of their columns. */
+  static final int MAX_TEXT = 255;
+
   public static final Duration MAX_OVERLAP = Duration.ofDays(7);
 
   private static final Comparator<ApiKey> BY_NAME =
@@ -123,6 +126,10 @@ public class ApiKeyService {
     if (name.isBlank()) {
       throw new IllegalArgumentException("An API key needs a name");
     }
+    if (name.length() > MAX_TEXT) {
+      throw new IllegalArgumentException(
+          "An API key's name must be at most " + MAX_TEXT + " characters");
+    }
     if (lifetime.isNegative() || lifetime.isZero()) {
       throw new IllegalArgumentException("An API key's lifetime must be positive");
     }
@@ -135,6 +142,10 @@ public class ApiKeyService {
     }
     if (scopes.stream().anyMatch(scope -> scope == null || scope.isBlank())) {
       throw new IllegalArgumentException("An API key's scopes must not be blank");
+    }
+    if (scopes.stream().anyMatch(scope -> scope.length() > MAX_TEXT)) {
+      throw new IllegalArgumentException(
+          "An API key's scopes must be at most " + MAX_TEXT + " characters each");
     }
     Set<String> held = permissionsResolver.resolve(identity);
     List<String> missing = scopes.stream().filter(scope -> !held.contains(scope)).sorted().toList();

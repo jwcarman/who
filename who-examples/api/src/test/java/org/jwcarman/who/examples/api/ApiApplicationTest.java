@@ -20,6 +20,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -129,6 +131,19 @@ class ApiApplicationTest extends AbstractApiTest {
         .andExpect(
             header().string(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PROBLEM_JSON_VALUE))
         .andExpect(jsonPath("$.status").value(403));
+  }
+
+  @Test
+  void a_task_title_too_long_to_store_is_a_400_problem() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/tasks")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token(ALICE)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"" + "t".repeat(201) + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.status").value(400));
   }
 
   @Test

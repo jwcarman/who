@@ -2,6 +2,11 @@ spring:
   application:
     name: who-example-api
 
+  # Spring's own 400s (a malformed body, a wrong type) as ProblemDetail, like every other error here.
+  mvc:
+    problemdetails:
+      enabled: true
+
   # The app's own table. Postgres itself comes from compose.yaml, through Boot's service connection.
   sql:
     init:

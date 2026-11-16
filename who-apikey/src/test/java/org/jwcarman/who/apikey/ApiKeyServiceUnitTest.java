@@ -85,6 +85,18 @@ class ApiKeyServiceUnitTest {
         Arguments.of("no scopes", "k", Duration.ofDays(1), Set.of(), "scope"),
         Arguments.of("a blank scope", "k", Duration.ofDays(1), withBlank, "scope"),
         Arguments.of(
+            "a name longer than its column",
+            "n".repeat(256),
+            Duration.ofDays(1),
+            Set.of("task.read"),
+            "name"),
+        Arguments.of(
+            "a scope longer than its column",
+            "k",
+            Duration.ofDays(1),
+            Set.of("s".repeat(256)),
+            "scope"),
+        Arguments.of(
             "a scope the owner lacks",
             "k",
             Duration.ofDays(1),

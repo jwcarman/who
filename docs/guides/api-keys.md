@@ -73,7 +73,7 @@ String rawKey = created.key(); // show it once: it cannot be retrieved again
 
 `create` refuses, with an `IllegalArgumentException` that says which, a blank name, a lifetime
 that is not positive or is longer than `who.api-key.max-lifetime` (default 365 days), an empty
-scope set, or a scope the owner does not hold now. `NewApiKey` holds the key's id, name, raw key,
+scope set, a name or scope longer than 255 characters, or a scope the owner does not hold now. `NewApiKey` holds the key's id, name, raw key,
 scopes and expiry; its `toString()` leaves the raw key out.
 
 ### Scopes

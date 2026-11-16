@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -173,6 +174,24 @@ class ApiKeysTest extends AbstractApiTest {
         .andExpect(status().isBadRequest());
 
     assertThat(apiKeys.findByIdentity(bob)).hasSameSizeAs(before);
+  }
+
+  @Test
+  void a_name_too_long_to_store_is_a_400_problem() throws Exception {
+    create(
+            token(BOB),
+            "{\"name\":\"" + "n".repeat(256) + "\",\"lifetimeDays\":30,\"scopes\":[\"task.read\"]}")
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.detail").value(containsString("name")));
+  }
+
+  @Test
+  void a_malformed_body_is_a_400_problem() throws Exception {
+    create(token(BOB), "{\"name\":\"CI\",\"lifetimeDays\":\"thirty\"")
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.status").value(400));
   }
 
   @Test

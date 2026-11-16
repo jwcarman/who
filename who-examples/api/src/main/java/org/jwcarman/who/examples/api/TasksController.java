@@ -20,6 +20,8 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.spring.security.RequiresPermission;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
@@ -41,6 +43,8 @@ class TasksController {
    */
   record NewTask(String title) {}
 
+  private static final int MAX_TITLE = 200;
+
   private final TaskStore tasks;
 
   TasksController(TaskStore tasks) {
@@ -55,10 +59,20 @@ class TasksController {
 
   @PostMapping("/api/tasks")
   @RequiresPermission(Permissions.TASK_CREATE)
-  ResponseEntity<Void> add(
+  ResponseEntity<ProblemDetail> add(
       @RequestBody NewTask task, @AuthenticationPrincipal WhoPrincipal principal) {
     if (task == null || !StringUtils.hasText(task.title())) {
-      return ResponseEntity.badRequest().build();
+      return ResponseEntity.of(
+              ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "A task needs a title"))
+          .build();
+    }
+    // the column's width: a longer title is the caller's mistake, not a database error
+    if (task.title().strip().length() > MAX_TITLE) {
+      return ResponseEntity.of(
+              ProblemDetail.forStatusAndDetail(
+                  HttpStatus.BAD_REQUEST,
+                  "A task's title must be at most " + MAX_TITLE + " characters"))
+          .build();
     }
     tasks.add(task.title().strip(), principal.identity().id());
     return ResponseEntity.noContent().build();
