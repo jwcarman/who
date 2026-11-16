@@ -193,10 +193,9 @@ public final class WhoAuthenticationToken extends AbstractAuthenticationToken {
     if (this == o) return true;
     if (!(o instanceof WhoAuthenticationToken that)) return false;
     if (!super.equals(o)) return false;
-    // super.equals already compares the principal
-    return Objects.equals(credentialId, that.credentialId)
-        && signInMethod == that.signInMethod
-        && Objects.equals(signInFactor, that.signInFactor);
+    // super.equals already compares the principal and the authorities, the sign-in factor among
+    // them
+    return Objects.equals(credentialId, that.credentialId) && signInMethod == that.signInMethod;
   }
 
   @Override

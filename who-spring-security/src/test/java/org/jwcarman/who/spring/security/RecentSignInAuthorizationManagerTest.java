@@ -44,6 +44,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
@@ -233,6 +234,64 @@ class RecentSignInAuthorizationManagerTest {
             () -> decision.handleDeniedInvocation(mock(MethodInvocation.class), decision))
         .isSameAs(decision.refusal());
     assertThat(response.getHeader("WWW-Authenticate")).isEqualTo(STEP_UP);
+  }
+
+  @Test
+  void a_stale_jwt_outside_a_request_still_throws() {
+    RecentSignInDecision decision =
+        decide(signedIn(SignInMethod.JWT, NOW.minus(WINDOW).minusSeconds(1)));
+
+    assertThatThrownBy(
+            () -> decision.handleDeniedInvocation(mock(MethodInvocation.class), decision))
+        .isSameAs(decision.refusal());
+  }
+
+  @Test
+  void a_stale_jwt_with_no_response_to_write_still_throws() {
+    RequestContextHolder.setRequestAttributes(
+        new ServletRequestAttributes(new MockHttpServletRequest()));
+    RecentSignInDecision decision =
+        decide(signedIn(SignInMethod.JWT, NOW.minus(WINDOW).minusSeconds(1)));
+
+    assertThatThrownBy(
+            () -> decision.handleDeniedInvocation(mock(MethodInvocation.class), decision))
+        .isSameAs(decision.refusal());
+  }
+
+  @Test
+  void a_committed_response_gets_no_challenge() {
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    response.setCommitted(true);
+    RequestContextHolder.setRequestAttributes(
+        new ServletRequestAttributes(new MockHttpServletRequest(), response));
+    RecentSignInDecision decision =
+        decide(signedIn(SignInMethod.JWT, NOW.minus(WINDOW).minusSeconds(1)));
+
+    assertThatThrownBy(
+            () -> decision.handleDeniedInvocation(mock(MethodInvocation.class), decision))
+        .isSameAs(decision.refusal());
+    assertThat(response.getHeader("WWW-Authenticate")).isNull();
+  }
+
+  @Test
+  void a_stale_session_in_a_request_sets_no_challenge() {
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    RequestContextHolder.setRequestAttributes(
+        new ServletRequestAttributes(new MockHttpServletRequest(), response));
+    RecentSignInDecision decision = decide(session(NOW.minus(WINDOW).minusSeconds(1)));
+
+    assertThatThrownBy(
+            () -> decision.handleDeniedInvocation(mock(MethodInvocation.class), decision))
+        .isInstanceOf(ReauthenticationRequiredException.class);
+    assertThat(response.getHeader("WWW-Authenticate")).isNull();
+  }
+
+  @Test
+  void an_unauthenticated_caller_is_not_signed_in() {
+    assertThat(
+            decide(UsernamePasswordAuthenticationToken.unauthenticated("someone", "secret"))
+                .refusal())
+        .isInstanceOf(NotSignedInException.class);
   }
 
   @Test

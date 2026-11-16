@@ -122,20 +122,17 @@ public final class RecentSignInMethodInterceptor {
           method, target == null ? method.getDeclaringClass() : AopUtils.getTargetClass(target));
     }
 
-    /** The annotation on the method, else on the target's class, else on the declaring type. */
+    /**
+     * The annotation on the method, else on the target's class or one of its supertypes, which
+     * include the type declaring the method.
+     */
     @Nullable RequiresRecentSignIn find() {
       Method specific = AopUtils.getMostSpecificMethod(method, targetClass);
       RequiresRecentSignIn found =
           AnnotatedElementUtils.findMergedAnnotation(specific, RequiresRecentSignIn.class);
-      if (found == null) {
-        found = AnnotatedElementUtils.findMergedAnnotation(targetClass, RequiresRecentSignIn.class);
-      }
-      if (found == null) {
-        found =
-            AnnotatedElementUtils.findMergedAnnotation(
-                method.getDeclaringClass(), RequiresRecentSignIn.class);
-      }
-      return found;
+      return found != null
+          ? found
+          : AnnotatedElementUtils.findMergedAnnotation(targetClass, RequiresRecentSignIn.class);
     }
   }
 }

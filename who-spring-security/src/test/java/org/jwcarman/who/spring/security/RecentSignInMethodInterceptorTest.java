@@ -57,6 +57,22 @@ class RecentSignInMethodInterceptorTest {
     public void twoMinutes() {
       // the annotation is the test
     }
+
+    @RequiresRecentSignIn
+    public void usual() {
+      // the annotation is the test
+    }
+
+    public void unmarked() {
+      // no annotation: the interceptor is called on it directly
+    }
+  }
+
+  @RequiresRecentSignIn(within = "1m")
+  static class OneMinute {
+    public void act() {
+      // the type's annotation is the test
+    }
   }
 
   private final AuthorizationManagerBeforeMethodInterceptor interceptor =
@@ -71,7 +87,11 @@ class RecentSignInMethodInterceptorTest {
   }
 
   private static MethodInvocation call(String name, Object target) throws Exception {
-    Method method = Actions.class.getMethod(name);
+    return call(Actions.class, name, target);
+  }
+
+  private static MethodInvocation call(Class<?> type, String name, Object target) throws Exception {
+    Method method = type.getMethod(name);
     MethodInvocation invocation = mock(MethodInvocation.class);
     when(invocation.getMethod()).thenReturn(method);
     when(invocation.getThis()).thenReturn(target);
@@ -86,6 +106,39 @@ class RecentSignInMethodInterceptorTest {
                 UUID.randomUUID(),
                 SignInMethod.PASSKEY,
                 NOW.minus(ago)));
+  }
+
+  @Test
+  void an_annotation_on_the_type_covers_its_methods() throws Exception {
+    signedInAgo(Duration.ofMinutes(2));
+    MethodInvocation invocation = call(OneMinute.class, "act", new OneMinute());
+
+    assertThatThrownBy(() -> interceptor.invoke(invocation))
+        .isInstanceOf(ReauthenticationRequiredException.class);
+  }
+
+  @Test
+  void without_a_window_of_its_own_the_configured_one_applies() throws Throwable {
+    signedInAgo(Duration.ofMinutes(9));
+    MethodInvocation recent = call("usual", new Actions());
+    when(recent.proceed()).thenReturn("done");
+
+    assertThat(interceptor.invoke(recent)).isEqualTo("done");
+
+    signedInAgo(Duration.ofMinutes(11));
+    MethodInvocation stale = call("usual", new Actions());
+
+    assertThatThrownBy(() -> interceptor.invoke(stale))
+        .isInstanceOf(ReauthenticationRequiredException.class);
+  }
+
+  @Test
+  void a_method_without_the_annotation_gets_the_configured_window() throws Exception {
+    signedInAgo(Duration.ofMinutes(11));
+    MethodInvocation invocation = call("unmarked", new Actions());
+
+    assertThatThrownBy(() -> interceptor.invoke(invocation))
+        .isInstanceOf(ReauthenticationRequiredException.class);
   }
 
   @Test

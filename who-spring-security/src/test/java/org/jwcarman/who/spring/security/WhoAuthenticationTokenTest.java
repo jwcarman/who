@@ -152,6 +152,23 @@ class WhoAuthenticationTokenTest {
   }
 
   @Test
+  void equals_requires_the_same_sign_in_time() {
+    WhoPrincipal principal = new WhoPrincipal(Identity.create(), Set.of());
+    UUID credentialId = UUID.randomUUID();
+    Instant signedInAt = Instant.parse("2026-11-16T10:00:00Z");
+    WhoAuthenticationToken token =
+        WhoAuthenticationToken.signedIn(principal, credentialId, SignInMethod.PASSKEY, signedInAt);
+
+    assertThat(token)
+        .isEqualTo(
+            WhoAuthenticationToken.signedIn(
+                principal, credentialId, SignInMethod.PASSKEY, signedInAt))
+        .isNotEqualTo(
+            WhoAuthenticationToken.signedIn(
+                principal, credentialId, SignInMethod.PASSKEY, signedInAt.plusSeconds(1)));
+  }
+
+  @Test
   void equalsRequiresTheSamePrincipalEvenWithTheSameCredentialId() {
     UUID credentialId = UUID.randomUUID();
     WhoAuthenticationToken one =

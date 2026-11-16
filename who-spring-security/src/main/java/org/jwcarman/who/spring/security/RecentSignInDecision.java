@@ -46,7 +46,10 @@ public final class RecentSignInDecision extends AuthorizationDecision
 
   private static final RecentSignInDecision GRANTED = new RecentSignInDecision(null, null);
 
+  /** The exception to answer with; not serialized, since it is only thrown where it is made. */
   private final transient @Nullable RuntimeException refusal;
+
+  /** The {@code WWW-Authenticate} challenge to send, or {@code null}. */
   private final @Nullable String challenge;
 
   private RecentSignInDecision(@Nullable RuntimeException refusal, @Nullable String challenge) {

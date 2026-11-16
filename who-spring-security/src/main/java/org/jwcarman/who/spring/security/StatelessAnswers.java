@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.spring.security;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -57,12 +59,16 @@ final class StatelessAnswers {
   static AccessDeniedHandler deniedHandler(WhoExceptionHandoff handoff) {
     return (request, response, denied) -> {
       if (denied instanceof AuthorizationDeniedException authorization
-          && authorization.getAuthorizationResult() instanceof RecentSignInDecision decision
-          && decision.refusal() != null) {
+          && authorization.getAuthorizationResult() instanceof RecentSignInDecision decision) {
         decision
             .challenge()
             .ifPresent(challenge -> response.setHeader(HttpHeaders.WWW_AUTHENTICATE, challenge));
-        handoff.handOff(request, response, decision.refusal(), HttpStatus.FORBIDDEN);
+        // Spring Security never puts a granted result in a denial
+        handoff.handOff(
+            request,
+            response,
+            requireNonNull(decision.refusal(), "a denial is never granted"),
+            HttpStatus.FORBIDDEN);
         return;
       }
       handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN);
