@@ -14,8 +14,27 @@
  * limitations under the License.
  */
 // The app's own JSON API, under /api. who's chain answers 401 to a signed-out call there, so a 401
-// means "sign in": the page goes to /signin. Calls to who itself are in who.ts.
-import { send } from './who';
+// means "sign in": the page goes to /signin. Calls to who itself go through who-client.ts.
+
+// who protects the chain with Spring's csrf.spa(), the app's own API included: read the XSRF-TOKEN
+// cookie and send it back in the X-XSRF-TOKEN header. Read it at each call, never cache it: it
+// changes when someone signs in or out. (who-client does the same for who's own calls.)
+function xsrf(): string | undefined {
+  return document.cookie.split('; ')
+    .find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1];
+}
+
+function send(method: string, path: string, body?: unknown): Promise<Response> {
+  return fetch(path, {
+    method,
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-XSRF-TOKEN': decodeURIComponent(xsrf() ?? '')
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+}
 
 export type EmailAddress = { id: string; address: string };
 export type Passkey = { id: string; credentialId: string; label: string; created: string };

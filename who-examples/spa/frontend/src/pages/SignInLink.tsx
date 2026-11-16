@@ -15,10 +15,10 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { redeemLinkFromLocation } from '../who';
+import { who } from '../who-client';
 
 // Where who.email-link.link-base-url points. The token is in the fragment, so it never reaches a
-// server log; who.ts takes it out of the address bar and posts it.
+// server log; who-client takes it out of the address bar and posts it.
 export function SignInLink() {
   const navigate = useNavigate();
   const [failed, setFailed] = useState(false);
@@ -27,7 +27,8 @@ export function SignInLink() {
   useEffect(() => {
     if (redeemed.current) return;
     redeemed.current = true;
-    void redeemLinkFromLocation().then(ok => (ok ? navigate('/', { replace: true }) : setFailed(true)));
+    void who.email.signInFromLocation().then(result =>
+      (result?.ok ? navigate('/', { replace: true }) : setFailed(true)));
   }, [navigate]);
 
   return (

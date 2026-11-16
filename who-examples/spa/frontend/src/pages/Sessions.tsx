@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { endOtherSessions, endSession, listSessions, type Session } from '../who';
+import type { Session } from '@jwcarman/who-client';
+import { signInAgain, who } from '../who-client';
 
 // how they signed in, as /who/sessions names it
 const METHODS: Record<string, string> = {
@@ -37,21 +38,23 @@ export function Sessions() {
 
   const load = useCallback(async () => {
     setError(null);
-    setSessions(await listSessions());
+    const result = await who.sessions.list();
+    setSessions(result.ok ? result.value : []);
   }, []);
 
   useEffect(() => { void load(); }, [load]);
 
   async function end(session: Session) {
-    const status = await endSession(session.id);
+    const result = await who.sessions.end(session.id);
     // this browser's own session ends at once, with no recent sign-in needed
-    if (status === 204 && session.current) window.location.assign('/signin');
-    else if (status === 401) setError(TOO_LONG);
+    if (result.ok && session.current) window.location.assign('/signin');
+    else if (!result.ok && result.reason !== 'not-found') setError(signInAgain(result.reason, TOO_LONG));
     else await load();
   }
 
   async function endOthers() {
-    if ((await endOtherSessions()) === 401) setError(TOO_LONG);
+    const result = await who.sessions.endOthers();
+    if (!result.ok) setError(signInAgain(result.reason, TOO_LONG));
     else await load();
   }
 

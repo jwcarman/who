@@ -16,7 +16,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { getJson, SignInRequired, type Me } from './api';
-import { signOut } from './who';
+import { who } from './who-client';
 import { Board } from './pages/Board';
 import { Members } from './pages/Members';
 import { Profile } from './pages/Profile';
@@ -84,7 +84,7 @@ function Header({ me }: { me: Me }) {
       {me.permissions.includes('member.manage') && <Link to="/members">Members</Link>}
       <Link to="/profile">Profile</Link>
       <button type="button" className="link" onClick={async () => {
-        await signOut();
+        await who.signOut();
         navigate('/signin');
       }}>Sign out</button>
     </header>

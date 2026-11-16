@@ -17,10 +17,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { api, providers as loadProviders, type Provider } from '../api';
 import { useMe } from '../App';
-import {
-  confirmAddressCode, confirmAddressFromLocation, confirmLink, pendingSignUp, registerPasskey,
-  removePasskey, requestAddress, startLink, type PendingSignUp
-} from '../who';
+import type { ConfirmAddressFailure, PendingSignUp, WhoResult } from '@jwcarman/who-client';
+import { signInAgain, who } from '../who-client';
 import { Sessions } from './Sessions';
 
 const TOO_LONG = 'You signed in too long ago. Sign out, sign in again, then try again.';
@@ -50,65 +48,64 @@ export function Profile() {
   useEffect(() => {
     if (landed.current) return;
     landed.current = true;
-    void confirmAddressFromLocation().then(status => {
-      if (status !== null) void addressConfirmed(status);
+    void who.email.confirmAddressFromLocation().then(result => {
+      if (result !== null) void addressConfirmed(result);
     });
     if (params.get('pending') === 'link') {
-      void pendingSignUp().then(p => (p?.canLink ? setPendingLink(p) : setError('That took too long. Start the link again.')));
+      void who.oidc.pending().then(result => (result.ok && result.value.canLink
+        ? setPendingLink(result.value)
+        : setError('That took too long. Start the link again.')));
     }
   });
 
   // the email's link opened in a tab already on this page changes only the fragment
   useEffect(() => {
-    const onHash = () => void confirmAddressFromLocation().then(status => {
-      if (status !== null) void addressConfirmed(status);
+    const onHash = () => void who.email.confirmAddressFromLocation().then(result => {
+      if (result !== null) void addressConfirmed(result);
     });
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   });
 
-  async function addressConfirmed(status: number) {
-    if (status === 200) {
+  async function addressConfirmed(result: WhoResult<void, ConfirmAddressFailure, unknown>) {
+    if (result.ok) {
       setNotice('Your email address was updated.');
       setCodeStep(false);
       await refresh();
-    } else if (status === 401) setError(TOO_LONG);
-    else if (status === 409) setError('That address now belongs to another account.');
-    else setError('That link or code did not work. It may have expired: ask for a new one.');
+    } else if (result.reason === 'conflict') setError('That address now belongs to another account.');
+    else if (result.reason === 'rejected') setError('That link or code did not work. It may have expired: ask for a new one.');
+    else setError(signInAgain(result.reason, TOO_LONG));
   }
 
   async function askForAddress(e: FormEvent) {
     e.preventDefault();
-    const status = await requestAddress(address, replaces ?? undefined);
-    if (status === 202) {
+    const result = await who.email.addAddress(address, replaces ?? undefined);
+    if (result.ok) {
       setNotice('If that address can be added, we sent it a link and a code. Click the link, or enter the code here.');
       setCodeStep(true);
-    } else if (status === 401) setError(TOO_LONG);
-    else setError('The address could not be requested.');
+    } else if (result.reason === 'not-found') setError('The address could not be requested.');
+    else setError(signInAgain(result.reason, TOO_LONG));
   }
 
   async function link() {
-    const status = await confirmLink();
+    const result = await who.oidc.link();
     setPendingLink(null);
     setParams({}, { replace: true });
-    if (status === 200) await refresh();
-    else if (status === 401) setError(TOO_LONG);
-    else if (status === 409) setError('That account is already linked to someone else.');
-    else setError('That took too long. Start the link again.');
+    if (result.ok) await refresh();
+    else if (result.reason === 'conflict') setError('That account is already linked to someone else.');
+    else if (result.reason === 'none-pending') setError('That took too long. Start the link again.');
+    else setError(signInAgain(result.reason, TOO_LONG));
   }
 
   async function addPasskey(e: FormEvent) {
     e.preventDefault();
-    try {
-      const status = await registerPasskey(label);
-      if (status === 200) {
-        setLabel('');
-        await refresh();
-      } else if (status === 401) setError(TOO_LONG);
-      else setError('The passkey could not be added.');
-    } catch {
-      setError('No passkey was created.');
-    }
+    const result = await who.passkeys.register(label);
+    if (result.ok) {
+      setLabel('');
+      await refresh();
+    } else if (result.reason === 'cancelled') setError('No passkey was created.');
+    else if (result.reason === 'rejected') setError('The passkey could not be added.');
+    else setError(signInAgain(result.reason, TOO_LONG));
   }
 
   async function unlink(id: string) {
@@ -155,7 +152,7 @@ export function Profile() {
           <button type="submit">{replaces ? 'Change to this address' : 'Add an address'}</button>
         </form>
         {codeStep && (
-          <form className="inline" onSubmit={async e => { e.preventDefault(); await addressConfirmed(await confirmAddressCode(code)); }}>
+          <form className="inline" onSubmit={async e => { e.preventDefault(); await addressConfirmed(await who.email.confirmAddress({ code })); }}>
             <input type="text" value={code} onChange={e => setCode(e.target.value)}
                    placeholder="Code from the email" autoComplete="one-time-code" required />
             <button type="submit">Confirm</button>
@@ -175,7 +172,7 @@ export function Profile() {
                 <span className="muted">Added {new Date(p.created).toLocaleDateString()}</span>
               </span>
               <button type="button" className="secondary" onClick={async () => {
-                if (await removePasskey(p.credentialId)) await refresh();
+                if ((await who.passkeys.remove(p.credentialId)).ok) await refresh();
                 else setError('The passkey could not be removed.');
               }}>Remove</button>
             </li>
@@ -203,9 +200,11 @@ export function Profile() {
         <div className="inline">
           {providers.map(p => (
             <button key={p.id} type="button" className="secondary" onClick={async () => {
-              const status = await startLink(p.id);
-              if (status === 401) setError(TOO_LONG);
-              else if (status !== 200) setError('The link could not be started.');
+              const result = await who.oidc.startLink(p.id);
+              // on success the page has gone to the provider
+              if (result.ok) return;
+              if (result.reason === 'not-found') setError('The link could not be started.');
+              else setError(signInAgain(result.reason, TOO_LONG));
             }}>Link {p.name}</button>
           ))}
         </div>

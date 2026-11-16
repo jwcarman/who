@@ -56,6 +56,14 @@
             <artifactId>who-oidc</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The front end links who-client/ (file:../../../who-client): this only orders the build,
+             so the reactor builds the client's dist/ before the front end bundles it. -->
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-client</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
+        </dependency>
 
         <!-- Spring Boot -->
         <dependency>

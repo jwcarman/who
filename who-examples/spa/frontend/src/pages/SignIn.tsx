@@ -16,10 +16,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { providers as loadProviders, type Provider } from '../api';
-import {
-  confirmSignUp, ensureCsrfCookie, pendingSignUp, requestLink, signInWithCode, signInWithPasskey,
-  type PendingSignUp
-} from '../who';
+import type { PendingSignUp } from '@jwcarman/who-client';
+import { who } from '../who-client';
 
 // Where who.oidc.failure-url lands: ?error= for what failed, ?pending=sign-up for an account who
 // does not know yet.
@@ -41,17 +39,16 @@ export function SignIn() {
   const asked = useRef(false);
 
   useEffect(() => {
-    void ensureCsrfCookie();
     void loadProviders().then(setProviders);
   }, []);
 
   useEffect(() => {
     if (params.get('pending') !== 'sign-up' || asked.current) return;
     asked.current = true;
-    void pendingSignUp().then(p => {
-      if (!p) setError('That took too long. Sign in with the provider again.');
-      else if (p.canSignUp) setPending(p);
-      else setError(`No account uses the ${p.provider} account ${p.displayName}.`);
+    void who.oidc.pending().then(result => {
+      if (!result.ok) setError('That took too long. Sign in with the provider again.');
+      else if (result.value.canSignUp) setPending(result.value);
+      else setError(`No account uses the ${result.value.provider} account ${result.value.displayName}.`);
     });
   }, [params]);
 
@@ -59,29 +56,27 @@ export function SignIn() {
 
   async function sendLink(e: FormEvent) {
     e.preventDefault();
-    await requestLink(email);
+    await who.email.send(email);
     setCodeStep(true);
   }
 
   async function submitCode(e: FormEvent) {
     e.preventDefault();
-    if (await signInWithCode(email, code)) navigate('/');
+    if ((await who.email.signIn({ email, code })).ok) navigate('/');
     else setError('That code did not work. Check it, or ask for a new email.');
   }
 
   async function passkey() {
-    try {
-      if (await signInWithPasskey()) navigate('/');
-      else setError('That passkey did not sign you in.');
-    } catch {
-      setError('No passkey was used.');
-    }
+    const result = await who.passkeys.signIn();
+    if (result.ok) navigate('/');
+    else if (result.reason === 'cancelled') setError('No passkey was used.');
+    else setError('That passkey did not sign you in.');
   }
 
   async function signUp() {
-    const status = await confirmSignUp();
-    if (status === 200) navigate('/');
-    else if (status === 403) setError(`Sign-up with ${providerName(pending!.provider)} is not open. Ask an admin to invite you, then link it from your profile.`);
+    const result = await who.oidc.signUp();
+    if (result.ok) navigate('/');
+    else if (result.reason === 'refused') setError(`Sign-up with ${providerName(pending!.provider)} is not open. Ask an admin to invite you, then link it from your profile.`);
     else setError('That took too long. Sign in with the provider again.');
     setPending(null);
   }
@@ -138,7 +133,7 @@ export function SignIn() {
           <div className="inline">
             {/* a full page load to the provider, not fetch: its sign-in page has to open */}
             {providers.map(p => (
-              <a key={p.id} className="button secondary" href={`/who/oidc/authorize/${p.id}`}>{p.name}</a>
+              <a key={p.id} className="button secondary" href={who.oidc.authorizeUrl(p.id)}>{p.name}</a>
             ))}
           </div>
         </section>

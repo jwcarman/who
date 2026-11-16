@@ -6,8 +6,9 @@ sign in with an email link or a typed code, a passkey, or an identity provider. 
 `SecurityFilterChain` of its own: who's default chain does all of it, with sessions and Spring's
 `csrf.spa()`. Nothing about the session is kept in the browser beyond its cookies.
 
-Read it next to the web app: the who calls are the same, in [`who.ts`](frontend/src/who.ts), which
-has no React in it.
+The who calls go through [`@jwcarman/who-client`](../../who-client), created once in
+[`who-client.ts`](frontend/src/who-client.ts): it handles CSRF, the passkey encoding and the
+fragment tokens, and each call answers a typed result the pages switch on.
 
 ## Run it
 
@@ -66,7 +67,7 @@ The same goes for production behind a proxy or a CDN: these settings name your p
   The front end hides what they may not do, for convenience only: `@RequiresPermission` checks
   every call.
 - **Starting a provider link** is a `fetch` with `Accept: application/json`: who answers where the
-  provider is, and the page goes there (`startLink` in `who.ts`). A plain form cannot carry the
+  provider is, and the page goes there (`who.oidc.startLink`). A plain form cannot carry the
   CSRF token a SPA holds.
 - **Links and tokens in fragments.** A sign-in link (`/signin/link#token=`) and an address
   confirmation (`/profile#confirm-address=`) carry their token after `#`, which never reaches a
