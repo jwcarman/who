@@ -32,7 +32,9 @@ import org.springframework.security.web.session.DisableEncodeUrlFilter;
  * <ul>
  *   <li>the security context lives in the request only, and the request's session is hidden from
  *       the whole chain, so a session cookie that another chain made signs nothing in here, and is
- *       neither given a new id nor ended;
+ *       neither given a new id nor ended. Application code on this chain cannot use a session
+ *       either: asking for one ({@code HttpSession} parameters, {@code @SessionAttributes},
+ *       session-scoped beans, flash attributes) fails with {@code IllegalStateException};
  *   <li>logout is not mounted: there is no session to end;
  *   <li>CSRF protection is off, because nothing on this chain rides along with a request by itself:
  *       a forged cross-site request cannot attach the header a credential travels in. That holds

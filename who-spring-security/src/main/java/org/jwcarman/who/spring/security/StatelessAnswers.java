@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.spring.security;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +25,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.AuthenticationEntryPoint;
 
 /**
  * How a chain with no browser sign-in answers: {@code 401} for a signed-out request, naming each
@@ -40,27 +42,34 @@ final class StatelessAnswers {
         context
             .getBeanProvider(WhoExceptionHandoff.class)
             .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    http.exceptionHandling(
+        e ->
+            e.authenticationEntryPoint(entryPoint(handoff, methods))
+                .accessDeniedHandler(
+                    (request, response, denied) ->
+                        handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)));
+  }
+
+  /**
+   * The signed-out answer: a {@code WWW-Authenticate} header for each method's scheme, then {@code
+   * 401} through the handoff.
+   */
+  static AuthenticationEntryPoint entryPoint(
+      WhoExceptionHandoff handoff, List<StatelessLoginMethod> methods) {
     List<String> challenges =
         methods.stream()
             .map(StatelessLoginMethod::challenge)
             .flatMap(Optional::stream)
             .distinct()
             .toList();
-    http.exceptionHandling(
-        e ->
-            e.authenticationEntryPoint(
-                    (request, response, authException) -> {
-                      // set before the handoff, so an application's own answer keeps it; once,
-                      // even when an error page comes back through here
-                      if (!response.containsHeader(HttpHeaders.WWW_AUTHENTICATE)) {
-                        challenges.forEach(
-                            c -> response.addHeader(HttpHeaders.WWW_AUTHENTICATE, c));
-                      }
-                      handoff.handOff(
-                          request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-                    })
-                .accessDeniedHandler(
-                    (request, response, denied) ->
-                        handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)));
+    return (request, response, authException) -> {
+      // set before the handoff, so an application's own answer keeps it; each scheme once,
+      // even when an error page comes back through here
+      Collection<String> present = response.getHeaders(HttpHeaders.WWW_AUTHENTICATE);
+      challenges.stream()
+          .filter(c -> !present.contains(c))
+          .forEach(c -> response.addHeader(HttpHeaders.WWW_AUTHENTICATE, c));
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+    };
   }
 }

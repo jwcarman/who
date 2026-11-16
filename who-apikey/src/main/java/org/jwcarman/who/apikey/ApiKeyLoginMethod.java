@@ -28,7 +28,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * key would sign in: the header is present and not blank, and the request is not already signed in.
  * A request already signed in from a session ignores the header, as {@link
  * ApiKeyAuthenticationConverter} does, so the header does not exempt it from CSRF either. (On a
- * {@code WhoSecurity.stateless()} chain no session is visible, so the key is always read.)
+ * {@code WhoSecurity.stateless()} chain no session signs the request in, so only another credential
+ * on the same request, such as a bearer token, makes the key ignored.)
  */
 public final class ApiKeyLoginMethod implements StatelessLoginMethod {
 

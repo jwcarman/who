@@ -43,6 +43,26 @@ final class SessionlessRequestFilter extends OncePerRequestFilter {
     chain.doFilter(new Sessionless(request), response);
   }
 
+  /** Returns {@code false}: an error page the request is sent to sees no session either. */
+  @Override
+  protected boolean shouldNotFilterErrorDispatch() {
+    return false;
+  }
+
+  /** Returns {@code false}: async processing of the request sees no session either. */
+  @Override
+  protected boolean shouldNotFilterAsyncDispatch() {
+    return false;
+  }
+
+  /** An error page dispatched while the chain is still running sees no session either. */
+  @Override
+  protected void doFilterNestedErrorDispatch(
+      HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+      throws ServletException, IOException {
+    doFilterInternal(request, response, chain);
+  }
+
   private static final class Sessionless extends HttpServletRequestWrapper {
 
     Sessionless(HttpServletRequest request) {
@@ -74,6 +94,16 @@ final class SessionlessRequestFilter extends OncePerRequestFilter {
 
     @Override
     public boolean isRequestedSessionIdValid() {
+      return false;
+    }
+
+    @Override
+    public boolean isRequestedSessionIdFromCookie() {
+      return false;
+    }
+
+    @Override
+    public boolean isRequestedSessionIdFromURL() {
       return false;
     }
   }
