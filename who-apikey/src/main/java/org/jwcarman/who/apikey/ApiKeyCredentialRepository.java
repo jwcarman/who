@@ -69,4 +69,16 @@ public interface ApiKeyCredentialRepository {
    * @return {@code true} when the time was written
    */
   boolean touch(UUID id, Instant now, Instant notSince);
+
+  /**
+   * Brings a live key's expiry forward to {@code expiresAt}, never later than it already is, in one
+   * statement, so rotations that race each other leave the earliest expiry.
+   *
+   * @param id the key's credential id
+   * @param expiresAt the latest the key may now expire
+   * @param now the key must not have expired by this instant
+   * @return {@code true} when the key exists and has not expired; {@code false} when it was revoked
+   *     or has expired, and nothing was written
+   */
+  boolean expireBy(UUID id, Instant expiresAt, Instant now);
 }

@@ -141,7 +141,7 @@ public class ApiKeyAuthenticationProvider implements AuthenticationProvider {
     }
     return switch (resolution) {
       case Resolved(WhoPrincipal principal) -> {
-        recordUse(credentialId, now);
+        recordUse(credential, now);
         yield succeeded(scoped(principal, credential.scopes()), credentialId);
       }
       case Inactive(UUID identityId) ->
@@ -169,9 +169,16 @@ public class ApiKeyAuthenticationProvider implements AuthenticationProvider {
     };
   }
 
-  private void recordUse(UUID credentialId, Instant now) {
+  private void recordUse(ApiKeyCredential credential, Instant now) {
+    Instant notSince = now.minus(lastUsedInterval);
+    Instant lastUsed = credential.lastUsedAt();
+    if (lastUsed != null && !lastUsed.isBefore(notSince)) {
+      // used within the interval, as of the lookup: no statement at all
+      return;
+    }
     try {
-      apiKeyCredentialRepository.touch(credentialId, now, now.minus(lastUsedInterval));
+      // conditional, so concurrent sign-ins still write once
+      apiKeyCredentialRepository.touch(credential.id(), now, notSince);
     } catch (RuntimeException e) {
       // a key that signs in is not refused for want of a timestamp
       log.warn("Failed to record an API key's last use: {}", e.getClass().getName());

@@ -183,6 +183,30 @@ class ApiKeyServiceTest extends AbstractApiKeyTest {
   }
 
   @Test
+  void shortening_a_key_never_lengthens_it() {
+    NewApiKey key = apiKeyService.create(identity(), "Raced", THIRTY_DAYS, READ);
+    Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+    Instant soon = now.plus(Duration.ofHours(1));
+
+    assertThat(apiKeyCredentialRepository.expireBy(key.id(), soon, now)).isTrue();
+    // a second rotation that read the key before the first one shortened it
+    assertThat(apiKeyCredentialRepository.expireBy(key.id(), now.plus(Duration.ofDays(7)), now))
+        .isTrue();
+
+    assertThat(stored(key).expiresAt()).isEqualTo(soon);
+  }
+
+  @Test
+  void shortening_a_gone_or_expired_key_reports_it() {
+    NewApiKey key = apiKeyService.create(identity(), "Gone", THIRTY_DAYS, READ);
+    Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+    UUID missing = UUID.randomUUID();
+
+    assertThat(apiKeyCredentialRepository.expireBy(missing, now, now)).isFalse();
+    assertThat(apiKeyCredentialRepository.expireBy(key.id(), now, now.plus(THIRTY_DAYS))).isFalse();
+  }
+
+  @Test
   void rotate_refuses_an_overlap_over_seven_days() {
     NewApiKey old = apiKeyService.create(identity(), "Long", THIRTY_DAYS, READ);
 

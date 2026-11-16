@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -63,8 +64,13 @@ class ApiKeyAuthenticationProviderTest {
   private final Identity owner = Identity.create();
   private final String key = FORMAT.generate();
 
-  /** A stored key for {@link #key}, whose owner holds {@code held}. */
+  /** A stored key for {@link #key}, never used, whose owner holds {@code held}. */
   private ApiKeyCredential stored(Set<String> scopes, Instant expiresAt, Set<String> held) {
+    return stored(scopes, expiresAt, held, null);
+  }
+
+  private ApiKeyCredential stored(
+      Set<String> scopes, Instant expiresAt, Set<String> held, Instant lastUsedAt) {
     ApiKeyCredential credential =
         new ApiKeyCredential(
             UUID.randomUUID(),
@@ -73,7 +79,7 @@ class ApiKeyAuthenticationProviderTest {
             scopes,
             NOW.minus(Duration.ofDays(1)),
             expiresAt,
-            null);
+            lastUsedAt);
     when(repository.findByKeyHash(credential.keyHash())).thenReturn(Optional.of(credential));
     when(whoService.resolveDetailed(credential))
         .thenReturn(new Resolution.Resolved(new WhoPrincipal(owner, held)));
@@ -146,6 +152,33 @@ class ApiKeyAuthenticationProviderTest {
   void a_sign_in_records_its_use_unless_one_was_recorded_within_the_interval() {
     ApiKeyCredential credential =
         stored(Set.of("task.read"), NOW.plusSeconds(60), Set.of("task.read"));
+
+    signIn();
+
+    verify(repository).touch(credential.id(), NOW, NOW.minus(INTERVAL));
+  }
+
+  @Test
+  void a_key_used_within_the_interval_issues_no_write() {
+    stored(
+        Set.of("task.read"),
+        NOW.plusSeconds(60),
+        Set.of("task.read"),
+        NOW.minus(INTERVAL).plusSeconds(1));
+
+    signIn();
+
+    verify(repository, never()).touch(any(), any(), any());
+  }
+
+  @Test
+  void a_key_last_used_longer_ago_than_the_interval_records_its_use() {
+    ApiKeyCredential credential =
+        stored(
+            Set.of("task.read"),
+            NOW.plusSeconds(60),
+            Set.of("task.read"),
+            NOW.minus(INTERVAL).minusSeconds(1));
 
     signIn();
 

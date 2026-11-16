@@ -40,6 +40,7 @@ public class JdbcApiKeyCredentialRepository
   private static final String COL_ID = "id";
   private static final String COL_NAME = "name";
   private static final String COL_KEY_HASH = "key_hash";
+  private static final String PARAM_EXPIRES_AT = "expiresAt";
   private static final String PARAM_KEY_HASH = "keyHash";
   private static final String COLUMNS = "id, name, key_hash, created_at, expires_at, last_used_at";
 
@@ -104,7 +105,7 @@ public class JdbcApiKeyCredentialRepository
         .param(COL_NAME, credential.name())
         .param(PARAM_KEY_HASH, credential.keyHash())
         .param("createdAt", offset(credential.createdAt()))
-        .param("expiresAt", offset(credential.expiresAt()))
+        .param(PARAM_EXPIRES_AT, offset(credential.expiresAt()))
         .param("lastUsedAt", offset(credential.lastUsedAt()))
         .update();
     jdbcClient
@@ -133,6 +134,23 @@ public class JdbcApiKeyCredentialRepository
             .param(COL_ID, id)
             .param("now", offset(now))
             .param("notSince", offset(notSince))
+            .update()
+        > 0;
+  }
+
+  @Override
+  public boolean expireBy(UUID id, Instant expiresAt, Instant now) {
+    return jdbcClient
+            .sql(
+                """
+                UPDATE who_api_key_credential
+                SET expires_at = CASE WHEN expires_at < :expiresAt THEN expires_at
+                                      ELSE :expiresAt END
+                WHERE id = :id AND expires_at > :now
+                """)
+            .param(COL_ID, id)
+            .param(PARAM_EXPIRES_AT, offset(expiresAt))
+            .param("now", offset(now))
             .update()
         > 0;
   }

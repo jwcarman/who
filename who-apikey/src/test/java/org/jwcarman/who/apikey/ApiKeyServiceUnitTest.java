@@ -146,6 +146,7 @@ class ApiKeyServiceUnitTest {
                     NOW.plus(Duration.ofDays(9)),
                     null)));
     when(links.findIdentityIdByCredentialId(oldId)).thenReturn(Optional.of(owner.id()));
+    when(keys.expireBy(any(), any(), any())).thenReturn(true);
 
     NewApiKey rotated = service.rotate(oldId, Duration.ofDays(1));
 
@@ -171,8 +172,33 @@ class ApiKeyServiceUnitTest {
                     NOW.plus(Duration.ofDays(900)),
                     null)));
     when(links.findIdentityIdByCredentialId(oldId)).thenReturn(Optional.of(owner.id()));
+    when(keys.expireBy(any(), any(), any())).thenReturn(true);
 
     assertThat(service.rotate(oldId, Duration.ofDays(1)).expiresAt()).isEqualTo(NOW.plus(MAX));
+  }
+
+  @Test
+  void a_key_revoked_or_expired_during_rotation_gets_no_replacement() {
+    UUID oldId = UUID.randomUUID();
+    when(keys.findById(oldId))
+        .thenReturn(
+            Optional.of(
+                new ApiKeyCredential(
+                    oldId,
+                    "CI",
+                    "hash",
+                    Set.of("task.read"),
+                    NOW,
+                    NOW.plus(Duration.ofDays(9)),
+                    null)));
+    when(links.findIdentityIdByCredentialId(oldId)).thenReturn(Optional.of(owner.id()));
+    // the row went, or expired, after it was read
+    when(keys.expireBy(oldId, NOW.plus(Duration.ofDays(1)), NOW)).thenReturn(false);
+    Duration overlap = Duration.ofDays(1);
+
+    assertThatIllegalArgumentException().isThrownBy(() -> service.rotate(oldId, overlap));
+    verify(keys, never()).save(any());
+    assertThat(events).isEmpty();
   }
 
   @Test

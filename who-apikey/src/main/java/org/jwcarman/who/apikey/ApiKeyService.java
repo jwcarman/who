@@ -205,20 +205,12 @@ public class ApiKeyService {
     if (lifetime.compareTo(maxLifetime) > 0) {
       lifetime = maxLifetime;
     }
-    NewApiKey replacement = issue(owner, old.name(), lifetime, old.scopes());
-    Instant overlapEnds = now.plus(overlap);
-    if (overlapEnds.isBefore(old.expiresAt())) {
-      apiKeyCredentialRepository.save(
-          new ApiKeyCredential(
-              old.id(),
-              old.name(),
-              old.keyHash(),
-              old.scopes(),
-              old.createdAt(),
-              overlapEnds,
-              old.lastUsedAt()));
+    // one conditional statement: never lengthens the key, and finds it revoked or expired since
+    // the read above, before any replacement is made
+    if (!apiKeyCredentialRepository.expireBy(keyId, now.plus(overlap), now)) {
+      throw new IllegalArgumentException("API key " + keyId + " was revoked or has expired");
     }
-    return replacement;
+    return issue(owner, old.name(), lifetime, old.scopes());
   }
 
   private NewApiKey issue(UUID ownerId, String name, Duration lifetime, Set<String> scopes) {

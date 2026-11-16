@@ -45,6 +45,7 @@ import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
+import org.jwcarman.who.spring.security.RequiresPermission;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -170,6 +171,12 @@ class WhoSecurityAllTest {
     String post(@AuthenticationPrincipal Object principal) {
       return String.valueOf(principal);
     }
+
+    @GetMapping("/secure/guarded")
+    @RequiresPermission(TestApiKeys.PERMISSION)
+    String guarded() {
+      return "ok";
+    }
   }
 
   @LocalServerPort private int port;
@@ -183,12 +190,13 @@ class WhoSecurityAllTest {
   private final CookieManager cookies = new CookieManager();
   private final HttpClient client = HttpClient.newBuilder().cookieHandler(cookies).build();
   private String apiKey;
+  private Identity identity;
 
   @BeforeEach
   void setUp() {
     jdbcClient.sql("DELETE FROM who_identity").update();
     jdbcClient.sql("DELETE FROM who_federated_credential").update();
-    Identity identity = whoService.createIdentity();
+    identity = whoService.createIdentity();
     TestApiKeys.grant(rbacService, identity);
     apiKey = TestApiKeys.create(apiKeyService, identity, "test");
     federatedCredentialService.link(identity, ISSUER, SUBJECT);
@@ -216,6 +224,18 @@ class WhoSecurityAllTest {
         .map(HttpCookie::getValue)
         .findFirst()
         .orElseThrow();
+  }
+
+  @Test
+  void a_key_whose_owner_lost_its_scoped_permission_is_forbidden_not_unauthorized()
+      throws Exception {
+    HttpRequest.Builder guarded =
+        HttpRequest.newBuilder(uri("/secure/guarded")).GET().header("X-API-Key", apiKey);
+    assertThat(send(guarded).statusCode()).isEqualTo(200);
+
+    rbacService.removeRoleFromIdentity(identity, rbacService.findRequiredRole(TestApiKeys.ROLE));
+
+    assertThat(send(guarded).statusCode()).isEqualTo(403);
   }
 
   @Nested

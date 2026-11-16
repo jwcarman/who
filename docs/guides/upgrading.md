@@ -117,7 +117,8 @@ provider sign-in can share it.
       `PermissionsResolver`, an `ApiKeyFormat` and the maximum lifetime for the service; an
       `ApiKeyFormat` and the last-used interval for the provider. Apps that use the autoconfigured
       beans change nothing.
-    - `ApiKeyCredentialRepository` has a new method, `touch`, for a custom implementation to add.
+    - `ApiKeyCredentialRepository` has two new methods, `touch` and `expireBy`, for a custom
+      implementation to add.
 - **The API-key tables change, and existing keys are deleted.** `who_api_key_credential` gains
   `created_at`, `expires_at` and `last_used_at`, and a new table, `who_api_key_scope`, holds each
   key's scopes. Keys made before have no lifetime or scopes, so the Liquibase changelog deletes

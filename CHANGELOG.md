@@ -19,7 +19,7 @@ All notable changes to this project are documented here. The format follows
 - `who.passkey.registration-window` is replaced by `who.security.recent-sign-in`.
 - `EmailLinkSender.send` takes a sealed `WhoEmail` (`EmailLinkMessage`, `EmailAddressConfirmationMessage`, `EmailAddressChangedMessage`); custom senders switch over it.
 - `EmailAddressTakenException` is `@ResponseStatus(CONFLICT)`.
-- API keys need a lifetime and scopes: `ApiKeyService.create(identity, name, lifetime, scopes)` answers `NewApiKey`. A key signs in with its scopes intersected with its owner's current permissions. `ApiKeyService` and `ApiKeyAuthenticationProvider` take new constructor arguments, and `ApiKeyCredentialRepository` has a new method, `touch`. See [Upgrading to 0.18.0](docs/guides/upgrading.md#upgrading-to-0180).
+- API keys need a lifetime and scopes: `ApiKeyService.create(identity, name, lifetime, scopes)` answers `NewApiKey`. A key signs in with its scopes intersected with its owner's current permissions. `ApiKeyService` and `ApiKeyAuthenticationProvider` take new constructor arguments, and `ApiKeyCredentialRepository` has two new methods, `touch` and `expireBy`. See [Upgrading to 0.18.0](docs/guides/upgrading.md#upgrading-to-0180).
 - `who_api_key_credential` gains `created_at`, `expires_at` and `last_used_at`, and the new table `who_api_key_scope` holds scopes. The Liquibase changelog deletes existing keys first; issue new ones.
 
 ### Added

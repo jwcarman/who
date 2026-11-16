@@ -101,7 +101,8 @@ long time is a good one to revoke.
 
 Its last use is recorded by the sign-in itself, at most once per `who.api-key.last-used-interval`
 (default 5 minutes) per key, so a busy key costs one database write per interval, not one per
-request. A failure to record it is logged at WARN and never refuses the key.
+request; a key used within the interval costs no statement at all. A failure to record it is
+logged at WARN and never refuses the key.
 
 ## Rotating a key
 
@@ -114,6 +115,20 @@ from now (capped at `who.api-key.max-lifetime`). The old key keeps working for t
 client can switch without a hard cutover, and then expires; it expires sooner if it already
 would. The overlap is at most 7 days, and zero cuts over at once. `rotate` refuses a key that is
 gone or already expired.
+
+## Exposing key management over HTTP
+
+`ApiKeyService` trusts its caller: your code decides who may manage which key.
+
+- `rotate` and `revoke` take only a key id. Before you call them with an id from a request,
+  check that it is one of the caller's keys, for example that it is in
+  `findByIdentity(caller.identity().id())`, and answer `404` otherwise. Without that check, one
+  person can rotate or revoke another's key.
+- `create` checks the scopes against the owner's permissions, not against how the request
+  signed in. A request signed in with a key scoped to `report.read` could otherwise make a new key
+  with everything its owner holds. Either refuse key management to requests signed in with a key
+  (`WhoAuthenticationToken.signInMethod()` is `API_KEY`), so a leaked key cannot make itself
+  permanent, or allow only scopes the request's own principal has.
 
 ## The key's format
 

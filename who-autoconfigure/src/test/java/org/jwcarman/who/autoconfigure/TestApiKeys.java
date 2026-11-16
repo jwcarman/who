@@ -29,7 +29,8 @@ final class TestApiKeys {
   /** The permission test keys are scoped to. */
   static final String PERMISSION = "test.api";
 
-  private static final String ROLE = "api-key-holder";
+  /** The role that holds {@link #PERMISSION}. */
+  static final String ROLE = "api-key-holder";
 
   private TestApiKeys() {}
 

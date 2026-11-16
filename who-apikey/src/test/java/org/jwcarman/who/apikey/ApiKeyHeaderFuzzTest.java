@@ -120,5 +120,10 @@ class ApiKeyHeaderFuzzTest {
     public boolean touch(UUID id, Instant now, Instant notSince) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public boolean expireBy(UUID id, Instant expiresAt, Instant now) {
+      throw new UnsupportedOperationException();
+    }
   }
 }
