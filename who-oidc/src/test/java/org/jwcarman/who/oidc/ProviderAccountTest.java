@@ -160,7 +160,9 @@ class ProviderAccountTest {
           new SignInRegistration(
               "acme", "https://acme.com", SignInRegistration.Kind.OAUTH2, "user_id", false);
 
-      assertThatThrownBy(() -> ProviderAccount.from(gitHubUser(Map.of("id", 1)), custom))
+      OAuth2User user = gitHubUser(Map.of("id", 1));
+
+      assertThatThrownBy(() -> ProviderAccount.from(user, custom))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("user_id");
     }

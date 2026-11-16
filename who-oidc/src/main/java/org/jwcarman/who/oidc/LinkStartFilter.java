@@ -136,7 +136,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
     List<MediaType> accepted;
     try {
       accepted = MediaType.parseMediaTypes(request.getHeader(HttpHeaders.ACCEPT));
-    } catch (InvalidMediaTypeException e) {
+    } catch (InvalidMediaTypeException _) {
       return false;
     }
     return accepted.stream().anyMatch(MediaType.APPLICATION_JSON::equalsTypeAndSubtype)

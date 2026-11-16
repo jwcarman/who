@@ -39,6 +39,9 @@ public final class SignInRegistrations {
   static final String GITHUB_SUBJECT_ATTRIBUTE = "id";
   static final String GOOGLE_ISSUER = "https://accounts.google.com";
 
+  /** The provider property that names the issuer. */
+  private static final String ISSUER = "issuer";
+
   private static final String ENTRA_HOST = "login.microsoftonline.com";
   private static final String[] ENTRA_SHARED_TENANTS = {"common", "organizations", "consumers"};
 
@@ -72,7 +75,7 @@ public final class SignInRegistrations {
       if (other != null) {
         throw new InvalidRegistrationException(
             registration.registrationId(),
-            property(registration.registrationId(), "issuer"),
+            property(registration.registrationId(), ISSUER),
             "is "
                 + registration.issuer()
                 + ", the same issuer as client registration '"
@@ -133,7 +136,7 @@ public final class SignInRegistrations {
           GITHUB_SUBJECT_ATTRIBUTE,
           trustEmail(provider, true));
     }
-    String issuer = required(id, provider.issuer(), "issuer");
+    String issuer = required(id, provider.issuer(), ISSUER);
     String subjectAttribute = required(id, provider.subjectAttribute(), "subject-attribute");
     rejectSharedEntraTenant(id, issuer);
     return new SignInRegistration(
@@ -151,7 +154,7 @@ public final class SignInRegistrations {
       if (provider.issuer() != null && !provider.issuer().equals(discovered)) {
         throw new InvalidRegistrationException(
             id,
-            property(id, "issuer"),
+            property(id, ISSUER),
             "is "
                 + provider.issuer()
                 + " but the provider's issuer-uri is "
@@ -160,7 +163,7 @@ public final class SignInRegistrations {
       }
       return discovered;
     }
-    return required(id, provider.issuer(), "issuer");
+    return required(id, provider.issuer(), ISSUER);
   }
 
   private static String required(String id, String value, String name) {

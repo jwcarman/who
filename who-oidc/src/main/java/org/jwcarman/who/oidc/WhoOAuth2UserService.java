@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.oidc;
 
+import static java.util.Objects.requireNonNull;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
@@ -129,15 +131,17 @@ public final class WhoOAuth2UserService
   }
 
   private static OAuth2User withEmail(OAuth2User user, String email, OAuth2UserRequest request) {
+    // DefaultOAuth2UserService has already refused a registration that names no such attribute
+    String nameAttribute =
+        requireNonNull(
+            request
+                .getClientRegistration()
+                .getProviderDetails()
+                .getUserInfoEndpoint()
+                .getUserNameAttributeName(),
+            "userNameAttributeName must not be null");
     Map<String, Object> attributes = new HashMap<>(user.getAttributes());
     attributes.put(VERIFIED_EMAIL, email);
-    return new DefaultOAuth2User(
-        user.getAuthorities(),
-        attributes,
-        request
-            .getClientRegistration()
-            .getProviderDetails()
-            .getUserInfoEndpoint()
-            .getUserNameAttributeName());
+    return new DefaultOAuth2User(user.getAuthorities(), attributes, nameAttribute);
   }
 }

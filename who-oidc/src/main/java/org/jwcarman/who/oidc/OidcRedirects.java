@@ -147,7 +147,7 @@ public final class OidcRedirects {
     }
     try {
       return !URI.create(url.replace("\\", "%5C")).isAbsolute();
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException _) {
       return false;
     }
   }

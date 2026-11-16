@@ -128,7 +128,7 @@ public final class OidcSignUpService {
     }
     try {
       return transaction.execute(status -> create(pending, allow));
-    } catch (DuplicateKeyException e) {
+    } catch (DuplicateKeyException _) {
       // another sign-up of the same account committed first; sign in to its identity
       return transaction.execute(
           status ->
@@ -147,7 +147,7 @@ public final class OidcSignUpService {
   public FederatedCredential link(Identity identity, PendingSignUp pending) {
     try {
       return transaction.execute(status -> linkInTransaction(identity, pending));
-    } catch (DuplicateKeyException e) {
+    } catch (DuplicateKeyException _) {
       return transaction.execute(status -> linkInTransaction(identity, pending));
     }
   }

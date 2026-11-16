@@ -119,8 +119,9 @@ class OidcSignUpServiceTest extends AbstractOidcTest {
     policy.set(request -> SignUpDecision.allow());
     whoService.deactivate(alice.id());
     long before = identities();
+    PendingSignUp pending = pending("alice");
 
-    assertThatThrownBy(() -> signUpService.signUp(pending("alice")))
+    assertThatThrownBy(() -> signUpService.signUp(pending))
         .isInstanceOf(SignUpRefusedException.class);
     assertThat(identities()).isEqualTo(before);
   }
