@@ -23,12 +23,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 /** The caller signed in too long ago for this action and must sign in again. */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
-public class ReauthenticationRequiredException extends AuthenticationException {
+public class ReauthenticationRequiredException extends AuthenticationException
+    implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public ReauthenticationRequiredException() {
     super("Reauthentication required");
+  }
+
+  /** {@return {@code reauthentication-required}} */
+  @Override
+  public String errorCode() {
+    return "reauthentication-required";
   }
 }

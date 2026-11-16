@@ -20,12 +20,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoExceptionHandoffTest {
 
   private final MockHttpServletRequest request = new MockHttpServletRequest();
@@ -118,6 +121,37 @@ class WhoExceptionHandoffTest {
         .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.getErrorMessage()).isNull();
+  }
+
+  @Test
+  void a_coded_exception_names_itself_in_the_header_when_resolved() throws Exception {
+    new WhoExceptionHandoff(resolving(401))
+        .handOff(
+            request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("reauthentication-required");
+  }
+
+  @Test
+  void a_coded_exception_names_itself_in_the_header_on_the_fallback() throws Exception {
+    new WhoExceptionHandoff(null)
+        .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("not-signed-in");
+    assertThat(response.getStatus()).isEqualTo(401);
+  }
+
+  @Test
+  void an_uncoded_exception_sets_no_header() throws Exception {
+    new WhoExceptionHandoff(null)
+        .handOff(request, response, new AccessDeniedException("no"), HttpStatus.FORBIDDEN);
+    assertThat(response.getHeader("Who-Error")).isNull();
+  }
+
+  @Test
+  void a_committed_response_gets_no_header() throws Exception {
+    response.setCommitted(true);
+    new WhoExceptionHandoff(null)
+        .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+    assertThat(response.getHeader("Who-Error")).isNull();
   }
 
   private void assertNoBody() throws Exception {

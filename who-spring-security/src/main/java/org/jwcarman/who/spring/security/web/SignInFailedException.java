@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * an advice for its own type, with its own message.
  */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
-public final class SignInFailedException extends AuthenticationException {
+public final class SignInFailedException extends AuthenticationException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -43,5 +43,11 @@ public final class SignInFailedException extends AuthenticationException {
   public SignInFailedException(Throwable reason) {
     super(MESSAGE);
     addSuppressed(reason);
+  }
+
+  /** {@return {@code sign-in-failed}} */
+  @Override
+  public String errorCode() {
+    return "sign-in-failed";
   }
 }

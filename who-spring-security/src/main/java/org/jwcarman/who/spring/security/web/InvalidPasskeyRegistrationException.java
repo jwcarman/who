@@ -25,12 +25,18 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * hold WebAuthn payload details.
  */
 @ResponseStatus(HttpStatus.BAD_REQUEST)
-public class InvalidPasskeyRegistrationException extends RuntimeException {
+public class InvalidPasskeyRegistrationException extends RuntimeException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public InvalidPasskeyRegistrationException() {
     super("Invalid passkey registration");
+  }
+
+  /** {@return {@code invalid-passkey-registration}} */
+  @Override
+  public String errorCode() {
+    return "invalid-passkey-registration";
   }
 }

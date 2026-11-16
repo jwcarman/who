@@ -38,6 +38,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  */
 public final class WhoExceptionHandoff {
 
+  /** The response header naming a failure that carries a {@link WhoErrorCode}. */
+  public static final String HEADER = "Who-Error";
+
   private static final Logger log = LoggerFactory.getLogger(WhoExceptionHandoff.class);
 
   /** Resolves an exception the way the application resolves its controllers' exceptions. */
@@ -83,6 +86,10 @@ public final class WhoExceptionHandoff {
       throws IOException {
     if (response.isCommitted()) {
       return;
+    }
+    // set first, so it stands beside whatever the application writes
+    if (exception instanceof WhoErrorCode coded) {
+      response.setHeader(HEADER, coded.errorCode());
     }
     // a resolver that answered and then failed has still answered
     if (resolver != null && resolved(request, response, exception) || response.isCommitted()) {

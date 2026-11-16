@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * that type would answer with {@code 403} if it were in the cause chain.
  */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
-public class NotSignedInException extends AuthenticationException {
+public class NotSignedInException extends AuthenticationException implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -36,5 +36,11 @@ public class NotSignedInException extends AuthenticationException {
   /** Creates the exception. */
   public NotSignedInException() {
     super(MESSAGE);
+  }
+
+  /** {@return {@code not-signed-in}} */
+  @Override
+  public String errorCode() {
+    return "not-signed-in";
   }
 }

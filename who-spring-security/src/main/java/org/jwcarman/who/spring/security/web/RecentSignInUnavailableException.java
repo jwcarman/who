@@ -27,7 +27,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * help, so this is a {@code 403}, not a challenge.
  */
 @ResponseStatus(HttpStatus.FORBIDDEN)
-public class RecentSignInUnavailableException extends AccessDeniedException {
+public class RecentSignInUnavailableException extends AccessDeniedException
+    implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -64,5 +65,11 @@ public class RecentSignInUnavailableException extends AccessDeniedException {
   public static RecentSignInUnavailableException unknownSignIn() {
     return new RecentSignInUnavailableException(
         "This request needs a recent sign-in, and who cannot tell when this caller signed in.");
+  }
+
+  /** {@return {@code recent-sign-in-unavailable}} */
+  @Override
+  public String errorCode() {
+    return "recent-sign-in-unavailable";
   }
 }

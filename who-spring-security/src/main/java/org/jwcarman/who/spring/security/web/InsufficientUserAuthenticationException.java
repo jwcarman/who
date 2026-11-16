@@ -30,7 +30,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * step-up challenge with it, in the {@code WWW-Authenticate} header given by {@link #challenge()}.
  */
 @ResponseStatus(HttpStatus.UNAUTHORIZED)
-public class InsufficientUserAuthenticationException extends AuthenticationException {
+public class InsufficientUserAuthenticationException extends AuthenticationException
+    implements WhoErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -69,5 +70,11 @@ public class InsufficientUserAuthenticationException extends AuthenticationExcep
         + DESCRIPTION
         + "\", max_age="
         + maxAge.toSeconds();
+  }
+
+  /** {@return {@code insufficient-user-authentication}} */
+  @Override
+  public String errorCode() {
+    return "insufficient-user-authentication";
   }
 }
