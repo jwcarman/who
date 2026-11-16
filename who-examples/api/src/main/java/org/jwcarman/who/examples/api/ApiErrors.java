@@ -16,7 +16,6 @@
 package org.jwcarman.who.examples.api;
 
 import org.jwcarman.who.spring.security.web.NotSignedInException;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -33,11 +32,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 class ApiErrors {
 
-  /** No token and no key: {@code 401}, with the challenge that says a bearer token is expected. */
+  /** No token and no key: {@code 401}; who has already named the {@code Bearer} challenge. */
   @ExceptionHandler(NotSignedInException.class)
   ResponseEntity<ProblemDetail> notSignedIn() {
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-        .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
         .body(
             ProblemDetail.forStatusAndDetail(
                 HttpStatus.UNAUTHORIZED, "Send an access token or an API key"));

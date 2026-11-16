@@ -77,6 +77,17 @@ resource server that verifies tokens with your `JwtDecoder` and signs them in wi
 request with an `Authorization: Bearer` header needs no CSRF token and never gets a session. In a
 chain of your own, `WhoSecurity.all()` does the same alongside every other sign-in method.
 
+An API with a chain of its own, beside a browser chain, mounts JWTs (and API keys, when
+`who-apikey` is on) with `WhoSecurity.stateless()`: no session, no CSRF, and a `401` with
+`WWW-Authenticate: Bearer` for a call without a token (see [Getting
+Started](getting-started.md#a-website-and-an-api)):
+
+```java
+http.securityMatcher("/api/**")
+    .with(WhoSecurity.stateless(), Customizer.withDefaults())
+    .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+```
+
 To write the resource server yourself, wire `WhoJwtAuthenticationConverter` into it:
 
 ```java

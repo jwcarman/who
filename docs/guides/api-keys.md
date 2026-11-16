@@ -23,7 +23,9 @@ With no `SecurityFilterChain` of your own there is nothing to wire: who's defaul
 filter (see [Getting Started](getting-started.md#secure-the-app)). A request the key signs in
 needs no CSRF token and never gets a session; a request that already has a session ignores the
 key and keeps its CSRF check. In a chain of your own, `WhoSecurity.all()`
-mounts API keys with every other sign-in method.
+mounts API keys with every other sign-in method, and `WhoSecurity.stateless()` mounts them, with
+JWTs when `who-jwt` is on, into an API chain of their own, with no session and no CSRF (see
+[Getting Started](getting-started.md#a-website-and-an-api)).
 
 The filter is not registered globally. It only runs in chains that add it. To add only API keys to a chain, use `WhoApiKeySecurity`:
 

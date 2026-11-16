@@ -151,6 +151,48 @@ Or wire one method at a time, as each method's guide shows: `WhoWebSecurity.pass
 email links and passkeys, `WhoApiKeySecurity.apiKey()` for API keys, and Spring's
 `oauth2ResourceServer()` with `WhoJwtAuthenticationConverter` for JWTs.
 
+### A website and an API
+
+The most common reason for chains of your own is an app that is both a website for people and an
+API for machines. The website needs sessions and CSRF; the API needs neither, and must not accept
+a browser's session cookie. Give each its own chain, the API's first:
+
+```java
+@Bean
+@Order(1)
+SecurityFilterChain api(HttpSecurity http) {
+    http.securityMatcher("/api/**")
+        .with(WhoSecurity.stateless(), Customizer.withDefaults())
+        .authorizeHttpRequests(a -> a.anyRequest().authenticated());
+    return http.build();
+}
+
+@Bean
+@Order(2)
+SecurityFilterChain web(HttpSecurity http, WhoPublicPaths publicPaths) {
+    http.with(WhoWebSecurity.passwordless(), Customizer.withDefaults())
+        .authorizeHttpRequests(a -> a
+            .requestMatchers(publicPaths.patterns()).permitAll()
+            .anyRequest().authenticated());
+    return http.build();
+}
+```
+
+`WhoSecurity.stateless()` mounts only who's token and key sign-in (`who-jwt`, `who-apikey`), never
+a browser method, into a chain that:
+
+- never reads or creates a session, so a session cookie, who's or Spring's own, signs nothing in
+  on the API and a signed-out call starts none;
+- has no CSRF protection, because nothing it accepts rides along with a request by itself: a
+  forged cross-site request cannot add the header a token or key travels in;
+- answers a signed-out request with `401` and a denied one with `403`, through your
+  `@RestControllerAdvice` like every who error; the `401` carries `WWW-Authenticate: Bearer` when
+  JWTs are on.
+
+With neither `who-jwt` nor `who-apikey` on, startup fails. The
+[web-and-api example](https://github.com/jwcarman/who/tree/main/who-examples/web-and-api) is this
+app, runnable.
+
 ## Create an identity
 
 `WhoService` is the entry point for creating identities. Do not write to
