@@ -259,6 +259,28 @@ class WhoJwtAuthenticationConverterTest {
   }
 
   @Test
+  void an_auth_time_more_than_a_minute_ahead_is_no_factor() {
+    WhoAuthenticationToken token = convertWithClaims(Map.of("auth_time", NOW.plusSeconds(61)));
+
+    assertThat(token.signInFactor()).isEmpty();
+  }
+
+  @Test
+  void an_auth_time_in_milliseconds_is_no_factor() {
+    WhoAuthenticationToken token =
+        convertWithClaims(Map.of("auth_time", NOW.minusSeconds(60).toEpochMilli()));
+
+    assertThat(token.signInFactor()).isEmpty();
+  }
+
+  @Test
+  void an_auth_time_too_large_for_an_instant_is_no_factor() {
+    WhoAuthenticationToken token = convertWithClaims(Map.of("auth_time", Long.MAX_VALUE));
+
+    assertThat(token.signInFactor()).isEmpty();
+  }
+
+  @Test
   void an_unreadable_auth_time_is_no_factor() {
     WhoAuthenticationToken token = convertWithClaims(Map.of("auth_time", "yesterday"));
 

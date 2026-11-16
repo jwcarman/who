@@ -16,7 +16,6 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.annotation.ElementType;
@@ -45,6 +44,8 @@ import org.jwcarman.who.spring.security.RequiresRecentSignIn;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.RecentSignInUnavailableException;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -268,14 +269,28 @@ class WhoRecentSignInMethodTest {
   }
 
   @Test
-  void property_false_leaves_it_off() {
+  void property_false_still_enforces_it_in_a_spring_boot_app() {
     runner
         .withPropertyValues("who.method-security.enabled=false")
+        .withConfiguration(AutoConfigurations.of(AopAutoConfiguration.class))
         .run(
             context -> {
               signedInAgo(Duration.ofMinutes(11));
-              assertThatCode(context.getBean(Keys.class)::make).doesNotThrowAnyException();
-              assertThat(context).hasSingleBean(RecentSignInAuthorizationManager.class);
+              assertThatThrownBy(context.getBean(Keys.class)::make)
+                  .isInstanceOf(ReauthenticationRequiredException.class);
+            });
+  }
+
+  @Test
+  void an_app_that_turns_method_security_on_itself_still_enforces() {
+    runner
+        .withPropertyValues("who.method-security.enabled=false")
+        .withUserConfiguration(OwnMethodSecurityConfig.class)
+        .run(
+            context -> {
+              signedInAgo(Duration.ofMinutes(11));
+              assertThatThrownBy(context.getBean(Keys.class)::make)
+                  .isInstanceOf(ReauthenticationRequiredException.class);
             });
   }
 }

@@ -168,11 +168,12 @@ public class WhoSpringSecurityAutoConfiguration {
 
   /**
    * Enforces {@code @RequiresRecentSignIn}, whether method security was turned on by who or by the
-   * application.
+   * application. {@code who.method-security.enabled} does not turn it off: it only says whether who
+   * turns method security on, and an application that does so itself still has every
+   * {@code @RequiresRecentSignIn} enforced, as its {@code @RequiresPermission} is.
    */
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnClass(name = "org.jwcarman.who.spring.security.RequiresRecentSignIn")
-  @ConditionalOnBooleanProperty(name = "who.method-security.enabled", matchIfMissing = true)
   static class RecentSignInMethodSecurityConfiguration {
 
     @Bean

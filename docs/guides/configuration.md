@@ -13,7 +13,7 @@
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
 | `who.security.recent-sign-in` | `10m` | How recently the caller must have signed in to add a way to sign in (register a passkey, link a provider account, add or change an email address) and to call an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) without a window of its own. Checked when the request starts and when it is confirmed; a started provider link lasts as long |
 | `who.security.last-sign-in-cookie.enabled` | `true` | Sets the `who_last_sign_in` cookie after a browser sign-in. See [Sessions](sessions.md#the-last-sign-in-cookie) |
-| `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off |
+| `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off, for instance to configure `@EnableMethodSecurity` yourself. `@RequiresRecentSignIn` is enforced either way |
 | `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |
 | `who.api-key.prefix` | `who_` | Starts every new API key, so secret scanners can spot one. Letters, digits and `_`, 2 to 20 characters, ending in `_`, or startup fails. Changing it leaves existing keys working |
 | `who.api-key.max-lifetime` | `365d` | The longest lifetime a new API key may be given. Positive, or startup fails |

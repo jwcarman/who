@@ -18,6 +18,7 @@ package org.jwcarman.who.jwt;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -71,6 +72,11 @@ import org.springframework.security.oauth2.jwt.JwtClaimNames;
  * publishes nothing.
  */
 public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+
+  /**
+   * How far ahead an {@code auth_time} may be and still count, as Spring's timestamp checks allow.
+   */
+  static final Duration AUTH_TIME_SKEW = Duration.ofSeconds(60);
 
   private static final Logger log = LoggerFactory.getLogger(WhoJwtAuthenticationConverter.class);
 
@@ -160,19 +166,29 @@ public class WhoJwtAuthenticationConverter implements Converter<Jwt, AbstractAut
         .orElseGet(() -> new WhoAuthenticationToken(principal, credentialId, SignInMethod.JWT));
   }
 
-  /** The {@code auth_time} claim; one a little in the future, from clock skew, counts as now. */
+  /**
+   * The {@code auth_time} claim. One up to {@link #AUTH_TIME_SKEW} ahead, from clock skew, counts
+   * as now. One further ahead, such as milliseconds where seconds belong, or one that is not a time
+   * at all, is treated as absent, so the token can never pass a recent-sign-in rule.
+   */
   private Optional<Instant> authTime(Jwt jwt) {
     Instant authTime;
     try {
       authTime = jwt.getClaimAsInstant(AUTH_TIME);
-    } catch (IllegalArgumentException e) {
-      log.debug("JWT auth_time is not a time; treating it as absent");
+    } catch (RuntimeException e) {
+      // IllegalArgumentException for a string, ConversionFailedException for a number too large
+      log.warn("JWT auth_time is not a time; treating it as absent");
       return Optional.empty();
     }
     if (authTime == null) {
       return Optional.empty();
     }
     Instant now = clock.instant();
+    if (authTime.isAfter(now.plus(AUTH_TIME_SKEW))) {
+      log.warn(
+          "JWT auth_time is more than {} in the future; treating it as absent", AUTH_TIME_SKEW);
+      return Optional.empty();
+    }
     return Optional.of(authTime.isAfter(now) ? now : authTime);
   }
 

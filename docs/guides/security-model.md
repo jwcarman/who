@@ -95,9 +95,9 @@ public NewKey make(...) { ... }
 The window is `who.security.recent-sign-in` (10 minutes by default);
 `@RequiresRecentSignIn(within = "5m")` sets one for a single action. On a type it covers every
 method, and it works as a meta-annotation. It runs right after `@PreAuthorize` and
-`@RequiresPermission`, so a missing permission answers first. who's method security enforces it,
-whether who turned method security on or your application did; with
-`who.method-security.enabled=false` it is not enforced at all.
+`@RequiresPermission`, so a missing permission answers first. It is enforced whether who turned
+method security on or your application did. `who.method-security.enabled=false` does not turn it
+off: that property only stops who turning on `@EnableMethodSecurity`.
 
 For a URL rule, inject the `RecentSignInAuthorizationManager` bean:
 

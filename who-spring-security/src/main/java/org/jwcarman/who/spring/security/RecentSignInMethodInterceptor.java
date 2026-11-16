@@ -36,6 +36,7 @@ import org.springframework.security.authorization.AuthorizationResult;
 import org.springframework.security.authorization.method.AuthorizationInterceptorsOrder;
 import org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor;
 import org.springframework.security.authorization.method.MethodAuthorizationDeniedHandler;
+import org.springframework.security.authorization.method.ThrowingMethodAuthorizationDeniedHandler;
 import org.springframework.security.core.Authentication;
 
 /**
@@ -69,6 +70,9 @@ public final class RecentSignInMethodInterceptor {
   private static final class ByAnnotation
       implements AuthorizationManager<MethodInvocation>, MethodAuthorizationDeniedHandler {
 
+    private static final MethodAuthorizationDeniedHandler THROWING =
+        new ThrowingMethodAuthorizationDeniedHandler();
+
     private final Supplier<RecentSignInAuthorizationManager> recentSignIn;
     private final Map<Target, Duration> windows = new ConcurrentHashMap<>();
 
@@ -85,12 +89,17 @@ public final class RecentSignInMethodInterceptor {
       return manager.withWindow(window).authorize(authentication, invocation);
     }
 
-    /** Answers with the decision's own refusal, not Spring Security's 403. */
+    /**
+     * Answers a stale sign-in with the decision's own refusal, not Spring Security's 403. Spring
+     * also calls this with a denial thrown from inside the method, such as a service's own
+     * {@code @RequiresPermission}; that denial is rethrown as it is.
+     */
     @Override
     public @Nullable Object handleDeniedInvocation(
         MethodInvocation invocation, AuthorizationResult result) {
-      // authorize only ever decides with a RecentSignInDecision
-      return ((RecentSignInDecision) result).handleDeniedInvocation(invocation, result);
+      return result instanceof RecentSignInDecision decision
+          ? decision.handleDeniedInvocation(invocation, result)
+          : THROWING.handleDeniedInvocation(invocation, result);
     }
 
     private static Duration windowOf(Target target, RecentSignInAuthorizationManager manager) {

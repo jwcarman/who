@@ -38,6 +38,8 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.authorization.method.AuthorizationInterceptorsOrder;
 import org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -139,6 +141,17 @@ class RecentSignInMethodInterceptorTest {
 
     assertThatThrownBy(() -> interceptor.invoke(invocation))
         .isInstanceOf(ReauthenticationRequiredException.class);
+  }
+
+  @Test
+  void a_denial_inside_the_method_stays_a_denial() throws Throwable {
+    signedInAgo(Duration.ZERO);
+    MethodInvocation invocation = call("usual", new Actions());
+    AuthorizationDeniedException inner =
+        new AuthorizationDeniedException("Access Denied", new AuthorizationDecision(false));
+    when(invocation.proceed()).thenThrow(inner);
+
+    assertThatThrownBy(() -> interceptor.invoke(invocation)).isSameAs(inner);
   }
 
   @Test
