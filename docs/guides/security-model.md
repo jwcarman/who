@@ -78,6 +78,10 @@ running insecurely: a code secret shorter than 32 characters or left as an unres
 `${...}` placeholder, a disabled CSRF configuration, a stateless passwordless chain, and the other
 checks listed in each guide.
 
+### Sessions people can see and end
+
+Each browser sign-in has a record in `who_session`, checked on every request, so a session ended from another browser, or by your code, is signed out on its next request, whichever store holds the session. The list shows who's own id for each session, never the session cookie, and keeps no IP address. Ending another session needs a recent sign-in, so a stolen session cookie cannot sign its owner out of everything else; ending the caller's own session never does. A row unused for longer than the session timeout counts as ended, so a session store that drops sessions without telling the container still cannot revive one.
+
 ## Recent sign-in
 
 A stolen session cookie, or a stolen token, is a sign-in someone else holds. Actions whose effect

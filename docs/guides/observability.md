@@ -31,6 +31,7 @@ or role is ever a tag. A series appears the first time it counts.
 | `who.sign-in.emails` | Sign-in email requests | `outcome` |
 | `who.sign-outs` | Sign-outs of who sessions | none |
 | `who.sessions.ended` | Sessions who ended | `reason` |
+| `who.sessions.purged` | Ended or abandoned session records deleted | none |
 | `who.credentials.added` | Credentials added | `kind` |
 | `who.credentials.revoked` | Credentials revoked | `kind` |
 
@@ -44,7 +45,7 @@ Tag values:
   `provider-error`.
 - `outcome` on `who.sign-in.emails`: `sent`, `unknown-address`, `inactive-identity`,
   `resend-suppressed`, `send-failed`.
-- `reason` on `who.sessions.ended`: `identity-inactive`, `credential-revoked`.
+- `reason` on `who.sessions.ended`: `identity-inactive`, `credential-revoked`, `revoked`.
 - `kind`: `email`, `passkey`, `api-key`, `federated`, `other`.
 
 Successes count only real sign-ins (email link, email code, passkey, identity provider). API keys and JWTs

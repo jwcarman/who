@@ -1,16 +1,18 @@
 # Sessions
 
-`WhoWebSecurity.passwordless()` signs users in with a session. This guide covers what who keeps in it, how to store sessions in your database with Spring Session JDBC, and how to sign an identity out of every device.
+`WhoWebSecurity.passwordless()` signs users in with a session. This guide covers what who keeps in it, how people see and end their sessions, and how to store sessions in your database with Spring Session JDBC.
 
 Who works with the container's own sessions out of the box. Spring Session is optional, and who has no dependency on it.
 
 ## What who stores
 
-Who keeps one attribute in the HTTP session: a `WhoSession` with the identity id, the credential id and the time of sign-in. It holds ids only, never a password, token or key.
+Who keeps one attribute in the HTTP session: a `WhoSession` with the identity id, the credential id, how and when they signed in, and the id of who's record of the session (below). It holds ids only, never a password, token or key.
 
-On every request who reads the `WhoSession` and resolves the identity and credential from the database again. If the identity is gone or inactive, or the credential is revoked, the request is not authenticated and who invalidates the session. A change in who's tables takes effect on the next request, not when the session expires.
+Each sign-in also writes a row to who's `who_session` table: the identity, the credential, the sign-in method and time, when the session was last used, and the browser's `User-Agent`. It holds no IP address and never the servlet session id.
 
-Who also sets a second attribute, the principal index, for "sign out everywhere" below. It removes both when the user signs out.
+On every request who checks that row, then resolves the identity and credential from the database again. If the row was ended, or the session was idle past its timeout, or the identity is gone or inactive, or the credential is revoked, the request is not authenticated and who invalidates the session. A change takes effect on the next request, not when the session expires.
+
+Who also sets a second attribute, the principal index, which Spring Session uses to find an identity's sessions. It removes both when the user signs out.
 
 During a passkey ceremony the session also holds the ceremony's options until the browser answers.
 
@@ -84,37 +86,100 @@ The SQL changes between Spring Session versions, so copy it from the version you
 
 The attributes are stored with Java serialization. `WhoSession` and the types it holds are serializable. Your own session attributes must be too.
 
-## Sign out everywhere
+## See and end sessions
 
-When who saves a `WhoSession`, it also sets the attribute named by Spring Session's `FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME` to the identity id, as a string. Spring Session JDBC copies it into the `PRINCIPAL_NAME` column, and `findByPrincipalName` uses that column. Who uses the attribute's name as a string, so it needs no Spring Session classes.
+A signed-in person can see every browser they are signed in on and sign any of them out, for instance after losing a phone or signing in on a shared computer. who adds the endpoints to every browser chain:
 
-To end every session of an identity, for example after the user reports a lost device:
+| Request | Answer |
+|---------|--------|
+| `GET /who/sessions` | `200`, the caller's live sessions, newest sign-in first |
+| `DELETE /who/sessions/{id}` | `204`. The caller's own session signs out at once; any other needs a [recent sign-in](security-model.md#recent-sign-in) |
+| `DELETE /who/sessions?others=true` | `200` `{"ended": 2}`: every session but the caller's. Needs a recent sign-in |
+
+Each session in the list looks like this:
+
+```json
+{
+  "id": "0f8e5c1a-6d1b-4e55-9a49-4c9f3a0a7d2e",
+  "device": "Firefox on macOS",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:132.0) Gecko/20100101 Firefox/132.0",
+  "signInMethod": "passkey",
+  "signedInAt": "2026-11-16T09:12:44Z",
+  "lastSeenAt": "2026-11-16T10:02:10Z",
+  "current": true
+}
+```
+
+The `id` is who's own, not the session cookie, so showing it exposes nothing that could take a session over. `device` is a rough label read from the `User-Agent`; `signInMethod` is `email-link`, `email-code`, `passkey` or `oidc`.
+
+Answers, through your exception handling like who's other endpoints:
+
+- `401` when signed out, or when ending another session with a sign-in older than `who.security.recent-sign-in`. Sign in again and retry.
+- `403` for a caller that is not a browser session, such as an API key or a bearer token.
+- `404` for an id that is not one of the caller's live sessions, whether it is someone else's, unknown or malformed.
+- `400` for `DELETE /who/sessions` without `others=true`, so a stray request cannot end everything.
+
+Every example app shows the list on its profile or keys page. In JavaScript:
+
+```js
+const sessions = await (await fetch('/who/sessions')).json();
+
+// X-XSRF-TOKEN as for any other change; see Email Links
+await fetch('/who/sessions/' + id, { method: 'DELETE', headers: { 'X-XSRF-TOKEN': xsrf() } });
+```
+
+### From your own code
+
+`WhoSessions` is a bean, for an admin screen or an incident response:
 
 ```java
 @Service
-class SessionService {
+class AccountLockdown {
 
-    private final FindByIndexNameSessionRepository<?> sessions;
+    private final WhoSessions sessions;
 
-    SessionService(FindByIndexNameSessionRepository<?> sessions) {
+    AccountLockdown(WhoSessions sessions) {
         this.sessions = sessions;
     }
 
-    void signOutEverywhere(UUID identityId) {
-        sessions.findByPrincipalName(identityId.toString())
-                .keySet()
-                .forEach(sessions::deleteById);
+    int signOutEverywhere(UUID identityId) {
+        return sessions.endAll(identityId);
     }
 }
 ```
 
-The keys of the returned map are session ids. Deleting a session signs that browser out on its next request. Who adds no endpoint for this. Decide who may call it, and expose it yourself.
+`list(identityId)` returns the live sessions, `end(sessionId)` ends one, and `endAll` and `endAllExcept` end several. Each ended session publishes [`SessionEnded`](events.md) with reason `REVOKED`, and its browser is signed out on its next request. Decide who may call these, and expose them yourself.
 
-This finds sessions that were created after you upgraded to a version of who that sets the index. Older sessions have no index and expire on their own. See [Upgrading](upgrading.md).
+### When a session ends
+
+A session's row ends when the person signs out, when they sign in again in the same browser, when it is ended as above, and when the servlet container destroys the session. Spring Session JDBC deletes expired sessions without telling the container, so who also treats a row unused for longer than the session timeout as ended: it drops out of the list, and its browser is signed out.
+
+To keep a busy session from writing on every request, who updates `last_seen_at` at most once per `who.sessions.last-seen-interval` (default 5 minutes).
+
+### Purging old rows
+
+Ended and abandoned rows are deleted in batches: each sign-in deletes up to `who.sessions.purge-batch-size` (default 100) of them, never the whole table at once. Each batch publishes `EndedSessionsPurged`, counted by the `who.sessions.purged` meter.
+
+To purge on your own schedule instead, turn it off and call `purgeEndedSessions()`, which deletes one batch and returns how many it deleted:
+
+```yaml
+who:
+  sessions:
+    auto-purge: false
+```
+
+```java
+@Scheduled(fixedDelay = 60_000)
+void purgeSessions() {
+    while (sessions.purgeEndedSessions() > 0) {
+        // keep going until a batch comes back empty
+    }
+}
+```
 
 ## Timeouts and cookies
 
-How long a session lasts without a request is not who's setting. With Spring Boot it is `server.servlet.session.timeout` (default 30 minutes). Spring Session JDBC reads it too, unless you set `spring.session.timeout`. Spring Session deletes expired rows on a schedule, by default every minute (`spring.session.jdbc.cleanup-cron`).
+How long a session lasts without a request is not who's setting. With Spring Boot it is `server.servlet.session.timeout` (default 30 minutes). Spring Session JDBC reads it too, unless you set `spring.session.timeout`. who's record of sessions uses the same value: `spring.session.timeout` when set, else `server.servlet.session.timeout`. Spring Session deletes expired rows on a schedule, by default every minute (`spring.session.jdbc.cleanup-cron`).
 
 Who does not set the cookie flags. Set them yourself:
 
@@ -131,7 +196,7 @@ server:
 
 Use `secure: false` only for local development over plain HTTP. See [Email Links](email-links.md#session-cookie).
 
-The recent sign-in window (`who.security.recent-sign-in`) is separate. It limits how long after sign-in a credential may be added (a passkey, a provider account, an email address), or an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) taken, however long the session lasts.
+The recent sign-in window (`who.security.recent-sign-in`) is separate. It limits how long after sign-in a credential may be added (a passkey, a provider account, an email address), another session ended, or an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) taken, however long the session lasts.
 
 ## The last sign-in cookie
 

@@ -2,8 +2,36 @@
 
 ## Upgrading to 0.19.0
 
-0.19.0 adds [`@RequiresRecentSignIn`](security-model.md#recent-sign-in). Nothing you have needs to
-change, but a few things look different:
+0.19.0 adds [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) and lets people
+[see and end their sessions](sessions.md#see-and-end-sessions).
+
+### Signed-in sessions
+
+- **A new table, `who_session`.** With `who.initialize-schema=always` who creates it. With
+  Liquibase, `who-changelog-all.xml` (or `who-jdbc-changelog.xml`) has a new changeSet,
+  `who-session-1`. Otherwise create it from `who-jdbc-schema.sql`.
+- **Everyone signs in once more.** A browser session saved before 0.19 has no record behind it,
+  so its next request is signed out. Sessions that sign in from 0.19 on keep working.
+- **`WhoSession` gains a fifth component, `sessionId`**, the id of its record. The four-argument
+  constructor makes a session with none, which is signed out on its next request.
+- **`WhoSessionSecurityContextRepository` takes `WhoSessions`.** Its constructor is now
+  `(WhoService, WhoSessions, Clock, WhoEventPublisher)`; the two- and three-argument ones are
+  gone. Only an application that builds the repository itself needs to change.
+- **A new sign-in must say how it signed in.** Saving a `WhoAuthenticationToken` built without a
+  `SignInMethod` as a new sign-in throws `IllegalStateException`. who's own sign-ins all set it.
+- **Test helpers take `WhoSessions`.** `WhoTestSessions.signedIn(identityId, credentialId)` is
+  now `signedIn(whoSessions, identityId, credentialId)`, with an overload that also takes the
+  sign-in time; autowire `WhoSessions` in the test. `WhoMockMvcBrowser.signedInAs` is unchanged,
+  but needs a `MockMvc` built from the application context. `who-test` adds
+  `InMemorySessionRecordRepository` for tests without a database.
+- **New endpoints** on every browser chain: `GET /who/sessions`, `DELETE /who/sessions/{id}` and
+  `DELETE /who/sessions?others=true`. They need a signed-in browser session.
+- **Use `WhoSessions.endAll` to sign someone out everywhere.** The Spring Session recipe from
+  earlier versions still works, but misses sessions in the container's own store.
+
+### Recent sign-in
+
+Nothing you have needs to change, but a few things look different:
 
 - **Every signed-in caller has one more authority.** Beside the permissions, `getAuthorities()`
   holds a Spring Security `FactorGrantedAuthority` for how the person signed in (`FACTOR_OTT`,
@@ -252,7 +280,7 @@ needs to change, and there are no schema changes.
 - **`EmailLinkIssuer.issue` returns a value.** It returns an `EmailLinkOutcome` instead of `void`. Source that calls it still compiles, but code built against 0.11 must be recompiled, because the method's signature in the class file changed. A subclass or a mock that overrides `issue` must change its return type. See [Sending a link from your own code](email-links.md#sending-a-link-from-your-own-code).
 - **`RoleAlreadyExistsException`.** Creating a role whose name is taken now throws `RoleAlreadyExistsException` instead of a plain `IllegalArgumentException`, with a message that does not name the role. It extends `IllegalArgumentException`, so existing `catch` blocks keep working.
 - **New RBAC repository methods.** `RoleRepository` gains `findAll()` and `IdentityRoleRepository` gains `findIdentityIdsByRoleId(UUID)`. An app with its own implementation of either interface must implement them, or it will not compile. The JDBC repositories who ships already do.
-- **A new session attribute.** The session now also holds the identity id (as a string) under Spring Session's principal-name index attribute. With Spring Session, `FindByIndexNameSessionRepository.findByPrincipalName(identityId.toString())` finds the sessions of an identity. A test that asserts the exact attributes of a session must expect it. Sessions created before the upgrade have no such attribute until the user signs in again. See [Sessions](sessions.md#sign-out-everywhere).
+- **A new session attribute.** The session now also holds the identity id (as a string) under Spring Session's principal-name index attribute. With Spring Session, `FindByIndexNameSessionRepository.findByPrincipalName(identityId.toString())` finds the sessions of an identity. A test that asserts the exact attributes of a session must expect it. Sessions created before the upgrade have no such attribute until the user signs in again. See [Sessions](sessions.md).
 - **New.** `RbacService.findRole`, `listRoles` and `findIdentityIdsWithRole`; the `who-test` module ([Testing](testing.md)); native serialization hints for sessions, so apps that added their own can drop them ([Native Images](native.md)).
 
 ## Upgrading to 0.11.0

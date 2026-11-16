@@ -28,18 +28,22 @@ It depends on `who-spring-security`, `spring-test` and `spring-security-test`. I
 
 ## Signed-in sessions
 
-`WhoTestSessions.signedIn(identityId, credentialId)` returns a `MockHttpSession` that holds a `WhoSession` signed in now:
+`WhoTestSessions.signedIn(whoSessions, identityId, credentialId)` records an email-code sign-in through the app's `WhoSessions` bean, as a real sign-in does, and returns a `MockHttpSession` that holds it:
 
 ```java
+@Autowired WhoSessions whoSessions;
+
 Identity identity = whoService.createIdentity();
 EmailCredential credential = emailCredentialService.register(identity, "ada@example.com");
 
 mockMvc.perform(get("/api/notes")
-                .session(WhoTestSessions.signedIn(identity.id(), credential.id())))
+                .session(WhoTestSessions.signedIn(whoSessions, identity.id(), credential.id())))
         .andExpect(status().isOk());
 ```
 
-Who stores ids only and resolves them from the database on every request, as in production. So the identity must exist and be active, and the credential must exist, in the database the test uses. A session for an identity that is not there is rejected.
+Who stores ids only and checks them against the database on every request, as in production. So the identity must exist and be active, the credential must exist, and the session's record must be live, in the database the test uses. A session built by hand, with no record behind it, is signed out on its first request.
+
+For a test without a database, `InMemorySessionRecordRepository.whoSessions(clock, events)` builds a `WhoSessions` over an in-memory store.
 
 ## A browser for MockMvc
 
@@ -80,9 +84,9 @@ With Spring Session (for example `spring-boot-starter-session-jdbc`), `@AutoConf
 
 Use `WhoTestSessions` only in apps without Spring Session. who-test does not need Spring Session on the classpath.
 
-## A fixed clock
+## The sign-in time
 
-`signedIn` and `signedInAs` record the sign-in time as `Instant.now()`. If your app uses a fixed `Clock`, pass its instant so the session follows the app's clock: `WhoTestSessions.signedIn(identityId, credentialId, signedInAt)` or `browser.signedInAs(identityId, credentialId, signedInAt)`.
+`signedIn` and `signedInAs` record the sign-in time from the app's `Clock`, so a fixed clock needs nothing more. To sign in a while ago, for instance to test a [recent sign-in](security-model.md#recent-sign-in) requirement, pass the time: `WhoTestSessions.signedIn(whoSessions, identityId, credentialId, signedInAt)` or `browser.signedInAs(identityId, credentialId, signedInAt)`. The session still counts as used now, so it is not idle.
 
 ## What it does not do
 

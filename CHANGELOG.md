@@ -6,7 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- Every browser session saved before 0.19 is signed out on its next request: each session now has a record in the new `who_session` table, checked on every request. Create the table (`who.initialize-schema`, the `who-session-1` changeSet, or `who-jdbc-schema.sql`).
+- `WhoSessionSecurityContextRepository`'s constructor is now `(WhoService, WhoSessions, Clock, WhoEventPublisher)`. Saving a new sign-in whose token has no `SignInMethod` throws `IllegalStateException`.
+- `WhoTestSessions.signedIn` takes the application's `WhoSessions` first. `WhoMockMvcBrowser.signedInAs` needs a `MockMvc` built from the application context.
+
+See [Upgrading](docs/guides/upgrading.md#upgrading-to-0190).
+
 ### Added
+
+- People can see where they are signed in and sign any browser out: `GET /who/sessions`, `DELETE /who/sessions/{id}` and `DELETE /who/sessions?others=true` on every browser chain. Ending another session needs a recent sign-in; ending your own never does. The list shows a device label, the sign-in method and times, and who's own id, never the session cookie, and keeps no IP address. See [Sessions](docs/guides/sessions.md#see-and-end-sessions).
+- `WhoSessions`, for your own code: `list`, `end`, `endAll`, `endAllExcept` and `purgeEndedSessions`. Ended sessions publish `SessionEnded` with the new reason `REVOKED`.
+- Ended and abandoned session records are deleted 100 at a time on each sign-in (`who.sessions.auto-purge`, `who.sessions.purge-batch-size`), publishing `EndedSessionsPurged` and counted by the `who.sessions.purged` meter. `who.sessions.last-seen-interval` (default `5m`) limits how often a session's last use is written.
+- `InMemorySessionRecordRepository` in `who-test`, for tests without a database.
 
 - `@RequiresRecentSignIn`: an action, on a method or a type, that needs a sign-in within `who.security.recent-sign-in` or its own `within`. A stale browser session gets `401` `ReauthenticationRequiredException`; a JWT whose `auth_time` is too old gets `401` `InsufficientUserAuthenticationException` with the RFC 9470 step-up challenge (`error="insufficient_user_authentication"`, `max_age`); a JWT without `auth_time`, and an API key, get `403` `RecentSignInUnavailableException`. The `RecentSignInAuthorizationManager` bean does the same for URL rules. See [Recent sign-in](docs/guides/security-model.md#recent-sign-in).
 - Every who sign-in carries a Spring Security `FactorGrantedAuthority` issued when the person signed in: `FACTOR_OTT`, `FACTOR_WEBAUTHN`, `FACTOR_AUTHORIZATION_CODE`, or `FACTOR_BEARER` at a JWT's `auth_time`. API keys carry none. `WhoAuthenticationToken.signInFactor()` and `WhoAuthenticationToken.signedIn(...)` are new.
@@ -18,6 +31,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Documentation
 
+- Every example with a browser sign-in (web-app, spa, web-and-api, observability) lists where you're signed in and lets you sign any browser out; the observability dashboard shows purged session records.
+- The Sessions guide's "Sign out everywhere" recipe now uses `WhoSessions.endAll`, which covers every session store.
 - The examples make keys only after a recent sign-in: web-and-api's Keys page sends a stale session to sign in again and back, the API example answers a stale token with the step-up challenge, and the observability example's page says to sign in again.
 
 - A new example, `who-examples/observability`: who's meters, traces and logs in Grafana's LGTM

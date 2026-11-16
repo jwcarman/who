@@ -49,7 +49,8 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `SignInSucceeded` | who-core | A sign-in is complete: email link, email code or passkey, after the session is saved. API-key and JWT requests publish none; see [Spring's own sign-in events](#springs-own-sign-in-events). | `method`, `identityId`, `credentialId` |
 | `SignInFailed` | who-core | A sign-in attempt fails, for every method, including each refused API-key or JWT request. The client still gets the same `401`. | `method`, `reason`, `address` or null, `identityId` or null, `credentialId` or null |
 | `SignedOut` | who-core | A caller signs out of a who session. | `identityId`, `credentialId` |
-| `SessionEnded` | who-core | who drops a session because its identity is no longer active or its credential was revoked. | `identityId`, `credentialId`, `reason` |
+| `SessionEnded` | who-core | who drops a session because its identity is no longer active or its credential was revoked, or a session is [ended](sessions.md#see-and-end-sessions) from another browser or through `WhoSessions`. | `identityId`, `credentialId`, `reason` |
+| `EndedSessionsPurged` | who-core | A batch of ended or abandoned session records was deleted, on sign-in or by `WhoSessions.purgeEndedSessions()`. Not published for an empty batch. | `count` |
 | `SignInEmailRequested` | who-email-link | A request to `POST /ott/generate` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
 | `EmailAddressConfirmationRequested` | who-email-link | A request to `POST /who/email/addresses` has been handled, once per request, on the email thread. | `identityId`, `address` or null, `change`, `outcome` (`SENT`, `INVALID_ADDRESS`, `ADDRESS_TAKEN`, `RESEND_SUPPRESSED`, `SEND_FAILED`) |
 | `PasskeyRegistrationRefused` | who-passkey | A signed-in identity tries to add a passkey, but signed in longer ago than the registration window allows. | `identityId`, `reason` |
@@ -73,7 +74,9 @@ before who's provider runs: no `SignInFailed`.
 
 `SessionEndReason`: `IDENTITY_INACTIVE` when the session's credential now resolves to another
 identity, or its identity is inactive; `CREDENTIAL_REVOKED` when the credential is no longer
-linked, or its identity was deleted.
+linked, or its identity was deleted; `REVOKED` when the person, or your code, ended it. A
+session that times out, or is replaced by a new sign-in in the same browser, publishes nothing;
+signing out publishes `SignedOut`.
 
 `EmailLinkOutcome`: `SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,
 `SEND_FAILED`. `SignInEmailRequested` is published on the email thread, after the caller has
