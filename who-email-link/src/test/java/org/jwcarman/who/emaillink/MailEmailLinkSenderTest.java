@@ -124,9 +124,12 @@ class MailEmailLinkSenderTest {
     assertThat(message.getSubject()).isEqualTo("Your address changed");
     assertThat(message.getText())
         .isEqualTo(
-            "Your account's email address was changed to n***@example.com. This address no"
-                + " longer signs in.\n\nIf you didn't make this change, someone else may have"
-                + " access to your account: contact the site right away.")
+            """
+            Your account's email address was changed to n***@example.com. This address no \
+            longer signs in.
+
+            If you didn't make this change, someone else may have access to your account: \
+            contact the site right away.""")
         .doesNotContain("newname");
   }
 

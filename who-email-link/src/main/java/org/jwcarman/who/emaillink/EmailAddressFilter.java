@@ -59,6 +59,9 @@ final class EmailAddressFilter extends OncePerRequestFilter {
   static final String ADDRESSES_URL = "/who/email/addresses";
   static final String CONFIRM_URL = ADDRESSES_URL + "/confirm";
 
+  /** The body field naming the address a request replaces. */
+  private static final String REPLACES = "replaces";
+
   private static final RequestMatcher ADDRESSES =
       PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, ADDRESSES_URL);
   private static final RequestMatcher CONFIRM =
@@ -117,10 +120,10 @@ final class EmailAddressFilter extends OncePerRequestFilter {
 
   private void request(HttpServletRequest request, HttpServletResponse response, Identity identity)
       throws IOException {
-    Map<String, String> body = JsonBodies.readStrings(jsonMapper, request, "address", "replaces");
+    Map<String, String> body = JsonBodies.readStrings(jsonMapper, request, "address", REPLACES);
     UUID replaces = null;
-    if (body.containsKey("replaces")) {
-      replaces = parse(body.get("replaces")).orElse(null);
+    if (body.containsKey(REPLACES)) {
+      replaces = parse(body.get(REPLACES)).orElse(null);
       if (replaces == null || !changes.ownsAddress(identity.id(), replaces)) {
         handoff.handOff(
             request, response, new EmailCredentialNotFoundException(), HttpStatus.NOT_FOUND);

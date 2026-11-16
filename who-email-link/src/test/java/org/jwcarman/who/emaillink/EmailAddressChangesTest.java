@@ -180,7 +180,8 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
 
       String link = ((EmailAddressConfirmationMessage) attempted.getLast()).link();
       String token = link.substring(link.indexOf('=') + 1);
-      assertThatThrownBy(() -> changes().confirmToken(alice, token))
+      EmailAddressChanges changes = changes();
+      assertThatThrownBy(() -> changes.confirmToken(alice, token))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
       sender = sent::add;
       assertThat(changes().request(alice.id(), "new@example.com", null))
@@ -250,10 +251,11 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
       changes().request(alice.id(), "new@example.com", null);
       String token = token();
       String code = lastConfirmation().code();
+      EmailAddressChanges changes = changes();
 
-      assertThatThrownBy(() -> changes().confirmToken(mallory, token))
+      assertThatThrownBy(() -> changes.confirmToken(mallory, token))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
-      assertThatThrownBy(() -> changes().confirmCode(mallory, code))
+      assertThatThrownBy(() -> changes.confirmCode(mallory, code))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
       assertThat(changes().confirmToken(alice, token).address()).isEqualTo("new@example.com");
     }
@@ -262,9 +264,10 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
     void a_used_link_confirms_nothing() {
       changes().request(alice.id(), "new@example.com", null);
       String token = token();
-      changes().confirmToken(alice, token);
+      EmailAddressChanges changes = changes();
+      changes.confirmToken(alice, token);
 
-      assertThatThrownBy(() -> changes().confirmToken(alice, token))
+      assertThatThrownBy(() -> changes.confirmToken(alice, token))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
     }
 
@@ -273,7 +276,9 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
       changes().request(alice.id(), "new@example.com", null);
       String token = token();
 
-      assertThatThrownBy(() -> changes(NOW.plus(SETTINGS.tokenTtl())).confirmToken(alice, token))
+      EmailAddressChanges later = changes(NOW.plus(SETTINGS.tokenTtl()));
+
+      assertThatThrownBy(() -> later.confirmToken(alice, token))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
     }
 
@@ -282,12 +287,13 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
       changes().request(alice.id(), "new@example.com", null);
       String code = lastConfirmation().code();
       String wrong = code.equals("AAAAAA") ? "BBBBBB" : "AAAAAA";
+      EmailAddressChanges changes = changes();
 
       for (int i = 0; i < SETTINGS.codeMaxAttempts(); i++) {
-        assertThatThrownBy(() -> changes().confirmCode(alice, wrong))
+        assertThatThrownBy(() -> changes.confirmCode(alice, wrong))
             .isInstanceOf(InvalidEmailAddressConfirmationException.class);
       }
-      assertThatThrownBy(() -> changes().confirmCode(alice, code))
+      assertThatThrownBy(() -> changes.confirmCode(alice, code))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
     }
 
@@ -295,11 +301,12 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
     void something_that_is_not_a_code_confirms_nothing() {
       changes().request(alice.id(), "new@example.com", null);
 
-      assertThatThrownBy(() -> changes().confirmCode(alice, "nope!"))
+      EmailAddressChanges changes = changes();
+      assertThatThrownBy(() -> changes.confirmCode(alice, "nope!"))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
-      assertThatThrownBy(() -> changes().confirmCode(alice, null))
+      assertThatThrownBy(() -> changes.confirmCode(alice, null))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
-      assertThatThrownBy(() -> changes().confirmToken(alice, null))
+      assertThatThrownBy(() -> changes.confirmToken(alice, null))
           .isInstanceOf(InvalidEmailAddressConfirmationException.class);
     }
 
@@ -308,8 +315,9 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
       changes().request(alice.id(), "new@example.com", null);
       String token = token();
       credentials.register(identityRepository.save(Identity.create()), "new@example.com");
+      EmailAddressChanges changes = changes();
 
-      assertThatThrownBy(() -> changes().confirmToken(alice, token))
+      assertThatThrownBy(() -> changes.confirmToken(alice, token))
           .isInstanceOf(EmailAddressTakenException.class);
     }
 

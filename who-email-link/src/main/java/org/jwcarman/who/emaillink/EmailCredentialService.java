@@ -36,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public class EmailCredentialService {
 
+  private static final String CREDENTIAL_ID_REQUIRED = "credentialId must not be null";
+
   private final EmailCredentialRepository emailCredentialRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
   private final WhoEventPublisher eventPublisher;
@@ -101,6 +103,10 @@ public class EmailCredentialService {
    */
   @Transactional
   public EmailCredential register(Identity identity, String address) {
+    return registerInTransaction(identity, address);
+  }
+
+  private EmailCredential registerInTransaction(Identity identity, String address) {
     requireNonNull(identity, "identity must not be null");
     EmailCredential credential = EmailCredential.create(address);
     // Check first so the common case does not abort a caller's PostgreSQL transaction; the catch
@@ -155,9 +161,9 @@ public class EmailCredentialService {
   @Transactional
   public EmailCredential replace(Identity identity, String address, UUID oldCredentialId) {
     requireNonNull(oldCredentialId, "oldCredentialId must not be null");
-    EmailCredential added = register(identity, address);
+    EmailCredential added = registerInTransaction(identity, address);
     if (!added.id().equals(oldCredentialId) && isOwnedBy(oldCredentialId, identity.id())) {
-      revoke(oldCredentialId);
+      revokeInTransaction(oldCredentialId);
     }
     return added;
   }
@@ -170,7 +176,7 @@ public class EmailCredentialService {
    * @return {@code true} if the credential is an email credential of the identity
    */
   public boolean isOwnedBy(UUID credentialId, UUID identityId) {
-    requireNonNull(credentialId, "credentialId must not be null");
+    requireNonNull(credentialId, CREDENTIAL_ID_REQUIRED);
     requireNonNull(identityId, "identityId must not be null");
     return emailCredentialRepository.findById(credentialId).isPresent()
         && credentialIdentityRepository
@@ -196,7 +202,7 @@ public class EmailCredentialService {
    * @return the credential, if any
    */
   public Optional<EmailCredential> findById(UUID credentialId) {
-    requireNonNull(credentialId, "credentialId must not be null");
+    requireNonNull(credentialId, CREDENTIAL_ID_REQUIRED);
     return emailCredentialRepository.findById(credentialId);
   }
 
@@ -220,7 +226,11 @@ public class EmailCredentialService {
    */
   @Transactional
   public void revoke(UUID credentialId) {
-    requireNonNull(credentialId, "credentialId must not be null");
+    revokeInTransaction(credentialId);
+  }
+
+  private void revokeInTransaction(UUID credentialId) {
+    requireNonNull(credentialId, CREDENTIAL_ID_REQUIRED);
     Optional<EmailCredential> credential = emailCredentialRepository.findById(credentialId);
     if (credential.isEmpty()) {
       return;

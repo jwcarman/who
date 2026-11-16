@@ -189,8 +189,9 @@ class EmailCredentialEventsTest extends AbstractEmailLinkTest {
       EmailCredential old = service.register(identity, "old@example.com");
       service.register(identityRepository.save(Identity.create()), "taken@example.com");
       events.clear();
+      UUID oldId = old.id();
 
-      assertThatThrownBy(() -> service.replace(identity, "taken@example.com", old.id()))
+      assertThatThrownBy(() -> service.replace(identity, "taken@example.com", oldId))
           .isInstanceOf(EmailAddressTakenException.class);
 
       assertThat(events).isEmpty();
