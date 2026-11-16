@@ -2,6 +2,12 @@ spring:
   application:
     name: who-example-observability
 
+  # who signs people in, so Spring Boot's own user, with the password it prints at startup, would
+  # only be noise. Boot leaves it out by itself when JWT or provider sign-in is on; this example has
+  # neither, so it switches it off here.
+  autoconfigure:
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+
   # Mailpit, from compose.yaml. Every email lands at http://localhost:8025.
   mail:
     host: localhost
