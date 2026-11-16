@@ -75,25 +75,49 @@ class OidcLoginMethodTest {
   static class Method {
     @Bean
     OidcLoginMethod oidcLoginMethod() {
-      WhoService whoService = mock(WhoService.class);
-      Clock clock = Clock.systemUTC();
-      return new OidcLoginMethod(
-          WhoPaths.defaults(),
-          SignInRegistrations.of(List.of(ACME), Map.of()),
-          whoService,
-          mock(FederatedCredentialRepository.class),
-          new WhoSessionSecurityContextRepository(
-              whoService,
-              InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
-              clock,
-              WhoEventPublisher.NOOP),
-          mock(OidcSignUpService.class),
-          mock(IdentityRepository.class),
-          new OidcRedirects("/", "/signin"),
-          clock,
-          Duration.ofMinutes(10),
-          Duration.ofMinutes(10));
+      return method(SignInRegistrations.of(List.of(ACME), Map.of()));
     }
+  }
+
+  private static OidcLoginMethod method(SignInRegistrations registrations) {
+    WhoService whoService = mock(WhoService.class);
+    Clock clock = Clock.systemUTC();
+    return new OidcLoginMethod(
+        WhoPaths.defaults(),
+        registrations,
+        whoService,
+        mock(FederatedCredentialRepository.class),
+        new WhoSessionSecurityContextRepository(
+            whoService,
+            InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
+            clock,
+            WhoEventPublisher.NOOP),
+        mock(OidcSignUpService.class),
+        mock(IdentityRepository.class),
+        new OidcRedirects("/", "/signin"),
+        clock,
+        Duration.ofMinutes(10),
+        Duration.ofMinutes(10));
+  }
+
+  private static ClientRegistration provider(String id) {
+    return ClientRegistration.withClientRegistration(ACME)
+        .registrationId(id)
+        .issuerUri("https://" + id + ".example.com")
+        .build();
+  }
+
+  @Test
+  void is_named_oidc_with_its_providers_sorted() {
+    SignInRegistrations registrations =
+        SignInRegistrations.of(List.of(provider("keycloak"), provider("github")), Map.of());
+
+    assertThat(method(registrations).name()).isEqualTo("oidc (github, keycloak)");
+  }
+
+  @Test
+  void without_providers_is_named_oidc() {
+    assertThat(method(SignInRegistrations.of(List.of(), Map.of())).name()).isEqualTo("oidc");
   }
 
   @Configuration

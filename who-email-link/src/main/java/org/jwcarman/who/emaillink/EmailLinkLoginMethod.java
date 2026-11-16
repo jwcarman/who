@@ -108,4 +108,9 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
                 .failureHandler(failureHandler)
                 .showDefaultSubmitPage(false));
   }
+
+  @Override
+  public String name() {
+    return "email-link";
+  }
 }

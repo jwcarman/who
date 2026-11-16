@@ -305,6 +305,11 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
         .hasMessageContaining("session management");
   }
 
+  @Test
+  void isNamedPasskey() {
+    assertThat(standalone().name()).isEqualTo("passkey");
+  }
+
   private PasskeyLoginMethod standalone() {
     return new PasskeyLoginMethod(
         WhoPaths.defaults(),

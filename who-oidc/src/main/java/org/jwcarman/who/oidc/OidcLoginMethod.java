@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
@@ -261,5 +262,12 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
         return filter;
       }
     };
+  }
+
+  @Override
+  public String name() {
+    List<String> ids =
+        registrations.all().stream().map(SignInRegistration::registrationId).sorted().toList();
+    return ids.isEmpty() ? "oidc" : "oidc (" + String.join(", ", ids) + ")";
   }
 }

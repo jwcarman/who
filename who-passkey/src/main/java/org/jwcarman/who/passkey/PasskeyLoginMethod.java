@@ -196,4 +196,9 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     filter.setAuthenticationSuccessHandler(handlers.success());
     filter.setAuthenticationFailureHandler(handlers.failure());
   }
+
+  @Override
+  public String name() {
+    return "passkey";
+  }
 }

@@ -56,6 +56,11 @@ class JwtLoginMethodTest {
     assertThat(method.challenge()).contains("Bearer");
   }
 
+  @Test
+  void is_named_jwt() {
+    assertThat(method(mock(JwtDecoder.class)).name()).isEqualTo("jwt");
+  }
+
   private static JwtLoginMethod method(JwtDecoder decoder) {
     return new JwtLoginMethod(
         new WhoJwtAuthenticationConverter(

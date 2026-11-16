@@ -44,4 +44,14 @@ public interface PasswordlessLoginMethod {
   default Set<String> publicPaths() {
     return Set.of();
   }
+
+  /**
+   * Returns this method's name, for the line who logs at startup naming the sign-in methods a chain
+   * accepts. who's own methods return a short name such as {@code passkey}.
+   *
+   * @return the name; the class's simple name by default
+   */
+  default String name() {
+    return getClass().getSimpleName();
+  }
 }

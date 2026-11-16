@@ -36,6 +36,23 @@ import tools.jackson.databind.json.JsonMapper;
 class EmailLinkLoginMethodTest {
 
   @Test
+  void isNamedEmailLink() {
+    JsonMapper mapper = JsonMapper.builder().build();
+    EmailLinkLoginMethod method =
+        new EmailLinkLoginMethod(
+            WhoPaths.defaults(),
+            mock(WhoOneTimeTokenService.class),
+            new JsonGenerateOneTimeTokenRequestResolver(mapper),
+            mock(EmailLinkGenerationSuccessHandler.class),
+            new JsonOneTimeTokenAuthenticationConverter(mapper),
+            mock(EmailLinkAuthenticationProvider.class),
+            mock(AuthenticationSuccessHandler.class),
+            mock(AuthenticationFailureHandler.class));
+
+    assertThat(method.name()).isEqualTo("email-link");
+  }
+
+  @Test
   void configuresEveryHookAndPutsTheUrlsUnderTheRoot() {
     JsonMapper mapper = JsonMapper.builder().build();
     WhoOneTimeTokenService tokenService = mock(WhoOneTimeTokenService.class);

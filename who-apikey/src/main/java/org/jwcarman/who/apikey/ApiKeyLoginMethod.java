@@ -58,4 +58,9 @@ public final class ApiKeyLoginMethod implements StatelessLoginMethod {
   public RequestMatcher carriesCredential() {
     return request -> converter.convert(request) != null;
   }
+
+  @Override
+  public String name() {
+    return "api-key";
+  }
 }

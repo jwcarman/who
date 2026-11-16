@@ -94,4 +94,9 @@ public final class JwtLoginMethod implements StatelessLoginMethod {
   public Optional<String> challenge() {
     return Optional.of("Bearer");
   }
+
+  @Override
+  public String name() {
+    return "jwt";
+  }
 }

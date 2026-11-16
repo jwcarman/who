@@ -57,4 +57,14 @@ public interface StatelessLoginMethod {
   default Optional<String> challenge() {
     return Optional.empty();
   }
+
+  /**
+   * Returns this method's name, for the line who logs at startup naming the sign-in methods a chain
+   * accepts. who's own methods return a short name such as {@code api-key}.
+   *
+   * @return the name; the class's simple name by default
+   */
+  default String name() {
+    return getClass().getSimpleName();
+  }
 }
