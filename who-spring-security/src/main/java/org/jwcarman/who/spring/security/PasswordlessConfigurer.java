@@ -115,6 +115,8 @@ public class PasswordlessConfigurer
     for (PasswordlessLoginMethod method : methods) {
       method.configure(http);
     }
+    // every browser chain lets its signed-in person see and end their sessions
+    context.getBeanProvider(SessionEndpoints.class).ifAvailable(e -> e.configure(http));
   }
 
   @Override

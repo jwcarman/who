@@ -30,10 +30,11 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Adds the endpoints that let a signed-in person see their browser sessions and end them: {@code
  * GET /who/sessions}, {@code DELETE /who/sessions/{id}} and {@code DELETE
- * /who/sessions?others=true}. Not a way to sign in, but contributed to the browser chain the same
- * way; it adds no public path.
+ * /who/sessions?others=true}. {@code WhoWebSecurity.passwordless()} adds them to every browser
+ * chain when this bean exists. Not a way to sign in, so it does not make a chain a browser chain,
+ * and it adds no public path.
  */
-public class SessionEndpoints implements PasswordlessLoginMethod {
+public class SessionEndpoints {
 
   private final WhoSessions sessions;
   private final WhoSessionSecurityContextRepository repository;
@@ -67,7 +68,11 @@ public class SessionEndpoints implements PasswordlessLoginMethod {
     this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
   }
 
-  @Override
+  /**
+   * Adds the endpoints' filter to a browser chain.
+   *
+   * @param http the chain
+   */
   public void configure(HttpSecurity http) {
     // before authorization, as the email address endpoints, so a signed-out caller gets who's
     // answer
