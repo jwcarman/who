@@ -30,10 +30,29 @@ import org.jwcarman.who.core.event.SignInMethod;
  * @param signedInAt when the session was first established for that credential
  * @param signInMethod how the person signed in, or {@code null} for a session saved before who
  *     stored it
+ * @param sessionId the id of who's record of this session, or {@code null} for a session saved
+ *     before who recorded sessions, which is signed out on its next request
  */
 public record WhoSession(
-    UUID identityId, UUID credentialId, Instant signedInAt, SignInMethod signInMethod)
+    UUID identityId,
+    UUID credentialId,
+    Instant signedInAt,
+    SignInMethod signInMethod,
+    UUID sessionId)
     implements Serializable {
+
+  /**
+   * A session with no record behind it, as one saved before who recorded sessions.
+   *
+   * @param identityId the identity that signed in
+   * @param credentialId the credential used to sign in
+   * @param signedInAt when the session was first established for that credential
+   * @param signInMethod how the person signed in, or {@code null}
+   */
+  public WhoSession(
+      UUID identityId, UUID credentialId, Instant signedInAt, SignInMethod signInMethod) {
+    this(identityId, credentialId, signedInAt, signInMethod, null);
+  }
 
   /**
    * A session that does not say how the person signed in. It carries no sign-in factor, so an
@@ -44,6 +63,6 @@ public record WhoSession(
    * @param signedInAt when the session was first established for that credential
    */
   public WhoSession(UUID identityId, UUID credentialId, Instant signedInAt) {
-    this(identityId, credentialId, signedInAt, null);
+    this(identityId, credentialId, signedInAt, null, null);
   }
 }

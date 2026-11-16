@@ -48,8 +48,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -100,9 +103,15 @@ class PasswordlessConfigurerTest {
     }
 
     @Bean
+    WhoSessions whoSessions(Clock clock) {
+      return InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP);
+    }
+
+    @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
-        WhoService whoService, Clock clock) {
-      return new WhoSessionSecurityContextRepository(whoService, clock);
+        WhoService whoService, WhoSessions sessions, Clock clock) {
+      return new WhoSessionSecurityContextRepository(
+          whoService, sessions, clock, WhoEventPublisher.NOOP);
     }
 
     @Bean
@@ -137,6 +146,7 @@ class PasswordlessConfigurerTest {
   @MockitoBean private WhoService whoService;
 
   @Autowired private WebApplicationContext context;
+  @Autowired private WhoSessions sessions;
 
   private MockMvc mvc;
 
@@ -153,7 +163,12 @@ class PasswordlessConfigurerTest {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identity.id(), credentialId, NOW));
+        new WhoSession(
+            identity.id(),
+            credentialId,
+            NOW,
+            null,
+            sessions.start(identity.id(), credentialId, SignInMethod.PASSKEY, null).id()));
     return session;
   }
 
@@ -252,7 +267,12 @@ class PasswordlessConfigurerTest {
 
     @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(WhoService whoService) {
-      return new WhoSessionSecurityContextRepository(whoService, Clock.systemUTC());
+      Clock clock = Clock.systemUTC();
+      return new WhoSessionSecurityContextRepository(
+          whoService,
+          InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP),
+          clock,
+          WhoEventPublisher.NOOP);
     }
   }
 

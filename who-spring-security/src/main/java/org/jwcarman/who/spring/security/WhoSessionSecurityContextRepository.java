@@ -15,7 +15,10 @@
  */
 package org.jwcarman.who.spring.security;
 
+import static java.util.Objects.requireNonNull;
+
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -24,13 +27,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
+import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SessionEndReason;
 import org.jwcarman.who.core.event.SessionEnded;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.SignedOut;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.context.DeferredSecurityContext;
@@ -61,31 +68,24 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       WhoSessionSecurityContextRepository.class.getName() + ".LOADED";
 
   private final WhoService whoService;
+  private final WhoSessions sessions;
   private final Clock clock;
   private final WhoEventPublisher eventPublisher;
-
-  /**
-   * Creates the repository without publishing events.
-   *
-   * @param whoService used to re-resolve the principal on every request
-   * @param clock source of the sign-in time
-   */
-  public WhoSessionSecurityContextRepository(WhoService whoService, Clock clock) {
-    this(whoService, clock, WhoEventPublisher.NOOP);
-  }
 
   /**
    * Creates the repository.
    *
    * @param whoService used to re-resolve the principal on every request
+   * @param sessions records each sign-in, and says on every request whether its session is live
    * @param clock source of the sign-in time and of event timestamps
    * @param eventPublisher receives {@link SessionEnded} when a stored session stops resolving
    */
   public WhoSessionSecurityContextRepository(
-      WhoService whoService, Clock clock, WhoEventPublisher eventPublisher) {
-    this.whoService = whoService;
-    this.clock = clock;
-    this.eventPublisher = eventPublisher;
+      WhoService whoService, WhoSessions sessions, Clock clock, WhoEventPublisher eventPublisher) {
+    this.whoService = requireNonNull(whoService, "whoService must not be null");
+    this.sessions = requireNonNull(sessions, "sessions must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
   }
 
   @Override
@@ -119,11 +119,23 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
           && existing.get().credentialId().equals(credentialId)) {
         return;
       }
+      SignInMethod method =
+          token
+              .signInMethod()
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "A new sign-in must say how it signed in: build the token with its"
+                              + " SignInMethod"));
+      // signing in again in this browser ends the session it replaces
+      existing.map(WhoSession::sessionId).ifPresent(sessions::close);
+      Instant now = clock.instant();
+      SessionRecord row =
+          sessions.start(
+              identityId, credentialId, method, request.getHeader(HttpHeaders.USER_AGENT), now);
       HttpSession session = request.getSession(true);
       session.setAttribute(
-          SESSION_ATTRIBUTE,
-          new WhoSession(
-              identityId, credentialId, clock.instant(), token.signInMethod().orElse(null)));
+          SESSION_ATTRIBUTE, new WhoSession(identityId, credentialId, now, method, row.id()));
       session.setAttribute(PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
     } else {
       HttpSession session = request.getSession(false);
@@ -155,6 +167,17 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
         : Optional.empty();
   }
 
+  /**
+   * Returns the id of who's record of this request's session, the one {@code /who/sessions} marks
+   * as current.
+   *
+   * @param request the current request
+   * @return the session's id, or empty when there is no who session or it has no record
+   */
+  public Optional<UUID> currentSessionId(HttpServletRequest request) {
+    return currentSession(request).map(WhoSession::sessionId);
+  }
+
   private SecurityContext load(HttpServletRequest request) {
     SecurityContext context = new SecurityContextImpl();
     Optional<WhoSession> stored = currentSession(request);
@@ -162,6 +185,13 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       return context;
     }
     WhoSession whoSession = stored.get();
+    // ended here or elsewhere, idle past the timeout, or saved before who recorded sessions
+    Optional<SessionRecord> row =
+        Optional.ofNullable(whoSession.sessionId()).flatMap(sessions::findLive);
+    if (row.isEmpty()) {
+      invalidate(request);
+      return context;
+    }
     UUID credentialId = whoSession.credentialId();
     Resolution resolution = whoService.resolveDetailed(() -> credentialId);
     if (resolution instanceof Resolution.Resolved(WhoPrincipal principal)
@@ -171,6 +201,7 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
           new WhoAuthenticationToken(principal, credentialId, null, signInFactor(whoSession));
       context.setAuthentication(token);
       request.setAttribute(LOADED_ATTRIBUTE, token);
+      sessions.seen(row.get());
     } else {
       if (resolution != null) {
         publishEnded(whoSession, resolution);
@@ -207,6 +238,7 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    * authentication, is ignored.
    */
   void onLogout(HttpServletRequest request, Authentication authentication) {
+    currentSessionId(request).ifPresent(sessions::close);
     if (authentication instanceof WhoAuthenticationToken token
         && token.credentialId().isPresent()
         && currentSession(request).isPresent()) {

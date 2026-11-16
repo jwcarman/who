@@ -50,6 +50,7 @@ import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.spi.Credential;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -102,9 +103,14 @@ class SessionEventsTest {
     }
 
     @Bean
+    WhoSessions whoSessions(Clock clock, WhoEventPublisher publisher) {
+      return InMemorySessionRecords.sessions(clock, publisher);
+    }
+
+    @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
-        WhoService whoService, Clock clock, WhoEventPublisher publisher) {
-      return new WhoSessionSecurityContextRepository(whoService, clock, publisher);
+        WhoService whoService, WhoSessions sessions, Clock clock, WhoEventPublisher publisher) {
+      return new WhoSessionSecurityContextRepository(whoService, sessions, clock, publisher);
     }
 
     @Bean
@@ -119,6 +125,7 @@ class SessionEventsTest {
 
   @Autowired private WebApplicationContext context;
   @Autowired private WhoSessionSecurityContextRepository repository;
+  @Autowired private WhoSessions sessions;
 
   private MockMvc mvc;
 
@@ -135,7 +142,15 @@ class SessionEventsTest {
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(identity.id(), credentialId, NOW.minusSeconds(60)));
+        new WhoSession(
+            identity.id(),
+            credentialId,
+            NOW.minusSeconds(60),
+            null,
+            sessions
+                .start(
+                    identity.id(), credentialId, SignInMethod.PASSKEY, null, NOW.minusSeconds(60))
+                .id()));
     return session;
   }
 
