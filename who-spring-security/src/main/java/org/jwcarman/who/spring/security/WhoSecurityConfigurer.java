@@ -17,12 +17,9 @@ package org.jwcarman.who.spring.security;
 
 import java.util.List;
 
-import org.jwcarman.who.spring.security.web.NotSignedInException;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -70,22 +67,7 @@ public class WhoSecurityConfigurer
     if (browser) {
       http.with(new PasswordlessConfigurer(), Customizer.withDefaults());
     } else {
-      WhoExceptionHandoff handoff =
-          context
-              .getBeanProvider(WhoExceptionHandoff.class)
-              .getIfAvailable(() -> new WhoExceptionHandoff(null));
-      http.exceptionHandling(
-          e ->
-              e.authenticationEntryPoint(
-                      (request, response, authException) ->
-                          handoff.handOff(
-                              request,
-                              response,
-                              new NotSignedInException(),
-                              HttpStatus.UNAUTHORIZED))
-                  .accessDeniedHandler(
-                      (request, response, denied) ->
-                          handoff.handOff(request, response, denied, HttpStatus.FORBIDDEN)));
+      StatelessAnswers.apply(http, context, stateless);
     }
 
     for (StatelessLoginMethod method : stateless) {

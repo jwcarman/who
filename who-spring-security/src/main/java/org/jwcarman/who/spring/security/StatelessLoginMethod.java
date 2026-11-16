@@ -15,12 +15,15 @@
  */
 package org.jwcarman.who.spring.security;
 
+import java.util.Optional;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * A way to sign in each request by a credential it carries in a header (API keys, bearer JWTs),
- * contributed as a bean by a credential module. {@link WhoSecurity#all()} applies every such bean.
+ * contributed as a bean by a credential module. {@link WhoSecurity#all()} and {@link
+ * WhoSecurity#stateless()} apply every such bean.
  *
  * <p>A request that carries the credential is signed in by it or refused, so it needs no CSRF
  * token: a browser cannot attach the header to a forged cross-site request.
@@ -42,4 +45,15 @@ public interface StatelessLoginMethod {
    * @return the matcher
    */
   RequestMatcher carriesCredential();
+
+  /**
+   * The authentication scheme a signed-out {@code 401} names in its {@code WWW-Authenticate}
+   * header, so a client learns how to sign in (RFC 9110, section 11.6.1), such as {@code Bearer}
+   * (RFC 6750). Empty for a method with no standard scheme, which adds no header.
+   *
+   * @return the scheme, or empty
+   */
+  default Optional<String> challenge() {
+    return Optional.empty();
+  }
 }

@@ -17,6 +17,7 @@ package org.jwcarman.who.jwt;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.jwcarman.who.spring.security.StatelessLoginMethod;
@@ -86,5 +87,11 @@ public final class JwtLoginMethod implements StatelessLoginMethod {
           && authorization.length() > BEARER.length()
           && !authorization.substring(BEARER.length()).isBlank();
     };
+  }
+
+  /** Bearer tokens (RFC 6750). */
+  @Override
+  public Optional<String> challenge() {
+    return Optional.of("Bearer");
   }
 }

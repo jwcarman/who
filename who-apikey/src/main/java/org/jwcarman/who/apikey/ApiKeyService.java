@@ -54,10 +54,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class ApiKeyService {
 
   /** The longest a rotated key's predecessor may keep working. */
+  public static final Duration MAX_OVERLAP = Duration.ofDays(7);
+
   /** The longest name or scope a key may have: the width of their columns. */
   static final int MAX_TEXT = 255;
-
-  public static final Duration MAX_OVERLAP = Duration.ofDays(7);
 
   private static final Comparator<ApiKey> BY_NAME =
       Comparator.comparing(ApiKey::name).thenComparing(ApiKey::createdAt);
