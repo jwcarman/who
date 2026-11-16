@@ -6,7 +6,7 @@ hide:
 
 <div class="jw-hero" markdown>
 
-# Who
+# ![](assets/logo/who-mark.svg){ .who-hero__mark } Who
 
 <p class="jw-hero__tagline">Identity and permissions for Spring Boot applications.</p>
 

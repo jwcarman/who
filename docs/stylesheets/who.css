@@ -1,0 +1,18 @@
+/*
+ * Who's signature element: the owl mark, set beside the landing-page title.
+ * Colors come from the shared jwcarman theme (jwcarman.css); this file only
+ * places the mark.
+ */
+
+/* The header logo: Material sizes it to 1.2rem, which shrinks the owl's
+   eyes to dots; give it a little more room. */
+.md-header__button.md-logo img {
+  height: 1.6rem;
+}
+
+/* The owl inside the hero h1, sized to the title text. */
+.md-typeset .jw-hero h1 .who-hero__mark {
+  height: 1.05em;
+  margin-right: 0.18em;
+  vertical-align: -0.14em;
+}

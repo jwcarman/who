@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo/who-mark.svg" alt="Who owl logo" width="128">
+</p>
+
 # Who
 
 [![CI](https://github.com/jwcarman/who/actions/workflows/maven.yml/badge.svg)](https://github.com/jwcarman/who/actions/workflows/maven.yml)

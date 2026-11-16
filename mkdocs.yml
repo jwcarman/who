@@ -35,6 +35,8 @@ exclude_docs: |
 
 theme:
   name: material
+  logo: assets/logo/who-mark.svg
+  favicon: assets/logo/who-badge.svg
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -74,6 +76,7 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/jwcarman.css
+  - stylesheets/who.css
 
 nav:
   - Home: index.md
