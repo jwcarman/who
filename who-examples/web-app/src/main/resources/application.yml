@@ -43,6 +43,7 @@ who:
       - /signin
       - /signin/**
       - /app.css
+      - /img/**
       - /js/**
 
   email-link:

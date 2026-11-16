@@ -17,7 +17,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
 header { display: flex; gap: 1rem; align-items: center; padding: .75rem 1.25rem; background: var(--card); border-bottom: 1px solid var(--line); }
-header .brand { font-weight: 700; margin-right: auto; }
+header .brand { font-weight: 700; margin-right: auto; display: inline-flex; align-items: center; gap: .5rem; }
+header .brand img { height: 1.6rem; }
 header a { color: var(--fg); text-decoration: none; }
 main { max-width: 44rem; margin: 2rem auto; padding: 0 1rem; }
 section { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem; }

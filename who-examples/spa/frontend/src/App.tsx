@@ -22,6 +22,7 @@ import { Members } from './pages/Members';
 import { Profile } from './pages/Profile';
 import { SignIn } from './pages/SignIn';
 import { SignInLink } from './pages/SignInLink';
+import owl from './assets/who-mark.svg';
 
 type MeState = { me: Me; refresh: () => Promise<void> };
 const MeContext = createContext<MeState | null>(null);
@@ -78,7 +79,7 @@ function Header({ me }: { me: Me }) {
   const navigate = useNavigate();
   return (
     <header>
-      <span className="brand">Who Tasks</span>
+      <span className="brand"><img src={owl} alt="" />Who Tasks</span>
       <Link to="/">Board</Link>
       {/* shown or hidden for convenience only: the server checks member.manage on every call */}
       {me.permissions.includes('member.manage') && <Link to="/members">Members</Link>}
