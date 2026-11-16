@@ -26,6 +26,7 @@ import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
+import org.jwcarman.who.spring.security.SessionEndpoints;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -49,6 +50,8 @@ import org.springframework.context.annotation.Role;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.web.servlet.HandlerExceptionResolver;
+
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Wires who into Spring Security when {@code who-spring-security} is on the classpath: the session
@@ -143,6 +146,37 @@ public class WhoSpringSecurityAutoConfiguration {
   @ConditionalOnMissingBean
   public WhoSessionEndListener whoSessionEndListener(WhoSessions whoSessions) {
     return new WhoSessionEndListener(whoSessions);
+  }
+
+  /**
+   * {@code GET /who/sessions} and {@code DELETE /who/sessions/...}: a signed-in person's browser
+   * sessions, and ending them. Ending another session needs a sign-in within {@code
+   * who.security.recent-sign-in}.
+   *
+   * @param whoSessions who's record of sessions
+   * @param repository reads the browser's who session and signs it out
+   * @param handoff answers errors through the application's exception handling, when it has one
+   * @param jsonMapper writes the answers; a default one when the application has none
+   * @param clock the current time
+   * @param properties who's properties, for the recent-sign-in window
+   * @return the endpoints
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public SessionEndpoints whoSessionEndpoints(
+      WhoSessions whoSessions,
+      WhoSessionSecurityContextRepository repository,
+      ObjectProvider<WhoExceptionHandoff> handoff,
+      ObjectProvider<JsonMapper> jsonMapper,
+      Clock clock,
+      WhoProperties properties) {
+    return new SessionEndpoints(
+        whoSessions,
+        repository,
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        jsonMapper.getIfAvailable(JsonMapper::new),
+        clock,
+        properties.getSecurity().getRecentSignIn());
   }
 
   /**
