@@ -71,8 +71,8 @@ class WhoSignInFactorsTest {
   void is_recent_at_the_boundary() {
     Duration window = Duration.ofMinutes(10);
     assertThat(WhoSignInFactors.isRecent(AT, window, AT)).isTrue();
-    assertThat(WhoSignInFactors.isRecent(AT, window, AT.plus(window))).isTrue();
-    assertThat(WhoSignInFactors.isRecent(AT, window, AT.plus(window).plusMillis(1))).isFalse();
+    assertThat(WhoSignInFactors.isRecent(AT, window, AT.plus(window).minusMillis(1))).isTrue();
+    assertThat(WhoSignInFactors.isRecent(AT, window, AT.plus(window))).isFalse();
   }
 
   private static void assertFactor(SignInMethod method, String authority) {

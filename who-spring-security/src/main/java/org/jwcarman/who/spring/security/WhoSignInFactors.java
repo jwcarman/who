@@ -62,7 +62,7 @@ public final class WhoSignInFactors {
 
   /**
    * Whether a sign-in at {@code signedInAt} is within {@code window} of {@code now}. A sign-in
-   * exactly {@code window} ago still is.
+   * exactly {@code window} ago no longer is, as Spring Security's factor check has it.
    *
    * @param signedInAt when the person signed in
    * @param window how long a sign-in stays recent
@@ -70,7 +70,7 @@ public final class WhoSignInFactors {
    * @return whether the sign-in is recent
    */
   public static boolean isRecent(Instant signedInAt, Duration window, Instant now) {
-    return !signedInAt.plus(window).isBefore(now);
+    return now.isBefore(signedInAt.plus(window));
   }
 
   private static Optional<String> authorityOf(SignInMethod method) {
