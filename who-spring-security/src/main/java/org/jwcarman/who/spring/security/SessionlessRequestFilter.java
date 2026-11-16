@@ -43,7 +43,10 @@ final class SessionlessRequestFilter extends OncePerRequestFilter {
     chain.doFilter(new Sessionless(request), response);
   }
 
-  /** Returns {@code false}: an error page the request is sent to sees no session either. */
+  /**
+   * Returns {@code false}: an error page the request is sent to sees no session either, when this
+   * chain also serves the error page's path.
+   */
   @Override
   protected boolean shouldNotFilterErrorDispatch() {
     return false;

@@ -67,9 +67,16 @@ final class StatelessAnswers {
       // even when an error page comes back through here
       Collection<String> present = response.getHeaders(HttpHeaders.WWW_AUTHENTICATE);
       challenges.stream()
-          .filter(c -> !present.contains(c))
+          .filter(c -> present.stream().noneMatch(p -> sameScheme(p, c)))
           .forEach(c -> response.addHeader(HttpHeaders.WWW_AUTHENTICATE, c));
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
     };
+  }
+
+  /** Whether a challenge already sent names the scheme: schemes are case-insensitive. */
+  private static boolean sameScheme(String present, String scheme) {
+    int end = present.indexOf(' ');
+    String presentScheme = end < 0 ? present : present.substring(0, end);
+    return presentScheme.equalsIgnoreCase(scheme);
   }
 }

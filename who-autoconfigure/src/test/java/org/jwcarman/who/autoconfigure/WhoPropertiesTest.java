@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.Duration;
 import java.util.Map;
@@ -63,6 +64,18 @@ class WhoPropertiesTest {
     assertThat(props.getOidc().getSignUpWindow()).isEqualTo(Duration.ofMinutes(5));
     assertThat(props.getOidc().getProviders().get("acme").isEnabled()).isFalse();
     assertThat(props.getOidc().getProviders().get("acme").getTrustEmail()).isTrue();
+  }
+
+  @Test
+  void an_api_key_duration_set_to_null_is_refused_by_name() {
+    WhoProperties.ApiKey apiKey = new WhoProperties().getApiKey();
+
+    assertThatNullPointerException()
+        .isThrownBy(() -> apiKey.setMaxLifetime(null))
+        .withMessageContaining("who.api-key.max-lifetime");
+    assertThatNullPointerException()
+        .isThrownBy(() -> apiKey.setLastUsedInterval(null))
+        .withMessageContaining("who.api-key.last-used-interval");
   }
 
   @Test

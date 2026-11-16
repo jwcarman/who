@@ -250,6 +250,10 @@ public final class StubOidcProvider implements AutoCloseable {
 
   private void authorize(HttpExchange exchange) throws IOException {
     Map<String, String> query = form(exchange.getRequestURI().getRawQuery());
+    if (query.get("redirect_uri") == null) {
+      send(exchange, 400, "{\"error\":\"invalid_request\"}");
+      return;
+    }
     this.nonce = query.get("nonce");
     this.clientId = query.get("client_id");
     String location =
@@ -331,7 +335,7 @@ public final class StubOidcProvider implements AutoCloseable {
 
   private static Map<String, String> form(String encoded) {
     Map<String, String> values = new HashMap<>();
-    if (encoded.isEmpty()) {
+    if (encoded == null || encoded.isEmpty()) {
       return values;
     }
     for (String pair : encoded.split("&")) {

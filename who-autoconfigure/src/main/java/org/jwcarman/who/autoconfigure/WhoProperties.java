@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.autoconfigure;
 
+import static java.util.Objects.requireNonNull;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -704,7 +706,7 @@ public class WhoProperties {
      * @param maxLifetime the maximum lifetime
      */
     public void setMaxLifetime(Duration maxLifetime) {
-      this.maxLifetime = maxLifetime;
+      this.maxLifetime = requireNonNull(maxLifetime, "who.api-key.max-lifetime must not be null");
     }
 
     /** How often, at most, an API key's last use is written: a busy key costs one write each. */
@@ -725,7 +727,8 @@ public class WhoProperties {
      * @param lastUsedInterval the interval
      */
     public void setLastUsedInterval(Duration lastUsedInterval) {
-      this.lastUsedInterval = lastUsedInterval;
+      this.lastUsedInterval =
+          requireNonNull(lastUsedInterval, "who.api-key.last-used-interval must not be null");
     }
   }
 

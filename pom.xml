@@ -293,7 +293,7 @@
         </profile>
         <profile>
             <id>ci</id>
-            <!-- After every module it reads, so it is last in the reactor. -->
+            <!-- Reads every library module's coverage; its dependencies order it after them. -->
             <modules>
                 <module>who-coverage</module>
             </modules>

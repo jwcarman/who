@@ -28,7 +28,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -100,10 +99,7 @@ public class WhoWebSecurityAutoConfiguration {
       HttpSecurity http,
       WhoPublicPaths publicPaths,
       ObjectProvider<PasswordlessLoginMethod> browserMethods) {
-    // the application's class loader, as Spring Boot's own conditions use
-    boolean actuator =
-        ClassUtils.isPresent(
-            ACTUATOR, http.getSharedObject(ApplicationContext.class).getClassLoader());
+    boolean actuator = ClassUtils.isPresent(ACTUATOR, getClass().getClassLoader());
     if (browserMethods.stream().findAny().isEmpty()) {
       http.csrf(csrf -> csrf.ignoringRequestMatchers(NO_SESSION));
     }

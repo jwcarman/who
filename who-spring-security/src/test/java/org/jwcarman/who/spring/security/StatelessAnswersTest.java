@@ -58,6 +58,28 @@ class StatelessAnswersTest {
   }
 
   @Test
+  void a_bearer_challenge_with_parameters_already_names_the_scheme() throws Exception {
+    MockHttpServletResponse response = response();
+    response.addHeader(HttpHeaders.WWW_AUTHENTICATE, "bearer error=\"invalid_token\"");
+
+    answer(List.of(bearer()), response);
+
+    assertThat(response.getHeaders(HttpHeaders.WWW_AUTHENTICATE))
+        .containsExactly("bearer error=\"invalid_token\"");
+  }
+
+  @Test
+  void a_scheme_that_only_starts_like_who_s_keeps_who_s_own() throws Exception {
+    MockHttpServletResponse response = response();
+    response.addHeader(HttpHeaders.WWW_AUTHENTICATE, "BearerToken");
+
+    answer(List.of(bearer()), response);
+
+    assertThat(response.getHeaders(HttpHeaders.WWW_AUTHENTICATE))
+        .containsExactly("BearerToken", "Bearer");
+  }
+
+  @Test
   void a_scheme_set_by_something_else_keeps_who_s_own() throws Exception {
     MockHttpServletResponse response = response();
     response.addHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"other\"");

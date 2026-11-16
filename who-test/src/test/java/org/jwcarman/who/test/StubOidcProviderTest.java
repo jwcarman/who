@@ -188,6 +188,21 @@ class StubOidcProviderTest {
     }
 
     @Test
+    void authorize_without_a_query_is_400() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        assertThat(get(provider.issuer() + "/authorize").statusCode()).isEqualTo(400);
+      }
+    }
+
+    @Test
+    void authorize_without_a_redirect_uri_is_400() throws Exception {
+      try (StubOidcProvider provider = StubOidcProvider.start()) {
+        assertThat(get(provider.issuer() + "/authorize?client_id=client&state=s").statusCode())
+            .isEqualTo(400);
+      }
+    }
+
+    @Test
     void an_unknown_path_is_404() throws Exception {
       try (StubOidcProvider provider = StubOidcProvider.start()) {
         assertThat(get(provider.issuer() + "/nowhere").statusCode()).isEqualTo(404);
