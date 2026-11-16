@@ -51,7 +51,8 @@ who runs inside your application and draws these lines:
 **Passkeys are phishing-resistant.** who requires user verification and discoverable
 credentials, and checks the origin and relying party id. Adding a passkey requires a recent
 sign-in, within `who.security.recent-sign-in` (10 minutes by default) ([Passkeys](passkeys.md)).
-So do linking a provider account and adding or changing an email address, with the same window.
+So do linking a provider account and adding or changing an email address, with the same window,
+and so can any action of yours, with [`@RequiresRecentSignIn`](#recent-sign-in).
 
 **Sessions are hardened for single-page apps.** `WhoWebSecurity.passwordless()`:
 
@@ -76,6 +77,54 @@ input that ever broke it is replayed as a test in every build.
 running insecurely: a code secret shorter than 32 characters or left as an unresolved
 `${...}` placeholder, a disabled CSRF configuration, a stateless passwordless chain, and the other
 checks listed in each guide.
+
+## Recent sign-in
+
+A stolen session cookie, or a stolen token, is a sign-in someone else holds. Actions whose effect
+outlives the session, such as making an API key, changing where mail goes or deleting an account,
+should ask for a sign-in made in the last few minutes. who asks it of its own (adding a passkey,
+a provider account or an email address), and `@RequiresRecentSignIn` asks it of yours:
+
+```java
+@PostMapping("/keys")
+@RequiresPermission("keys.write")
+@RequiresRecentSignIn
+public NewKey make(...) { ... }
+```
+
+The window is `who.security.recent-sign-in` (10 minutes by default);
+`@RequiresRecentSignIn(within = "5m")` sets one for a single action. On a type it covers every
+method, and it works as a meta-annotation. It runs right after `@PreAuthorize` and
+`@RequiresPermission`, so a missing permission answers first. who's method security enforces it,
+whether who turned method security on or your application did; with
+`who.method-security.enabled=false` it is not enforced at all.
+
+For a URL rule, inject the `RecentSignInAuthorizationManager` bean:
+
+```java
+.requestMatchers("/admin/**").access(recentSignIn)
+.requestMatchers("/admin/danger/**").access(recentSignIn.withWindow(Duration.ofMinutes(2)))
+```
+
+Every kind of caller gets one answer:
+
+| Caller | Signed in within the window | Signed in longer ago | Cannot say when |
+|---|---|---|---|
+| Browser session | allowed | `401` `ReauthenticationRequiredException`: sign in again, then retry | a session saved before 0.19: `401`, the same |
+| JWT | allowed, by its `auth_time` | `401` `InsufficientUserAuthenticationException`, with the RFC 9470 step-up challenge | no `auth_time` claim: `403` `RecentSignInUnavailableException` |
+| API key | | | always `403` `RecentSignInUnavailableException`: a key is not a person signing in |
+
+How it works: every sign-in leaves a Spring Security factor authority on the caller's
+authentication, `FactorGrantedAuthority`, issued at the time the person signed in: `FACTOR_OTT`
+for an email link or code, `FACTOR_WEBAUTHN` for a passkey, `FACTOR_AUTHORIZATION_CODE` for a
+provider, and `FACTOR_BEARER` for a JWT, at its `auth_time`. A session keeps the time it signed
+in, so the factor's age is the sign-in's age, not the request's. An API key leaves none. The check
+is Spring Security's `AllRequiredFactorsAuthorizationManager`, asked about who's factors only, so a
+permission that happens to be named like a factor counts for nothing.
+
+Any sign-in counts, provider sign-in included: signing in again at Google or Keycloak may not ask
+for a password if the provider remembers the person. A stale or missing sign-in publishes no event:
+no sign-in failed. The refusal is logged at DEBUG.
 
 ## Audit trail
 

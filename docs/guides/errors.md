@@ -8,7 +8,9 @@ who formats no error responses. When something goes wrong it throws an exception
 |---|---|---|
 | `SignInFailedException` | 401 | A sign-in failed: a bad, expired or used email-link token; an unknown or invalid passkey; an inactive identity. Its message is always `"Sign-in failed"`, so the reason never reaches a response. The cause keeps it for your logs. |
 | `NotSignedInException` | 401 | A request needs a signed-in caller and has none: a protected URL, `GET /who/me`, or passkey registration while signed out. |
-| `ReauthenticationRequiredException` | 401 | Adding a credential (a passkey, a provider account, an email address) more than `who.security.recent-sign-in` after signing in. Sign the user in again, then retry. |
+| `ReauthenticationRequiredException` | 401 | Adding a credential (a passkey, a provider account, an email address), or calling an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in), more than `who.security.recent-sign-in` after signing in. Sign the user in again, then retry. |
+| `InsufficientUserAuthenticationException` | 401 | A JWT whose `auth_time` is too old called an action marked `@RequiresRecentSignIn`. who has set `WWW-Authenticate: Bearer error="insufficient_user_authentication", …, max_age=<seconds>` (RFC 9470) before your advice answers; the client signs the person in again and retries. |
+| `RecentSignInUnavailableException` | 403 | An API key, or a JWT without an `auth_time` claim, called an action marked `@RequiresRecentSignIn`. Neither can ever be recent, so it is a `403`, not a challenge. It is an `AccessDeniedException`. |
 | `InvalidPasskeyRegistrationException` | 400 | A passkey registration failed verification. It carries no cause, because WebAuthn details must not travel. |
 | `AccessDeniedException` (Spring Security's own) | 403 | A signed-in caller lacks a permission. Spring Security 7 raises its subclass `AuthorizationDeniedException`. |
 

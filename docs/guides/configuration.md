@@ -11,7 +11,7 @@
 | `who.oidc.enabled` | `true` | Turns provider sign-in off when `false`, with `who-oidc` still on the classpath |
 | `who.enrollment.enabled` | `true` | Turns enrollment tokens off when `false`, with `who-enrollment` still on the classpath |
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
-| `who.security.recent-sign-in` | `10m` | How recently the browser session must have signed in to add a way to sign in: register a passkey, link a provider account, add or change an email address. Checked when the request starts and when it is confirmed; a started provider link lasts as long |
+| `who.security.recent-sign-in` | `10m` | How recently the caller must have signed in to add a way to sign in (register a passkey, link a provider account, add or change an email address) and to call an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) without a window of its own. Checked when the request starts and when it is confirmed; a started provider link lasts as long |
 | `who.security.last-sign-in-cookie.enabled` | `true` | Sets the `who_last_sign_in` cookie after a browser sign-in. See [Sessions](sessions.md#the-last-sign-in-cookie) |
 | `who.method-security.enabled` | `true` | Enables method security so `@RequiresPermission` is enforced. Set to `false` to turn it off |
 | `who.api-key.header-name` | `X-API-Key` | HTTP header used to pass API keys |

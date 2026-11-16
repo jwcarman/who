@@ -6,7 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `@RequiresRecentSignIn`: an action, on a method or a type, that needs a sign-in within `who.security.recent-sign-in` or its own `within`. A stale browser session gets `401` `ReauthenticationRequiredException`; a JWT whose `auth_time` is too old gets `401` `InsufficientUserAuthenticationException` with the RFC 9470 step-up challenge (`error="insufficient_user_authentication"`, `max_age`); a JWT without `auth_time`, and an API key, get `403` `RecentSignInUnavailableException`. The `RecentSignInAuthorizationManager` bean does the same for URL rules. See [Recent sign-in](docs/guides/security-model.md#recent-sign-in).
+- Every who sign-in carries a Spring Security `FactorGrantedAuthority` issued when the person signed in: `FACTOR_OTT`, `FACTOR_WEBAUTHN`, `FACTOR_AUTHORIZATION_CODE`, or `FACTOR_BEARER` at a JWT's `auth_time`. API keys carry none. `WhoAuthenticationToken.signInFactor()` and `WhoAuthenticationToken.signedIn(...)` are new.
+
+### Changed
+
+- `WhoSession` records how the session signed in. A session saved before 0.19 still loads, but must sign in again for an action marked `@RequiresRecentSignIn`.
+- who's own recent-sign-in checks (adding a passkey, a provider account or an email address) share the rule, and a sign-in exactly one window old is now too old.
+
 ### Documentation
+
+- The examples make keys only after a recent sign-in: web-and-api's Keys page sends a stale session to sign in again and back, the API example answers a stale token with the step-up challenge, and the observability example's page says to sign in again.
 
 - A new example, `who-examples/observability`: who's meters, traces and logs in Grafana's LGTM
   stack (`grafana/otel-lgtm`), with a provisioned dashboard, a traffic generator that makes real

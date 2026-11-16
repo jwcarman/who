@@ -1,5 +1,21 @@
 # Upgrading
 
+## Upgrading to 0.19.0
+
+0.19.0 adds [`@RequiresRecentSignIn`](security-model.md#recent-sign-in). Nothing you have needs to
+change, but a few things look different:
+
+- **Every signed-in caller has one more authority.** Beside the permissions, `getAuthorities()`
+  holds a Spring Security `FactorGrantedAuthority` for how the person signed in (`FACTOR_OTT`,
+  `FACTOR_WEBAUTHN`, `FACTOR_AUTHORIZATION_CODE`, or `FACTOR_BEARER` for a JWT with `auth_time`).
+  Code that lists authorities as permissions should list `WhoPrincipal.permissions()` instead.
+- **Sessions remember how they signed in.** `WhoSession` gains a fourth component,
+  `signInMethod`. A session saved by 0.18 still loads, without it: it signs in as before, but an
+  action marked `@RequiresRecentSignIn` asks it to sign in again. `WhoTestSessions.signedIn` and
+  `WhoMockMvcBrowser.signedInAs` record an email-code sign-in.
+- **A sign-in exactly `who.security.recent-sign-in` old is too old**, as Spring Security's factor
+  check has it; it was just recent enough before.
+
 ## Upgrading to 0.18.0
 
 0.18.0 makes who work like any Spring Boot starter: add a module's jar and it is on, and an

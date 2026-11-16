@@ -131,7 +131,7 @@ server:
 
 Use `secure: false` only for local development over plain HTTP. See [Email Links](email-links.md#session-cookie).
 
-The recent sign-in window (`who.security.recent-sign-in`) is separate. It limits how long after sign-in a credential may be added (a passkey, a provider account, an email address), however long the session lasts.
+The recent sign-in window (`who.security.recent-sign-in`) is separate. It limits how long after sign-in a credential may be added (a passkey, a provider account, an email address), or an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) taken, however long the session lasts.
 
 ## The last sign-in cookie
 
