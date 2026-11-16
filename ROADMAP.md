@@ -21,8 +21,7 @@ who publishes what happens, so applications can measure, alert on and audit it.
   is already timed by Spring Security's `spring.security.authentications`.
 - **Logging.** (Done in 0.17.0.) A DEBUG line with the reason for each failed sign-in, and a written rule that
   addresses, codes and tokens never appear at INFO or above.
-- **Actuator.** Moved to 0.18: who cannot yet tell whether API-key and JWT sign-in are really in
-  use, since they switch on from a class check alone.
+- **Actuator.** Moved to 0.18, then dropped: see the startup log under 0.20.
 
 Events, meter names and observation names are stable public API from 0.17.0. The failure reason
 is a tag.
@@ -39,8 +38,6 @@ is a tag.
   `who-oidc`, on Spring's `oauth2Login`, sharing the `(issuer, subject)` credential with JWT
   sign-in (`JwtCredential` became `FederatedCredential`). Sign-up is closed until a
   `WhoSignUpPolicy` opens it, and linking is an explicit, confirmed step. Never by email address.
-- **Actuator `info` contributor** (moved to 0.19) naming the sign-in methods that are on (moved from 0.17). Each
-  method now has its own switch, so this can report them.
 - **Recent sign-in (step-up).** (Done in 0.19.0: `who.security.recent-sign-in` guards
   adding a passkey, a provider account or an email address since 0.18.0, and
   `@RequiresRecentSignIn` guards your own actions since 0.19.0: see [Recent
@@ -64,7 +61,10 @@ is a tag.
 0.19.0 shipped sessions, recent sign-in, one endpoint root and the TypeScript client instead, so
 these moved to 0.20.
 
-
+- **Startup log of sign-in methods.** (Done: each chain logs the methods it accepts at startup;
+  see [Observability](docs/guides/observability.md#startup-log).) An Actuator `info` contributor
+  was dropped: it would tell anyone who can read `/actuator/info` how the application can be
+  attacked.
 - Sign in with Apple. Its callback is a cross-site `form_post`, which needs a CSRF-exempt callback
   or a cookie-backed authorization-request store.
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.

@@ -37,8 +37,8 @@ methods an application accepts can differ from what its author expects: a missin
   `default String name()`, returning the class's simple name, so a custom method (or a lambda for
   the functional `PasswordlessLoginMethod`) still compiles. who's own methods return `email-link`,
   `passkey`, `oidc`, `api-key` and `jwt`.
-- `OidcLoginMethod.name()` returns `oidc (<registration ids, comma-separated>)`, read from the
-  `ClientRegistrationRepository` it already uses.
+- `OidcLoginMethod.name()` returns `oidc (<registration ids, sorted, comma-separated>)`, read from
+  the `SignInRegistrations` it serves; plain `oidc` with none.
 - `PasswordlessConfigurer` logs, after configuring its methods:
   `who: this chain signs browsers in with email-link, passkey, oidc (google, github) under /who`
   (the base path from `WhoPaths`).

@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- At startup, each who security chain logs at INFO the sign-in methods it accepts, such as `who: this chain signs browsers in with email-link, passkey, oidc (github, google) under /who` and `who: this chain accepts api-key, jwt`. `PasswordlessLoginMethod` and `StatelessLoginMethod` gain `name()`, which defaults to the class's simple name. See [Observability](docs/guides/observability.md#startup-log).
+
 ## [0.19.0] - 2026-11-16
 
 ### Breaking changes

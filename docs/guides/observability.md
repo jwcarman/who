@@ -71,6 +71,24 @@ sign-in email is issued, the resolution span nests inside the issue span.
 A failing observation handler never changes who's answer: who logs it at WARN, with the
 exception class only, and carries on.
 
+## Startup log
+
+When who builds a security chain, it logs at INFO the sign-in methods that chain accepts, so a
+missing jar or a stray `who.<module>.enabled=false` shows up as soon as the application starts:
+
+```
+who: this chain signs browsers in with email-link, passkey, oidc (github, google) under /who
+who: this chain accepts api-key, jwt
+```
+
+Each chain logs its own lines: the browser line comes from `PasswordlessConfigurer` and names the
+endpoint root, and the stateless line from `WhoStatelessConfigurer` or `WhoSecurityConfigurer`.
+Provider sign-in lists its registration ids. The line names methods only, never a key, secret,
+client id or issuer. A method of your own is named by its class unless it overrides `name()`.
+
+who has no Actuator `info` contributor for this on purpose: it would tell anyone who can read
+`/actuator/info` how the application can be attacked.
+
 ## Building services yourself
 
 The autoconfiguration passes your `ObservationRegistry` to `WhoService` and `EmailLinkIssuer`. If
