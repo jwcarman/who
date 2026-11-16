@@ -32,6 +32,10 @@ jobs:
         java-version: '25'
         distribution: 'liberica'
         cache: maven
+    # Seconds, not minutes: a formatting slip or a missing license header fails here, before the
+    # build and its tests. The build checks formatting again; the license check runs only here.
+    - name: Check formatting and license headers
+      run: mvn -B -Plicense spotless:check license:check
     - name: Build with Maven
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
