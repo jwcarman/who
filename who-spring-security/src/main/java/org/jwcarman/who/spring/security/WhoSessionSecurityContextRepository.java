@@ -138,6 +138,8 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
           SESSION_ATTRIBUTE, new WhoSession(identityId, credentialId, now, method, row.id()));
       session.setAttribute(PRINCIPAL_INDEX_ATTRIBUTE, identityId.toString());
     } else {
+      // signed out or replaced by something who does not record: the browser leaves the list
+      currentSessionId(request).ifPresent(sessions::close);
       HttpSession session = request.getSession(false);
       if (session != null) {
         session.removeAttribute(SESSION_ATTRIBUTE);
@@ -203,6 +205,8 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
       request.setAttribute(LOADED_ATTRIBUTE, token);
       sessions.seen(row.get());
     } else {
+      // the identity or credential ended it: close the row too, so the list stops showing it
+      sessions.close(row.get().id());
       if (resolution != null) {
         publishEnded(whoSession, resolution);
       }

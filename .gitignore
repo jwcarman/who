@@ -25,3 +25,4 @@ site/
 
 # The single-page app example's npm packages
 node_modules/
+*.tsbuildinfo

@@ -25,3 +25,4 @@ CREATE TABLE IF NOT EXISTS who_session (
 
 CREATE INDEX IF NOT EXISTS who_session_identity_idx ON who_session (identity_id);
 CREATE INDEX IF NOT EXISTS who_session_last_seen_idx ON who_session (last_seen_at);
+CREATE INDEX IF NOT EXISTS who_session_ended_idx ON who_session (ended_at);

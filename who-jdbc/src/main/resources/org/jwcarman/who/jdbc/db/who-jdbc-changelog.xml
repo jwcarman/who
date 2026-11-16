@@ -61,5 +61,8 @@
         <createIndex tableName="who_session" indexName="who_session_last_seen_idx">
             <column name="last_seen_at"/>
         </createIndex>
+        <createIndex tableName="who_session" indexName="who_session_ended_idx">
+            <column name="ended_at"/>
+        </createIndex>
     </changeSet>
 </databaseChangeLog>

@@ -17,6 +17,8 @@ package org.jwcarman.who.core.service;
 
 import static java.util.Objects.requireNonNull;
 
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -47,6 +49,7 @@ public class WhoSessions {
   public static final int MAX_USER_AGENT_LENGTH = 512;
 
   private static final String UNKNOWN_BROWSER = "Unknown browser";
+  private static final Logger LOG = System.getLogger(WhoSessions.class.getName());
 
   private final SessionRecordRepository repository;
   private final WhoEventPublisher events;
@@ -147,8 +150,8 @@ public class WhoSessions {
   }
 
   /**
-   * Records a sign-in made at {@code signedInAt}, seen now. Each call purges one batch of dead
-   * sessions first when auto-purge is on.
+   * Records a sign-in made at {@code signedInAt}, seen now. When auto-purge is on, each call then
+   * purges one batch of dead sessions; a purge that fails is logged and does not fail the sign-in.
    *
    * @param identityId the identity that signed in
    * @param credentialId the credential it signed in with
@@ -163,9 +166,6 @@ public class WhoSessions {
       SignInMethod method,
       String userAgent,
       Instant signedInAt) {
-    if (autoPurge) {
-      purgeEndedSessions();
-    }
     SessionRecord session =
         new SessionRecord(
             UUID.randomUUID(),
@@ -177,7 +177,28 @@ public class WhoSessions {
             trimmed(userAgent),
             null);
     repository.insert(session);
+    if (autoPurge) {
+      purgeQuietly();
+    }
     return session;
+  }
+
+  // housekeeping: a lock timeout or a failing listener must not undo a sign-in that succeeded
+  private void purgeQuietly() {
+    try {
+      purgeEndedSessions();
+    } catch (RuntimeException e) {
+      LOG.log(Level.WARNING, "Purging ended sessions failed; the next sign-in tries again", e);
+    }
+  }
+
+  /*
+   * The oldest last-seen time a live session can have. seen() writes at most once per last-seen
+   * interval, so a busy session's row can lag by that much; the container still enforces the
+   * exact timeout on its own session.
+   */
+  private Instant liveSince() {
+    return clock.instant().minus(idleTimeout).minus(lastSeenInterval);
   }
 
   private static String trimmed(String userAgent) {
@@ -190,13 +211,14 @@ public class WhoSessions {
   }
 
   /**
-   * Finds a session that is still live: not ended, and seen within the idle timeout.
+   * Finds a session that is still live: not ended, and seen within the idle timeout plus the
+   * last-seen interval, since a busy session's last-seen time is written only that often.
    *
    * @param sessionId the session's id
    * @return the session, or empty when it is unknown, ended or idle
    */
   public Optional<SessionRecord> findLive(UUID sessionId) {
-    Instant seenSince = clock.instant().minus(idleTimeout);
+    Instant seenSince = liveSince();
     return repository
         .findById(sessionId)
         .filter(s -> s.endedAt() == null && !s.lastSeenAt().isBefore(seenSince));
@@ -222,7 +244,7 @@ public class WhoSessions {
    * @return the sessions
    */
   public List<SessionRecord> list(UUID identityId) {
-    return repository.findLiveByIdentity(identityId, clock.instant().minus(idleTimeout));
+    return repository.findLiveByIdentity(identityId, liveSince());
   }
 
   /**
@@ -289,7 +311,7 @@ public class WhoSessions {
    */
   public int purgeEndedSessions() {
     Instant now = clock.instant();
-    int purged = repository.deleteDead(now.minus(idleTimeout), purgeBatchSize);
+    int purged = repository.deleteDead(liveSince(), purgeBatchSize);
     if (purged > 0) {
       events.publish(new EndedSessionsPurged(now, purged));
     }

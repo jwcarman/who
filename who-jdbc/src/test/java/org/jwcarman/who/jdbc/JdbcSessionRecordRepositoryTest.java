@@ -156,4 +156,17 @@ class JdbcSessionRecordRepositoryTest extends AbstractJdbcTest {
 
     assertThat(repository.findById(session.id())).isEmpty();
   }
+
+  @Test
+  void ended_rows_are_found_by_an_index_so_the_purge_need_not_scan() {
+    // the purge looks for ended rows on every sign-in; without an index it reads the whole table
+    assertThat(
+            jdbcClient
+                .sql(
+                    "SELECT indexdef FROM pg_indexes WHERE tablename = 'who_session'"
+                        + " AND indexdef LIKE '%(ended_at)%'")
+                .query(String.class)
+                .list())
+        .isNotEmpty();
+  }
 }

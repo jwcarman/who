@@ -534,6 +534,39 @@ class WhoSessionSecurityContextRepositoryTest {
         .isThrownBy(() -> repository.saveContext(context, request, response));
   }
 
+  @Test
+  void a_session_refused_for_a_revoked_credential_leaves_the_list() {
+    WhoSession whoSession = live(NOW);
+    request.setSession(sessionWith(whoSession));
+    when(whoService.resolveDetailed(any(Credential.class))).thenReturn(new Resolution.NotLinked());
+
+    repository.loadDeferredContext(request).get();
+
+    assertThat(sessions.findLive(whoSession.sessionId())).isEmpty();
+  }
+
+  @Test
+  void saving_an_empty_context_closes_the_row() {
+    WhoSession whoSession = live(NOW);
+    request.setSession(sessionWith(whoSession));
+
+    repository.saveContext(new SecurityContextImpl(), request, response);
+
+    assertThat(sessions.findLive(whoSession.sessionId())).isEmpty();
+  }
+
+  @Test
+  void saving_a_non_who_authentication_closes_the_row() {
+    WhoSession whoSession = live(NOW);
+    request.setSession(sessionWith(whoSession));
+    SecurityContext context = new SecurityContextImpl();
+    context.setAuthentication(new TestingAuthenticationToken("u", "p", "ROLE_X"));
+
+    repository.saveContext(context, request, response);
+
+    assertThat(sessions.findLive(whoSession.sessionId())).isEmpty();
+  }
+
   private void resolves() {
     when(whoService.resolveDetailed(any(Credential.class)))
         .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of("b"))));
@@ -578,7 +611,7 @@ class WhoSessionSecurityContextRepositoryTest {
   void an_idle_row_signs_the_session_out() {
     request.setSession(sessionWith(live(NOW)));
     resolves();
-    clock.set(NOW.plus(Duration.ofMinutes(31)));
+    clock.set(NOW.plus(Duration.ofMinutes(36)));
 
     assertThat(repository.loadDeferredContext(request).get().getAuthentication()).isNull();
   }

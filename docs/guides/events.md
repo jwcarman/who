@@ -74,8 +74,9 @@ before who's provider runs: no `SignInFailed`.
 
 `SessionEndReason`: `IDENTITY_INACTIVE` when the session's credential now resolves to another
 identity, or its identity is inactive; `CREDENTIAL_REVOKED` when the credential is no longer
-linked, or its identity was deleted; `REVOKED` when the person, or your code, ended it. A
-session that times out, or is replaced by a new sign-in in the same browser, publishes nothing;
+linked; `REVOKED` when the person, or your code, ended it. A
+session that times out, is replaced by a new sign-in in the same browser, or whose identity was
+deleted (deleting an identity deletes its session records), publishes nothing;
 signing out publishes `SignedOut`.
 
 `EmailLinkOutcome`: `SENT`, `UNKNOWN_ADDRESS`, `INACTIVE_IDENTITY`, `RESEND_SUPPRESSED`,

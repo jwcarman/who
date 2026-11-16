@@ -18,6 +18,8 @@ package org.jwcarman.who.autoconfigure;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.SessionRecordRepository;
@@ -44,6 +46,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
@@ -66,6 +69,9 @@ public class WhoSpringSecurityAutoConfiguration {
 
   /** Spring Boot's own default for {@code server.servlet.session.timeout}. */
   private static final Duration DEFAULT_SESSION_TIMEOUT = Duration.ofMinutes(30);
+
+  private static final String SPRING_SESSION_TIMEOUT = "spring.session.timeout";
+  private static final String SERVLET_SESSION_TIMEOUT = "server.servlet.session.timeout";
 
   /** Creates the autoconfiguration; Spring Boot calls it. */
   public WhoSpringSecurityAutoConfiguration() {
@@ -124,15 +130,28 @@ public class WhoSpringSecurityAutoConfiguration {
         settings.isAutoPurge());
   }
 
+  /*
+   * Reads the session timeout the way Spring Boot does: a bare number is seconds. who needs sessions
+   * to expire, both to refuse an idle one and to know which records are dead.
+   */
   static Duration idleTimeout(Environment environment) {
     Binder binder = Binder.get(environment);
-    return binder
-        .bind("spring.session.timeout", Duration.class)
-        .orElseGet(
-            () ->
-                binder
-                    .bind("server.servlet.session.timeout", Duration.class)
-                    .orElse(DEFAULT_SESSION_TIMEOUT));
+    for (String name : List.of(SPRING_SESSION_TIMEOUT, SERVLET_SESSION_TIMEOUT)) {
+      String value = binder.bind(name, String.class).map(String::trim).orElse(null);
+      if (value != null) {
+        Duration timeout = DurationStyle.detectAndParse(value, ChronoUnit.SECONDS);
+        if (timeout.isNegative() || timeout.isZero()) {
+          throw new IllegalStateException(
+              name
+                  + "="
+                  + value
+                  + " never expires sessions, but who needs them to: set it to a positive"
+                  + " duration such as 30m");
+        }
+        return timeout;
+      }
+    }
+    return DEFAULT_SESSION_TIMEOUT;
   }
 
   /**

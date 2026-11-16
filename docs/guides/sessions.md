@@ -152,13 +152,13 @@ class AccountLockdown {
 
 ### When a session ends
 
-A session's row ends when the person signs out, when they sign in again in the same browser, when it is ended as above, and when the servlet container destroys the session. Spring Session JDBC deletes expired sessions without telling the container, so who also treats a row unused for longer than the session timeout as ended: it drops out of the list, and its browser is signed out.
+A session's row ends when the person signs out, when they sign in again in the same browser, when it is ended as above, and when the servlet container destroys the session. Spring Session JDBC deletes expired sessions without telling the container, so who also treats a row unused for longer than the session timeout as ended: it drops out of the list, and its browser is signed out. A row also ends when who signs a browser out because its identity is inactive or its credential was revoked.
 
-To keep a busy session from writing on every request, who updates `last_seen_at` at most once per `who.sessions.last-seen-interval` (default 5 minutes).
+To keep a busy session from writing on every request, who updates `last_seen_at` at most once per `who.sessions.last-seen-interval` (default 5 minutes). So a row's last use can be that much behind, and who counts a row as abandoned only after the session timeout plus that interval. The container still ends its own session at the exact timeout.
 
 ### Purging old rows
 
-Ended and abandoned rows are deleted in batches: each sign-in deletes up to `who.sessions.purge-batch-size` (default 100) of them, never the whole table at once. Each batch publishes `EndedSessionsPurged`, counted by the `who.sessions.purged` meter.
+Ended and abandoned rows are deleted in batches: each sign-in deletes up to `who.sessions.purge-batch-size` (default 100) of them, never the whole table at once. Each batch publishes `EndedSessionsPurged`, counted by the `who.sessions.purged` meter. The purge runs after the sign-in is recorded, and a purge that fails is logged as a warning without failing the sign-in.
 
 To purge on your own schedule instead, turn it off and call `purgeEndedSessions()`, which deletes one batch and returns how many it deleted:
 
@@ -179,7 +179,7 @@ void purgeSessions() {
 
 ## Timeouts and cookies
 
-How long a session lasts without a request is not who's setting. With Spring Boot it is `server.servlet.session.timeout` (default 30 minutes). Spring Session JDBC reads it too, unless you set `spring.session.timeout`. who's record of sessions uses the same value: `spring.session.timeout` when set, else `server.servlet.session.timeout`. Spring Session deletes expired rows on a schedule, by default every minute (`spring.session.jdbc.cleanup-cron`).
+How long a session lasts without a request is not who's setting. With Spring Boot it is `server.servlet.session.timeout` (default 30 minutes). Spring Session JDBC reads it too, unless you set `spring.session.timeout`. who's record of sessions uses the same value: `spring.session.timeout` when set, else `server.servlet.session.timeout`, with a bare number read as seconds, as Spring Boot reads it. who needs sessions to expire, so a timeout of `0` or less ("never") fails startup. Spring Session deletes expired rows on a schedule, by default every minute (`spring.session.jdbc.cleanup-cron`).
 
 Who does not set the cookie flags. Set them yourself:
 

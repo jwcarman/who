@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,6 +48,7 @@ import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.repository.SessionRecordRepository;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoSessionsTest {
@@ -54,6 +56,8 @@ class WhoSessionsTest {
   private static final Instant NOW = Instant.parse("2026-11-16T10:00:00Z");
   private static final Duration IDLE = Duration.ofMinutes(30);
   private static final Duration SEEN = Duration.ofMinutes(5);
+  // last_seen_at may lag a busy session by up to SEEN, so a row is dead only past both
+  private static final Instant DEAD_BEFORE = NOW.minus(IDLE).minus(SEEN);
 
   private final SessionRecordRepository repository = mock(SessionRecordRepository.class);
   private final List<WhoEvent> events = new ArrayList<>();
@@ -136,7 +140,34 @@ class WhoSessionsTest {
   void start_purges_one_batch_when_auto_purge_is_on() {
     sessions(true).start(identityId, UUID.randomUUID(), SignInMethod.PASSKEY, null);
 
-    verify(repository).deleteDead(NOW.minus(IDLE), 100);
+    verify(repository).deleteDead(DEAD_BEFORE, 100);
+  }
+
+  @Test
+  void a_busy_session_whose_last_write_lags_is_still_live() {
+    // used every few minutes, but last written just over the idle timeout ago
+    SessionRecord busy = stored(record(NOW.minus(IDLE).minusSeconds(60), null));
+
+    assertThat(sessions.findLive(busy.id())).contains(busy);
+  }
+
+  @Test
+  void start_records_the_sign_in_before_purging() {
+    sessions(true).start(identityId, UUID.randomUUID(), SignInMethod.PASSKEY, null);
+
+    InOrder order = inOrder(repository);
+    order.verify(repository).insert(any());
+    order.verify(repository).deleteDead(DEAD_BEFORE, 100);
+  }
+
+  @Test
+  void a_failed_auto_purge_does_not_fail_the_sign_in() {
+    when(repository.deleteDead(any(), anyInt())).thenThrow(new IllegalStateException("deadlock"));
+
+    SessionRecord started =
+        sessions(true).start(identityId, UUID.randomUUID(), SignInMethod.PASSKEY, null);
+
+    verify(repository).insert(started);
   }
 
   @Test
@@ -148,8 +179,8 @@ class WhoSessionsTest {
 
   @Test
   void an_idle_session_is_not_live() {
-    SessionRecord idle = stored(record(NOW.minus(IDLE).minusSeconds(1), null));
-    SessionRecord recent = stored(record(NOW.minus(IDLE).plusSeconds(1), null));
+    SessionRecord idle = stored(record(DEAD_BEFORE.minusSeconds(1), null));
+    SessionRecord recent = stored(record(DEAD_BEFORE.plusSeconds(1), null));
 
     assertThat(sessions.findLive(idle.id())).isEmpty();
     assertThat(sessions.findLive(recent.id())).contains(recent);
@@ -182,7 +213,7 @@ class WhoSessionsTest {
   @Test
   void list_reads_live_sessions() {
     List<SessionRecord> live = List.of(record(NOW, null));
-    when(repository.findLiveByIdentity(identityId, NOW.minus(IDLE))).thenReturn(live);
+    when(repository.findLiveByIdentity(identityId, DEAD_BEFORE)).thenReturn(live);
 
     assertThat(sessions.list(identityId)).isEqualTo(live);
   }
@@ -223,7 +254,7 @@ class WhoSessionsTest {
   @Test
   void end_all_ends_every_live_session() {
     List<SessionRecord> live = List.of(record(NOW, null), record(NOW, null));
-    when(repository.findLiveByIdentity(identityId, NOW.minus(IDLE))).thenReturn(live);
+    when(repository.findLiveByIdentity(identityId, DEAD_BEFORE)).thenReturn(live);
     live.forEach(s -> when(repository.end(s.id(), NOW)).thenReturn(true));
 
     assertThat(sessions.endAll(identityId)).isEqualTo(2);
@@ -234,7 +265,7 @@ class WhoSessionsTest {
   void end_all_except_keeps_one() {
     SessionRecord keep = record(NOW, null);
     List<SessionRecord> live = List.of(record(NOW, null), keep, record(NOW, null));
-    when(repository.findLiveByIdentity(identityId, NOW.minus(IDLE))).thenReturn(live);
+    when(repository.findLiveByIdentity(identityId, DEAD_BEFORE)).thenReturn(live);
     live.forEach(s -> when(repository.end(s.id(), NOW)).thenReturn(true));
 
     assertThat(sessions.endAllExcept(identityId, keep.id())).isEqualTo(2);
@@ -255,7 +286,7 @@ class WhoSessionsTest {
 
   @Test
   void purge_reports_the_count() {
-    when(repository.deleteDead(NOW.minus(IDLE), 100)).thenReturn(7, 0);
+    when(repository.deleteDead(DEAD_BEFORE, 100)).thenReturn(7, 0);
 
     assertThat(sessions.purgeEndedSessions()).isEqualTo(7);
     assertThat(sessions.purgeEndedSessions()).isZero();

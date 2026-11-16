@@ -28,6 +28,8 @@ import org.h2.Driver;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.event.SignInMethod;
@@ -103,6 +105,35 @@ class WhoSessionsConfigurationTest {
             context ->
                 assertThat(context.getBean(WhoSessions.class).idleTimeout())
                     .isEqualTo(Duration.ofHours(2)));
+  }
+
+  @Test
+  void a_timeout_without_a_unit_is_seconds_as_in_spring_boot() {
+    runner
+        .withPropertyValues("server.servlet.session.timeout=1800")
+        .run(
+            context ->
+                assertThat(context.getBean(WhoSessions.class).idleTimeout())
+                    .isEqualTo(Duration.ofMinutes(30)));
+    runner
+        .withPropertyValues("spring.session.timeout=3600")
+        .run(
+            context ->
+                assertThat(context.getBean(WhoSessions.class).idleTimeout())
+                    .isEqualTo(Duration.ofHours(1)));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0", "-1", "0s"})
+  void a_session_that_never_expires_fails_startup_with_a_reason(String timeout) {
+    runner
+        .withPropertyValues("server.servlet.session.timeout=" + timeout)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .hasMessageContaining("server.servlet.session.timeout")
+                    .hasMessageContaining("positive"));
   }
 
   @Test
