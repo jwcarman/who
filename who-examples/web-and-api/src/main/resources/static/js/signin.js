@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ensureCsrfCookie, requestLink, signInWithCode } from '/js/who.js';
+import { who } from '/js/client.js';
 
 const $ = id => document.getElementById(id);
 
@@ -32,11 +32,9 @@ function showError(text) {
   $('error').hidden = false;
 }
 
-await ensureCsrfCookie();
-
 $('email-form').addEventListener('submit', async e => {
   e.preventDefault();
-  await requestLink($('email').value);
+  await who.email.send($('email').value);
   try {
     // the link opens on /signin/link, which goes back here after
     localStorage.setItem('who-next', next);
@@ -49,7 +47,7 @@ $('email-form').addEventListener('submit', async e => {
 
 $('code-form').addEventListener('submit', async e => {
   e.preventDefault();
-  if (await signInWithCode($('email').value, $('code').value)) {
+  if ((await who.email.signIn({ email: $('email').value, code: $('code').value })).ok) {
     location.assign(next);
   } else {
     showError('That code did not work. Check it, or ask for a new email.');

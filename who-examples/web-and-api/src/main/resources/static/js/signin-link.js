@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { redeemLinkFromLocation } from '/js/who.js';
+import { who } from '/js/client.js';
 
 function next() {
   try {
@@ -28,7 +28,7 @@ function next() {
   }
 }
 
-if (await redeemLinkFromLocation()) {
+if ((await who.email.signInFromLocation())?.ok) {
   location.assign(next());
 } else {
   document.getElementById('failed').hidden = false;

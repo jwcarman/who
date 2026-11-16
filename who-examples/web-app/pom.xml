@@ -41,6 +41,14 @@
             <artifactId>who-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Only orders the build: the reactor builds who-client's dist/ before this example copies
+             dist/index.js into static/js/who-client/ (below). -->
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-client</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
+        </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
             <artifactId>who-email-link</artifactId>
@@ -140,6 +148,32 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- The pages import /js/who-client/index.js: who-client's build, copied in with the static files. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven-resources-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>copy-who-client</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/static/js/who-client</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${maven.multiModuleProjectDirectory}/who-client/dist</directory>
+                                    <includes>
+                                        <include>index.js</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

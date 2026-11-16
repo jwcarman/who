@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { signOut } from '/js/who.js';
+import { who } from '/js/client.js';
 
 document.getElementById('sign-out')?.addEventListener('click', async () => {
-  await signOut();
+  await who.signOut();
   location.assign('/signin');
 });

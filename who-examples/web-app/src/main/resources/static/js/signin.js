@@ -13,10 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {
-  confirmSignUp, ensureCsrfCookie, pendingSignUp, requestLink, signInWithCode,
-  signInWithPasskey
-} from '/js/who.js';
+import { who } from '/js/client.js';
 
 const $ = id => document.getElementById(id);
 
@@ -25,19 +22,17 @@ function showError(text) {
   $('error').hidden = false;
 }
 
-await ensureCsrfCookie();
-
 // --- Email link and code ---
 $('email-form').addEventListener('submit', async e => {
   e.preventDefault();
-  await requestLink($('email').value);
+  await who.email.send($('email').value);
   $('code-step').hidden = false;
   $('code').focus();
 });
 
 $('code-form').addEventListener('submit', async e => {
   e.preventDefault();
-  if (await signInWithCode($('email').value, $('code').value)) {
+  if ((await who.email.signIn({ email: $('email').value, code: $('code').value })).ok) {
     location.assign('/');
   } else {
     showError('That code did not work. Check it, or ask for a new email.');
@@ -46,15 +41,10 @@ $('code-form').addEventListener('submit', async e => {
 
 // --- Passkey ---
 $('passkey').addEventListener('click', async () => {
-  try {
-    if (await signInWithPasskey()) {
-      location.assign('/');
-    } else {
-      showError('That passkey did not sign you in.');
-    }
-  } catch {
-    showError('No passkey was used.');
-  }
+  const result = await who.passkeys.signIn();
+  if (result.ok) location.assign('/');
+  else if (result.reason === 'cancelled') showError('No passkey was used.');
+  else showError('That passkey did not sign you in.');
 });
 
 // --- Coming back from a provider ---
@@ -69,7 +59,8 @@ if (error === 'already-linked') {
 
 // --- A provider account who does not know: offer to create an account with it ---
 if (new URLSearchParams(location.search).get('pending') === 'sign-up') {
-  const pending = await pendingSignUp();
+  const result = await who.oidc.pending();
+  const pending = result.ok ? result.value : null;
   if (pending) {
     // who names the provider by its registration id; show the name its button shows.
     pending.provider = document.querySelector(`[data-provider="${CSS.escape(pending.provider)}"]`)
@@ -81,9 +72,9 @@ if (new URLSearchParams(location.search).get('pending') === 'sign-up') {
     offer(`New here?`,
       `No account uses the ${pending.provider} account ${pending.displayName} yet. Create one?`,
       'Create my account', async () => {
-        const status = await confirmSignUp();
-        if (status === 200) location.assign('/');
-        else if (status === 403) showError(`Sign-up with ${pending.provider} is not open. Ask an admin to invite you, then link it from your profile.`);
+        const signedUp = await who.oidc.signUp();
+        if (signedUp.ok) location.assign('/');
+        else if (signedUp.reason === 'refused') showError(`Sign-up with ${pending.provider} is not open. Ask an admin to invite you, then link it from your profile.`);
         else showError('That took too long. Sign in with the provider again.');
       });
   } else {

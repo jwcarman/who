@@ -18,7 +18,7 @@
 // <section id="sessions"> holding a <ul class="list"> and a [data-end-others] button. Signing out
 // another browser needs a recent sign-in; a section with data-sign-in-again="/signin?again=..."
 // sends a stale person there, otherwise they are told to sign in again.
-import { endOtherSessions, endSession, listSessions } from '/js/who.js';
+import { who } from '/js/client.js';
 
 const section = document.getElementById('sessions');
 const list = section.querySelector('ul');
@@ -49,6 +49,12 @@ function stale() {
   }
 }
 
+// a 401: signed out altogether, or signed in too long ago
+function refused(reason) {
+  if (reason === 'signed-out') location.assign('/signin');
+  else stale();
+}
+
 function row(session) {
   const item = document.createElement('li');
   const text = document.createElement('span');
@@ -71,9 +77,9 @@ function row(session) {
   button.className = 'secondary';
   button.textContent = 'Sign out';
   button.addEventListener('click', async () => {
-    const status = await endSession(session.id);
-    if (status === 204 && session.current) location.assign('/signin');
-    else if (status === 401) stale();
+    const result = await who.sessions.end(session.id);
+    if (result.ok && session.current) location.assign('/signin');
+    else if (!result.ok && result.reason !== 'not-found') refused(result.reason);
     else show();
   });
   item.append(text, button);
@@ -82,15 +88,16 @@ function row(session) {
 
 async function show() {
   say('');
-  const sessions = await listSessions();
+  const result = await who.sessions.list();
+  const sessions = result.ok ? result.value : [];
   list.replaceChildren(...sessions.map(row));
   endOthers.hidden = sessions.length < 2;
 }
 
 endOthers.addEventListener('click', async () => {
-  const status = await endOtherSessions();
-  if (status === 401) stale();
-  else show();
+  const result = await who.sessions.endOthers();
+  if (result.ok) show();
+  else refused(result.reason);
 });
 
 show();

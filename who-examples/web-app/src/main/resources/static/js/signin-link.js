@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { redeemLinkFromLocation } from '/js/who.js';
+import { who } from '/js/client.js';
 
-if (await redeemLinkFromLocation()) {
+if ((await who.email.signInFromLocation())?.ok) {
   location.assign('/');
 } else {
   document.getElementById('failed').hidden = false;

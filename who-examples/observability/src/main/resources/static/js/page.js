@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 // The buttons on the page. Each makes one request and shows its answer and its trace id, which
-// the app sends in the X-Trace-Id header. Sign-in calls come from who.js, as the guides show them.
+// the app sends in the X-Trace-Id header. The requests are raw fetches, from http.js, so the page
+// can show each answer as it came.
 
-import { ensureCsrfCookie, post, send } from './who.js';
+import { ensureCsrfCookie, post, send } from './http.js';
 
 const DEMO = 'demo@example.com';
 const GRAFANA = 'http://localhost:3000';

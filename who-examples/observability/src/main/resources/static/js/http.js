@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// The calls the who guides show, from the web-and-api example, cut to what this page uses: the CSRF
-// header. Nothing here is specific to this app. Each section names the guide it comes from.
+// The page's raw requests: its buttons show each answer's status and X-Trace-Id header, so they
+// call fetch themselves instead of going through who-client (sessions.js uses who-client). Only
+// the CSRF header is needed for that.
 
 // --- CSRF (Email Links guide, "The sign-in flow") ---------------------------------------------
 // who protects the chain with Spring's csrf.spa(): read the XSRF-TOKEN cookie and send it back in
@@ -48,25 +49,4 @@ export async function ensureCsrfCookie() {
   if (!xsrf()) {
     await fetch('/who/me', { credentials: 'same-origin' });
   }
-}
-
-// --- Sessions (Sessions guide, "See and end sessions") ----------------------------------------
-
-// Where this person is signed in, newest first:
-// [{ id, device, userAgent, signInMethod, signedInAt, lastSeenAt, current }]. The id is who's
-// own, never the session cookie, so the list can be shown without exposing a session.
-export async function listSessions() {
-  const res = await fetch('/who/sessions', { credentials: 'same-origin' });
-  return res.ok ? res.json() : [];
-}
-
-// Signs one browser out. This browser's own session ends at once; any other needs a recent
-// sign-in. 204 ended, 401 signed in too long ago, 404 not one of yours.
-export async function endSession(id) {
-  return (await send('DELETE', '/who/sessions/' + encodeURIComponent(id))).status;
-}
-
-// Signs out every browser but this one. 200 { ended }, 401 signed in too long ago.
-export async function endOtherSessions() {
-  return (await send('DELETE', '/who/sessions?others=true')).status;
 }
