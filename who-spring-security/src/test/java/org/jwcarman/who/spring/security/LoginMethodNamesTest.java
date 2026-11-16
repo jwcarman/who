@@ -40,10 +40,41 @@ class LoginMethodNamesTest {
   }
 
   @Test
-  void a_lambda_passwordless_method_is_named_by_its_class() {
+  void a_lambda_passwordless_method_is_named_the_same_on_every_run() {
     PasswordlessLoginMethod lambda = http -> {};
 
-    assertThat(lambda.name()).isEqualTo(lambda.getClass().getSimpleName()).isNotBlank();
+    assertThat(lambda.name()).startsWith("LoginMethodNamesTest$$Lambda").doesNotContain("/");
+  }
+
+  @Test
+  void an_anonymous_stateless_method_is_named_by_its_binary_name() {
+    StatelessLoginMethod anonymous =
+        new StatelessLoginMethod() {
+          @Override
+          public void configure(HttpSecurity http) {
+            // nothing to mount: only the name is under test
+          }
+
+          @Override
+          public RequestMatcher carriesCredential() {
+            return AnyRequestMatcher.INSTANCE;
+          }
+        };
+
+    assertThat(anonymous.name()).matches("LoginMethodNamesTest\\$\\d+");
+  }
+
+  @Test
+  void an_anonymous_passwordless_method_is_named_by_its_binary_name() {
+    PasswordlessLoginMethod anonymous =
+        new PasswordlessLoginMethod() {
+          @Override
+          public void configure(HttpSecurity http) {
+            // nothing to mount: only the name is under test
+          }
+        };
+
+    assertThat(anonymous.name()).matches("LoginMethodNamesTest\\$\\d+");
   }
 
   @Test

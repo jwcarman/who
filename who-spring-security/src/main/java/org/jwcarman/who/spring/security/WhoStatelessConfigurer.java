@@ -58,12 +58,12 @@ import org.springframework.security.web.session.DisableEncodeUrlFilter;
 public final class WhoStatelessConfigurer
     extends AbstractHttpConfigurer<WhoStatelessConfigurer, HttpSecurity> {
 
-  /** The startup failure when there is nothing to mount. */
   private static final Logger log = LoggerFactory.getLogger(WhoStatelessConfigurer.class);
 
   /** The startup line naming the stateless methods a chain accepts. */
   static final String METHODS_LINE = "who: this chain accepts {}";
 
+  /** The startup failure when there is nothing to mount. */
   public static final String NO_METHODS =
       "WhoSecurity.stateless() found no sign-in methods; add who-jwt or who-apikey to the"
           + " application";

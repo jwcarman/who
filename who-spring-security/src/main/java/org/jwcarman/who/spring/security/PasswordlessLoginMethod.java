@@ -49,9 +49,10 @@ public interface PasswordlessLoginMethod {
    * Returns this method's name, for the line who logs at startup naming the sign-in methods a chain
    * accepts. who's own methods return a short name such as {@code passkey}.
    *
-   * @return the name; the class's simple name by default
+   * @return the name; by default the class's simple name, or for an anonymous class or a lambda a
+   *     name built from its enclosing class
    */
   default String name() {
-    return getClass().getSimpleName();
+    return LoginMethodNames.of(getClass());
   }
 }
