@@ -48,7 +48,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.server.ResponseStatusException;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -186,11 +185,7 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
             .filter(identityId::equals)
             .flatMap(owner -> internalId(identityId, credentialId));
     if (passkeyId.isEmpty()) {
-      handoff.handOff(
-          request,
-          response,
-          new ResponseStatusException(HttpStatus.NOT_FOUND, "No such passkey"),
-          HttpStatus.NOT_FOUND);
+      handoff.handOff(request, response, new PasskeyNotFoundException(), HttpStatus.NOT_FOUND);
       return;
     }
     try {

@@ -76,6 +76,8 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `insufficient-user-authentication` | `InsufficientUserAuthenticationException` |
 | `recent-sign-in-unavailable` | `RecentSignInUnavailableException` |
 | `invalid-passkey-registration` | `InvalidPasskeyRegistrationException` |
+| `session-not-found` | `SessionNotFoundException` |
+| `passkey-not-found` | `PasskeyNotFoundException` |
 | `invalid-confirmation` | `InvalidEmailAddressConfirmationException` |
 | `email-address-not-found` | `EmailCredentialNotFoundException` |
 | `email-address-taken` | `EmailAddressTakenException` |

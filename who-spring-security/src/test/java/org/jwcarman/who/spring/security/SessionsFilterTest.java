@@ -244,6 +244,7 @@ class SessionsFilterTest {
     MockHttpServletResponse response = send("DELETE", "/who/me/sessions/" + idOf(bobs), mine);
 
     assertThat(response.getStatus()).isEqualTo(404);
+    assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("session-not-found");
     assertThat(sessions.findLive(idOf(bobs))).isPresent();
     assertThat(events).isEmpty();
   }
@@ -252,9 +253,11 @@ class SessionsFilterTest {
   void an_unknown_or_malformed_id_is_404() throws Exception {
     HttpSession mine = browser(alice, NOW, "a");
 
-    assertThat(send("DELETE", "/who/me/sessions/" + UUID.randomUUID(), mine).getStatus())
-        .isEqualTo(404);
-    assertThat(send("DELETE", "/who/me/sessions/not-an-id", mine).getStatus()).isEqualTo(404);
+    for (String id : List.of(UUID.randomUUID().toString(), "not-an-id")) {
+      MockHttpServletResponse response = send("DELETE", "/who/me/sessions/" + id, mine);
+      assertThat(response.getStatus()).as(id).isEqualTo(404);
+      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("session-not-found");
+    }
   }
 
   @Test

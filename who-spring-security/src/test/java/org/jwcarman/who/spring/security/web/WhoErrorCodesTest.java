@@ -41,7 +41,8 @@ class WhoErrorCodesTest {
         Arguments.of(RecentSignInUnavailableException.apiKey(), "recent-sign-in-unavailable"),
         Arguments.of(
             RecentSignInUnavailableException.unknownSignIn(), "recent-sign-in-unavailable"),
-        Arguments.of(new InvalidPasskeyRegistrationException(), "invalid-passkey-registration"));
+        Arguments.of(new InvalidPasskeyRegistrationException(), "invalid-passkey-registration"),
+        Arguments.of(new SessionNotFoundException(), "session-not-found"));
   }
 
   @ParameterizedTest

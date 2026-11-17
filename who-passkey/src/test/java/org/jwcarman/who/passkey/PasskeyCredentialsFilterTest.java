@@ -272,6 +272,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
           send("DELETE", "/who/me/passkeys/" + theirs.credentialId(), session);
 
       assertThat(response.getStatus()).isEqualTo(404);
+      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("passkey-not-found");
       assertThat(passkeys.list(bob.id())).hasSize(2);
     }
 
@@ -284,6 +285,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
       MockHttpServletResponse response = send("DELETE", "/who/me/passkeys/nope", session);
 
       assertThat(response.getStatus()).isEqualTo(404);
+      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("passkey-not-found");
       assertThat(response.getContentAsString()).isEmpty();
     }
 

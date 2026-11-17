@@ -37,6 +37,7 @@ import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
+import org.jwcarman.who.spring.security.web.SessionNotFoundException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -185,11 +186,7 @@ final class SessionsFilter extends OncePerRequestFilter {
             .flatMap(sessions::findLive)
             .filter(s -> s.identityId().equals(identityId));
     if (target.isEmpty()) {
-      handoff.handOff(
-          request,
-          response,
-          new ResponseStatusException(HttpStatus.NOT_FOUND, "No such session"),
-          HttpStatus.NOT_FOUND);
+      handoff.handOff(request, response, new SessionNotFoundException(), HttpStatus.NOT_FOUND);
       return;
     }
     if (target.get().id().equals(current.session().sessionId())) {
