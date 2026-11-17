@@ -16,7 +16,9 @@
 package org.jwcarman.who.spring.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -46,7 +48,7 @@ class WhoPublicPathsTest {
 
   @Test
   void always_includes_the_error_page() {
-    assertThat(new WhoPublicPaths(WhoPaths.defaults(), List.of(), List.of()).patterns())
+    assertThat(new WhoPublicPaths(WhoPaths.defaults(), List.of(), List.of(), List.of()).patterns())
         .startsWith("/error");
   }
 
@@ -56,7 +58,8 @@ class WhoPublicPathsTest {
             new WhoPublicPaths(
                     WhoPaths.defaults(),
                     List.of(method("/who/email/sign-in")),
-                    List.of("/signin", "/assets/**"))
+                    List.of("/signin", "/assets/**"),
+                    List.of())
                 .patterns())
         .containsExactly("/error", "/who/sign-in", "/who/email/sign-in", "/signin", "/assets/**");
   }
@@ -67,14 +70,16 @@ class WhoPublicPathsTest {
             new WhoPublicPaths(
                     WhoPaths.defaults(),
                     List.of(method("/error"), method("/a")),
-                    List.of("/a", "/b"))
+                    List.of("/a", "/b"),
+                    List.of())
                 .patterns())
         .containsExactly("/error", "/who/sign-in", "/a", "/b");
   }
 
   @Test
   void the_sign_in_options_follow_the_root() {
-    assertThat(new WhoPublicPaths(new WhoPaths("/auth"), List.of(), List.of()).patterns())
+    assertThat(
+            new WhoPublicPaths(new WhoPaths("/auth"), List.of(), List.of(), List.of()).patterns())
         .containsExactly("/error", "/auth/sign-in");
   }
 
@@ -82,6 +87,29 @@ class WhoPublicPathsTest {
   void a_login_method_has_no_public_paths_unless_it_says_so() {
     PasswordlessLoginMethod method = http -> {};
     assertThat(method.publicPaths()).isEmpty();
+  }
+
+  @Nested
+  class Validation {
+
+    @Test
+    void a_blank_contributed_pattern_is_refused() {
+      assertThatThrownBy(
+              () ->
+                  new WhoPublicPaths(WhoPaths.defaults(), List.of(), List.of(), List.of("/a", " ")))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("contributed");
+    }
+
+    @Test
+    void a_null_configured_pattern_is_refused() {
+      assertThatThrownBy(
+              () ->
+                  new WhoPublicPaths(
+                      WhoPaths.defaults(), List.of(), Arrays.asList("/a", null), List.of()))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("configured");
+    }
   }
 
   @Nested

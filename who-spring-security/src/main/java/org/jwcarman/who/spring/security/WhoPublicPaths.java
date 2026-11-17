@@ -17,7 +17,6 @@ package org.jwcarman.who.spring.security;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -38,21 +37,6 @@ public final class WhoPublicPaths {
   private final Set<String> patterns = new LinkedHashSet<>();
 
   /**
-   * Collects the paths, with none contributed by libraries.
-   *
-   * @param paths where who's endpoints live, for {@code GET /who/sign-in}
-   * @param methods the browser sign-in methods, whose {@link PasswordlessLoginMethod#publicPaths()}
-   *     are added
-   * @param configured the application's own public paths
-   */
-  public WhoPublicPaths(
-      WhoPaths paths,
-      Collection<? extends PasswordlessLoginMethod> methods,
-      Collection<String> configured) {
-    this(paths, methods, configured, List.of());
-  }
-
-  /**
    * Collects the paths.
    *
    * @param paths where who's endpoints live, for {@code GET /who/sign-in}
@@ -61,6 +45,7 @@ public final class WhoPublicPaths {
    * @param configured the application's own public paths
    * @param contributed the paths {@link WhoPublicPathContributor} beans added, app-root patterns
    *     like the configured ones
+   * @throws IllegalArgumentException when a configured or contributed pattern is null or blank
    */
   public WhoPublicPaths(
       WhoPaths paths,
@@ -70,8 +55,18 @@ public final class WhoPublicPaths {
     patterns.add(ERROR_PAGE);
     patterns.add(paths.of(SIGN_IN_OPTIONS));
     methods.forEach(method -> patterns.addAll(method.publicPaths()));
-    patterns.addAll(configured);
-    patterns.addAll(contributed);
+    addAll(configured, "configured");
+    addAll(contributed, "contributed");
+  }
+
+  private void addAll(Collection<String> added, String source) {
+    for (String pattern : added) {
+      if (pattern == null || pattern.isBlank()) {
+        throw new IllegalArgumentException(
+            "a " + source + " public path pattern is " + (pattern == null ? "null" : "blank"));
+      }
+      patterns.add(pattern);
+    }
   }
 
   /**

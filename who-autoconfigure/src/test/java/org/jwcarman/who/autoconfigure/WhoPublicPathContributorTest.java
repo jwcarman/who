@@ -20,6 +20,8 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -33,6 +35,7 @@ import org.springframework.boot.test.context.assertj.AssertableWebApplicationCon
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.core.annotation.Order;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -150,9 +153,36 @@ class WhoPublicPathContributorTest {
         .withBean("shell", WhoPublicPathContributor.class, () -> contributing("/index.html"))
         .run(
             context -> {
-              assertThat(output).contains("/index.html").contains("shell");
+              assertThat(output).contains("public path /index.html contributed by bean 'shell'");
               assertThat(output).doesNotContain("/from-the-property");
             });
+  }
+
+  @Test
+  void ordering_on_contributors_decides_the_order_of_patterns() {
+    runner()
+        .withBean("late", Late.class, Late::new)
+        .withBean("early", Early.class, Early::new)
+        .run(
+            context ->
+                assertThat(context.getBean(WhoPublicPaths.class).patterns())
+                    .containsExactly("/error", "/who/sign-in", "/early", "/late"));
+  }
+
+  @Order(2)
+  static class Late implements WhoPublicPathContributor {
+    @Override
+    public Collection<String> publicPaths() {
+      return List.of("/late");
+    }
+  }
+
+  @Order(1)
+  static class Early implements WhoPublicPathContributor {
+    @Override
+    public Collection<String> publicPaths() {
+      return List.of("/early");
+    }
   }
 
   @Test
