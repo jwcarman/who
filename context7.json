@@ -1,0 +1,14 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "who (Spring Boot identity and sign-in)",
+  "description": "who (org.jwcarman.who) is a Spring Boot 4 / Spring Security 7 library for identity, sign-in and permissions: passwordless email links and codes, passkeys, Google, GitHub and OpenID Connect sign-in, API keys, JWTs, roles and @RequiresPermission, sessions, a Cloudflare Turnstile human check, and a TypeScript client.",
+  "folders": ["docs"],
+  "excludeFolders": ["docs/superpowers", "docs/assets", "docs/stylesheets"],
+  "rules": [
+    "Import org.jwcarman.who:who-bom and add who modules without versions, rather than pinning each module's version.",
+    "Add who-spring-boot-starter plus one module per sign-in method; a module is on when its jar is on the classpath.",
+    "Supply secrets such as who.email-link.code-secret from environment variables with no default value in application.yml.",
+    "A SecurityFilterChain of your own that applies who's configurers must still call authorizeHttpRequests itself.",
+    "Check https://github.com/jwcarman/who/blob/main/CHANGELOG.md against the who version in use: entries under Unreleased are not in any release yet."
+  ]
+}
