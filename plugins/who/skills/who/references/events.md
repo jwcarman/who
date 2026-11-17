@@ -63,7 +63,7 @@ All events have `occurredAt`. Fields marked "or null" can be null; every other f
 | `SessionEnded` | who-core | who drops a session because its identity is no longer active or its credential was revoked, or a session is [ended](sessions.md#see-and-end-sessions) from another browser or through `WhoSessions`. | `identityId`, `credentialId`, `reason` |
 | `EndedSessionsPurged` | who-core | A batch of ended or abandoned session records was deleted, on sign-in or by `WhoSessions.purgeEndedSessions()`. Not published for an empty batch. | `count` |
 | `SignInEmailRequested` | who-email-link | A request to `POST /who/email/send` has been handled, once per request. | `address` or null, `outcome`, `identityId` or null |
-| `EmailAddressConfirmationRequested` | who-email-link | A request to `POST /who/email/addresses` has been handled, once per request, on the email thread. | `identityId`, `address` or null, `change`, `outcome` (`SENT`, `INVALID_ADDRESS`, `ADDRESS_TAKEN`, `RESEND_SUPPRESSED`, `SEND_FAILED`) |
+| `EmailAddressConfirmationRequested` | who-email-link | A request to `POST /who/me/email-addresses` has been handled, once per request, on the email thread. | `identityId`, `address` or null, `change`, `outcome` (`SENT`, `INVALID_ADDRESS`, `ADDRESS_TAKEN`, `RESEND_SUPPRESSED`, `SEND_FAILED`) |
 | `HumanCheckPerformed` | who-spring-security | A request to one of who's [human-checked endpoints](email-links.md#human-check) was checked, once per request, before the endpoint runs. The token is never published. | `check`, `action`, `clientIp`, `outcome` (`PASSED`, `REFUSED`, `ERROR` when the check threw). Turnstile handles a Cloudflare outage itself, so an outage is `REFUSED`, or `PASSED` with `fail-open`, never `ERROR`; its WARN log names it. `clientIp` is `unknown` when the container reported no address. |
 | `PasskeyRegistrationRefused` | who-passkey | A signed-in identity tries to add a passkey, but signed in longer ago than the registration window allows. | `identityId`, `reason` |
 
@@ -105,9 +105,10 @@ been answered with `202`.
 | `IdentityDeactivated` | who-core | An active identity is deactivated. Nothing is published if it already was. | `identityId` |
 | `IdentityReactivated` | who-core | An inactive identity is reactivated. | `identityId` |
 | `IdentityDeleted` | who-core | `WhoService.deleteIdentity` | `identityId` |
+| `IdentityInvited` | who-email-link | `InvitationService.invite` (and so `POST /who/invitations`) has created the identity, registered its address and assigned its roles. Published **inside** that transaction, before it commits: see [below](#identityinvited-runs-inside-the-invitation). | `identityId`, `address`, `roles` (role names; empty if none) |
 | `OrphanedCredentialsPurged` | who-core | Credentials linked to no identity are purged, including when registering an email address replaces an orphaned credential (count 1). | `count` |
 | `CredentialAdded` | who-core | A credential is linked to an identity: an email address registered, a passkey registered, an API key created, a provider account linked or signed up with, or an enrollment completed. | `identityId`, `credentialId`, `kind`, `label` or null |
-| `CredentialRevoked` | who-core | A credential is removed: an email address, passkey (including Spring's `DELETE /who/passkey/register/{id}`) or API key revoked, a provider account unlinked, or an identity deleted (one event for each of its credentials). | `identityId`, `credentialId`, `kind`, `label` or null |
+| `CredentialRevoked` | who-core | A credential is removed: an email address, passkey or API key revoked (by your code or through [`/who/me`](account.md)), a provider account unlinked, or an identity deleted (one event for each of its credentials). | `identityId`, `credentialId`, `kind`, `label` or null |
 
 `CredentialKind`: `EMAIL`, `PASSKEY`, `API_KEY`, `FEDERATED`, `OTHER`. The label is the email
 address, the passkey's label, the API key's name, or the issuer of an `(issuer, subject)` credential.
@@ -178,6 +179,34 @@ Two limits to know:
   same limit `@TransactionalEventListener` has: the transaction is over by then. Do not make
   changes through who services from inside an after-commit callback and expect their events.
 
+### `IdentityInvited` runs inside the invitation
+
+`IdentityInvited` is the one exception to the rules above. `InvitationService.invite` publishes it
+through Spring's `ApplicationEventPublisher` directly, synchronously, inside the transaction that
+creates the identity, registers its address and assigns its roles, before that transaction commits.
+So a listener can write your application's own data for the new person (a profile row, a team
+membership) in the same transaction, with a plain `@EventListener` and no `REQUIRES_NEW`:
+
+```java
+@EventListener
+void on(IdentityInvited event) {
+  members.add(event.identityId(), event.roles());   // joins the invitation's transaction
+}
+```
+
+A listener that throws rolls the whole invitation back: no identity, address or role remains, no
+sign-in link is sent, and the exception reaches the caller of `invite`. Through
+`POST /who/invitations` it is not one who maps, so the request fails as a server error; throw only
+when the invitation must not stand. who's own events from the same steps,
+such as `IdentityCreated` and `CredentialAdded`, are published only after the commit, so a
+rolled-back invitation publishes none of them. The link is sent only after the commit.
+
+This is also why `invite` must be called outside any transaction of yours (it throws
+`IllegalStateException` otherwise): attach your data from the listener, not from code around the
+call. See [Admin](admin.md#invitations).
+
+### A listener with its own transaction
+
 A database-backed audit listener, with its own transaction:
 
 ```java
@@ -205,8 +234,8 @@ The method is `public` so that Spring's transactional proxy applies to it.
 
 ## Personal data and untrusted text
 
-- `SignInFailed`, `SignInEmailRequested` and email `CredentialAdded` and `CredentialRevoked`
-  carry an email address. That is deliberate: "40 failed codes for one address" is the most
+- `SignInFailed`, `SignInEmailRequested`, `IdentityInvited` and email `CredentialAdded` and
+  `CredentialRevoked` carry an email address. That is deliberate: "40 failed codes for one address" is the most
   useful signal of an attack. Treat it as personal data when you store it.
 - Addresses are normalized (trimmed, lower-cased). An address is in an event only when it is safe
   to carry (bounded length, no control characters, `EmailAddresses.isSafe`). Otherwise the field

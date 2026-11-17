@@ -2,9 +2,9 @@
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `who.base-path` | `/who` | The root of every who endpoint: `<root>/me`, `<root>/sessions`, `<root>/logout`, `<root>/email/...`, `<root>/passkey/...` and `<root>/oidc/...`, including the provider callback. A path that starts with `/`, does not end with `/`, is not `/` alone, and holds no `*{}?#;` or whitespace; anything else fails startup. See [Endpoints](#endpoints) |
+| `who.base-path` | `/who` | The root of every who endpoint: `<root>/sign-in`, `<root>/me/...`, `<root>/logout`, `<root>/email/...`, `<root>/passkey/...`, `<root>/oidc/...` (including the provider callback), and who-admin's `<root>/identities`, `<root>/roles` and `<root>/invitations`. A path that starts with `/`, does not end with `/`, is not `/` alone, and holds no `*{}?#;` or whitespace; anything else fails startup. See [Endpoints](#endpoints) |
 | `who.initialize-schema` | `embedded` | When to run Who's bundled DDL scripts: `always`, `embedded` (H2/HSQLDB/Derby only), or `never` |
-| `who.security.public-paths` | none | Paths of your app that who's default chain opens to signed-out requests, such as `/signin` and `/assets/**`. `/error`, the sign-in methods' endpoints and Actuator's health endpoint are open already. Also in `WhoPublicPaths` for a chain of your own |
+| `who.security.public-paths` | none | Paths of your app that who's default chain opens to signed-out requests, such as `/signin` and `/assets/**`. `/error`, `<root>/sign-in`, the sign-in methods' endpoints and Actuator's health endpoint are open already. A library or your app can add paths in code with a `WhoPublicPathContributor` bean (`Collection<String> publicPaths()`, patterns from the app's root, matched the same way; a null or blank one fails startup, naming the bean). Contributions only add: they cannot remove a path. All of them are in the `WhoPublicPaths` bean for a chain of your own. An application that defines its own `WhoPublicPaths` bean replaces who's, and with it every contribution |
 | `who.email-link.enabled` | `true` | Turns email-link sign-in off when `false`, with `who-email-link` still on the classpath |
 | `who.passkey.enabled` | `true` | Turns passkeys off when `false`, with `who-passkey` still on the classpath |
 | `who.api-key.enabled` | `true` | Turns API keys off when `false`, with `who-apikey` still on the classpath |
@@ -12,8 +12,9 @@
 | `who.turnstile.enabled` | `true` | Turns the Turnstile human check off when `false`, with `who-turnstile` still on the classpath |
 | `who.oidc.enabled` | `true` | Turns provider sign-in off when `false`, with `who-oidc` still on the classpath |
 | `who.enrollment.enabled` | `true` | Turns enrollment tokens off when `false`, with `who-enrollment` still on the classpath |
+| `who.admin.enabled` | `true` | Turns who's [admin endpoints](admin.md) off when `false`, with `who-admin` still on the classpath |
 | `who.enrollment.token-expiration` | `24h` | How long a newly issued enrollment token is valid (ISO-8601 duration, e.g. `PT12H`) |
-| `who.security.recent-sign-in` | `10m` | How recently the caller must have signed in to add a way to sign in (register a passkey, link a provider account, add or change an email address), to [end another session](sessions.md#see-and-end-sessions), and to call an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) without a window of its own. Checked when the request starts and when it is confirmed; a started provider link lasts as long |
+| `who.security.recent-sign-in` | `10m` | How recently a browser session must have signed in to add or remove a way to sign in (a passkey, a provider account, an email address), to [end another session](sessions.md#see-and-end-sessions), to make or rotate an [API key](account.md#api-keys), to change identities through the [admin endpoints](admin.md), and to call an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in) without a window of its own. Checked when the request starts and when it is confirmed; a started provider link lasts as long |
 | `who.security.last-sign-in-cookie.enabled` | `true` | Sets the `who_last_sign_in` cookie after a browser sign-in. See [Sessions](sessions.md#the-last-sign-in-cookie) |
 | `who.sessions.auto-purge` | `true` | Each sign-in deletes one batch of ended or abandoned session records. Set to `false` to call `WhoSessions.purgeEndedSessions()` on a schedule of your own. See [Sessions](sessions.md#purging-old-rows) |
 | `who.sessions.purge-batch-size` | `100` | The most session records one purge deletes. Positive, or startup fails |
@@ -60,19 +61,30 @@ Every who endpoint lives under `who.base-path`. With the default `/who`:
 
 | Endpoint | Module | What it does |
 |---|---|---|
-| `GET /who/me` | who-spring-security | The signed-in identity and its permissions |
-| `GET /who/sessions`, `DELETE /who/sessions/{id}`, `DELETE /who/sessions?others=true` | who-spring-security | See and end sessions |
+| `GET /who/sign-in` | who-spring-security | Which sign-in methods are on, and the providers to draw buttons for. Public |
 | `POST /who/logout` | who-spring-security | Sign out |
 | `POST /who/email/send` | who-email-link | Email a sign-in link and code |
 | `POST /who/email/sign-in` | who-email-link | Sign in with the link's token, or the address and code |
-| `POST /who/email/addresses`, `POST /who/email/addresses/confirm` | who-email-link | Add or change an email address |
-| `POST /who/passkey/register/options`, `POST /who/passkey/register` | who-passkey | Register a passkey |
-| `DELETE /who/passkey/register/{id}` | who-passkey | Remove one of your passkeys |
 | `POST /who/passkey/sign-in/options`, `POST /who/passkey/sign-in` | who-passkey | Sign in with a passkey |
 | `GET /who/oidc/authorize/{registrationId}` | who-oidc | Start a provider sign-in |
 | `GET /who/oidc/callback/{registrationId}` | who-oidc | The provider's redirect URI |
-| `GET /who/oidc/pending`, `POST /who/oidc/sign-up`, `POST /who/oidc/link` | who-oidc | Confirm a pending sign-up or link |
-| `POST /who/oidc/link/{registrationId}` | who-oidc | Start linking a provider account |
+| `GET /who/oidc/pending`, `POST /who/oidc/pending/sign-up`, `POST /who/oidc/pending/link` | who-oidc | Confirm a pending sign-up or link |
+| `GET /who/me` | who-spring-security | The signed-in identity, its permissions, how it signed in and its credential counts |
+| `GET /who/me/sessions`, `DELETE /who/me/sessions/{id}`, `DELETE /who/me/sessions?others=true` | who-spring-security | See and end your sessions |
+| `GET /who/me/passkeys`, `DELETE /who/me/passkeys/{credentialId}` | who-passkey | List and remove your passkeys |
+| `POST /who/me/passkeys/options`, `POST /who/me/passkeys` | who-passkey | Register a passkey |
+| `GET /who/me/email-addresses`, `DELETE /who/me/email-addresses/{id}` | who-email-link | List and remove your email addresses |
+| `POST /who/me/email-addresses`, `POST /who/me/email-addresses/confirmations` | who-email-link | Add or change an email address |
+| `GET /who/me/accounts`, `DELETE /who/me/accounts/{id}` | who-oidc | List and unlink your provider accounts |
+| `POST /who/me/accounts/{registrationId}` | who-oidc | Start linking a provider account |
+| `GET /who/me/api-keys`, `POST /who/me/api-keys`, `POST /who/me/api-keys/{id}/rotations`, `DELETE /who/me/api-keys/{id}`, `GET /who/me/api-keys/current` | who-apikey | Manage your API keys |
+| `GET /who/identities`, `GET /who/identities/{id}`, `PATCH /who/identities/{id}` | who-admin | List, read, deactivate and reactivate identities |
+| `PUT /who/identities/{id}/roles/{role}`, `DELETE /who/identities/{id}/roles/{role}` | who-admin | Assign and remove roles |
+| `GET /who/roles` | who-admin | The roles that exist |
+| `POST /who/invitations` | who-admin, with who-email-link | Invite someone by email address |
+
+Everything under `/who/me` acts on the caller's own data only; see [Your Account](account.md) for
+who may call each one. The admin endpoints need who's own permissions; see [Admin](admin.md).
 
 Your own endpoints may live under the same root; who's rules apply only to its own paths, so
 yours still need whatever sign-in your chain asks for.

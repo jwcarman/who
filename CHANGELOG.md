@@ -6,6 +6,69 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- who's HTTP surface is REST-shaped: a person's own things live under `/who/me`, and the pending provider sign-up under `/who/oidc/pending`. The old paths reach no who endpoint, and there are no redirects:
+
+  | Before | Now |
+  |---|---|
+  | `GET /who/sessions` | `GET /who/me/sessions` |
+  | `DELETE /who/sessions/{id}` | `DELETE /who/me/sessions/{id}` |
+  | `DELETE /who/sessions?others=true` | `DELETE /who/me/sessions?others=true` |
+  | `POST /who/passkey/register/options` | `POST /who/me/passkeys/options` |
+  | `POST /who/passkey/register` | `POST /who/me/passkeys` |
+  | `DELETE /who/passkey/register/{id}` | `DELETE /who/me/passkeys/{credentialId}` |
+  | `POST /who/email/addresses` | `POST /who/me/email-addresses` |
+  | `POST /who/email/addresses/confirm` | `POST /who/me/email-addresses/confirmations` |
+  | `POST /who/oidc/link/{registrationId}` | `POST /who/me/accounts/{registrationId}` |
+  | `POST /who/oidc/sign-up` | `POST /who/oidc/pending/sign-up` |
+  | `POST /who/oidc/link` | `POST /who/oidc/pending/link` |
+
+  See [Upgrading](docs/guides/upgrading.md#upgrading-to-0210).
+- Removing a passkey is who's own endpoint, no longer Spring's: it needs a browser session signed in within `who.security.recent-sign-in`, answers `404` (not `403`) for a passkey that is someone else's or unknown, and `409` for the identity's last credential. Spring's delete endpoint is turned off.
+- `who-passkey`, `who-email-link` and `who-oidc` need the new `LastCredentialGuard` bean, which who builds when there is `who-jdbc` and exactly one `PlatformTransactionManager`. Without it they fail startup (`NoSuchBeanDefinitionException`). Mark one transaction manager `@Primary`, or define the guard yourself.
+- Custom repositories must implement new methods: `IdentityRepository.lockById`, `findPage` and `count`; `EmailCredentialRepository.findAllByIdentityId`; `FederatedCredentialRepository.findAllByIdentityId`.
+- Constructors that take new arguments: `PasskeyLoginMethod` (`PasskeyService`, `LastCredentialGuard`), `OidcLoginMethod` (`FederatedCredentialService`, `LastCredentialGuard`), `EmailAddressEndpoints` (`EmailCredentialService`, `LastCredentialGuard`), `WhoMeController` (`WhoSessionSecurityContextRepository`, `RecentSignInAuthorizationManager`, `ObjectProvider<LastCredentialGuard>`; an application that imports it by hand needs a `RecentSignInAuthorizationManager` bean), and `WhoPublicPaths`, now `(WhoPaths, methods, configured, contributed)`, with no other constructor. `WhoMeController.me` takes `(HttpServletRequest, Authentication)`.
+- `WhoMeController.WhoMeResponse` gains `signInMethod`, `recentSignInUntil` and `credentials`, so its constructor changes; `GET /who/me`'s JSON gains the three fields.
+- A session cookie with an API key or a bearer token beside it is no longer a browser session anywhere who asks for one: the session, passkey, email-address, linked-account and API-key endpoints answer it `403`. `POST /who/me/email-addresses` and `/confirmations` answer a signed-in caller that is not a browser session `403` instead of `401`, and so does starting a link.
+- On a chain with sessions, a bearer token beside a live session cookie is ignored: the session signs the request in, and the request still needs its CSRF token. Before, the token signed it in and skipped CSRF. `JwtLoginMethod` wraps Spring's bearer-token converter so the resource server ignores the token too; a custom `StatelessLoginMethod` that configures Spring's resource server must do the same, and its `carriesCredential()` should not match when `StatelessLoginMethod.alreadySignedIn()`.
+- `ApiKeyAuthenticationFilter` sits before `ExceptionTranslationFilter` (it was before `AuthorizationFilter`), so who's endpoints, which sit right after that filter, see a key's sign-in. A chain that orders its own filters against the old position may need to move them.
+- `GET /who/sign-in` is who's, and public: an application endpoint at that path is shadowed.
+- The TypeScript client follows the new layout. Calls that moved, with no aliases:
+
+  | Before | Now |
+  |---|---|
+  | `who.me()` | `who.me.get()` |
+  | `who.sessions.list()`, `end(id)`, `endOthers()` | `who.me.sessions.list()`, `end(id)`, `endOthers()` |
+  | `who.passkeys.register(label)` | `who.me.passkeys.register(label)` |
+  | `who.passkeys.remove(credentialId)` | `who.me.passkeys.remove(credentialId)` |
+  | `who.email.addAddress(address, replaces?)` | `who.me.emailAddresses.add(address, replaces?)` |
+  | `who.email.confirmAddress(proof)` | `who.me.emailAddresses.confirm(proof)` |
+  | `who.email.confirmAddressFromLocation()` | `who.me.emailAddresses.confirmFromLocation()` |
+  | `who.oidc.startLink(registrationId)` | `who.me.accounts.link(registrationId)` |
+
+  `Me` gains `signInMethod`, `recentSignInUntil` and `credentials`. `confirm` answers `{ credentialId }` instead of nothing. `me.passkeys.remove` fails with *sign-in*, `'not-found'` or `'last-credential'` instead of `'signed-out'` or `'refused'`. The sign-in calls (`email.send`, `email.signIn`, `passkeys.signIn`, `oidc.*`) keep their names.
+
+### Added
+
+- The caller's own account under `/who/me`, each endpoint in the module that owns its data, checking ownership itself (another identity's id is `404`, as an unknown one is). See [Your Account](docs/guides/account.md).
+  - `GET /who/me/passkeys`, `GET /who/me/email-addresses`, `DELETE /who/me/email-addresses/{id}`, `GET /who/me/accounts` and `DELETE /who/me/accounts/{id}`.
+  - `GET` and `POST /who/me/api-keys`, `POST /who/me/api-keys/{id}/rotations`, `DELETE /who/me/api-keys/{id}` for a browser session or a bearer token, and `GET /who/me/api-keys/current` for the key a request signed in with. A key never manages keys, and the raw key appears only in the two `201` answers. A browser needs a recent sign-in to make or rotate one.
+  - `GET /who/me` reports how the request signed in (`signInMethod`, in the sessions list's spelling), until when a browser's sign-in is recent (`recentSignInUntil`), and the identity's sign-in credentials by kind (`credentials`).
+- The last-credential rule: removing a passkey, an email address or a linked account through `/who/me` answers `409` (`LastCredentialException`, `Who-Error: last-credential`) when it would leave the identity no way to sign in. The count and the removal hold the identity's row lock. `LastCredentialGuard` and `SignInCredentialCounter` apply it in your own code.
+- `GET /who/sign-in`, public: which sign-in methods are on and the providers to draw buttons for. `PasswordlessLoginMethod.signInOptions()` is what each method contributes.
+- `who-admin`, endpoints for an admin screen, guarded by two permissions who defines and grants to no one, `who.identities.read` and `who.identities.manage` (`WhoAdminPermissions`): `GET /who/identities` (paged, filtered by `status`, `role` and `email`), `GET` and `PATCH /who/identities/{id}` (`{"status": "ACTIVE" | "DISABLED"}`), `PUT` and `DELETE /who/identities/{id}/roles/{role}`, and `GET /who/roles`. A browser session that changes something needs a recent sign-in; a caller may grant only roles within its own permissions; an admin cannot deactivate themselves. `who.admin.enabled=false` turns them off. See [Admin](docs/guides/admin.md).
+- Invitations: `InvitationService.invite(email, roles)` in `who-email-link` creates the identity, registers the address and assigns the roles in one transaction, then sends the sign-in link after it commits; `POST /who/invitations` (who-admin) is the endpoint over it. Call `invite` outside any transaction. The new event `IdentityInvited` is published inside the invitation's transaction, so a listener can store the application's own data with it, and a listener that throws rolls the invitation back. `who-rbac` is now an optional dependency of `who-email-link`, for invitation roles.
+- `WhoPublicPathContributor`: a bean that adds paths a signed-out request may reach, beside `who.security.public-paths`, for libraries and apps alike. Contributions only add, are logged at startup with their bean, and are in `WhoPublicPaths`. A null or blank path fails startup. An application that replaces the `WhoPublicPaths` bean drops every contribution.
+- `StatelessEndpoints`, for endpoints that go on every stateless chain, as `BrowserEndpoints` do on browser chains. `StatelessLoginMethod.presentsCredential()` and `alreadySignedIn()`, and `WhoSessionSecurityContextRepository.browserSession(...)` and `presentsStatelessCredential(...)`, which tell a browser session from a request carrying a key or a token.
+- New `Who-Error` codes: `last-credential`, `linked-account-not-found`, `api-key-not-found`, `invalid-api-key-request`, `permission-required`, `role-grant-forbidden`, `identity-not-found`, `unknown-role`, `invalid-admin-request`, `self-deactivation` and `invalid-invitation`. See [Errors](docs/guides/errors.md).
+- `PasskeyService.ownerOf`, `EmailCredentialService.findAllFor`, `EmailCredential.created()`, `FederatedCredentialService.findAllFor` and `isOwnedBy`, `FederatedCredential.linkedAt()`, `ApiKeyService.findOwnedBy`, `RbacService.findRolesForIdentity` and `findPermissions`, and `Identifiers.createdAt`.
+- The TypeScript client covers the new endpoints: `who.signInOptions()`, `who.me.*` (`passkeys.list`, `emailAddresses.list` and `remove`, `accounts.list` and `unlink`, `apiKeys.*`) and `who.admin.*`.
+
+### Fixed
+
+- Ids that who made in the same millisecond had no order, because each call built a new UUIDv7 generator, so lists that are oldest first could show two credentials made together in either order. who now keeps one generator, whose ids always increase.
+
 ## [0.20.0] - 2026-11-17
 
 ### Breaking changes

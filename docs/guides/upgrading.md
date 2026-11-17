@@ -1,5 +1,123 @@
 # Upgrading
 
+## Upgrading to 0.21.0
+
+0.21.0 makes who's HTTP surface REST-shaped. A person's own sessions, passkeys, email addresses,
+linked accounts and API keys live under [`/who/me`](account.md); [`who-admin`](admin.md) adds
+endpoints for identities, roles and invitations; and removing a sign-in credential can no longer
+leave an identity locked out. Most applications change their front end's paths and client calls,
+and check that they have one transaction manager.
+
+### Moved endpoints
+
+The old paths reach no who endpoint, and who keeps no redirects. Change your front end's calls,
+and any `requestMatchers`, proxy rules or links that name them:
+
+| 0.20 | 0.21 |
+|---|---|
+| `GET /who/sessions` | `GET /who/me/sessions` |
+| `DELETE /who/sessions/{id}` | `DELETE /who/me/sessions/{id}` |
+| `DELETE /who/sessions?others=true` | `DELETE /who/me/sessions?others=true` |
+| `POST /who/passkey/register/options` | `POST /who/me/passkeys/options` |
+| `POST /who/passkey/register` | `POST /who/me/passkeys` |
+| `DELETE /who/passkey/register/{id}` | `DELETE /who/me/passkeys/{credentialId}` |
+| `POST /who/email/addresses` | `POST /who/me/email-addresses` |
+| `POST /who/email/addresses/confirm` | `POST /who/me/email-addresses/confirmations` |
+| `POST /who/oidc/link/{registrationId}` | `POST /who/me/accounts/{registrationId}` |
+| `POST /who/oidc/sign-up` | `POST /who/oidc/pending/sign-up` |
+| `POST /who/oidc/link` | `POST /who/oidc/pending/link` |
+
+Request and answer bodies are unchanged, except:
+
+- **Removing a passkey** is who's own endpoint now. It needs a browser session signed in within
+  `who.security.recent-sign-in`, answers `404` for a passkey that is someone else's (Spring's
+  answered `403`), and `409` when it is the identity's last way to sign in. A page that removed
+  passkeys right after any sign-in may now need to ask the person to sign in again.
+- **A session cookie with an API key or a bearer token beside it** is not a browser session on
+  any of these endpoints: it gets `403`. The email-address POSTs and starting a link answered a
+  signed-in caller that was not a browser `401`; they answer `403` now.
+
+### The TypeScript client
+
+Calls for the person's own account moved under `who.me`:
+
+| 0.20 | 0.21 |
+|---|---|
+| `who.me()` | `who.me.get()` |
+| `who.sessions.list()`, `end(id)`, `endOthers()` | `who.me.sessions.list()`, `end(id)`, `endOthers()` |
+| `who.passkeys.register(label)` | `who.me.passkeys.register(label)` |
+| `who.passkeys.remove(credentialId)` | `who.me.passkeys.remove(credentialId)` |
+| `who.email.addAddress(address, replaces?)` | `who.me.emailAddresses.add(address, replaces?)` |
+| `who.email.confirmAddress(proof)` | `who.me.emailAddresses.confirm(proof)` |
+| `who.email.confirmAddressFromLocation()` | `who.me.emailAddresses.confirmFromLocation()` |
+| `who.oidc.startLink(registrationId)` | `who.me.accounts.link(registrationId)` |
+
+- `me.passkeys.remove` fails with `'signed-out'`, `'reauthentication-required'`,
+  `'sign-in-required'`, `'not-found'` or `'last-credential'`; `'refused'` is gone. A `switch`
+  over its reasons needs the new cases.
+- `me.emailAddresses.confirm` answers `{ credentialId }` instead of nothing.
+- `Me` has three more fields, `signInMethod`, `recentSignInUntil` and `credentials`.
+
+The compiler finds every call that moved. See [TypeScript Client](client.md#calls).
+
+### One transaction manager
+
+Removing a passkey, an email address or a linked account counts the identity's credentials and
+removes one in a transaction that locks the identity's row. `who-passkey`, `who-email-link` and
+`who-oidc` therefore need the `LastCredentialGuard` bean, which who builds when the application
+has `who-jdbc` and exactly one `PlatformTransactionManager`. Spring Boot makes that one for a
+single `DataSource`, so most applications need nothing.
+
+An application with two or more transaction managers fails startup with
+`NoSuchBeanDefinitionException` for `LastCredentialGuard`. Mark the one for who's `DataSource`
+`@Primary`, or define a `LastCredentialGuard` bean yourself. `InvitationService` needs the same
+single manager; without it there is no invitation endpoint.
+
+### Code that builds who's pieces itself
+
+Only an application that implements who's interfaces or constructs its classes by hand needs to
+change:
+
+- **Repositories.** `IdentityRepository` has three new methods, `lockById`, `findPage` and
+  `count`; `EmailCredentialRepository` and `FederatedCredentialRepository` each have
+  `findAllByIdentityId`. who's JDBC repositories have them all.
+- **Constructors.** `PasskeyLoginMethod` takes a `PasskeyService` and a `LastCredentialGuard`;
+  `OidcLoginMethod` a `FederatedCredentialService` and a `LastCredentialGuard`;
+  `EmailAddressEndpoints` an `EmailCredentialService` and a `LastCredentialGuard`.
+- **`WhoMeController`** takes `(WhoSessionSecurityContextRepository,
+  RecentSignInAuthorizationManager, ObjectProvider<LastCredentialGuard>)`, and `me` takes
+  `(HttpServletRequest, Authentication)`. An application that `@Import`s it needs a
+  `RecentSignInAuthorizationManager` bean. `WhoMeResponse` has three more components.
+- **`WhoPublicPaths`** has one constructor, `(WhoPaths, methods, configured, contributed)`. Pass
+  `List.of()` for `contributed`. Every pattern must be non-blank. To add public paths from a
+  library, declare a `WhoPublicPathContributor` bean instead of replacing `WhoPublicPaths`:
+  replacing the bean drops every contribution.
+- **A `StatelessLoginMethod` of your own.** Its `carriesCredential()` should not match a request
+  that `StatelessLoginMethod.alreadySignedIn()`, so a session cookie never rides along without its
+  CSRF token. If it configures Spring's resource server, wrap the bearer-token converter so it
+  answers `null` on such a request, as `JwtLoginMethod` does: Spring's resource server exempts
+  from CSRF any request its converter reads.
+- **API-key filter order.** `ApiKeyAuthenticationFilter` is now added before
+  `ExceptionTranslationFilter`, not before `AuthorizationFilter`.
+
+### Bearer tokens beside a session
+
+On a chain that signs browsers in, a request with a session cookie and a bearer token is signed
+in by the session; the token is ignored, as an API key already was, and the request needs its
+CSRF token. Before, the token signed it in and skipped CSRF. A
+client that sends both should send only one.
+
+### Endpoints your app may now drop
+
+who now serves what many applications wrote themselves: a passkey list, linked-account
+unlinking, API-key management, a providers list for the sign-in page (`GET /who/sign-in`), member
+lists and invitations. Endpoints of your own over `PasskeyService.revoke`,
+`FederatedCredentialService.unlink` or `ApiKeyService.revoke` should check that the id is the
+caller's; who's do, and apply the [last-credential rule](account.md#the-last-credential-rule) too.
+`InvitationService.invite` must be called outside any transaction: store your own data for the
+invited person from an [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
+listener.
+
 ## Upgrading to 0.20.0
 
 0.20.0 adds a [human check](email-links.md#human-check) on who's email endpoints, with

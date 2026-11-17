@@ -128,10 +128,11 @@ foreign key and revoked pending enrollment tokens. See
 | `who-oidc` | Sign-in with Google, GitHub or any OpenID Connect provider, on Spring's `oauth2Login`: `WhoSignUpPolicy` decides who may sign up |
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
+| `who-admin` | Admin endpoints for identities, roles and invitations, guarded by `who.identities.read` and `who.identities.manage`; brings `who-rbac` |
 | `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |
 | `who-turnstile` | Cloudflare Turnstile as the human check on who's email endpoints: `TurnstileHumanCheck` |
 | `who-passkey` | Passkey sign-in: `PasskeyService`, `PasskeyAddedNotifier`, and the hooks for Spring's WebAuthn login |
-| `who-spring-security` | `@RequiresPermission`, `WhoSecurity.all()`, `WhoWebSecurity.passwordless()`, `WhoHumanCheck` and `GET /who/me` |
+| `who-spring-security` | `@RequiresPermission`, `WhoSecurity.all()`, `WhoWebSecurity.passwordless()`, `WhoHumanCheck`, `GET /who/me` and `GET /who/sign-in` |
 | `who-autoconfigure` | Spring Boot autoconfiguration for all modules |
 | `who-spring-boot-starter` | Starter with the base: `who-core`, `who-spring-security`, `who-jdbc`, `who-rbac` and the autoconfiguration. Add each sign-in module you use; its jar turns it on |
 | `who-client` | `@jwcarman/who-client` on npm: a typed TypeScript client for the browser endpoints. See [TypeScript Client](https://jwcarman.github.io/who/guides/client/) |

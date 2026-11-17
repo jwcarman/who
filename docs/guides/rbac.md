@@ -53,9 +53,19 @@ List<Role> roles = rbacService.listRoles();
 List<UUID> editors = rbacService.findIdentityIdsWithRole(editorRole);
 ```
 
+`findRolesForIdentity(UUID)` returns the roles an identity holds, sorted by name, and `findPermissions(Role)` a role's permissions:
+
+```java
+List<Role> held = rbacService.findRolesForIdentity(identity.id());
+Set<String> granted = rbacService.findPermissions(editorRole);
+```
+
 Roles can only be assigned to identities that exist in `who_identity`. Deleting an identity removes its role assignments.
 
 An identity's permissions are the union of the permissions of all its roles.
+
+To let people manage identities and roles over HTTP, add [`who-admin`](admin.md) and give a role
+of yours its permissions, `WhoAdminPermissions.IDENTITIES_READ` and `IDENTITIES_MANAGE`.
 
 ## Method security
 

@@ -234,12 +234,14 @@ class WhoBasePathEndToEndTest {
           GET    | /auth/oidc/callback/stub?error=access_denied&state=x | false |    | 302
           GET    | /auth/oidc/pending            | false |                             | 404
           POST   | /auth/oidc/pending/sign-up            | false |                             | 404
+          POST   | /auth/oidc/pending/link       | true  |                             | 404
           POST   | /auth/passkey/sign-in/options | false |                             | 200
           POST   | /auth/email/sign-in           | true  | {"token":"nope"}            | 401
           POST   | /auth/passkey/sign-in         | true  | {}                          | 401
           GET    | /auth/me                      | true  |                             | 200
           GET    | /auth/me/sessions                | true  |                             | 200
           DELETE | /auth/me/sessions?others=true    | true  |                             | 200
+          DELETE | /auth/me/sessions/00000000-0000-0000-0000-000000000000 | true |  | 404
           POST   | /auth/me/email-addresses         | true  | {"email":"new@example.com"} | 202
           POST   | /auth/me/passkeys/options | true |                             | 200
           POST   | /auth/me/passkeys        | true  | {}                          | 400
@@ -294,23 +296,33 @@ class WhoBasePathEndToEndTest {
           GET  | /who/me                       |
           GET  | /who/sign-in                  |
           GET  | /who/me/sessions                 |
+          DELETE | /who/me/sessions?others=true  |
+          DELETE | /who/me/sessions/00000000-0000-0000-0000-000000000000 |
+          POST | /who/me/passkeys/options      |
+          POST | /who/me/passkeys              | {}
           GET  | /who/me/passkeys                |
           DELETE | /who/me/passkeys/AAAA         |
           GET  | /who/me/email-addresses          |
           DELETE | /who/me/email-addresses/00000000-0000-0000-0000-000000000000 |
           POST | /who/me/email-addresses          | {"email":"bob@example.com"}
+          POST | /who/me/email-addresses/confirmations | {"token":"nope"}
           GET  | /who/oidc/pending             |
+          POST | /who/oidc/pending/sign-up     |
+          POST | /who/oidc/pending/link        |
           GET  | /who/me/accounts                |
           DELETE | /who/me/accounts/00000000-0000-0000-0000-000000000000 |
           GET  | /who/me/accounts/stub           |
+          POST | /who/me/accounts/stub           |
           GET  | /who/me/api-keys                |
           POST | /who/me/api-keys                | {"name":"k","lifetime":"P1D","scopes":["not.held"]}
           GET  | /who/me/api-keys/current        |
+          POST | /who/me/api-keys/00000000-0000-0000-0000-000000000000/rotations | {"overlap":"PT0S"}
           DELETE | /who/me/api-keys/00000000-0000-0000-0000-000000000000 |
           GET  | /who/identities                 |
           GET  | /who/identities/00000000-0000-0000-0000-000000000000 |
           PATCH | /who/identities/00000000-0000-0000-0000-000000000000 | {"status":"ACTIVE"}
           PUT  | /who/identities/00000000-0000-0000-0000-000000000000/roles/r |
+          DELETE | /who/identities/00000000-0000-0000-0000-000000000000/roles/r |
           GET  | /who/roles                      |
           POST | /who/invitations                | {"email":"x@example.com"}
           """)
@@ -326,6 +338,32 @@ class WhoBasePathEndToEndTest {
     assertThat(SENT).isEmpty();
     // still signed in: the old sign-out did nothing
     assertThat(send("GET", "/auth/me", "").statusCode()).isEqualTo(200);
+  }
+
+  /**
+   * A signed-in request to a path nothing serves is also {@code 404}, so the rows above that answer
+   * {@code 404} prove only so much: here each names its failure, which no unknown path does.
+   */
+  @ParameterizedTest(name = "{0} {1} is {2}")
+  @CsvSource(
+      delimiter = '|',
+      textBlock =
+          """
+          GET    | /auth/oidc/pending             | no-pending-sign-up
+          POST   | /auth/oidc/pending/link        | no-pending-sign-up
+          DELETE | /auth/me/email-addresses/00000000-0000-0000-0000-000000000000 | email-address-not-found
+          DELETE | /auth/me/accounts/00000000-0000-0000-0000-000000000000 | linked-account-not-found
+          GET    | /auth/me/api-keys/current      | api-key-not-found
+          DELETE | /auth/me/api-keys/00000000-0000-0000-0000-000000000000 | api-key-not-found
+          """)
+  void a_not_found_under_the_root_names_itself(String method, String path, String code)
+      throws Exception {
+    signIn();
+
+    HttpResponse<String> response = send(method, path, "");
+
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(404);
+    assertThat(response.headers().firstValue("Who-Error")).contains(code);
   }
 
   /** Spring Boot's own error handling (no advice): the failure still names itself. */

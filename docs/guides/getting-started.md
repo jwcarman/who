@@ -76,7 +76,7 @@ sign-in method is its own module, and adding its jar turns it on:
 | JWT from your authorization server | `who-jwt` | [JWT](jwt.md) |
 | Google, GitHub or any OpenID Connect provider | `who-oidc` | [Social Login](social-login.md) |
 
-`who-enrollment` adds [enrollment tokens](enrollment.md). The BOM manages only who's own
+`who-enrollment` adds [enrollment tokens](enrollment.md), and `who-admin` [endpoints for managing identities, roles and invitations](admin.md). The BOM manages only who's own
 artifacts, not Spring Boot's versions.
 
 A module that needs settings fails startup until it has them, and the report says what to set,
@@ -108,9 +108,11 @@ every sign-in method on the classpath and answers a signed-out request with `401
 There is no login page and no redirect. Signed-out requests may reach only:
 
 - `/error`;
+- `GET /who/sign-in`, which tells a sign-in page which methods are on;
 - each sign-in method's endpoints, such as `/who/email/send` and `/who/email/sign-in`;
 - Actuator's health endpoint, if Actuator is present;
-- the paths you list in `who.security.public-paths`.
+- the paths you list in `who.security.public-paths`, and those any `WhoPublicPathContributor` bean
+  adds (see [Configuration](configuration.md)).
 
 List your own sign-in page and the assets it loads there, including the page
 `who.email-link.link-base-url` points at:
@@ -124,9 +126,9 @@ who:
 ```
 
 When a browser sign-in method (email link or passkey) is present, the chain protects against
-CSRF with Spring's `csrf.spa()`. A request with a bearer token is exempt: the token signs it in
-or it gets `401`. A request with an API key is exempt when it has no session; a request with a
-session ignores the key and keeps its CSRF check. With only API keys or JWTs, who gives no request
+CSRF with Spring's `csrf.spa()`. A request with a bearer token or an API key and no session is
+exempt: the token or key signs it in or it gets `401`. A request with a session ignores the token
+or key and keeps its CSRF check. With only API keys or JWTs, who gives no request
 a session, so the chain checks CSRF only on requests that bring one, and a signed-out client can
 post to a public path.
 

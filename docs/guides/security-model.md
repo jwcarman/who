@@ -54,6 +54,19 @@ sign-in, within `who.security.recent-sign-in` (10 minutes by default) ([Passkeys
 So do linking a provider account and adding or changing an email address, with the same window,
 and so can any action of yours, with [`@RequiresRecentSignIn`](#recent-sign-in).
 
+**A person cannot lock themselves out, or reach someone else's account.** Every endpoint under
+[`/who/me`](account.md) acts on the caller's own data only: an id that is not theirs answers `404`,
+the same as an unknown one. Removing a passkey, an email address or a linked account needs a
+recent browser sign-in, and is refused (`409`) when it would leave the identity no way to sign in;
+the count and the removal hold the identity's row lock, so two removals at once cannot both pass.
+A request an API key signed in can never list, make or revoke keys, and a key's secret is shown
+once, in the answer that made it.
+
+**Admin endpoints need explicit permissions.** [`who-admin`](admin.md) answers only a caller
+holding `who.identities.read` or `who.identities.manage`, which who grants to no one. A browser
+session that changes an identity must have signed in recently, a caller may grant only roles
+within its own permissions, and an admin cannot deactivate themselves.
+
 **Sessions are hardened for single-page apps.** `WhoWebSecurity.passwordless()`:
 
 - turns on CSRF protection (`csrf.spa()`) and refuses to start on a chain without it, or on a
@@ -86,8 +99,10 @@ Each browser sign-in has a record in `who_session`, checked on every request, so
 
 A stolen session cookie, or a stolen token, is a sign-in someone else holds. Actions whose effect
 outlives the session, such as making an API key, changing where mail goes or deleting an account,
-should ask for a sign-in made in the last few minutes. who asks it of its own (adding a passkey,
-a provider account or an email address), and `@RequiresRecentSignIn` asks it of yours:
+should ask for a sign-in made in the last few minutes. who asks it of its own (adding or removing
+a passkey, a provider account or an email address, ending another session, making or rotating an
+API key from a browser, and changing identities through the admin endpoints), and
+`@RequiresRecentSignIn` asks it of yours:
 
 ```java
 @PostMapping("/keys")

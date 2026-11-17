@@ -274,14 +274,16 @@ Call `register` only with an address you vouch for, for example one you are send
 
 A signed-in person can add an address to their identity, or make an address theirs in place of one they have, by confirming a link or code sent to it. Until they confirm, nothing changes: an address is never attached without proof that the person reads its mailbox. Otherwise anyone could claim another person's address, which would then be taken, or get someone to sign in to an identity that is not theirs.
 
-Both endpoints need a browser session for the signed-in identity, signed in within `who.security.recent-sign-in` (10 minutes by default), and a CSRF token like every POST. Signed out is `401` (`NotSignedInException`); an older sign-in is `401` (`ReauthenticationRequiredException`): sign the person in again and retry.
+Both endpoints need a browser session for the signed-in identity, signed in within `who.security.recent-sign-in` (10 minutes by default), and a CSRF token like every POST. Signed out is `401` (`NotSignedInException`); an older sign-in is `401` (`ReauthenticationRequiredException`): sign the person in again and retry. An API key or a bearer token, even beside the session cookie, is `403`.
+
+The [TypeScript client](client.md#your-account) has these calls under `who.me.emailAddresses`: `list`, `add`, `confirm`, `confirmFromLocation` and `remove`.
 
 Ask for an address:
 
 ```js
-await post('/who/email/addresses', { address: 'new@example.com' });            // 202
-await post('/who/email/addresses', { address: 'new@example.com',
-                                     replaces: '<email credential id>' });      // 202, a change
+await post('/who/me/email-addresses', { address: 'new@example.com' });          // 202
+await post('/who/me/email-addresses', { address: 'new@example.com',
+                                        replaces: '<email credential id>' });   // 202, a change
 ```
 
 The answer is `202` whatever becomes of the request, and the rest runs on the email thread, as sign-in does, so the endpoint does not tell whether an address is taken. who sends the address a link and a code unless:
@@ -290,26 +292,26 @@ The answer is `202` whatever becomes of the request, and the rest runs on the em
 - the address is registered already, to anyone, the caller included;
 - the identity asked within `who.email-link.resend-interval`, for any address, or anyone asked for this address within it.
 
-A new request replaces the identity's earlier one. Each is published as `EmailAddressConfirmationRequested` with its outcome. `replaces` must be one of the caller's own email credentials, or the answer is `404` (`EmailCredentialNotFoundException`).
+A new request replaces the identity's earlier one. Each is published as `EmailAddressConfirmationRequested` with its outcome. `replaces` must be the id of one of the caller's own addresses, as `GET /who/me/email-addresses` lists them, or the answer is `404` (`EmailCredentialNotFoundException`).
 
 The link is `who.email-link.address-confirmation-url` (default `link-base-url`) followed by `#confirm-address=` and the token. The page reads the token from the fragment and posts it, while signed in:
 
 ```js
-await post('/who/email/addresses/confirm', { token });                          // { "credentialId": "..." }
-await post('/who/email/addresses/confirm', { code: 'K7F-2QM' });                 // or the typed code
+await post('/who/me/email-addresses/confirmations', { token });                // { "credentialId": "..." }
+await post('/who/me/email-addresses/confirmations', { code: 'K7F-2QM' });       // or the typed code
 ```
 
 Only the identity that asked can confirm: the same token or code does nothing for anyone else signed in. A code counts against `who.email-link.code-max-attempts`, as at sign-in. A link or code works once and lasts `who.email-link.token-ttl`. No match is `400` (`InvalidEmailAddressConfirmationException`), and an address someone registered in the meantime is `409` (`EmailAddressTakenException`).
 
 On confirmation who adds the address and publishes `CredentialAdded`. For a change, it adds the new address and revokes the old one in one transaction (`CredentialAdded`, then `CredentialRevoked`), and then emails the old address that it was replaced, showing the new one masked (`n***@example.com`). The old address is the one most likely to still belong to the real owner if someone else had their session, so it always hears about it. A failure to send that notice is logged and does not undo the change. Revoking the old address ends every session signed in with it, as any revoked credential does, including the one that made the change if it signed in with that address: the person signs in again with the new one.
 
-To remove an address without replacing it, call `EmailCredentialService.revoke` from your own endpoint, after checking that the identity keeps another way to sign in.
+To remove an address without replacing it, the person calls `DELETE /who/me/email-addresses/{id}` (see [Your Account](account.md#email-addresses)): a browser session signed in recently, `204`, or `409` (`last-credential`) when it is their last way to sign in. From your own code, `EmailCredentialService.revoke` checks neither ownership nor that rule; run it through `LastCredentialGuard` (see [the last-credential rule](account.md#the-last-credential-rule)).
 
 `EmailAddressChanges` is the bean behind the endpoints, if you want the same flow under your own URLs.
 
 ## Sending a link from your own code
 
-`POST /who/email/send` answers `202` at once and does the work in the background. To send a link yourself, for example in an invitation, call `EmailLinkIssuer.issue(address, tokenValue)`. The `EmailLinkIssuer` is a bean. `tokenValue` is a random, URL-safe value that you generate. Who generates the code itself.
+`POST /who/email/send` answers `202` at once and does the work in the background. To invite someone, use [`InvitationService`](admin.md#invitationservice), which creates the identity and sends the link in the right order. To send a link yourself, call `EmailLinkIssuer.issue(address, tokenValue)`. The `EmailLinkIssuer` is a bean. `tokenValue` is a random, URL-safe value that you generate. Who generates the code itself.
 
 `issue` returns an `EmailLinkOutcome`:
 

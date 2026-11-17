@@ -1,6 +1,6 @@
 # Passkeys
 
-Who supports sign-in with passkeys, in the `who-passkey` module (`org.jwcarman.who.passkey`). It is built on Spring Security's WebAuthn support, with Spring's filters moved under `who.base-path` (default `/who`): `POST /who/passkey/register/options`, `POST /who/passkey/register`, `DELETE /who/passkey/register/{id}`, `POST /who/passkey/sign-in/options` and `POST /who/passkey/sign-in`. Who supplies the hooks Spring leaves fixed, and stores passkeys in its own tables.
+Who supports sign-in with passkeys, in the `who-passkey` module (`org.jwcarman.who.passkey`). It is built on Spring Security's WebAuthn support, with Spring's filters moved under `who.base-path` (default `/who`): `POST /who/passkey/sign-in/options` and `POST /who/passkey/sign-in` to sign in, and `POST /who/me/passkeys/options` and `POST /who/me/passkeys` to register one. Who adds `GET /who/me/passkeys` and `DELETE /who/me/passkeys/{credentialId}` for a person's own list, supplies the hooks Spring leaves fixed, and stores passkeys in its own tables.
 
 A passkey is the only factor. Who requires user verification (a PIN, a fingerprint or a face scan) and a discoverable (resident) credential, so the user does not type a name.
 
@@ -82,11 +82,11 @@ SecurityFilterChain browserChain(HttpSecurity http) throws Exception {
 
 `passwordless()` adds Spring Security's passkey filters to the chain itself, at who's paths, without Spring's `webAuthn()` (which fixes the paths) and without a registration page. Do not also call `webAuthn()` on the chain. It also makes the session id change at sign-in and rotates the CSRF token, which Spring's WebAuthn filter does not do by default. Everything `passwordless()` does for email links applies here too (see [Email Links](email-links.md#wire-the-chain)).
 
-The three registration endpoints need a signed-in caller, but `anyRequest().authenticated()` protects only two of them. Spring runs the filter for `POST /who/passkey/register/options` before the authorization filter, so your rules never see it. Who's `PasskeyRegistrationGuardFilter` covers it, and `POST /who/passkey/register`, with a `401` for a caller who is signed out (`NotSignedInException`) or signed in too long ago (`ReauthenticationRequiredException`); your application formats both (see [Errors](errors.md)). Each endpoint is protected like this:
+The endpoints under `/who/me/passkeys` need a signed-in browser session, but `anyRequest().authenticated()` does not protect all of them. Spring runs the filter for `POST /who/me/passkeys/options` before the authorization filter, so your rules never see it. Who's `PasskeyRegistrationGuardFilter` covers it, and `POST /who/me/passkeys`, with a `401` for a caller who is signed out (`NotSignedInException`) or signed in too long ago (`ReauthenticationRequiredException`), and a `403` for an API key or bearer token on the request, even beside a session cookie; your application formats them (see [Errors](errors.md)). Each endpoint is protected like this:
 
-- `POST /who/passkey/register/options`: by who's guard only. Your `authorizeHttpRequests` rules do not apply.
-- `POST /who/passkey/register`: by your rules (leave it behind `authenticated()`) and by who's guard.
-- `DELETE /who/passkey/register/{id}`: by your rules and by Spring's own owner check, which refuses a passkey that belongs to someone else with `403`. Who's guard does not cover it, so a signed-out caller gets the answer your rules give. Behind `authenticated()` that is `401`.
+- `POST /who/me/passkeys/options`: by who's guard only. Your `authorizeHttpRequests` rules do not apply.
+- `POST /who/me/passkeys`: by your rules (leave it behind `authenticated()`) and by who's guard.
+- `GET /who/me/passkeys` and `DELETE /who/me/passkeys/{credentialId}`: by who's own filter, which runs before your rules and answers a signed-out caller with `401` itself. Spring's own delete endpoint is turned off.
 
 Do not put these paths under `permitAll()`.
 
@@ -94,7 +94,7 @@ If your app defines its own `PublicKeyCredentialUserEntityRepository` or `UserCr
 
 ## The browser flow
 
-The [TypeScript client](client.md#passkeys) does all of this, the encoding included: `who.passkeys.register`, `who.passkeys.signIn` and `who.passkeys.remove`.
+The [TypeScript client](client.md#passkeys) does all of this, the encoding included: `who.passkeys.signIn`, and `who.me.passkeys.register`, `who.me.passkeys.list` and `who.me.passkeys.remove`.
 
 All requests are JSON. Every POST needs the CSRF token in the `X-XSRF-TOKEN` header, as described in [Email Links](email-links.md#the-sign-in-flow). The examples use the same `post` helper:
 
@@ -132,7 +132,7 @@ Passkeys cannot be an app's only way in. Registering needs a recent who session,
 
 ```javascript
 async function registerPasskey(label) {
-  const optionsRes = await post('/who/passkey/register/options');
+  const optionsRes = await post('/who/me/passkeys/options');
   if (!optionsRes.ok) throw new Error('options ' + optionsRes.status);
   const options = await optionsRes.json();
 
@@ -143,7 +143,7 @@ async function registerPasskey(label) {
 
   const credential = await navigator.credentials.create({ publicKey: options });
 
-  const res = await post('/who/passkey/register', {
+  const res = await post('/who/me/passkeys', {
     publicKey: {
       credential: {
         id: credential.id,
@@ -173,8 +173,9 @@ The answers. An error's body is whatever your application writes for its excepti
 | `200` | `{"success":true}` | The passkey is registered. |
 | `401` | yours | `NotSignedInException`: the caller is signed out. |
 | `401` | yours | `ReauthenticationRequiredException`: the sign-in is older than `who.security.recent-sign-in`. Send the user through an email link again, then retry. |
+| `403` | yours | An API key or a bearer token on the request: only a browser session registers a passkey. |
 | `400` | yours | `InvalidPasskeyRegistrationException`: the response failed verification: a wrong origin or challenge, or a device that did not verify the user. Also when the options in the session were requested by a different identity than the one signed in now (someone else signed in on the same browser before the registration finished). |
-| `400` | empty | Spring's own answer to a malformed registration body, or to a request with no options in the session (post to `/who/passkey/register/options` first). |
+| `400` | empty | Spring's own answer to a malformed registration body, or to a request with no options in the session (post to `/who/me/passkeys/options` first). |
 
 ### Sign in with a passkey
 
@@ -224,25 +225,28 @@ const csrf = decodeURIComponent(xsrf()); // read it again, not before sign-in
 
 ## Listing and revoking passkeys
 
-Inject `PasskeyService`:
+A person lists and removes their own passkeys through who's endpoints, on every browser chain:
+
+| Request | Answer |
+|---|---|
+| `GET /who/me/passkeys` | `200`, `[{credentialId, label, created, lastUsed}]`, oldest first |
+| `DELETE /who/me/passkeys/{credentialId}` | `204`. The passkey is deleted, with who's identity link, so it cannot sign in again |
+
+Both are for a browser session only (`403` otherwise), and removing needs a recent sign-in (`401`
+`ReauthenticationRequiredException`). A passkey that is someone else's, or does not exist, is `404`.
+Removing the identity's last way to sign in is `409` (`last-credential`). Removing the passkey a
+session signed in with ends that session. See [Your Account](account.md) for the full rules.
+
+From your own code, inject `PasskeyService`:
 
 ```java
 List<PasskeySummary> passkeys = passkeyService.list(identityId);
 passkeyService.revoke(passkeys.get(0).id());
 ```
 
-`list` returns the identity's passkeys, oldest first, as `PasskeySummary(id, credentialId, label, created, lastUsed)`. `id` is who's credential UUID, which `revoke` takes. `credentialId` is the WebAuthn credential id in base64url, which Spring's `DELETE /who/passkey/register/{id}` takes. `revoke(UUID)` deletes the credential record and unlinks it from the identity. It does nothing if no passkey has that id.
+`list` returns the identity's passkeys, oldest first, as `PasskeySummary(id, credentialId, label, created, lastUsed)`. `id` is who's credential UUID, which `revoke` takes. `credentialId` is the WebAuthn credential id in base64url, which `DELETE /who/me/passkeys/{credentialId}` takes. `revoke(UUID)` deletes the credential record and unlinks it from the identity. It does nothing if no passkey has that id. `ownerOf(credentialId)` answers the identity a credential id belongs to.
 
-`PasskeyService.revoke` has no ownership check. It is an application or admin API, so check in your own code that the passkey belongs to the caller before you call it.
-
-Spring's `DELETE /who/passkey/register/{id}` is the endpoint for users removing their own passkeys. The `{id}` is `PasskeySummary.credentialId()` (base64url), not the UUID. It needs the CSRF header like every POST. It checks ownership itself:
-
-| Status | Meaning |
-|--------|---------|
-| `204` | The passkey is deleted, with who's identity link, so it cannot sign in again. |
-| `403` | The passkey belongs to another identity, or no passkey has that id. |
-
-An app that wants a passkey page lists `PasskeyService.list` for the signed-in identity in its own endpoint and sends each `credentialId` to `DELETE /who/passkey/register/{id}`.
+`PasskeyService.revoke` checks neither ownership nor the [last-credential rule](account.md#the-last-credential-rule). It is an application or admin API: check in your own code that the passkey belongs to the caller, and remove it through `LastCredentialGuard` when the person must keep a way in.
 
 ## The name on the passkey picker
 
@@ -254,7 +258,7 @@ The browser shows a name next to each passkey. Who does not assume an identity h
 
 Without `who-email-link` the name is always the identity id.
 
-Who picks the name again each time registration starts (`POST /who/passkey/register/options`) and updates its own record, so an identity that gains or changes an address gets the new name on its next passkey. The browser stores the name on the user's device when the passkey is created, and devices keep the old name for passkeys they already hold, until browsers support updating it. Sign-in is not affected, because it maps by user handle. The user handle is 64 random bytes. It is not derived from the identity or the address.
+Who picks the name again each time registration starts (`POST /who/me/passkeys/options`) and updates its own record, so an identity that gains or changes an address gets the new name on its next passkey. The browser stores the name on the user's device when the passkey is created, and devices keep the old name for passkeys they already hold, until browsers support updating it. Sign-in is not affected, because it maps by user handle. The user handle is 64 random bytes. It is not derived from the identity or the address.
 
 The address lands in the user's synced credential manager (for example iCloud Keychain or a password manager). That is the user's own device, and a trade-off to accept.
 
@@ -295,7 +299,7 @@ It runs only after a successful registration. An exception it throws is logged a
 
 ## Trust and recovery
 
-Registering a passkey needs a recent sign-in, so the first factor (usually the mailbox) stays the root of trust. A lost device does not lock a user out if the mailbox still works. To remove a lost passkey, the user calls `DELETE /who/passkey/register/{id}`, or an administrator calls `PasskeyService.revoke`.
+Registering a passkey needs a recent sign-in, so the first factor (usually the mailbox) stays the root of trust. A lost device does not lock a user out if the mailbox still works. To remove a lost passkey, the user calls `DELETE /who/me/passkeys/{credentialId}` from another signed-in browser, or an administrator calls `PasskeyService.revoke`.
 
 ## Database
 

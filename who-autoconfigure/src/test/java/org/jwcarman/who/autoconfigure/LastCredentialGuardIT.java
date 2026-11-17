@@ -56,6 +56,8 @@ import org.springframework.test.context.DynamicPropertySource;
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.enabled=false",
       "who.jwt.enabled=false",
+      "who.oidc.enabled=false",
+      "who.turnstile.enabled=false",
       "spring.session.jdbc.initialize-schema=always"
     })
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)

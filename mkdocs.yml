@@ -104,9 +104,11 @@ plugins:
           - guides/jwt.md: accepting JWTs from an authorization server
           - guides/enrollment.md: linking a JWT or provider credential to an identity with enrollment tokens
           - guides/sessions.md: listing and ending sessions, sign-out, the last-sign-in cookie, purging old session records
+          - guides/account.md: the caller's own account under /who/me (passkeys, email addresses, linked accounts, API keys), GET /who/sign-in, who may call each endpoint, the last-credential rule
           - guides/client.md: the @jwcarman/who-client TypeScript client for browser pages
         Permissions and security:
           - guides/rbac.md: roles, permissions, @RequiresPermission
+          - guides/admin.md: who-admin's endpoints for identities, roles and invitations, their permissions, InvitationService
           - guides/security-model.md: what each check protects against, recent sign-in and @RequiresRecentSignIn
           - guides/errors.md: who's exceptions, the Who-Error codes, answering them in the app's format
         Operating:
@@ -133,12 +135,14 @@ nav:
       - Passkeys: guides/passkeys.md
       - Social Login: guides/social-login.md
       - Sessions: guides/sessions.md
+      - Your Account: guides/account.md
       - TypeScript Client: guides/client.md
       - Events: guides/events.md
       - Observability: guides/observability.md
       - Native Images: guides/native.md
       - Enrollment: guides/enrollment.md
       - RBAC and Method Security: guides/rbac.md
+      - Admin: guides/admin.md
       - Errors: guides/errors.md
       - Security Model: guides/security-model.md
       - Testing: guides/testing.md

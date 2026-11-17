@@ -64,7 +64,7 @@ Before changing anything, find out what is already there:
 2. Pick modules from what the user wants. Adding a module's jar turns it on; a property turns it
    off without removing the jar (`who.email-link.enabled`, `who.passkey.enabled`,
    `who.api-key.enabled`, `who.jwt.enabled`, `who.oidc.enabled`, `who.turnstile.enabled`,
-   `who.enrollment.enabled`; the names do not always match the artifact's, so take them from
+   `who.enrollment.enabled`, `who.admin.enabled`; the names do not always match the artifact's, so take them from
    `references/configuration.md`).
 
    | The user wants | Module | Read |
@@ -76,6 +76,8 @@ Before changing anything, find out what is already there:
    | Calls carrying JWTs from an authorization server | `who-jwt`, usually with `who-enrollment` | `references/jwt.md`, `references/enrollment.md` |
    | A bot check on the email endpoints | `who-turnstile` | `references/email-links.md` (Human check) |
    | Roles and permissions | in the starter | `references/rbac.md` |
+   | An admin screen: list identities, deactivate them, assign roles, invite by email | `who-admin` | `references/admin.md` |
+   | A profile page: the person's passkeys, addresses, linked accounts, API keys, sessions | (each sign-in module serves its own, under `/who/me`) | `references/account.md` |
    | A browser or SPA client in TypeScript | `@jwcarman/who-client` (npm) | `references/client.md` |
 
    who never creates an identity for a JWT it has not seen: a token is refused until its
@@ -177,6 +179,14 @@ SecurityFilterChain web(HttpSecurity http, WhoPublicPaths publicPaths) {
   (an API key for CI, a JWT for a partner), look at every endpoint it can now call, not just the
   one the user named: an endpoint with no permission check is open to that credential too. Tell
   the user which ones, and offer to guard them, rather than deciding silently.
+- **Use who's own account and admin endpoints before writing new ones.** Everything under
+  `/who/me` (sessions, passkeys, email addresses, linked accounts, API keys) and who-admin's
+  `/who/identities`, `/who/roles` and `/who/invitations` check ownership, recent sign-in and the
+  last-credential rule. The services behind them (`PasskeyService.revoke`,
+  `EmailCredentialService.revoke`, `FederatedCredentialService.unlink`, `ApiKeyService.revoke`)
+  check none of that, so an endpoint of your own over them must. Call
+  `InvitationService.invite` outside any transaction, and attach the app's own data from an
+  `IdentityInvited` listener. See `references/account.md` and `references/admin.md`.
 - **Answer who's errors in the app's own format.** who throws exceptions (such as
   `NotSignedInException`) and hands even filter-level ones to Spring MVC's exception resolvers,
   so one `@RestControllerAdvice` covers them. Each also sets a `Who-Error` header with a stable
@@ -228,6 +238,10 @@ sections you need.
   `@RequiresRecentSignIn`.
 - `sessions.md`: listing and ending sessions, sign-out, the last-sign-in cookie, purging old
   session records.
+- `account.md`: everything under `/who/me` and `GET /who/sign-in`: who may call each endpoint,
+  the response shapes, the last-credential rule.
+- `admin.md`: who-admin's identity, role and invitation endpoints, their permissions, and
+  `InvitationService`.
 - `errors.md`: who's exceptions, the `Who-Error` codes, answering them in the app's format.
 - `client.md`: the `@jwcarman/who-client` TypeScript client for browser pages.
 - `testing.md`: testing an app built on who with `who-test`.

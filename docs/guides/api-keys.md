@@ -33,7 +33,7 @@ The filter is not registered globally. It only runs in chains that add it. To ad
 http.with(WhoApiKeySecurity.apiKey(), Customizer.withDefaults());
 ```
 
-`WhoApiKeySecurity.apiKey()` takes the `ApiKeyAuthenticationFilter` bean that `who-autoconfigure` provides. To use your own instance, call `WhoApiKeySecurity.apiKey(filter)`. The filter goes before `AuthorizationFilter` and skips requests that are already authenticated.
+`WhoApiKeySecurity.apiKey()` takes the `ApiKeyAuthenticationFilter` bean that `who-autoconfigure` provides. To use your own instance, call `WhoApiKeySecurity.apiKey(filter)`. The filter goes before `ExceptionTranslationFilter`, so who's own endpoints after it see the key's sign-in, and skips requests that are already authenticated.
 
 The filter is Spring Security's `AuthenticationFilter`, and keys sign in through an authentication manager built the way Spring builds its own: it publishes Spring's authentication success and failure events through your `AuthenticationEventPublisher` bean, if you have one, and each sign-in is observed when your application observes (for example, with Actuator).
 
@@ -120,11 +120,18 @@ gone or already expired.
 
 ## Exposing key management over HTTP
 
-`ApiKeyService` trusts its caller: your code decides who may manage which key.
+who serves key management itself, under `/who/me/api-keys`: list, make, rotate and revoke the
+caller's own keys, and `/current` for the key a request signed in with. A browser session or a
+bearer token may use them; a request an API key signed in may not. See
+[Your Account](account.md#api-keys), and the [TypeScript client](client.md#your-account)'s
+`who.me.apiKeys`.
+
+For endpoints of your own, `ApiKeyService` trusts its caller: your code decides who may manage
+which key.
 
 - `rotate` and `revoke` take only a key id. Before you call them with an id from a request,
-  check that it is one of the caller's keys, for example that it is in
-  `findByIdentity(caller.identity().id())`, and answer `404` otherwise. Without that check, one
+  check that it is one of the caller's keys with `findOwnedBy(caller.identity().id(), keyId)`,
+  and answer `404` when it is empty. Without that check, one
   person can rotate or revoke another's key.
 - `create` checks the scopes against the owner's permissions, not against how the request
   signed in. A request signed in with a key scoped to `report.read` could otherwise make a new key

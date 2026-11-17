@@ -88,15 +88,15 @@ The attributes are stored with Java serialization. `WhoSession` and the types it
 
 ## See and end sessions
 
-The [TypeScript client](client.md#sessions) has these calls: `who.sessions.list`, `who.sessions.end` and `who.sessions.endOthers`.
+The [TypeScript client](client.md#sessions) has these calls: `who.me.sessions.list`, `who.me.sessions.end` and `who.me.sessions.endOthers`.
 
-A signed-in person can see every browser they are signed in on and sign any of them out, for instance after losing a phone or signing in on a shared computer. who adds the endpoints to every browser chain:
+A signed-in person can see every browser they are signed in on and sign any of them out, for instance after losing a phone or signing in on a shared computer. who adds the endpoints to every browser chain, beside the caller's [other account endpoints](account.md):
 
 | Request | Answer |
 |---------|--------|
-| `GET /who/sessions` | `200`, the caller's live sessions, newest sign-in first |
-| `DELETE /who/sessions/{id}` | `204`. The caller's own session signs out at once; any other needs a [recent sign-in](security-model.md#recent-sign-in) |
-| `DELETE /who/sessions?others=true` | `200` `{"ended": 2}`: every session but the caller's. Needs a recent sign-in |
+| `GET /who/me/sessions` | `200`, the caller's live sessions, newest sign-in first |
+| `DELETE /who/me/sessions/{id}` | `204`. The caller's own session signs out at once; any other needs a [recent sign-in](security-model.md#recent-sign-in) |
+| `DELETE /who/me/sessions?others=true` | `200` `{"ended": 2}`: every session but the caller's. Needs a recent sign-in |
 
 Each session in the list looks like this:
 
@@ -116,22 +116,22 @@ The `id` is who's own, not the session cookie, so showing it exposes nothing tha
 
 `userAgent`, and `device` read from it, are whatever the browser sent at sign-in, so treat them as untrusted text: render them as text (`textContent`, or your framework's default escaping), never as HTML.
 
-Signing out the current browser through `DELETE /who/sessions/{id}` runs the chain's logout handlers, the same as `POST /who/logout`: who's, any you added, CSRF's, clearing the `XSRF-TOKEN` cookie, and Spring Security's `LogoutSuccessEvent`. It answers `204` rather than running the logout success handler.
+Signing out the current browser through `DELETE /who/me/sessions/{id}` runs the chain's logout handlers, the same as `POST /who/logout`: who's, any you added, CSRF's, clearing the `XSRF-TOKEN` cookie, and Spring Security's `LogoutSuccessEvent`. It answers `204` rather than running the logout success handler.
 
 Answers, through your exception handling like who's other endpoints:
 
 - `401` when signed out, or when ending another session with a sign-in older than `who.security.recent-sign-in`. Sign in again and retry.
-- `403` for a caller who is signed in, but not by this browser's session: an API key or a bearer token sent on a chain that also accepts browser sessions, even with a session cookie beside it. A chain that accepts only keys or tokens has no session endpoints: there `/who/sessions` is answered like any other path of yours.
+- `403` for a caller who is signed in, but not by this browser's session: an API key or a bearer token sent on a chain that also accepts browser sessions, even with a session cookie beside it. A chain that accepts only keys or tokens has no session endpoints: there `/who/me/sessions` is answered like any other path of yours.
 - `404` for an id that is not one of the caller's live sessions, whether it is someone else's, unknown or malformed.
-- `400` for `DELETE /who/sessions` without `others=true`, so a stray request cannot end everything.
+- `400` for `DELETE /who/me/sessions` without `others=true`, so a stray request cannot end everything.
 
 Every example app shows the list on its profile or keys page. In JavaScript:
 
 ```js
-const sessions = await (await fetch('/who/sessions')).json();
+const sessions = await (await fetch('/who/me/sessions')).json();
 
 // X-XSRF-TOKEN as for any other change; see Email Links
-await fetch('/who/sessions/' + id, { method: 'DELETE', headers: { 'X-XSRF-TOKEN': xsrf() } });
+await fetch('/who/me/sessions/' + id, { method: 'DELETE', headers: { 'X-XSRF-TOKEN': xsrf() } });
 ```
 
 ### From your own code

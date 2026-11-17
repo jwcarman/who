@@ -192,7 +192,7 @@ Startup fails, naming the property to fix, when:
 
 ## The sign-in page
 
-The [TypeScript client](client.md#provider-sign-in) has these calls: `who.oidc.authorizeUrl`, `who.oidc.pending`, `who.oidc.signUp`, `who.oidc.link` and `who.oidc.startLink`.
+The [TypeScript client](client.md#provider-sign-in) has these calls: `who.oidc.authorizeUrl`, `who.oidc.pending`, `who.oidc.signUp` and `who.oidc.link`, and `who.me.accounts.list`, `who.me.accounts.link` and `who.me.accounts.unlink` for a signed-in person's accounts. `GET /who/sign-in` lists the providers to draw buttons for (see [Your Account](account.md#what-a-sign-in-page-can-offer)).
 
 Each provider's button is a plain link:
 
@@ -218,7 +218,7 @@ get a `401`. Startup logs a warning when the failure URL is not public. The reas
 asked for lands elsewhere: see [Link an account](#link-an-account-to-someone-signed-in).
 
 who opens `/who/oidc/authorize/**`, `/who/oidc/callback/**`, `GET /who/oidc/pending` and
-`POST /who/oidc/sign-up` to signed-out requests. The sign-in is a session sign-in, like an email
+`POST /who/oidc/pending/sign-up` to signed-out requests. The sign-in is a session sign-in, like an email
 link: the session id changes, the CSRF token rotates, and the `who_last_sign_in` cookie records the
 registration id (see [Sessions](sessions.md)).
 
@@ -242,7 +242,7 @@ if (params.get('pending') === 'sign-up') {
 }
 
 async function confirmSignUp() {
-  const response = await post('/who/oidc/sign-up');   // the CSRF helper from the Passkeys guide
+  const response = await post('/who/oidc/pending/sign-up');   // the CSRF helper from the Passkeys guide
   if (response.ok) {
     location.assign('/');            // signed in; the body is { "identityId": "..." }
   } else if (response.status === 403) {
@@ -252,14 +252,14 @@ async function confirmSignUp() {
 ```
 
 `displayName` is the account's `email` or `preferred_username` for OpenID Connect and the `login`
-for GitHub, so the person sees which account they are about to use. `POST /who/oidc/sign-up` (CSRF
+for GitHub, so the person sees which account they are about to use. `POST /who/oidc/pending/sign-up` (CSRF
 protected, like every POST) asks your [policy](#open-sign-up). `Allow` creates the identity, links
 the account and signs in, in one transaction. `Refuse` answers `403` with `SignUpRefusedException`.
 No pending sign-up, or an expired one, is `404` with `PendingSignUpNotFoundException`. A browser
 that is signed in cannot sign up (`403`). Answers go through your exception handling (see
 [Errors](errors.md)).
 
-Let the person confirm: show the `displayName` and call `POST /who/oidc/sign-up` only when they
+Let the person confirm: show the `displayName` and call `POST /who/oidc/pending/sign-up` only when they
 click. Do not call it as soon as the page sees `pending=sign-up`. The confirmation is the one place
 the person sees which provider account they are about to sign up with. If an attacker has signed
 their browser in to the attacker's own account at the provider (login CSRF), a page that confirms
@@ -270,7 +270,7 @@ If two requests confirm the same account at once, one identity is created and bo
 
 ### Link an account to someone signed in
 
-Linking starts only when the person asks for it, with `POST /who/oidc/link/{registrationId}`, so
+Linking starts only when the person asks for it, with `POST /who/me/accounts/{registrationId}`, so
 the chain's CSRF protection applies and only your own pages can start a link.
 
 A server-rendered page posts a form, and lets its template engine add the CSRF field. The field
@@ -278,7 +278,7 @@ must hold the masked token the template engine renders, not the `XSRF-TOKEN` coo
 `csrf.spa()` accepts only in the `X-XSRF-TOKEN` header:
 
 ```html
-<form method="post" action="/who/oidc/link/github">
+<form method="post" action="/who/me/accounts/github">
   <input type="hidden" name="_csrf" th:value="${_csrf.token}">
   <button>Link your GitHub account</button>
 </form>
@@ -289,7 +289,7 @@ A single-page app posts with `fetch`, the header, and `Accept: application/json`
 site, and the page goes there itself:
 
 ```js
-const response = await fetch('/who/oidc/link/github', {
+const response = await fetch('/who/me/accounts/github', {
   method: 'POST',
   credentials: 'same-origin',
   headers: { 'Accept': 'application/json', 'X-XSRF-TOKEN': decodeURIComponent(xsrf()) }  // xsrf() as in Email Links
@@ -302,8 +302,8 @@ if (response.ok) {
 Otherwise who answers with a redirect to the provider. The request it sends there remembers, on the server
 and for that one round trip only, that it is a link and which identity asked. Nothing in the URL
 says so, so no other site can turn a sign-in into a link. Signed out is `401`
-(`NotSignedInException`), and so is a caller signed in without a browser session (an API key or a
-bearer token), since the callback has no session to finish the link in. A registration who does
+(`NotSignedInException`). A request with an API key or a bearer token, even beside a session
+cookie, is `403`, since the callback needs a browser session to finish the link in. A registration who does
 not sign in with is `404` (`UnknownProviderException`). So is a session that signed in longer
 ago than `who.security.recent-sign-in` (`401`, `ReauthenticationRequiredException`), before the
 trip to the provider. A link lasts that long too: a provider that answers later is refused.
@@ -327,10 +327,10 @@ which `canLink` is `true`: read it from `GET /who/oidc/pending`, show which acco
 confirmation:
 
 ```js
-const response = await post('/who/oidc/link');   // { "credentialId": "..." }
+const response = await post('/who/oidc/pending/link');   // { "credentialId": "..." }
 ```
 
-`POST /who/oidc/link` links the account and publishes `CredentialAdded`. It needs the person to
+`POST /who/oidc/pending/link` links the account and publishes `CredentialAdded`. It needs the person to
 have signed in within `who.security.recent-sign-in` (default 10 minutes), or it answers `401` with
 `ReauthenticationRequiredException`; sign them in again and retry. An account already linked to
 another identity is `409` with `AlreadyLinkedException`. Signed out is `401`; no pending sign-up
@@ -354,9 +354,19 @@ account who does not know that way lands on `error=signed-in`, and nothing is ke
 account, sign out first. One that is already linked to someone else redirects with
 `error=already-linked` and changes nothing.
 
-To remove a provider account from an identity, call `FederatedCredentialService.unlink` with the
-credential's id from your own endpoint, after checking that the credential belongs to the caller
-(it checks no ownership); it publishes `CredentialRevoked`.
+### List and unlink accounts
+
+`GET /who/me/accounts` lists the signed-in person's linked accounts, `[{id, provider, linkedAt}]`,
+oldest first, and `DELETE /who/me/accounts/{id}` unlinks one, publishing `CredentialRevoked`.
+Unlinking is for a browser session signed in recently; another identity's account is `404`
+(`LinkedAccountNotFoundException`), and the person's last way to sign in is `409`
+(`last-credential`). Unlinking the account a session signed in with ends that session. See
+[Your Account](account.md#linked-accounts).
+
+From your own code, `FederatedCredentialService.unlink` takes the credential's id and checks
+neither that it belongs to the caller nor that the identity keeps a way in;
+`FederatedCredentialService.isOwnedBy` and `LastCredentialGuard` do (see
+[the last-credential rule](account.md#the-last-credential-rule)).
 
 ## Open sign-up
 
