@@ -18,6 +18,7 @@ package org.jwcarman.who.passkey;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -57,5 +58,16 @@ public class PasskeyService {
    */
   public List<PasskeySummary> list(UUID identityId) {
     return credentialRepository.findSummariesByIdentityId(identityId);
+  }
+
+  /**
+   * Finds the identity that owns a passkey.
+   *
+   * @param credentialId the passkey's WebAuthn credential id, as {@link
+   *     PasskeySummary#credentialId()} gives it
+   * @return the owning identity's id, or empty if no passkey has the credential id
+   */
+  public Optional<UUID> ownerOf(String credentialId) {
+    return credentialRepository.findIdentityIdByCredentialId(credentialId);
   }
 }

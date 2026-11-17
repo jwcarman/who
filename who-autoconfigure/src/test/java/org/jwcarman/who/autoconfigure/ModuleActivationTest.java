@@ -49,8 +49,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * A module's jar turns it on; {@code who.<module>.enabled=false} is the only way to turn it off.
@@ -423,6 +425,12 @@ class ModuleActivationTest {
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
+    }
+
+    /** What the last-credential guard, which passkeys require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
     }
   }
 

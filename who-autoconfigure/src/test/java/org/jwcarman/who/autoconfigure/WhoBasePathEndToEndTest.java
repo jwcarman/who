@@ -242,6 +242,8 @@ class WhoBasePathEndToEndTest {
           POST   | /auth/me/email-addresses         | true  | {"email":"new@example.com"} | 202
           POST   | /auth/me/passkeys/options | true |                             | 200
           POST   | /auth/me/passkeys        | true  | {}                          | 400
+          GET    | /auth/me/passkeys        | true  |                             | 200
+          DELETE | /auth/me/passkeys/AAAA   | true  |                             | 404
           POST   | /auth/me/email-addresses/confirmations | true  | {"token":"nope"}            | 400
           POST   | /auth/me/accounts/stub          | true  |                             | 302
           POST   | /auth/logout                  | true  |                             | 204
@@ -274,6 +276,8 @@ class WhoBasePathEndToEndTest {
           DELETE | /webauthn/register/AAAA     |
           GET  | /who/me                       |
           GET  | /who/me/sessions                 |
+          GET  | /who/me/passkeys                |
+          DELETE | /who/me/passkeys/AAAA         |
           POST | /who/me/email-addresses          | {"email":"bob@example.com"}
           GET  | /who/oidc/pending             |
           GET  | /who/me/accounts/stub           |

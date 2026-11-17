@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -85,6 +86,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.context.WebApplicationContext;
 
 import io.micrometer.observation.Observation;
@@ -245,7 +247,10 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
         WhoService whoService,
         WhoSessionSecurityContextRepository sessionRepository,
         JsonMapper jsonMapper,
-        Clock clock) {
+        Clock clock,
+        IdentityRepository identityRepository,
+        JdbcClient jdbcClient,
+        PlatformTransactionManager transactionManager) {
       return new PasskeyLoginMethod(
           WhoPaths.defaults(),
           userRepository,
@@ -255,7 +260,10 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
           sessionRepository,
           jsonMapper,
           clock,
-          WINDOW);
+          WINDOW,
+          new PasskeyService(credentialRepository),
+          LastCredentialGuards.withAnotherCredential(
+              identityRepository, jdbcClient, transactionManager));
     }
 
     @Bean
@@ -409,5 +417,33 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
 
     assertThat(FAILURES).hasSize(1);
     assertThat(SUCCESSES).isEmpty();
+  }
+
+  @Test
+  void the_owner_can_delete_their_passkey_although_the_app_has_its_own_webauthn_repositories()
+      throws Exception {
+    assertThat(signIn().getStatus()).isEqualTo(200);
+
+    MockHttpServletResponse deleted =
+        perform(
+            delete("/who/me/passkeys/" + registered.getCredentialId().toBase64UrlString())
+                .with(csrf()));
+
+    assertThat(deleted.getStatus()).isEqualTo(204);
+    assertThat(credentialRepository.findByCredentialId(registered.getCredentialId())).isNull();
+  }
+
+  @Test
+  void the_listed_credential_id_is_the_one_delete_accepts() throws Exception {
+    assertThat(signIn().getStatus()).isEqualTo(200);
+    String listed =
+        json.readTree(perform(get("/who/me/passkeys")).getContentAsString())
+            .path(0)
+            .path("credentialId")
+            .asString();
+    assertThat(listed).isEqualTo(registered.getCredentialId().toBase64UrlString());
+
+    assertThat(perform(delete("/who/me/passkeys/" + listed).with(csrf())).getStatus())
+        .isEqualTo(204);
   }
 }

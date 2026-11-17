@@ -63,6 +63,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -73,6 +74,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -642,6 +644,12 @@ class WhoSecurityAllTest {
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
+    }
+
+    /** What the last-credential guard, which passkeys require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
     }
   }
 

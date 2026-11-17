@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
@@ -274,6 +275,9 @@ public class WhoPasskeyAutoConfiguration {
    * @param clock stamps events
    * @param settings the relying party's settings, for the registration window
    * @param whoEventPublisher publishes sign-in events
+   * @param passkeyService lists and revokes passkeys, for {@code /me/passkeys}
+   * @param lastCredentialGuard required: passkeys are never removed without the last-credential
+   *     rule, so an application without it fails to start
    * @return the login method
    */
   @Bean
@@ -288,7 +292,9 @@ public class WhoPasskeyAutoConfiguration {
       ObjectProvider<JsonMapper> jsonMapper,
       Clock clock,
       PasskeySettings settings,
-      WhoEventPublisher whoEventPublisher) {
+      WhoEventPublisher whoEventPublisher,
+      PasskeyService passkeyService,
+      LastCredentialGuard lastCredentialGuard) {
     return new PasskeyLoginMethod(
         paths,
         userRepository,
@@ -298,7 +304,9 @@ public class WhoPasskeyAutoConfiguration {
         sessionRepository,
         jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
-        settings.registrationWindow());
+        settings.registrationWindow(),
+        passkeyService,
+        lastCredentialGuard);
   }
 
   /**

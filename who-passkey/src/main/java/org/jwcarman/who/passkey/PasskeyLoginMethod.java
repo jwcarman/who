@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -57,14 +58,15 @@ import tools.jackson.databind.json.JsonMapper;
  *       Spring's default does neither) and who's JSON answers.
  *   <li>Spring's default registration page is off.
  *   <li>A {@link PasskeyRegistrationGuardFilter} supplies the registration answers Spring has no
- *       hook for.
+ *       hook for, and a {@link PasskeyCredentialsFilter} serves {@code GET /me/passkeys} and {@code
+ *       DELETE /me/passkeys/{credentialId}}, which Spring's filters do not.
  *   <li>The success handler and the guard publish through the application's {@link
  *       WhoEventPublisher} bean, if it has one: a successful sign-in publishes {@code
  *       SignInSucceeded} once its session is saved.
  * </ul>
  *
- * <p>The provider and the guard are not beans: an {@link AuthenticationProvider} bean would join
- * the app's global authentication manager, and a filter bean would be registered as a servlet
+ * <p>The provider and the two filters are not beans: an {@link AuthenticationProvider} bean would
+ * join the app's global authentication manager, and a filter bean would be registered as a servlet
  * filter.
  */
 public class PasskeyLoginMethod implements PasswordlessLoginMethod {
@@ -77,6 +79,8 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   private final JsonMapper jsonMapper;
   private final Clock clock;
   private final Duration registrationWindow;
+  private final PasskeyService passkeyService;
+  private final LastCredentialGuard lastCredentialGuard;
 
   /**
    * Creates the login method.
@@ -88,7 +92,10 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
    * @param sessionRepository stores the who session at sign-in
    * @param jsonMapper writes the sign-in success answer
    * @param clock the current time, for the registration window
-   * @param registrationWindow how long after signing in a passkey may be registered
+   * @param registrationWindow how long after signing in a passkey may be registered; also how long
+   *     after signing in one may be removed
+   * @param passkeyService lists and revokes passkeys, for {@code /me/passkeys}
+   * @param lastCredentialGuard keeps an identity's last sign-in credential from being removed
    */
   public PasskeyLoginMethod(
       WhoPaths paths,
@@ -98,7 +105,9 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
       WhoSessionSecurityContextRepository sessionRepository,
       JsonMapper jsonMapper,
       Clock clock,
-      Duration registrationWindow) {
+      Duration registrationWindow,
+      PasskeyService passkeyService,
+      LastCredentialGuard lastCredentialGuard) {
     this.paths = requireNonNull(paths, "paths must not be null");
     this.userRepository = requireNonNull(userRepository, "userRepository must not be null");
     this.credentialRepository =
@@ -111,6 +120,9 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     this.clock = requireNonNull(clock, "clock must not be null");
     this.registrationWindow =
         requireNonNull(registrationWindow, "registrationWindow must not be null");
+    this.passkeyService = requireNonNull(passkeyService, "passkeyService must not be null");
+    this.lastCredentialGuard =
+        requireNonNull(lastCredentialGuard, "lastCredentialGuard must not be null");
   }
 
   /** The endpoints a signed-out browser uses to sign in with a passkey. */
@@ -149,6 +161,17 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
     http.addFilterAfter(
         new PasskeyRegistrationGuardFilter(
             paths, sessionRepository, clock, registrationWindow, handoff, eventPublisher),
+        ExceptionTranslationFilter.class);
+    http.addFilterAfter(
+        new PasskeyCredentialsFilter(
+            paths,
+            sessionRepository,
+            passkeyService,
+            lastCredentialGuard,
+            handoff,
+            jsonMapper,
+            clock,
+            registrationWindow),
         ExceptionTranslationFilter.class);
   }
 

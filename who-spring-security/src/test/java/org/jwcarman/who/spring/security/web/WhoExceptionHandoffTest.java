@@ -23,6 +23,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.exception.LastCredentialException;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -67,6 +68,14 @@ class WhoExceptionHandoffTest {
         .handOff(request, response, new ReauthenticationRequiredException(), HttpStatus.FORBIDDEN);
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.isCommitted()).isTrue();
+    assertNoBody();
+  }
+
+  @Test
+  void the_last_credential_exception_is_a_conflict_whatever_the_fallback() throws Exception {
+    new WhoExceptionHandoff(null)
+        .handOff(request, response, new LastCredentialException(), HttpStatus.BAD_REQUEST);
+    assertThat(response.getStatus()).isEqualTo(409);
     assertNoBody();
   }
 

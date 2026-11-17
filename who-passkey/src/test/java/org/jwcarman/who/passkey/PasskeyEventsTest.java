@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.time.Clock;
@@ -80,6 +81,7 @@ import org.springframework.security.web.webauthn.management.WebAuthnRelyingParty
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.context.WebApplicationContext;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -230,7 +232,10 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
         WhoSessionSecurityContextRepository sessionRepository,
         JsonMapper jsonMapper,
         WhoEventPublisher events,
-        Clock clock) {
+        Clock clock,
+        IdentityRepository identityRepository,
+        JdbcClient jdbcClient,
+        PlatformTransactionManager transactionManager) {
       return new PasskeyLoginMethod(
           WhoPaths.defaults(),
           userRepository,
@@ -240,7 +245,10 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
           sessionRepository,
           jsonMapper,
           clock,
-          WINDOW);
+          WINDOW,
+          new PasskeyService(credentialRepository),
+          LastCredentialGuards.withAnotherCredential(
+              identityRepository, jdbcClient, transactionManager));
     }
 
     @Bean
@@ -336,6 +344,23 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
       assertThat(publishedEvents())
           .containsExactly(
               new CredentialAdded(
+                  NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
+    }
+
+    @Test
+    void deleting_through_the_me_endpoint_publishes_credential_revoked() throws Exception {
+      assertThat(signIn().getStatus()).isEqualTo(200);
+      EVENTS.clear();
+
+      MockHttpServletResponse deleted =
+          perform(
+              delete("/who/me/passkeys/" + registered.getCredentialId().toBase64UrlString())
+                  .with(csrf()));
+
+      assertThat(deleted.getStatus()).isEqualTo(204);
+      assertThat(publishedEvents())
+          .containsExactly(
+              new CredentialRevoked(
                   NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
     }
   }

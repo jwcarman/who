@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jspecify.annotations.Nullable;
+import org.jwcarman.who.core.exception.LastCredentialException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -33,8 +34,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * {@code @RestControllerAdvice} answers it like any controller exception. who's autoconfiguration
  * adapts Spring MVC's {@code handlerExceptionResolver} bean to a {@link Resolver}. who writes no
  * error body: when nothing resolves the exception, it calls {@code response.sendError} with the
- * exception's {@link ResponseStatus}, or the fallback, and lets the application's error handling
- * answer.
+ * exception's {@link ResponseStatus} ({@code 409} for a {@link LastCredentialException}), or the
+ * fallback, and lets the application's error handling answer.
  */
 public final class WhoExceptionHandoff {
 
@@ -109,6 +110,10 @@ public final class WhoExceptionHandoff {
   }
 
   private static HttpStatus statusOf(Exception exception, HttpStatus fallback) {
+    // who-core has no Spring web to annotate it with
+    if (exception instanceof LastCredentialException) {
+      return HttpStatus.CONFLICT;
+    }
     ResponseStatus status =
         AnnotatedElementUtils.findMergedAnnotation(exception.getClass(), ResponseStatus.class);
     return status == null ? fallback : status.code();

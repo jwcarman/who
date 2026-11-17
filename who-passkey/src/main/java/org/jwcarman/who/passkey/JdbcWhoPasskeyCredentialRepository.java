@@ -327,6 +327,24 @@ public class JdbcWhoPasskeyCredentialRepository implements UserCredentialReposit
         .list();
   }
 
+  /**
+   * Finds the identity that owns the passkey with a WebAuthn credential id.
+   *
+   * @param credentialId the credential id, base64url as Spring encodes it
+   * @return the owning identity, or empty if no passkey has the credential id
+   */
+  public Optional<UUID> findIdentityIdByCredentialId(String credentialId) {
+    requireNonNull(credentialId, "credentialId must not be null");
+    return jdbcClient
+        .sql(
+            "SELECT u.identity_id FROM who_passkey_credential c"
+                + " JOIN who_passkey_user u ON u.id = c.user_entity_user_id"
+                + " WHERE c.credential_id = :credential_id")
+        .param(COL_CREDENTIAL_ID, credentialId)
+        .query(UUID.class)
+        .optional();
+  }
+
   private Optional<PasskeyCredential> findPasskeyByCredentialId(String credentialId) {
     return jdbcClient
         .sql("SELECT credential_uuid, label FROM who_passkey_credential" + WHERE_CREDENTIAL_ID)
