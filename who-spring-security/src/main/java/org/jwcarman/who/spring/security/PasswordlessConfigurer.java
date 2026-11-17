@@ -163,7 +163,7 @@ public class PasswordlessConfigurer
           CsrfFilter.class);
       checkedBy = ", human check: " + check.name();
     }
-    if (!methods.isEmpty()) {
+    if (!methods.isEmpty() && log.isInfoEnabled()) {
       log.info(
           METHODS_LINE,
           String.join(", ", methods.stream().map(PasswordlessLoginMethod::name).toList()),

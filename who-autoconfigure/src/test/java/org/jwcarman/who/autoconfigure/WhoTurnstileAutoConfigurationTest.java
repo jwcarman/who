@@ -25,9 +25,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -123,26 +126,37 @@ class WhoTurnstileAutoConfigurationTest {
                         e -> assertThat(e.property()).isEqualTo("who.turnstile.timeout")));
   }
 
+  /** Holds a slow siteverify's answer until the test releases it; the tests release it first. */
+  private final CountDownLatch release = new CountDownLatch(1);
+
+  @AfterEach
+  void releaseSlowAnswers() {
+    release.countDown();
+  }
+
   /**
-   * A local siteverify that answers after {@code delay}, saying the token is good for email-send.
+   * A local siteverify that says the token is good for email-send, at once or, when {@code slow},
+   * only after the test ends (at most two seconds).
    */
-  private static HttpServer siteverify(Duration delay) throws IOException {
-    return siteverify(delay, "{\"success\":true,\"action\":\"email-send\"}");
+  private HttpServer siteverify(boolean slow) throws IOException {
+    return siteverify(slow, "{\"success\":true,\"action\":\"email-send\"}");
   }
 
   /** The Authorization header the last siteverify request carried, or null. */
   static final AtomicReference<String> AUTHORIZATION = new AtomicReference<>();
 
-  private static HttpServer siteverify(Duration delay, String answer) throws IOException {
+  private HttpServer siteverify(boolean slow, String answer) throws IOException {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
         "/siteverify",
         exchange -> {
           AUTHORIZATION.set(exchange.getRequestHeaders().getFirst("Authorization"));
-          try {
-            Thread.sleep(delay);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+          if (slow) {
+            try {
+              release.await(2, TimeUnit.SECONDS);
+            } catch (InterruptedException _) {
+              Thread.currentThread().interrupt();
+            }
           }
           byte[] body = answer.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -165,7 +179,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void the_check_asks_the_configured_verify_url() throws IOException {
-    HttpServer server = siteverify(Duration.ZERO);
+    HttpServer server = siteverify(false);
     try {
       runner
           .withPropertyValues(SECRET, verifyUrl(server))
@@ -177,7 +191,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void the_configured_timeout_bounds_the_wait() throws IOException {
-    HttpServer server = siteverify(Duration.ofSeconds(2));
+    HttpServer server = siteverify(true);
     try {
       runner
           .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
@@ -189,6 +203,7 @@ class WhoTurnstileAutoConfigurationTest {
                     .isFalse();
               });
     } finally {
+      release.countDown();
       server.stop(0);
     }
   }
@@ -231,7 +246,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void a_cloudflare_test_secret_passes_on_success_alone() throws IOException {
-    HttpServer server = siteverify(Duration.ZERO, TEST_KEY_ANSWER);
+    HttpServer server = siteverify(false, TEST_KEY_ANSWER);
     try {
       runner
           .withPropertyValues(
@@ -246,7 +261,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void a_real_secret_needs_the_action() throws IOException {
-    HttpServer server = siteverify(Duration.ZERO, TEST_KEY_ANSWER);
+    HttpServer server = siteverify(false, TEST_KEY_ANSWER);
     try {
       runner
           .withPropertyValues(SECRET, verifyUrl(server))
@@ -276,7 +291,7 @@ class WhoTurnstileAutoConfigurationTest {
   void the_applications_rest_client_builder_never_reaches_cloudflare() throws IOException {
     INTERCEPTED.set(0);
     AUTHORIZATION.set("unset");
-    HttpServer server = siteverify(Duration.ZERO);
+    HttpServer server = siteverify(false);
     try {
       runner
           .withUserConfiguration(ApplicationBuilder.class)
@@ -320,7 +335,7 @@ class WhoTurnstileAutoConfigurationTest {
   @Test
   void calls_to_cloudflare_are_observed() throws IOException {
     OBSERVED.clear();
-    HttpServer server = siteverify(Duration.ZERO);
+    HttpServer server = siteverify(false);
     try {
       runner
           .withUserConfiguration(Observed.class)
@@ -337,7 +352,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void the_timeout_holds_with_the_applications_builder() throws IOException {
-    HttpServer server = siteverify(Duration.ofSeconds(2));
+    HttpServer server = siteverify(true);
     try {
       runner
           .withUserConfiguration(ApplicationBuilder.class)
@@ -350,6 +365,7 @@ class WhoTurnstileAutoConfigurationTest {
                     .isFalse();
               });
     } finally {
+      release.countDown();
       server.stop(0);
     }
   }
@@ -501,7 +517,8 @@ class WhoTurnstileAutoConfigurationTest {
             context -> {
               assertThat(context).hasNotFailed();
               // Spring Boot builds its own factory from the same builder, with the app's 5 minutes
-              assertThat(BUILT_WITH)
+              List<HttpClientSettings> built = List.copyOf(BUILT_WITH);
+              assertThat(built)
                   .contains(
                       HttpClientSettings.defaults()
                           .withRedirects(HttpRedirects.DONT_FOLLOW)
@@ -519,7 +536,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void an_application_verifier_decides() throws IOException {
-    HttpServer server = siteverify(Duration.ZERO);
+    HttpServer server = siteverify(false);
     try {
       runner
           .withUserConfiguration(RefusingVerifier.class)
@@ -532,7 +549,7 @@ class WhoTurnstileAutoConfigurationTest {
 
   @Test
   void an_application_verifier_is_used_even_with_a_test_secret() throws IOException {
-    HttpServer server = siteverify(Duration.ZERO, TEST_KEY_ANSWER);
+    HttpServer server = siteverify(false, TEST_KEY_ANSWER);
     try {
       runner
           .withUserConfiguration(RefusingVerifier.class)

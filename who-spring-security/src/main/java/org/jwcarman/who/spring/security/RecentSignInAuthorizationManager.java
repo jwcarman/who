@@ -21,7 +21,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -158,8 +157,8 @@ public final class RecentSignInAuthorizationManager implements AuthorizationMana
     Authentication onlyTheFactor =
         UsernamePasswordAuthenticationToken.authenticated("factor", null, List.of(factor));
     // the factor check never reads the secured object, but Spring's signature takes no null
-    FactorAuthorizationDecision decision =
-        manager.authorize(() -> onlyTheFactor, Objects.requireNonNullElse(object, NO_OBJECT));
+    Object secured = object != null ? object : NO_OBJECT;
+    FactorAuthorizationDecision decision = manager.authorize(() -> onlyTheFactor, secured);
     return decision.isGranted();
   }
 

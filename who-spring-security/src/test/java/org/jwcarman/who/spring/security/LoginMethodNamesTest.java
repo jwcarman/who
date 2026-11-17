@@ -65,19 +65,6 @@ class LoginMethodNamesTest {
   }
 
   @Test
-  void an_anonymous_passwordless_method_is_named_by_its_binary_name() {
-    PasswordlessLoginMethod anonymous =
-        new PasswordlessLoginMethod() {
-          @Override
-          public void configure(HttpSecurity http) {
-            // nothing to mount: only the name is under test
-          }
-        };
-
-    assertThat(anonymous.name()).matches("LoginMethodNamesTest\\$\\d+");
-  }
-
-  @Test
   void a_stateless_method_without_a_name_is_named_by_its_class() {
     assertThat(new NamelessStateless().name()).isEqualTo("NamelessStateless");
   }

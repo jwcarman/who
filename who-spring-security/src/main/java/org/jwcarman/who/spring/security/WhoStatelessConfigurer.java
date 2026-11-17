@@ -124,7 +124,7 @@ public final class WhoStatelessConfigurer
 
   /** Logs {@link #METHODS_LINE} for the methods, when there are any. */
   static void logMethods(Logger logger, List<StatelessLoginMethod> methods) {
-    if (!methods.isEmpty()) {
+    if (!methods.isEmpty() && logger.isInfoEnabled()) {
       logger.info(
           METHODS_LINE,
           String.join(", ", methods.stream().map(StatelessLoginMethod::name).toList()));
