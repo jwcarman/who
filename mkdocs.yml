@@ -74,6 +74,50 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.superfences
 
+# Declaring plugins replaces MkDocs' default list, so search is named here too.
+plugins:
+  - search
+  # https://llmstxt.org: an index of the docs for coding agents at /llms.txt, every page in
+  # one file at /llms-full.txt, and a Markdown copy of each page beside its HTML.
+  - llmstxt:
+      full_output: llms-full.txt
+      markdown_description: |
+        who is a Spring Boot 4 library: add the starter and a module per sign-in method, and an app
+        gets passwordless sign-in by emailed link or code, passkeys, Google, GitHub or OpenID Connect
+        sign-in, API keys and JWTs, all resolving to one identity with roles and permissions checked
+        by `@RequiresPermission`. Maven coordinates: `org.jwcarman.who`; import `who-bom` and add
+        `who-spring-boot-starter` plus the modules you want. The changelog says what each version
+        has: https://github.com/jwcarman/who/blob/main/CHANGELOG.md. API reference (Javadoc):
+        https://jwcarman.github.io/who/api/latest/. An Agent Skill packages these guides for coding
+        agents: see the Agent Skill page.
+      sections:
+        Start here:
+          - index.md: what who is and which module does what
+          - guides/getting-started.md: adding who to a project, the default chain, chains of your own, creating and deleting identities
+          - guides/configuration.md: the exact name and default of any who.* property, and every endpoint path
+          - guides/database.md: creating who's tables, Flyway or Liquibase copies of the schema
+        Signing in:
+          - guides/email-links.md: sign-in by emailed link or code, sending mail, adding or changing an address, the Turnstile human check, rate limiting
+          - guides/passkeys.md: passkey sign-in and registration, rp-id and origins, the "passkey added" email
+          - guides/social-login.md: Google, GitHub or any OpenID Connect provider, who may sign up, linking accounts
+          - guides/api-keys.md: issuing, rotating and revoking API keys, scopes, the key header
+          - guides/jwt.md: accepting JWTs from an authorization server
+          - guides/enrollment.md: linking a JWT or provider credential to an identity with enrollment tokens
+          - guides/sessions.md: listing and ending sessions, sign-out, the last-sign-in cookie, purging old session records
+          - guides/client.md: the @jwcarman/who-client TypeScript client for browser pages
+        Permissions and security:
+          - guides/rbac.md: roles, permissions, @RequiresPermission
+          - guides/security-model.md: what each check protects against, recent sign-in and @RequiresRecentSignIn
+          - guides/errors.md: who's exceptions, the Who-Error codes, answering them in the app's format
+        Operating:
+          - guides/testing.md: testing an app built on who with who-test
+          - guides/events.md: reacting to sign-ins and other security events
+          - guides/observability.md: metrics, traces, the startup log lines, alerts
+          - guides/native.md: GraalVM native images
+          - guides/upgrading.md: moving a project from one who version to another
+        Optional:
+          - agent-skill.md: installing who's Agent Skill in Claude Code, Codex, Cursor and other agents
+
 extra_css:
   - stylesheets/jwcarman.css
   - stylesheets/who.css

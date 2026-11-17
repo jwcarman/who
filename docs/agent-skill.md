@@ -27,6 +27,12 @@ Add `-g` to install it for every project instead of the current one. Or copy
 [`plugins/who/skills/who`](https://github.com/jwcarman/who/tree/main/plugins/who/skills/who) into
 your agent's skills directory yourself.
 
+An agent without the skill can still read these docs as Markdown: this site publishes
+[`llms.txt`](https://jwcarman.github.io/who/llms.txt), an index of the guides with a line on what
+each covers, and [`llms-full.txt`](https://jwcarman.github.io/who/llms-full.txt), every guide in one
+file. Each page also has a Markdown copy beside it, such as
+`https://jwcarman.github.io/who/guides/passkeys/index.md`.
+
 ## What it knows
 
 - Which module to add for what the user wants, and to import `who-bom` rather than pin each module.
