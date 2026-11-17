@@ -25,7 +25,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,6 +40,7 @@ import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.SignInCredentialCounter;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -97,9 +97,10 @@ class WhoMeControllerTest {
     @Test
     void me_reports_the_sign_in_method_and_recent_window() {
       WhoAuthenticationToken token = new WhoAuthenticationToken(principal, UUID.randomUUID());
-      when(repository.browserSession(request, token))
+      when(repository.caller(request, token))
           .thenReturn(
-              Optional.of(
+              new WhoCaller.Session(
+                  token,
                   new WhoSession(
                       identity.id(),
                       UUID.randomUUID(),
@@ -119,7 +120,8 @@ class WhoMeControllerTest {
     void me_reports_the_method_of_a_stateless_request_and_no_recent_window() {
       WhoAuthenticationToken token =
           new WhoAuthenticationToken(principal, UUID.randomUUID(), SignInMethod.API_KEY);
-      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+      when(repository.caller(request, token))
+          .thenReturn(new WhoCaller.Stateless(token, SignInMethod.API_KEY));
 
       WhoMeController.WhoMeResponse body = me(controller(null), token);
 
@@ -130,7 +132,7 @@ class WhoMeControllerTest {
     @Test
     void me_reports_no_method_when_nothing_says_how_the_caller_signed_in() {
       WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
-      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+      when(repository.caller(request, token)).thenReturn(new WhoCaller.Other(token));
 
       WhoMeController.WhoMeResponse body = me(controller(null), token);
 
@@ -147,7 +149,7 @@ class WhoMeControllerTest {
               mock(PlatformTransactionManager.class));
       Map<String, Long> counts = Map.of("email", 2L, "passkey", 1L, "account", 0L);
       WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
-      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+      when(repository.caller(request, token)).thenReturn(new WhoCaller.Other(token));
 
       assertThat(me(controller(guard), token).credentials()).isEqualTo(counts);
     }
@@ -155,7 +157,7 @@ class WhoMeControllerTest {
     @Test
     void me_reports_no_credential_counts_without_a_guard() {
       WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
-      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+      when(repository.caller(request, token)).thenReturn(new WhoCaller.Other(token));
 
       assertThat(me(controller(null), token).credentials()).isEmpty();
     }

@@ -125,7 +125,8 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
             new WhoService(identityRepository, credentialIdentityRepository, i -> Set.of()),
             InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
             clock,
-            WhoEventPublisher.NOOP);
+            WhoEventPublisher.NOOP,
+            _ -> false);
     filter =
         new EmailAddressFilter(
             WhoPaths.defaults(),

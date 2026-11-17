@@ -65,7 +65,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>It belongs in the security chain, after {@code ExceptionTranslationFilter}; it is not a
  * servlet filter of its own, so it must not be exposed as a bean.
  */
-public class PasskeyCredentialsFilter extends OncePerRequestFilter {
+final class PasskeyCredentialsFilter extends OncePerRequestFilter {
 
   private final PathPatternRequestMatcher list;
   private final PathPatternRequestMatcher remove;
@@ -87,7 +87,7 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
    * @param clock the current time
    * @param recentSignIn how recently the session must have signed in to remove a passkey
    */
-  public PasskeyCredentialsFilter(
+  PasskeyCredentialsFilter(
       WhoPaths paths,
       WhoSessionSecurityContextRepository sessionRepository,
       PasskeyService passkeys,

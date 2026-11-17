@@ -33,6 +33,7 @@ import org.jwcarman.who.core.observation.WhoObservations;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -119,7 +120,10 @@ public class WhoMeController {
     UUID identityId = principal.identity().id();
     // only a browser session's sign-in can be recent; a session cookie beside an API key or a
     // bearer token is not one, and that token is what authenticated the request
-    Optional<WhoSession> session = repository.browserSession(request, authentication);
+    Optional<WhoSession> session =
+        repository.caller(request, authentication) instanceof WhoCaller.Session browser
+            ? Optional.of(browser.session())
+            : Optional.empty();
     String method =
         session
             .map(WhoSession::signInMethod)

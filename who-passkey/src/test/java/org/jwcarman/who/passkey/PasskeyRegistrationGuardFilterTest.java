@@ -77,7 +77,7 @@ class PasskeyRegistrationGuardFilterTest {
       InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP);
   private final WhoSessionSecurityContextRepository sessions =
       new WhoSessionSecurityContextRepository(
-          whoService, whoSessions, clock, WhoEventPublisher.NOOP);
+          whoService, whoSessions, clock, WhoEventPublisher.NOOP, _ -> false);
   private final List<Exception> handedOff = new ArrayList<>();
   private final PasskeyRegistrationGuardFilter guard =
       new PasskeyRegistrationGuardFilter(

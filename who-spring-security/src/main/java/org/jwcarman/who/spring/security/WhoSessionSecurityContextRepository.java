@@ -75,29 +75,16 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   private final RequestMatcher statelessCredentials;
 
   /**
-   * Creates the repository for an application with no stateless sign-in methods: no request
-   * presents a stateless credential.
-   *
-   * @param whoService used to re-resolve the principal on every request
-   * @param sessions records each sign-in, and says on every request whether its session is live
-   * @param clock source of the sign-in time and of event timestamps
-   * @param eventPublisher receives {@link SessionEnded} when a stored session stops resolving
-   */
-  public WhoSessionSecurityContextRepository(
-      WhoService whoService, WhoSessions sessions, Clock clock, WhoEventPublisher eventPublisher) {
-    this(whoService, sessions, clock, eventPublisher, request -> false);
-  }
-
-  /**
-   * Creates the repository for an application with stateless sign-in methods.
+   * Creates the repository.
    *
    * @param whoService resolves the principal
    * @param sessions records each sign-in and says whether its session is live
    * @param clock stamps the sign-in time
    * @param eventPublisher publishes session events
    * @param statelessCredentials matches a request that presents a stateless method's credential,
-   *     such as an API key or a bearer token; such a request is never a {@link #browserSession
-   *     browser session}
+   *     such as an API key or a bearer token; such a request is never a {@link WhoCaller.Session}
+   *     {@link #caller caller}. An application with no stateless sign-in methods passes {@code
+   *     request -> false}
    */
   public WhoSessionSecurityContextRepository(
       WhoService whoService,
@@ -208,24 +195,17 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   /**
    * Whether {@code authentication} is the one this repository loaded from the browser session for
    * {@code request}, rather than one another filter put in its place, such as an API key or a
-   * bearer token beside a session cookie. Endpoints that act only for a browser session use it.
-   *
-   * @param request the current request
-   * @param authentication the request's authentication
-   * @return whether the browser session loaded it
+   * bearer token beside a session cookie.
    */
-  public boolean isLoaded(HttpServletRequest request, Authentication authentication) {
+  private static boolean isLoaded(HttpServletRequest request, Authentication authentication) {
     return authentication != null && authentication == request.getAttribute(LOADED_ATTRIBUTE);
   }
 
   /**
    * Whether the request presents a stateless method's credential, such as an API key or a bearer
    * token, whether or not it signed the request in.
-   *
-   * @param request the current request
-   * @return whether it presents one
    */
-  public boolean presentsStatelessCredential(HttpServletRequest request) {
+  private boolean presentsStatelessCredential(HttpServletRequest request) {
     return statelessCredentials.matches(request);
   }
 
@@ -235,9 +215,8 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    *
    * <ul>
    *   <li>{@link WhoCaller.SignedOut}: no who sign-in;
-   *   <li>{@link WhoCaller.Session}: the browser session {@link #isLoaded loaded} the
-   *       authentication and the request presents no {@link #presentsStatelessCredential stateless
-   *       credential};
+   *   <li>{@link WhoCaller.Session}: the browser session loaded the authentication and the request
+   *       presents no stateless credential (one the constructor's matcher matches);
    *   <li>{@link WhoCaller.SessionWithForeignCredential}: the session loaded it, and the request
    *       also presents an API key or bearer token, ignored because the session signed it in;
    *   <li>{@link WhoCaller.Stateless}: a bearer token or an API key signed it in, and no session
@@ -268,21 +247,6 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
         .filter(method -> method == SignInMethod.JWT || method == SignInMethod.API_KEY)
         .<WhoCaller>map(method -> new WhoCaller.Stateless(token, method))
         .orElseGet(() -> new WhoCaller.Other(token));
-  }
-
-  /**
-   * The browser session this request acts as, for endpoints only a browser may call: the session of
-   * a {@link WhoCaller.Session} {@link #caller caller}.
-   *
-   * @param request the current request
-   * @param authentication the request's authentication, or {@code null}
-   * @return the session, or empty when the request is not a browser session's
-   */
-  public Optional<WhoSession> browserSession(
-      HttpServletRequest request, Authentication authentication) {
-    return caller(request, authentication) instanceof WhoCaller.Session session
-        ? Optional.of(session.session())
-        : Optional.empty();
   }
 
   private SecurityContext load(HttpServletRequest request) {

@@ -118,7 +118,7 @@ class PasswordlessConfigurerTest {
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
         WhoService whoService, WhoSessions sessions, Clock clock) {
       return new WhoSessionSecurityContextRepository(
-          whoService, sessions, clock, WhoEventPublisher.NOOP);
+          whoService, sessions, clock, WhoEventPublisher.NOOP, _ -> false);
     }
 
     @Bean
@@ -325,7 +325,8 @@ class PasswordlessConfigurerTest {
           whoService,
           InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP),
           clock,
-          WhoEventPublisher.NOOP);
+          WhoEventPublisher.NOOP,
+          _ -> false);
     }
   }
 

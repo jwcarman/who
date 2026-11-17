@@ -210,7 +210,8 @@ class WhoSecurityChainsTest {
           mock(WhoService.class),
           InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP),
           clock,
-          WhoEventPublisher.NOOP);
+          WhoEventPublisher.NOOP,
+          _ -> false);
     }
   }
 
@@ -398,7 +399,8 @@ class WhoSecurityChainsTest {
           mock(WhoService.class),
           InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP),
           clock,
-          WhoEventPublisher.NOOP);
+          WhoEventPublisher.NOOP,
+          _ -> false);
     }
   }
 

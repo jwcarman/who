@@ -17,6 +17,7 @@ package org.jwcarman.who.passkey;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.reflect.Modifier;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -121,7 +122,8 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
             new WhoService(identityRepository, credentialIdentityRepository, i -> Set.of()),
             InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
             clock,
-            WhoEventPublisher.NOOP);
+            WhoEventPublisher.NOOP,
+            _ -> false);
     filter =
         new PasskeyCredentialsFilter(
             WhoPaths.defaults(),
@@ -339,6 +341,17 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
     @Test
     void signed_out_is_unauthorized() throws Exception {
       assertThat(send("DELETE", "/who/me/passkeys/abc", null).getStatus()).isEqualTo(401);
+    }
+  }
+
+  @Nested
+  class Visibility {
+
+    @Test
+    void the_filter_and_its_constructor_are_package_private() {
+      assertThat(Modifier.isPublic(PasskeyCredentialsFilter.class.getModifiers())).isFalse();
+      assertThat(PasskeyCredentialsFilter.class.getDeclaredConstructors())
+          .allSatisfy(c -> assertThat(Modifier.isPublic(c.getModifiers())).isFalse());
     }
   }
 }

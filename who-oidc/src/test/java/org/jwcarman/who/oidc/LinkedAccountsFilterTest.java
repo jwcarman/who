@@ -228,7 +228,8 @@ class LinkedAccountsFilterTest {
             new WhoService(identities, links, i -> Set.of()),
             InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
             clock,
-            WhoEventPublisher.NOOP);
+            WhoEventPublisher.NOOP,
+            _ -> false);
     filter =
         new LinkedAccountsFilter(
             WhoPaths.defaults(),

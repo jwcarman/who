@@ -59,7 +59,7 @@ import tools.jackson.databind.json.JsonMapper;
  *       Spring's default does neither) and who's JSON answers.
  *   <li>Spring's default registration page is off.
  *   <li>A {@link PasskeyRegistrationGuardFilter} supplies the registration answers Spring has no
- *       hook for, and a {@link PasskeyCredentialsFilter} serves {@code GET /me/passkeys} and {@code
+ *       hook for, and a {@code PasskeyCredentialsFilter} serves {@code GET /me/passkeys} and {@code
  *       DELETE /me/passkeys/{credentialId}}, which Spring's filters do not.
  *   <li>The success handler and the guard publish through the application's {@link
  *       WhoEventPublisher} bean, if it has one: a successful sign-in publishes {@code

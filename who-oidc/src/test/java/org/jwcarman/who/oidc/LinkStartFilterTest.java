@@ -90,7 +90,11 @@ class LinkStartFilterTest {
           Clock.fixed(NOW, ZoneOffset.UTC), WhoEventPublisher.NOOP);
   private final WhoSessionSecurityContextRepository sessions =
       new WhoSessionSecurityContextRepository(
-          whoService, whoSessions, Clock.fixed(NOW, ZoneOffset.UTC), WhoEventPublisher.NOOP);
+          whoService,
+          whoSessions,
+          Clock.fixed(NOW, ZoneOffset.UTC),
+          WhoEventPublisher.NOOP,
+          _ -> false);
   private final LinkStartFilter filter =
       new LinkStartFilter(
           WhoPaths.defaults(),

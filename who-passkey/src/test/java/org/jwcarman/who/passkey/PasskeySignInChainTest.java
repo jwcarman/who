@@ -163,7 +163,8 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
           whoService,
           InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
           clock,
-          WhoEventPublisher.NOOP);
+          WhoEventPublisher.NOOP,
+          _ -> false);
     }
 
     @Bean

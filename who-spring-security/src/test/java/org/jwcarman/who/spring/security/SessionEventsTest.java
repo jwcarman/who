@@ -116,7 +116,8 @@ class SessionEventsTest {
     @Bean
     WhoSessionSecurityContextRepository whoSessionSecurityContextRepository(
         WhoService whoService, WhoSessions sessions, Clock clock, WhoEventPublisher publisher) {
-      return new WhoSessionSecurityContextRepository(whoService, sessions, clock, publisher);
+      return new WhoSessionSecurityContextRepository(
+          whoService, sessions, clock, publisher, _ -> false);
     }
 
     @Bean

@@ -92,6 +92,12 @@ change:
   who's own JSON mapper. An application that `@Import`s it needs a
   `RecentSignInAuthorizationManager` bean. `WhoMeResponse` has three more components.
 - **`SessionEndpoints`** no longer takes a `JsonMapper`.
+- **`WhoSessionSecurityContextRepository`** has one constructor, which also takes a
+  `RequestMatcher` for the requests that present a stateless credential (an API key or a bearer
+  token). An application that builds it by hand with no stateless sign-in method passes
+  `_ -> false`; with one, a matcher for the requests that carry its credential. The
+  four-argument constructor is gone. Its `isLoaded`, `presentsStatelessCredential` and
+  `browserSession` methods, added in this release's development, are not public: use `caller`.
 - **`WhoPublicPaths`** has one constructor, `(WhoPaths, methods, configured, contributed)`. Pass
   `List.of()` for `contributed`. Every pattern must be non-blank. To add public paths from a
   library, declare a `WhoPublicPathContributor` bean instead of replacing `WhoPublicPaths`:

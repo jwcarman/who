@@ -73,7 +73,7 @@ class SessionsFilterTest {
   private final WhoSessions sessions = InMemorySessionRecords.sessions(clock, events::add);
   private final WhoService whoService = mock(WhoService.class);
   private final WhoSessionSecurityContextRepository repository =
-      new WhoSessionSecurityContextRepository(whoService, sessions, clock, events::add);
+      new WhoSessionSecurityContextRepository(whoService, sessions, clock, events::add, _ -> false);
   private final JsonMapper json = JsonMapper.builder().build();
   private final SessionsFilter filter =
       new SessionsFilter(

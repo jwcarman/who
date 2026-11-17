@@ -168,6 +168,7 @@ class PendingSignUpFilterTest {
         whoService,
         InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
         clock,
-        WhoEventPublisher.NOOP);
+        WhoEventPublisher.NOOP,
+        _ -> false);
   }
 }

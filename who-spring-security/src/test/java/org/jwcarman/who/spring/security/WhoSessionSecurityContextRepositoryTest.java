@@ -24,12 +24,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Method;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -56,10 +58,12 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoSessionSecurityContextRepositoryTest {
@@ -71,7 +75,7 @@ class WhoSessionSecurityContextRepositoryTest {
   private final List<WhoEvent> events = new ArrayList<>();
   private final WhoSessions sessions = InMemorySessionRecords.sessions(clock, events::add);
   private final WhoSessionSecurityContextRepository repository =
-      new WhoSessionSecurityContextRepository(whoService, sessions, clock, events::add);
+      new WhoSessionSecurityContextRepository(whoService, sessions, clock, events::add, _ -> false);
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -101,6 +105,32 @@ class WhoSessionSecurityContextRepositoryTest {
   }
 
   @Nested
+  class Public_surface {
+
+    @Test
+    void caller_is_the_only_public_way_to_tell_who_called() {
+      List<String> asking =
+          Arrays.stream(WhoSessionSecurityContextRepository.class.getMethods())
+              .map(Method::getName)
+              .filter(
+                  name ->
+                      List.of("caller", "isLoaded", "presentsStatelessCredential", "browserSession")
+                          .contains(name))
+              .toList();
+
+      assertThat(asking).containsExactly("caller");
+    }
+
+    @Test
+    void every_constructor_says_which_requests_present_a_stateless_credential() {
+      assertThat(WhoSessionSecurityContextRepository.class.getConstructors())
+          .allSatisfy(
+              constructor ->
+                  assertThat(constructor.getParameterTypes()).contains(RequestMatcher.class));
+    }
+  }
+
+  @Nested
   class Browser_session {
 
     private final WhoSessionSecurityContextRepository withApiKeys =
@@ -119,8 +149,10 @@ class WhoSessionSecurityContextRepositoryTest {
     void is_the_session_that_signed_the_request_in() {
       WhoAuthenticationToken token = loaded();
 
-      assertThat(withApiKeys.browserSession(request, token))
-          .hasValueSatisfying(s -> assertThat(s.identityId()).isEqualTo(identity.id()));
+      assertThat(withApiKeys.caller(request, token))
+          .isInstanceOfSatisfying(
+              WhoCaller.Session.class,
+              s -> assertThat(s.session().identityId()).isEqualTo(identity.id()));
     }
 
     @Test
@@ -128,8 +160,8 @@ class WhoSessionSecurityContextRepositoryTest {
       WhoAuthenticationToken token = loaded();
       request.addHeader("X-API-Key", "anything");
 
-      assertThat(withApiKeys.presentsStatelessCredential(request)).isTrue();
-      assertThat(withApiKeys.browserSession(request, token)).isEmpty();
+      assertThat(withApiKeys.caller(request, token))
+          .isInstanceOf(WhoCaller.SessionWithForeignCredential.class);
     }
 
     @Test
@@ -139,19 +171,24 @@ class WhoSessionSecurityContextRepositoryTest {
           new WhoAuthenticationToken(
               new WhoPrincipal(identity, Set.of()), credId, SignInMethod.API_KEY);
 
-      assertThat(withApiKeys.browserSession(request, other)).isEmpty();
+      assertThat(withApiKeys.caller(request, other)).isNotInstanceOf(WhoCaller.Session.class);
     }
 
     @Test
     void is_none_when_signed_out() {
-      assertThat(withApiKeys.browserSession(request, null)).isEmpty();
+      assertThat(withApiKeys.caller(request, null)).isInstanceOf(WhoCaller.SignedOut.class);
     }
 
     @Test
     void without_stateless_methods_no_request_presents_a_credential() {
+      WhoSessionSecurityContextRepository withoutApiKeys = repository;
+      request.setSession(sessionWith(live(NOW)));
+      when(whoService.resolveDetailed(any(Credential.class)))
+          .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
+      Authentication token = withoutApiKeys.loadDeferredContext(request).get().getAuthentication();
       request.addHeader("X-API-Key", "anything");
 
-      assertThat(repository.presentsStatelessCredential(request)).isFalse();
+      assertThat(withoutApiKeys.caller(request, token)).isInstanceOf(WhoCaller.Session.class);
     }
   }
 
