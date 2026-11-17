@@ -15,6 +15,29 @@ PostgreSQL is not an embedded database, so with the default the scripts do not r
 
 The `who-rbac` schema requires the `who_identity` table from `who-jdbc` (`who_identity_role.identity_id` references it). Run the `who-jdbc` schema first. The passkey tables reference `who_identity` too. The Flyway and Liquibase copies below are already in that order.
 
+## Transactions and locks
+
+Three rules hold under concurrent requests only because who counts and changes in one database
+transaction that holds row locks: the [last-credential rule](account.md#the-last-credential-rule)
+locks the identity's `who_identity` row, the [last-admin rule](admin.md#the-last-admin) locks
+`who_role` rows, and an [invitation](admin.md#invitations) creates everything in one transaction.
+They need:
+
+- **Exactly one `PlatformTransactionManager`**, which who uses for them. Spring Boot makes it for
+  a single `DataSource`. With two or more, an application with `who-passkey`, `who-email-link`,
+  `who-oidc` or `who-admin` fails startup; mark the one for who's `DataSource` `@Primary`.
+- **who's `JdbcClient` on that manager's `DataSource`.** The locks are taken through who's
+  `JdbcClient`; if its `DataSource` is not the one the transaction manager manages, each statement
+  runs in a connection of its own, the lock is released at once, and two concurrent removals can
+  both pass. Spring Boot's `JdbcClient` and transaction manager share the single `DataSource`, so
+  only an application that defines its own `JdbcClient`, `DataSource` or transaction manager needs
+  to check this.
+- **`READ COMMITTED`.** The guards ask for it on their own transactions, whatever the database's
+  default, so that a removal that waited for the lock counts what the first one committed. Run
+  `LastCredentialGuard.removeIfNotLast` from your own code outside any transaction of yours:
+  inside one, it joins your transaction at your transaction's isolation, and under
+  `REPEATABLE READ` the count can be stale. The same holds for `LastAdminGuard`.
+
 ## Flyway
 
 Copy the following file to `src/main/resources/db/migration/V1__who.sql` in your application. If the application already has migrations, give the file the next free version number instead of `V1`:

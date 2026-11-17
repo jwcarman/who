@@ -49,7 +49,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -109,7 +108,7 @@ public class WhoAdminAutoConfiguration {
           permissionsResolver.getClass().getName(),
           WhoAdminPermissions.IDENTITIES_MANAGE);
     }
-    return new LastAdminGuard(jdbcClient, new TransactionTemplate(transactionManager), enforcing);
+    return new LastAdminGuard(jdbcClient, transactionManager, enforcing);
   }
 
   /**

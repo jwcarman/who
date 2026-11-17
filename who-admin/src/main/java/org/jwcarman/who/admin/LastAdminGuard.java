@@ -21,7 +21,10 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -30,13 +33,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  * run through it; a change that would take the holders from one or more to none is refused with
  * {@link LastAdminException}. When no one holds the permission, nothing is refused.
  *
- * <p>Holders are counted from who-rbac's tables: the {@link
- * org.jwcarman.who.core.domain.IdentityStatus#ACTIVE ACTIVE} identities assigned a role that
- * carries the permission. Only who-rbac's resolver makes those the holders, so the guard is
- * <em>enforcing</em> only when the application's permissions come from who-rbac. With a resolver of
- * the application's own, who cannot tell who holds the permission, so the guard refuses nothing
- * rather than refuse on a count it cannot trust; who's autoconfiguration logs a warning at startup
- * when that is so.
+ * <p>Holders are counted from who-rbac's tables: the {@link IdentityStatus#ACTIVE ACTIVE}
+ * identities assigned a role that carries the permission. Only who-rbac's resolver makes those the
+ * holders, so the guard is <em>enforcing</em> only when the application's permissions come from
+ * who-rbac. With a resolver of the application's own, who cannot tell who holds the permission, so
+ * the guard refuses nothing rather than refuse on a count it cannot trust; who's autoconfiguration
+ * logs a warning at startup when that is so.
  *
  * <p><b>The lock.</b> The count and the change run in one transaction that first locks, with {@code
  * SELECT ... FOR UPDATE}, every {@code who_role} row whose role carries the permission, in id
@@ -46,8 +48,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * narrowest thing every such change has in common: an identity's own row would not serialize
  * changes to two different identities, and a table lock would also stop unrelated writes. A
  * concurrent assignment of one of those roles waits for the lock briefly, which only adds a holder.
- * Changes made outside the admin endpoints, such as {@code RbacService} or {@code
- * WhoService.deactivate} called by the application, are not guarded.
+ * The transaction is {@code READ COMMITTED} whatever the database's default, so the second change
+ * counts what the first committed once it has the locks; under {@code REPEATABLE READ} it would
+ * count its own older snapshot. Called inside a transaction of the caller's, the guard joins it at
+ * that transaction's isolation, and the guarantee then needs that transaction to be {@code READ
+ * COMMITTED}; the admin endpoints call it outside any transaction. Changes made outside the admin
+ * endpoints, such as {@code RbacService} or {@code WhoService.deactivate} called by the
+ * application, are not guarded.
  */
 public final class LastAdminGuard {
 
@@ -61,16 +68,20 @@ public final class LastAdminGuard {
   /**
    * Creates the guard.
    *
-   * @param jdbcClient reads who-rbac's tables and takes the locks
-   * @param transactionTemplate runs the count and the change in one transaction
+   * @param jdbcClient reads who-rbac's tables and takes the locks; its data source must be the one
+   *     {@code transactionManager} manages, or the locks are taken outside the transaction
+   * @param transactionManager runs the count and the change in one {@code READ COMMITTED}
+   *     transaction
    * @param enforcing whether the permission's holders are who-rbac's to count; when false the guard
    *     refuses nothing
    */
   public LastAdminGuard(
-      JdbcClient jdbcClient, TransactionTemplate transactionTemplate, boolean enforcing) {
+      JdbcClient jdbcClient, PlatformTransactionManager transactionManager, boolean enforcing) {
     this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient must not be null");
     this.transactionTemplate =
-        requireNonNull(transactionTemplate, "transactionTemplate must not be null");
+        new TransactionTemplate(
+            requireNonNull(transactionManager, "transactionManager must not be null"));
+    this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     this.enforcing = enforcing;
   }
 

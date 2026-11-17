@@ -47,7 +47,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoMeControllerTest {
@@ -144,7 +144,7 @@ class WhoMeControllerTest {
           new LastCredentialGuard(
               mock(IdentityRepository.class),
               List.of(counter("email", 2), counter("passkey", 1), counter("account", 0)),
-              mock(TransactionTemplate.class));
+              mock(PlatformTransactionManager.class));
       Map<String, Long> counts = Map.of("email", 2L, "passkey", 1L, "account", 0L);
       WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
       when(repository.browserSession(request, token)).thenReturn(Optional.empty());

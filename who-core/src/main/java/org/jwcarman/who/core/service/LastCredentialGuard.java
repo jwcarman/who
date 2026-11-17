@@ -25,12 +25,20 @@ import java.util.function.Supplier;
 
 import org.jwcarman.who.core.exception.LastCredentialException;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Keeps an identity from losing its last sign-in credential. Self-service removals run through
  * {@link #removeIfNotLast}, which counts and removes in one transaction holding the identity's row
  * lock, so two concurrent removals cannot both pass the check.
+ *
+ * <p>That transaction is {@code READ COMMITTED} whatever the database's default, because the second
+ * removal must count what the first committed once it gets the lock; under {@code REPEATABLE READ}
+ * it would count its own older snapshot, and both could pass. Called inside a transaction of the
+ * caller's, the guard joins it at that transaction's isolation, so the guarantee then holds only if
+ * that transaction is {@code READ COMMITTED}; who's own endpoints call it outside any transaction.
  *
  * <p>The credential services keep their own contract and do not apply this rule; callers that
  * remove credentials on a person's behalf must.
@@ -46,17 +54,20 @@ public final class LastCredentialGuard {
    *
    * @param identityRepository locks the identity's row
    * @param counters one counter per kind of sign-in credential
-   * @param transactionTemplate runs the count and the removal in one transaction
+   * @param transactionManager runs the count and the removal in one {@code READ COMMITTED}
+   *     transaction; it must manage the data source the counters and the repository use
    */
   public LastCredentialGuard(
       IdentityRepository identityRepository,
       List<SignInCredentialCounter> counters,
-      TransactionTemplate transactionTemplate) {
+      PlatformTransactionManager transactionManager) {
     this.identityRepository =
         requireNonNull(identityRepository, "identityRepository must not be null");
     this.counters = List.copyOf(requireNonNull(counters, "counters must not be null"));
     this.transactionTemplate =
-        requireNonNull(transactionTemplate, "transactionTemplate must not be null");
+        new TransactionTemplate(
+            requireNonNull(transactionManager, "transactionManager must not be null"));
+    this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
   }
 
   /**

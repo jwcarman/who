@@ -71,7 +71,6 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import com.nimbusds.jose.util.JSONArrayUtils;
 
@@ -235,7 +234,7 @@ class LinkedAccountsFilterTest {
             WhoPaths.defaults(),
             SignInRegistrations.of(List.of(ACME), Map.of()),
             service,
-            new LastCredentialGuard(identities, List.of(counter), new TransactionTemplate(manager)),
+            new LastCredentialGuard(identities, List.of(counter), manager),
             sessionRepository,
             new WhoExceptionHandoff(null),
             clock,

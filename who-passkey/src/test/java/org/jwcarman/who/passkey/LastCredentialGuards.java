@@ -23,7 +23,6 @@ import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.SignInCredentialCounter;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /** The last-credential guard for tests whose identities have a passkey and nothing else. */
 final class LastCredentialGuards {
@@ -53,6 +52,6 @@ final class LastCredentialGuards {
     return new LastCredentialGuard(
         identityRepository,
         List.of(new PasskeySignInCredentialCounter(jdbcClient), email),
-        new TransactionTemplate(transactionManager));
+        transactionManager);
   }
 }

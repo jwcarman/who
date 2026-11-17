@@ -59,7 +59,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -142,7 +141,7 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
             new LastCredentialGuard(
                 identityRepository,
                 List.of(new EmailSignInCredentialCounter(jdbcClient)),
-                new TransactionTemplate(transactionManager)),
+                transactionManager),
             sessionRepository,
             new WhoExceptionHandoff(null),
             Runnable::run,

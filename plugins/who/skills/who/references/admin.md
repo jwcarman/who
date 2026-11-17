@@ -106,7 +106,9 @@ The count and the change run in one transaction that first locks the `who_role` 
 carrying `who.identities.manage` (`SELECT ... FOR UPDATE`), so two changes cannot both count before
 either commits: two admins demoting each other at the same moment leave one admin, not none. A
 concurrent assignment of one of those roles waits for the lock. `LastAdminGuard` is the bean that
-does this; it needs exactly one `PlatformTransactionManager`, and without one the admin endpoints
+does this, in a `READ COMMITTED` transaction whatever the database's default; it needs exactly one
+`PlatformTransactionManager`, on the `DataSource` of who's `JdbcClient` (see
+[Transactions and locks](database.md#transactions-and-locks)), and without one the admin endpoints
 fail startup rather than run without the rule.
 
 who counts holders from who-rbac's tables, the active identities assigned a role that carries the
@@ -312,7 +314,11 @@ class Members {
 }
 ```
 
-`InvitationService` needs a single `PlatformTransactionManager`. Roles need `who-rbac`: without
+`InvitationService` needs a single `PlatformTransactionManager` too. Without one, who builds
+neither it nor `POST /who/invitations`, but the application does not get that far: the rest of
+the admin endpoints fail startup for want of `LastAdminGuard`. An application that supplies its
+own `LastAdminGuard` (or `WhoAdminEndpoints`) bean starts, and then has no invitation endpoint
+unless it also defines an `InvitationService` bean. Roles need `who-rbac`: without
 it, an invitation with roles is refused with `InvalidInvitationException` before anything is
 created, and one without roles still works. `who-rbac` is optional for `who-email-link`; the
 role assignment goes through the `InvitationRoles` interface, which who's autoconfiguration

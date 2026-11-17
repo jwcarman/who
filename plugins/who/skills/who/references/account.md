@@ -246,3 +246,9 @@ for a single `DataSource`). `who-passkey`, `who-email-link` and `who-oidc` need 
 any of them on, an application without a single transaction manager fails startup with
 `NoSuchBeanDefinitionException` for `LastCredentialGuard`. Name one manager `@Primary`, or define
 your own `LastCredentialGuard` bean.
+
+Call `removeIfNotLast` outside any transaction of yours. It runs the count and the removal in a
+`READ COMMITTED` transaction whatever the database's default, so a removal that waited for the lock
+counts what the other committed; inside a transaction of yours it joins yours, at your
+transaction's isolation, and under `REPEATABLE READ` two removals could both pass. See
+[Transactions and locks](database.md#transactions-and-locks).

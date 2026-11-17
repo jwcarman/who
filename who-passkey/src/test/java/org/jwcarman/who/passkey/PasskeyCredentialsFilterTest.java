@@ -62,7 +62,6 @@ import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -131,7 +130,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
             new LastCredentialGuard(
                 identityRepository,
                 List.of(new PasskeySignInCredentialCounter(jdbcClient)),
-                new TransactionTemplate(transactionManager)),
+                transactionManager),
             new WhoExceptionHandoff(null),
             clock,
             RECENT);

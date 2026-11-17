@@ -51,7 +51,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import io.micrometer.observation.ObservationRegistry;
 
@@ -182,9 +181,7 @@ public class WhoAutoConfiguration {
         ObjectProvider<SignInCredentialCounter> counters,
         PlatformTransactionManager transactionManager) {
       return new LastCredentialGuard(
-          identityRepository,
-          counters.orderedStream().toList(),
-          new TransactionTemplate(transactionManager));
+          identityRepository, counters.orderedStream().toList(), transactionManager);
     }
 
     @Bean

@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,8 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.exception.LastCredentialException;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.SimpleTransactionStatus;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class LastCredentialGuardTest {
@@ -61,7 +62,7 @@ class LastCredentialGuardTest {
     return new LastCredentialGuard(
         mock(IdentityRepository.class),
         List.of(counter("email", email), counter("passkey", passkey), counter("account", account)),
-        new TransactionTemplate(manager));
+        manager);
   }
 
   @Nested
@@ -100,6 +101,32 @@ class LastCredentialGuardTest {
     void counts_by_kind() {
       assertThat(guard(2, 1, 0).counts(identityId))
           .containsExactly(entry("email", 2L), entry("passkey", 1L), entry("account", 0L));
+    }
+  }
+
+  @Nested
+  class Isolation {
+
+    @Test
+    void counts_and_removes_at_read_committed_whatever_the_database_default() {
+      PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+      List<TransactionDefinition> asked = new ArrayList<>();
+      when(manager.getTransaction(any()))
+          .thenAnswer(
+              call -> {
+                asked.add(call.getArgument(0));
+                return new SimpleTransactionStatus();
+              });
+      LastCredentialGuard guard =
+          new LastCredentialGuard(
+              mock(IdentityRepository.class), List.of(counter("email", 2)), manager);
+
+      guard.removeIfNotLast(identityId, () -> true);
+
+      assertThat(asked)
+          .singleElement()
+          .extracting(TransactionDefinition::getIsolationLevel)
+          .isEqualTo(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
   }
 }

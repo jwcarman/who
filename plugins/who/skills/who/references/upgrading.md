@@ -85,8 +85,10 @@ single `DataSource`, so most applications need nothing.
 
 An application with two or more transaction managers fails startup with
 `NoSuchBeanDefinitionException` for `LastCredentialGuard`. Mark the one for who's `DataSource`
-`@Primary`, or define a `LastCredentialGuard` bean yourself. `InvitationService` needs the same
-single manager; without it there is no invitation endpoint.
+`@Primary`, or define a `LastCredentialGuard` bean yourself. `who-admin` needs the same single
+manager for its `LastAdminGuard` and fails startup without it, and `InvitationService`, behind
+`POST /who/invitations`, needs it too. The manager must manage the `DataSource` of who's
+`JdbcClient`; see [Transactions and locks](database.md#transactions-and-locks).
 
 ### Code that builds who's pieces itself
 

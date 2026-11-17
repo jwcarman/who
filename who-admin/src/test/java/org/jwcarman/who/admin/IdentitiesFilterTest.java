@@ -77,7 +77,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -294,9 +293,7 @@ class IdentitiesFilterTest {
           }
         };
     return new LastCredentialGuard(
-        identities,
-        List.of(passkeys),
-        new TransactionTemplate(mock(PlatformTransactionManager.class)));
+        identities, List.of(passkeys), mock(PlatformTransactionManager.class));
   }
 
   private IdentitiesFilter filter(IdentityEmails withEmails, LastCredentialGuard withGuard) {
@@ -307,10 +304,7 @@ class IdentitiesFilterTest {
         rbac,
         withEmails,
         withGuard,
-        new LastAdminGuard(
-            mock(JdbcClient.class),
-            new TransactionTemplate(mock(PlatformTransactionManager.class)),
-            false),
+        new LastAdminGuard(mock(JdbcClient.class), mock(PlatformTransactionManager.class), false),
         new AdminGate(sessions, new WhoExceptionHandoff(null), clock, RECENT),
         JSON);
   }
