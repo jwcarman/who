@@ -21,10 +21,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -94,6 +94,9 @@ class LastCredentialGuardIT {
     assertThat(guard.counts(identity.id())).containsEntry("email", 1L).containsEntry("account", 1L);
 
     CountDownLatch go = new CountDownLatch(1);
+    // Each removal waits here, after the count, for the other to arrive. With the row lock the
+    // other is blocked in lockById, so the wait times out; without it both pass the count.
+    CountDownLatch bothCounted = new CountDownLatch(2);
     try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
       Future<Boolean> removeEmail =
           pool.submit(
@@ -101,6 +104,7 @@ class LastCredentialGuardIT {
                   go,
                   identity.id(),
                   () -> {
+                    meet(bothCounted);
                     emailCredentialService.revoke(email.id());
                     return true;
                   }));
@@ -110,12 +114,13 @@ class LastCredentialGuardIT {
                   go,
                   identity.id(),
                   () -> {
+                    meet(bothCounted);
                     federatedCredentialService.unlink(account.id());
                     return true;
                   }));
       go.countDown();
 
-      List<Boolean> outcomes = List.of(outcome(removeEmail), outcome(removeAccount));
+      List<Boolean> outcomes = List.of(removeEmail.get(), removeAccount.get());
 
       assertThat(outcomes).containsExactlyInAnyOrder(true, false);
     }
@@ -135,8 +140,12 @@ class LastCredentialGuardIT {
     };
   }
 
-  private static boolean outcome(Future<Boolean> future)
-      throws InterruptedException, ExecutionException {
-    return future.get();
+  private static void meet(CountDownLatch bothCounted) {
+    bothCounted.countDown();
+    try {
+      bothCounted.await(500, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 }
