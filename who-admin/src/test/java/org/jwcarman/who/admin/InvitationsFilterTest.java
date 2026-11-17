@@ -278,15 +278,17 @@ class InvitationsFilterTest {
     }
 
     @Test
-    void a_concurrent_invite_of_the_same_address_is_a_conflict() throws Exception {
+    void a_listeners_own_unique_key_violation_is_not_a_taken_address() throws Exception {
+      // InvitationService reports its own address's unique key as EmailAddressTakenException;
+      // any other DuplicateKeyException is the application's, from its IdentityInvited listener
       signIn(MANAGE);
       when(invitations.invite(anyString(), any()))
-          .thenThrow(new DuplicateKeyException("who_email_credential_address_key"));
+          .thenThrow(new DuplicateKeyException("app_profile_key"));
 
       MockHttpServletResponse response = invite(body(ADDRESS));
 
-      assertThat(response.getStatus()).isEqualTo(409);
-      assertThat(response.getHeader(HEADER)).isEqualTo("email-address-taken");
+      assertThat(response.getStatus()).isEqualTo(500);
+      assertThat(response.getHeader(HEADER)).isNull();
     }
 
     @Test

@@ -29,6 +29,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -114,8 +115,8 @@ public class InvitationService {
    * @throws InvalidInvitationException before anything is created, if the address is missing or is
    *     not an address, a role name is blank, or roles are asked for without {@code who-rbac}; and,
    *     with everything rolled back, if a name names no role
-   * @throws EmailAddressTakenException if the address already belongs to an identity; nothing is
-   *     created
+   * @throws EmailAddressTakenException if the address already belongs to an identity, or a
+   *     concurrent invitation or registration of it wins; nothing is created
    * @throws IllegalStateException if called inside a transaction
    */
   public Invitation invite(@Nullable String email, Set<String> roleNames) {
@@ -140,7 +141,14 @@ public class InvitationService {
 
   private Invited register(String email, Set<String> names) {
     Identity identity = whoService.createIdentity();
-    EmailCredential credential = emailCredentials.register(identity, email);
+    EmailCredential credential;
+    try {
+      credential = emailCredentials.register(identity, email);
+    } catch (DuplicateKeyException _) {
+      // the address's unique key: a concurrent invitation or registration took it first. Only
+      // here, so a listener's own unique key further on is never reported as this
+      throw new EmailAddressTakenException();
+    }
     if (!names.isEmpty() && roles != null) {
       roles.assign(identity, names);
     }

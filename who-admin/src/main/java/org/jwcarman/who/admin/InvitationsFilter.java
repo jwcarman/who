@@ -40,7 +40,6 @@ import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -126,11 +125,11 @@ final class InvitationsFilter extends OncePerRequestFilter {
   }
 
   /**
-   * Invites, or answers why not: an address taken by a concurrent invite of the same address is
-   * {@code 409} {@link EmailAddressTakenException}, as one taken beforehand is; anything else that
-   * escapes {@link InvitationService#invite}, such as an {@code IdentityInvited} listener's
-   * exception, goes to the application's exception handling, {@code 500} if nothing there answers
-   * it and it carries no status of its own.
+   * Invites, or answers why not: an address taken, beforehand or by a concurrent invite, is {@code
+   * 409} {@link EmailAddressTakenException}, which {@link InvitationService#invite} throws for
+   * both; anything else that escapes it, such as an {@code IdentityInvited} listener's exception,
+   * its own unique-key violations included, goes to the application's exception handling, {@code
+   * 500} if nothing there answers it and it carries no status of its own.
    */
   private Optional<Invitation> invite(
       HttpServletRequest request, HttpServletResponse response, String email, Set<String> roles)
@@ -140,10 +139,6 @@ final class InvitationsFilter extends OncePerRequestFilter {
     } catch (InvalidInvitationException | EmailAddressTakenException e) {
       // each carries its own status
       gate.refuse(request, response, e);
-      return Optional.empty();
-    } catch (DuplicateKeyException _) {
-      // the same address invited concurrently: the database's unique key decided which one won
-      gate.refuse(request, response, new EmailAddressTakenException());
       return Optional.empty();
     } catch (RuntimeException e) {
       gate.fail(request, response, e);

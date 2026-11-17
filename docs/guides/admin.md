@@ -229,7 +229,8 @@ Nothing is created in any of these cases.
 
 An exception from your [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
 listener rolls the invitation back and goes through your exception handling, like every who
-failure (see [Errors](errors.md)): a `@RestControllerAdvice` of yours answers it, or the
+failure (see [Errors](errors.md)), even a `DuplicateKeyException` from your own tables, which is
+never reported as `email-address-taken`: a `@RestControllerAdvice` of yours answers it, or the
 exception's own `@ResponseStatus` does. A listener that refuses an invitation can say why:
 
 ```java

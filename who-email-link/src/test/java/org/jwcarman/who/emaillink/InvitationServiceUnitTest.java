@@ -48,6 +48,7 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -109,6 +110,43 @@ class InvitationServiceUnitTest {
       assertThatThrownBy(() -> service(roles).invite(ADDRESS, Set.of("nope")))
           .isInstanceOf(InvalidInvitationException.class);
       assertThat(published).isEmpty();
+      verifyNoInteractions(issuer);
+    }
+  }
+
+  @Nested
+  class Unique_keys {
+
+    @Test
+    void the_address_taken_by_a_concurrent_registration_is_a_taken_address() {
+      when(credentials.register(eq(carol), anyString()))
+          .thenThrow(new DuplicateKeyException("who_email_credential_address_key"));
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, none))
+          .isInstanceOf(EmailAddressTakenException.class);
+      assertThat(published).isEmpty();
+      verifyNoInteractions(issuer);
+    }
+
+    @Test
+    void a_listeners_own_unique_key_violation_is_not_a_taken_address() {
+      DuplicateKeyException listeners = new DuplicateKeyException("app_profile_key");
+      InvitationService service =
+          new InvitationService(
+              whoService,
+              credentials,
+              roles,
+              issuer,
+              event -> {
+                throw listeners;
+              },
+              mock(PlatformTransactionManager.class),
+              Clock.fixed(NOW, ZoneOffset.UTC));
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, none)).isSameAs(listeners);
       verifyNoInteractions(issuer);
     }
   }
