@@ -16,7 +16,7 @@ A page without a bundler can import the built module from jsDelivr, pinned to yo
 
 ```html
 <script type="module">
-  import { createWhoClient } from 'https://cdn.jsdelivr.net/npm/@jwcarman/who-client@0.19.0/dist/index.js';
+  import { createWhoClient } from 'https://cdn.jsdelivr.net/npm/@jwcarman/who-client@0.20.0/dist/index.js';
 </script>
 ```
 

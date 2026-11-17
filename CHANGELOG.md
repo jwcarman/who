@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-17
+
 ### Breaking changes
 
 - `EmailAddressEndpoints` implements the new `BrowserEndpoints` instead of `PasswordlessLoginMethod`: it is not a way to sign in. A browser chain applies every `BrowserEndpoints` bean after its sign-in methods, so the email-address endpoints work as before; code that looked them up as a `PasswordlessLoginMethod` no longer finds them.
@@ -439,7 +441,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.18.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.20.0...HEAD
+[0.20.0]: https://github.com/jwcarman/who/releases/tag/0.20.0
 [0.19.0]: https://github.com/jwcarman/who/releases/tag/0.19.0
 [0.18.0]: https://github.com/jwcarman/who/releases/tag/0.18.0
 [0.17.0]: https://github.com/jwcarman/who/releases/tag/0.17.0
