@@ -129,4 +129,19 @@ final class AdminGate {
       throws IOException {
     handoff.handOff(request, response, exception, HttpStatus.BAD_REQUEST);
   }
+
+  /**
+   * Answers a request that failed after it was admitted, for a reason who does not name: the
+   * application's exception handling answers it, else the status the exception carries, else {@code
+   * 500}.
+   *
+   * @param request the request
+   * @param response its response
+   * @param exception what failed
+   * @throws IOException if answering fails
+   */
+  void fail(HttpServletRequest request, HttpServletResponse response, Exception exception)
+      throws IOException {
+    handoff.handOff(request, response, exception, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
 }

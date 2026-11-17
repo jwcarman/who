@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import java.io.Serial;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -32,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -65,6 +67,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -74,6 +77,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -116,6 +120,16 @@ class InvitationServiceTest {
   /** When set, the listener throws. */
   static final AtomicBoolean LISTENER_THROWS = new AtomicBoolean();
 
+  /** When set, the listener throws this. */
+  static final AtomicReference<RuntimeException> LISTENER_FAILURE = new AtomicReference<>();
+
+  /** What an application's listener might throw to refuse an invitation, with its own status. */
+  @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+  static final class Unprocessable extends RuntimeException {
+
+    @Serial private static final long serialVersionUID = 1L;
+  }
+
   record Sent(EmailLinkMessage message, boolean identityCommitted) {}
 
   record Heard(IdentityInvited event, boolean inTransaction) {}
@@ -135,6 +149,10 @@ class InvitationServiceTest {
       HEARD.add(new Heard(event, TransactionSynchronizationManager.isActualTransactionActive()));
       if (LISTENER_THROWS.get()) {
         throw new IllegalStateException("the application refuses");
+      }
+      RuntimeException failure = LISTENER_FAILURE.get();
+      if (failure != null) {
+        throw failure;
       }
     }
   }
@@ -252,6 +270,7 @@ class InvitationServiceTest {
     SENT.clear();
     HEARD.clear();
     LISTENER_THROWS.set(false);
+    LISTENER_FAILURE.set(null);
   }
 
   private long identities() {
@@ -374,6 +393,33 @@ class InvitationServiceTest {
       assertThat(SENT)
           .singleElement()
           .satisfies(s -> assertThat(s.message().address()).isEqualTo(CAROL));
+    }
+
+    @Test
+    void a_listener_refusal_with_its_own_status_is_answered_with_it_and_creates_nothing()
+        throws Exception {
+      LISTENER_FAILURE.set(new Unprocessable());
+      long before = identities();
+
+      HttpResponse<String> response = asAlice(body(CAROL, MEMBER_ROLE));
+
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(422);
+      assertThat(identities()).isEqualTo(before);
+      assertThat(registered(CAROL)).isFalse();
+      assertThat(SENT).isEmpty();
+    }
+
+    @Test
+    void a_listener_failure_is_a_server_error_and_creates_nothing() throws Exception {
+      LISTENER_FAILURE.set(new IllegalStateException("the listener failed"));
+      long before = identities();
+
+      HttpResponse<String> response = asAlice(body(CAROL, MEMBER_ROLE));
+
+      assertThat(response.statusCode()).isEqualTo(500);
+      assertThat(identities()).isEqualTo(before);
+      assertThat(registered(CAROL)).isFalse();
+      assertThat(SENT).isEmpty();
     }
 
     @Test

@@ -24,13 +24,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.io.Serial;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -67,11 +70,14 @@ import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -272,6 +278,52 @@ class InvitationsFilterTest {
     }
 
     @Test
+    void a_concurrent_invite_of_the_same_address_is_a_conflict() throws Exception {
+      signIn(MANAGE);
+      when(invitations.invite(anyString(), any()))
+          .thenThrow(new DuplicateKeyException("who_email_credential_address_key"));
+
+      MockHttpServletResponse response = invite(body(ADDRESS));
+
+      assertThat(response.getStatus()).isEqualTo(409);
+      assertThat(response.getHeader(HEADER)).isEqualTo("email-address-taken");
+    }
+
+    @Test
+    void a_listener_refusal_carrying_its_own_status_is_answered_with_it() throws Exception {
+      signIn(MANAGE);
+      when(invitations.invite(anyString(), any())).thenThrow(new Unprocessable());
+
+      MockHttpServletResponse response = invite(body(ADDRESS));
+
+      assertThat(response.getStatus()).isEqualTo(422);
+    }
+
+    @Test
+    void any_other_failure_is_handed_to_the_application_as_a_server_error() throws Exception {
+      List<Exception> handedOff = new ArrayList<>();
+      filter =
+          new InvitationsFilter(
+              WhoPaths.defaults(),
+              invitations,
+              rbac,
+              new AdminGate(
+                  sessions,
+                  new WhoExceptionHandoff((req, res, e) -> !handedOff.add(e)),
+                  clock,
+                  RECENT),
+              JSON);
+      signIn(MANAGE);
+      IllegalStateException failure = new IllegalStateException("the listener failed");
+      when(invitations.invite(anyString(), any())).thenThrow(failure);
+
+      MockHttpServletResponse response = invite(body(ADDRESS));
+
+      assertThat(handedOff).containsExactly(failure);
+      assertThat(response.getStatus()).isEqualTo(500);
+    }
+
+    @Test
     void an_address_the_service_refuses_is_bad_request() throws Exception {
       signIn(MANAGE);
       when(invitations.invite(anyString(), any()))
@@ -282,6 +334,13 @@ class InvitationsFilterTest {
       assertThat(response.getStatus()).isEqualTo(400);
       assertThat(response.getHeader(HEADER)).isEqualTo("invalid-invitation");
     }
+  }
+
+  /** What an application's {@code IdentityInvited} listener might throw to refuse an invitation. */
+  @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+  static final class Unprocessable extends RuntimeException {
+
+    @Serial private static final long serialVersionUID = 1L;
   }
 
   @Nested

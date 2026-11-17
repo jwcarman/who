@@ -173,9 +173,28 @@ Then:
 | `400` | `invalid-admin-request` | The body is not a JSON object, `email` is not a string, or `roles` is not an array of strings |
 | `400` | `invalid-invitation` | The address is missing or malformed, a role name is blank or names no role, or roles were asked for without `who-rbac` |
 | `403` | `role-grant-forbidden` | A role carries a permission the caller does not hold, as for assigning one |
-| `409` | `email-address-taken` | The address is already an identity's |
+| `409` | `email-address-taken` | The address is already an identity's, or a concurrent invite of the same address took it first |
 
 Nothing is created in any of these cases.
+
+An exception from your [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
+listener rolls the invitation back and goes through your exception handling, like every who
+failure (see [Errors](errors.md)): a `@RestControllerAdvice` of yours answers it, or the
+exception's own `@ResponseStatus` does. A listener that refuses an invitation can say why:
+
+```java
+@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+class SeatLimitReachedException extends RuntimeException {}
+
+@EventListener
+void on(IdentityInvited event) {
+  if (seats.full()) {
+    throw new SeatLimitReachedException(); // POST /who/invitations answers 422, nothing created
+  }
+}
+```
+
+An exception nothing answers and that carries no status is `500`.
 
 ### `InvitationService`
 

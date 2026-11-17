@@ -39,6 +39,7 @@ import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -56,8 +57,12 @@ import tools.jackson.databind.json.JsonMapper;
  * sign-in, checked as every admin endpoint checks them (see {@link AdminGate}), before the body is
  * read. Then a body that is not that JSON, a missing or malformed address and a role that does not
  * exist are {@code 400}; a role carrying a permission the caller does not hold is {@code 403} (see
- * {@link RoleGrants}); and an address that is already an identity's is {@code 409}. Nothing is
- * created in any of these cases.
+ * {@link RoleGrants}); and an address that is already an identity's is {@code 409}, as is one a
+ * concurrent invite of the same address took first. Anything else {@link InvitationService#invite}
+ * throws, such as an exception from the application's {@code IdentityInvited} listener, goes to the
+ * application's exception handling, so its {@code @RestControllerAdvice} or the exception's own
+ * {@code @ResponseStatus} answers it; otherwise it is {@code 500}. Nothing is created in any of
+ * these cases.
  */
 final class InvitationsFilter extends OncePerRequestFilter {
 
@@ -102,18 +107,47 @@ final class InvitationsFilter extends OncePerRequestFilter {
       String email = email(body);
       Set<String> roleNames = roleNames(body);
       RoleGrants.requireMayGrant(rbac, caller.get().permissions(), roles(roleNames));
-      Invitation invitation = invitations.invite(email, roleNames);
+      Optional<Invitation> invitation = invite(request, response, email, roleNames);
+      if (invitation.isEmpty()) {
+        return;
+      }
       AdminJson.write(
           jsonMapper,
           response,
           HttpServletResponse.SC_CREATED,
-          new Created(invitation.identityId(), invitation.linkSent()));
+          new Created(invitation.get().identityId(), invitation.get().linkSent()));
     } catch (InvalidAdminRequestException
         | InvalidInvitationException
         | RoleGrantForbiddenException
         | EmailAddressTakenException e) {
       // each carries its own status
       gate.refuse(request, response, e);
+    }
+  }
+
+  /**
+   * Invites, or answers why not: an address taken by a concurrent invite of the same address is
+   * {@code 409} {@link EmailAddressTakenException}, as one taken beforehand is; anything else that
+   * escapes {@link InvitationService#invite}, such as an {@code IdentityInvited} listener's
+   * exception, goes to the application's exception handling, {@code 500} if nothing there answers
+   * it and it carries no status of its own.
+   */
+  private Optional<Invitation> invite(
+      HttpServletRequest request, HttpServletResponse response, String email, Set<String> roles)
+      throws IOException {
+    try {
+      return Optional.of(invitations.invite(email, roles));
+    } catch (InvalidInvitationException | EmailAddressTakenException e) {
+      // each carries its own status
+      gate.refuse(request, response, e);
+      return Optional.empty();
+    } catch (DuplicateKeyException _) {
+      // the same address invited concurrently: the database's unique key decided which one won
+      gate.refuse(request, response, new EmailAddressTakenException());
+      return Optional.empty();
+    } catch (RuntimeException e) {
+      gate.fail(request, response, e);
+      return Optional.empty();
     }
   }
 
