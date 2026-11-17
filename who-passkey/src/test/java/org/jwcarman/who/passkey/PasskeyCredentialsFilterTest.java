@@ -149,14 +149,14 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
   private PasskeySummary passkey(Identity identity, String label, Instant created) {
     PublicKeyCredentialUserEntity user =
         users.computeIfAbsent(identity.id(), id -> userRepository.create(id, id.toString()));
-    ImmutableCredentialRecord record =
+    ImmutableCredentialRecord stored =
         CredentialRecords.registration(user.getId(), label)
             .created(created)
             .lastUsed(created)
             .build();
-    CredentialRecords.register(credentialRepository, record);
+    CredentialRecords.register(credentialRepository, stored);
     return passkeys.list(identity.id()).stream()
-        .filter(s -> s.credentialId().equals(record.getCredentialId().toBase64UrlString()))
+        .filter(s -> s.credentialId().equals(stored.getCredentialId().toBase64UrlString()))
         .findFirst()
         .orElseThrow();
   }

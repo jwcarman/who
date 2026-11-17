@@ -47,6 +47,9 @@ import org.springframework.security.web.webauthn.api.ResidentKeyRequirement;
 import org.springframework.security.web.webauthn.api.UserVerificationRequirement;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialCreationOptionsRequest;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialRequestOptionsRequest;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.webauthn4j.verifier.exception.UserNotVerifiedException;
 
@@ -219,6 +222,22 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
     operations.registerCredential(PasskeyEmulator.honest(ORIGIN).register(options, "Laptop"));
 
     assertThat(notifications).containsExactly(identity.id() + ":Laptop");
+  }
+
+  @Test
+  @Transactional(
+      propagation = Propagation.NOT_SUPPORTED) // the class's own transaction would hide it
+  void notifierIsCalledWithNoTransactionOpen() {
+    List<Boolean> transactionOpen = new ArrayList<>();
+    WhoRelyingPartyOperations recording =
+        operations(
+            (identityId, label) ->
+                transactionOpen.add(TransactionSynchronizationManager.isActualTransactionActive()));
+
+    recording.registerCredential(
+        PasskeyEmulator.honest(ORIGIN).register(creationOptions(), "Laptop"));
+
+    assertThat(transactionOpen).containsExactly(false);
   }
 
   @Test
