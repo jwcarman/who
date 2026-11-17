@@ -130,7 +130,7 @@ class InvitationServiceTest {
     @Serial private static final long serialVersionUID = 1L;
   }
 
-  record Sent(EmailLinkMessage message, boolean identityCommitted) {}
+  record Sent(EmailLinkMessage message, boolean identityCommitted, boolean inTransaction) {}
 
   record Heard(IdentityInvited event, boolean inTransaction) {}
 
@@ -165,8 +165,8 @@ class InvitationServiceTest {
     EmailLinkSender emailLinkSender(JdbcClient jdbcClient) {
       return email -> {
         if (email instanceof EmailLinkMessage message) {
-          // a separate connection would see only what has committed; so does this one, which
-          // runs in the link's own transaction
+          // this connection sees only what has committed, as the link must be sent with no
+          // transaction open
           long identities =
               jdbcClient
                   .sql(
@@ -175,7 +175,11 @@ class InvitationServiceTest {
                   .param("address", message.address())
                   .query(Long.class)
                   .single();
-          SENT.add(new Sent(message, identities == 1));
+          SENT.add(
+              new Sent(
+                  message,
+                  identities == 1,
+                  TransactionSynchronizationManager.isActualTransactionActive()));
         }
       };
     }
@@ -310,6 +314,15 @@ class InvitationServiceTest {
                 assertThat(sent.message().address()).isEqualTo(CAROL);
                 assertThat(sent.identityCommitted()).isTrue();
               });
+    }
+
+    @Test
+    void sends_the_link_with_no_transaction_open() {
+      invitationService.invite("Carol@Example.com", Set.of());
+
+      assertThat(SENT)
+          .singleElement()
+          .satisfies(sent -> assertThat(sent.inTransaction()).isFalse());
     }
 
     @Test

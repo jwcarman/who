@@ -269,8 +269,8 @@ order:
    [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation) published,
    synchronously, inside the transaction. If any step throws, a listener included, everything
    rolls back and no link is sent.
-2. Only after that commits, the sign-in link is issued by `EmailLinkIssuer.issue`, in a
-   transaction of its own, so a link is only ever sent for an identity that exists. A link that is
+2. Only after that commits, the sign-in link is issued by `EmailLinkIssuer.issue`, with
+   no transaction open, so a link is only ever sent for an identity that exists. A link that is
    not sent is logged at WARN, without the address or the token.
 
 **Call `invite` outside any transaction.** Called inside one, it throws `IllegalStateException`:

@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -50,10 +49,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       sent. who's own events from these steps, such as {@code IdentityCreated}, are delivered
  *       only if it commits.
  *   <li>Only after that transaction has committed, the sign-in link is issued by {@link
- *       EmailLinkIssuer#issue} in a transaction of its own, so a link is only ever sent for an
- *       identity that exists. The invitation stands whatever becomes of the link: {@link
- *       Invitation#linkOutcome} says, and a link that is not sent is logged at WARN without the
- *       address or the token.
+ *       EmailLinkIssuer#issue} with no transaction open, so a link is only ever sent for an
+ *       identity that exists, and no database connection is held while the email goes out. The
+ *       invitation stands whatever becomes of the link: {@link Invitation#linkOutcome} says, and a
+ *       link that is not sent is logged at WARN without the address or the token.
  * </ol>
  *
  * <p>This service applies no policy about who may grant which roles: it is for trusted application
@@ -70,7 +69,6 @@ public class InvitationService {
   private final ApplicationEventPublisher events;
   private final Clock clock;
   private final TransactionTemplate invitation;
-  private final TransactionTemplate link;
 
   /**
    * Creates the service.
@@ -81,7 +79,7 @@ public class InvitationService {
    *     roles
    * @param linkIssuer sends the sign-in link
    * @param events where {@link IdentityInvited} is published, synchronously
-   * @param transactionManager runs the invitation's transaction and then the link's
+   * @param transactionManager runs the invitation's transaction
    * @param clock stamps the event
    */
   public InvitationService(
@@ -100,14 +98,12 @@ public class InvitationService {
     this.clock = requireNonNull(clock, "clock must not be null");
     requireNonNull(transactionManager, "transactionManager must not be null");
     this.invitation = new TransactionTemplate(transactionManager);
-    this.link = new TransactionTemplate(transactionManager);
-    this.link.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
 
   /**
    * Invites the address with the named roles, in the order the class describes. Call it outside any
-   * transaction: the link must go only after the invitation commits, which a caller's transaction
-   * would postpone.
+   * transaction: the link is issued after the invitation commits, with no transaction open, which a
+   * caller's transaction would postpone.
    *
    * @param email the address, as typed; registered normalized
    * @param roleNames the names of the roles to give the identity; empty for none
@@ -162,8 +158,7 @@ public class InvitationService {
     try {
       outcome =
           Objects.requireNonNullElse(
-              link.execute(_ -> linkIssuer.issue(invited.address(), Secrets.token())),
-              EmailLinkOutcome.SEND_FAILED);
+              linkIssuer.issue(invited.address(), Secrets.token()), EmailLinkOutcome.SEND_FAILED);
     } catch (RuntimeException e) {
       // class name only: the message could carry the address
       log.warn(

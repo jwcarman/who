@@ -71,6 +71,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `InvitationService` issues the sign-in link with no transaction open. It issued it inside a `REQUIRES_NEW` transaction, so the email went out before that transaction committed, and a failed commit left the person a dead link, while a database connection was held for the mail round trip. `POST /who/email/send` never did either.
 - An exception that nothing in the application answered and that `WhoExceptionHandoff` sent as a `5xx` (such as an `IdentityInvited` listener's at `POST /who/invitations`) was logged nowhere. who now logs it at `ERROR` with its stack trace.
 - Ids that who made in the same millisecond had no order, because each call built a new UUIDv7 generator, so lists that are oldest first could show two credentials made together in either order. who now keeps one generator, whose ids always increase.
 
