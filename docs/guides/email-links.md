@@ -413,7 +413,9 @@ Your verifier is used even with a test key.
 
 ### The HTTP client
 
-who calls Cloudflare with your application's `RestClient.Builder` bean when it has one, such as Spring Boot's from `spring-boot-starter-restclient`, so its observations, interceptors and customizers apply. who copies the builder and gives the copy its own request factory, so `who.turnstile.timeout` always holds; the builder's own request factory and HTTP client settings are not used. Outbound proxies set through the JVM's `https.proxyHost` and `https.proxyPort` system properties apply.
+who calls Cloudflare with your application's `RestClient.Builder` bean when it has one, such as Spring Boot's from `spring-boot-starter-restclient`, so its observations, interceptors and customizers apply. who copies the builder, so yours is left as it was.
+
+With Spring Boot's HTTP client module on the classpath (`spring-boot-http-client`, which `spring-boot-starter-restclient` brings), who builds the client from your application's HTTP client settings, `spring.http.clients.*` or your own `HttpClientSettings` and `ClientHttpRequestFactoryBuilder` beans: the client library, SSL bundle, redirects and the rest carry over, and only the timeouts are replaced by `who.turnstile.timeout`. Without that module, who uses Spring's plain `SimpleClientHttpRequestFactory` with its timeout; outbound proxies set through the JVM's `https.proxyHost` and `https.proxyPort` system properties apply.
 
 The timeout bounds connecting and reading separately, so a call that connects slowly and then answers slowly can take up to twice `who.turnstile.timeout`.
 

@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -36,6 +38,9 @@ import org.jwcarman.who.spring.security.WhoHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileVerifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.HttpClientSettings;
+import org.springframework.boot.http.client.HttpRedirects;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -271,6 +276,121 @@ class WhoTurnstileAutoConfigurationTest {
     try {
       runner
           .withUserConfiguration(ApplicationBuilder.class)
+          .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
+          .run(
+              context -> {
+                WhoHumanCheck check = context.getBean(WhoHumanCheck.class);
+                assertThat(
+                        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> check.passes(SEND)))
+                    .isFalse();
+              });
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  /** Answers 302 to /siteverify, sending the client to /moved, which says the token is good. */
+  private static HttpServer redirecting() throws IOException {
+    HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/siteverify",
+        exchange -> {
+          exchange.getRequestBody().readAllBytes();
+          exchange.getResponseHeaders().add("Location", "/moved");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/moved",
+        exchange -> {
+          byte[] body =
+              "{\"success\":true,\"action\":\"email-send\"}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          exchange.getResponseBody().write(body);
+          exchange.close();
+        });
+    server.start();
+    return server;
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class NoRedirects {
+    @Bean
+    HttpClientSettings httpClientSettings() {
+      return HttpClientSettings.defaults().withRedirects(HttpRedirects.DONT_FOLLOW);
+    }
+  }
+
+  @Test
+  void by_default_the_client_follows_redirects() throws IOException {
+    HttpServer server = redirecting();
+    try {
+      runner
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isTrue());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void the_applications_http_client_settings_are_used() throws IOException {
+    HttpServer server = redirecting();
+    try {
+      runner
+          .withUserConfiguration(NoRedirects.class)
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  static final List<HttpClientSettings> BUILT_WITH = new CopyOnWriteArrayList<>();
+
+  @Configuration(proxyBeanMethods = false)
+  static class RecordingFactoryBuilder {
+    @Bean
+    HttpClientSettings httpClientSettings() {
+      return HttpClientSettings.defaults()
+          .withRedirects(HttpRedirects.DONT_FOLLOW)
+          .withTimeouts(Duration.ofMinutes(5), Duration.ofMinutes(5));
+    }
+
+    @Bean
+    ClientHttpRequestFactoryBuilder<?> clientHttpRequestFactoryBuilder() {
+      return settings -> {
+        BUILT_WITH.add(settings);
+        return ClientHttpRequestFactoryBuilder.simple().build(settings);
+      };
+    }
+  }
+
+  @Test
+  void the_applications_factory_builder_gets_its_settings_with_whos_timeouts() {
+    BUILT_WITH.clear();
+    runner
+        .withUserConfiguration(RecordingFactoryBuilder.class)
+        .withPropertyValues(SECRET, "who.turnstile.timeout=750ms")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(BUILT_WITH)
+                  .singleElement()
+                  .isEqualTo(
+                      HttpClientSettings.defaults()
+                          .withRedirects(HttpRedirects.DONT_FOLLOW)
+                          .withTimeouts(Duration.ofMillis(750), Duration.ofMillis(750)));
+            });
+  }
+
+  @Test
+  void without_spring_boots_http_client_the_timeout_still_holds() throws IOException {
+    HttpServer server = siteverify(Duration.ofSeconds(2));
+    try {
+      runner
+          .withClassLoader(new FilteredClassLoader(ClientHttpRequestFactoryBuilder.class))
           .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
           .run(
               context -> {
