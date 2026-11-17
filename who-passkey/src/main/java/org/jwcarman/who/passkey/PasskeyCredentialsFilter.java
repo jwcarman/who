@@ -34,11 +34,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.exception.LastCredentialException;
 import org.jwcarman.who.core.service.LastCredentialGuard;
-import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -87,7 +85,7 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
    * Creates the filter.
    *
    * @param paths where the endpoints live
-   * @param sessionRepository where the browser's {@link WhoSession} is read from
+   * @param sessionRepository classifies the caller and gives the browser session
    * @param passkeys lists and revokes passkeys
    * @param guard keeps an identity from losing its last sign-in credential
    * @param handoff hands errors to the application
@@ -128,15 +126,13 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken token)) {
+    WhoCaller caller = sessionRepository.caller(request, authentication);
+    if (caller instanceof WhoCaller.SignedOut) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    UUID identityId = token.getPrincipal().identity().id();
-    // the browser session that signed this request in; an API key or bearer token beside the
-    // session cookie, even one ignored, does not count
-    Optional<WhoSession> current = sessionRepository.browserSession(request, token);
-    if (current.isEmpty()) {
+    // an API key or bearer token, even one ignored beside the session cookie, is not a browser
+    if (!(caller instanceof WhoCaller.Session current)) {
       handoff.handOff(
           request,
           response,
@@ -144,10 +140,11 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
           HttpStatus.FORBIDDEN);
       return;
     }
+    UUID identityId = current.token().getPrincipal().identity().id();
     if (list.matches(request)) {
       list(response, identityId);
     } else {
-      remove(request, response, identityId, current.get());
+      remove(request, response, identityId, current);
     }
   }
 
@@ -170,10 +167,13 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
   }
 
   private void remove(
-      HttpServletRequest request, HttpServletResponse response, UUID identityId, WhoSession current)
+      HttpServletRequest request,
+      HttpServletResponse response,
+      UUID identityId,
+      WhoCaller.Session current)
       throws IOException {
     // before looking at the id, so a stale session learns nothing about any passkey
-    if (!WhoSignInFactors.isRecent(current.signedInAt(), recentSignIn, clock.instant())) {
+    if (!current.isRecent(recentSignIn, clock.instant())) {
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;

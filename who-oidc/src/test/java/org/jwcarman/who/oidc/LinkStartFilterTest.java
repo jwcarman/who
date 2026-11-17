@@ -16,7 +16,9 @@
 package org.jwcarman.who.oidc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -26,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -35,10 +38,13 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
@@ -78,6 +84,13 @@ class LinkStartFilterTest {
 
   private final HttpSessionOAuth2AuthorizationRequestRepository saved =
       new HttpSessionOAuth2AuthorizationRequestRepository();
+  private final WhoService whoService = mock(WhoService.class);
+  private final WhoSessions whoSessions =
+      InMemorySessionRecordRepository.whoSessions(
+          Clock.fixed(NOW, ZoneOffset.UTC), WhoEventPublisher.NOOP);
+  private final WhoSessionSecurityContextRepository sessions =
+      new WhoSessionSecurityContextRepository(
+          whoService, whoSessions, Clock.fixed(NOW, ZoneOffset.UTC), WhoEventPublisher.NOOP);
   private final LinkStartFilter filter =
       new LinkStartFilter(
           WhoPaths.defaults(),
@@ -86,7 +99,7 @@ class LinkStartFilterTest {
               SignInRegistrations.of(List.of(ACME), Map.of()),
               "/who/oidc/authorize"),
           saved,
-          whoSessionRepository(mock(WhoService.class), Clock.systemUTC()),
+          sessions,
           new WhoExceptionHandoff(null),
           Clock.fixed(NOW, ZoneOffset.UTC),
           RECENT_SIGN_IN);
@@ -121,6 +134,23 @@ class LinkStartFilterTest {
             new WhoSession(identity.id(), identity.id(), signedInAt));
   }
 
+  /** Signs {@code identity} in to this browser at {@code signedInAt}, loaded as the chain would. */
+  private void browserSignIn(
+      MockHttpServletRequest request, Identity identity, Instant signedInAt) {
+    UUID credentialId = UUID.randomUUID();
+    SessionRecord row =
+        whoSessions.start(identity.id(), credentialId, SignInMethod.EMAIL_LINK, null, signedInAt);
+    when(whoService.resolveDetailed(any()))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
+    request
+        .getSession(true)
+        .setAttribute(
+            WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+            new WhoSession(
+                identity.id(), credentialId, signedInAt, SignInMethod.EMAIL_LINK, row.id()));
+    SecurityContextHolder.setContext(sessions.loadDeferredContext(request).get());
+  }
+
   private static List<OAuth2AuthorizationRequest> savedRequests(MockHttpServletRequest request) {
     HttpSession session = request.getSession(false);
     if (session == null) {
@@ -141,9 +171,8 @@ class LinkStartFilterTest {
 
   @Test
   void signed_in_in_this_browser_goes_to_the_provider() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
-    withWhoSession(request, bob);
+    browserSignIn(request, bob, NOW);
 
     MockHttpServletResponse response = filter(request);
 
@@ -153,10 +182,9 @@ class LinkStartFilterTest {
 
   @Test
   void asked_for_json_answers_where_to_go_instead_of_redirecting() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
     request.addHeader("Accept", "application/json");
-    withWhoSession(request, bob);
+    browserSignIn(request, bob, NOW);
 
     MockHttpServletResponse response = filter(request);
 
@@ -171,38 +199,34 @@ class LinkStartFilterTest {
 
   @Test
   void a_page_asking_for_html_first_is_still_redirected() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
     request.addHeader("Accept", "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8");
-    withWhoSession(request, bob);
+    browserSignIn(request, bob, NOW);
 
     assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
   }
 
   @Test
   void a_malformed_accept_header_is_treated_as_a_page_and_redirected() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
     request.addHeader("Accept", "not a media type");
-    withWhoSession(request, bob);
+    browserSignIn(request, bob, NOW);
 
     assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
   }
 
   @Test
   void signed_in_just_within_the_window_goes_to_the_provider() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
-    withWhoSession(request, bob, NOW.minus(RECENT_SIGN_IN).plusMillis(1));
+    browserSignIn(request, bob, NOW.minus(RECENT_SIGN_IN).plusMillis(1));
 
     assertThat(filter(request).getRedirectedUrl()).startsWith("https://idp.example.com/authorize");
   }
 
   @Test
   void signed_in_longer_ago_than_the_window_is_401_and_starts_none() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("acme");
-    withWhoSession(request, bob, NOW.minus(RECENT_SIGN_IN).minusSeconds(1));
+    browserSignIn(request, bob, NOW.minus(RECENT_SIGN_IN).minusSeconds(1));
 
     MockHttpServletResponse response = filter(request);
 
@@ -216,34 +240,33 @@ class LinkStartFilterTest {
   }
 
   @Test
-  void signed_in_without_a_browser_session_is_401_and_starts_none() throws Exception {
+  void signed_in_without_a_browser_session_is_403_and_starts_none() throws Exception {
     signedIn(bob, SignInMethod.API_KEY);
     MockHttpServletRequest request = start("acme");
 
     MockHttpServletResponse response = filter(request);
 
-    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.getRedirectedUrl()).isNull();
     assertThat(request.getSession(false)).isNull();
   }
 
   @Test
-  void a_browser_session_for_someone_else_is_401() throws Exception {
+  void an_api_key_beside_a_browser_session_for_someone_else_is_403() throws Exception {
     signedIn(bob, SignInMethod.API_KEY);
     MockHttpServletRequest request = start("acme");
     withWhoSession(request, Identity.create(IdentityStatus.ACTIVE));
 
     MockHttpServletResponse response = filter(request);
 
-    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getStatus()).isEqualTo(403);
     assertThat(savedRequests(request)).isEmpty();
   }
 
   @Test
   void an_unknown_registration_is_404() throws Exception {
-    signedIn(bob, SignInMethod.EMAIL_LINK);
     MockHttpServletRequest request = start("nope");
-    withWhoSession(request, bob);
+    browserSignIn(request, bob, NOW);
 
     assertThat(filter(request).getStatus()).isEqualTo(404);
   }
@@ -268,14 +291,5 @@ class LinkStartFilterTest {
     filter.doFilter(request, new MockHttpServletResponse(), chain);
 
     assertThat(chain.getRequest()).isSameAs(request);
-  }
-
-  private static WhoSessionSecurityContextRepository whoSessionRepository(
-      WhoService whoService, Clock clock) {
-    return new WhoSessionSecurityContextRepository(
-        whoService,
-        InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
-        clock,
-        WhoEventPublisher.NOOP);
   }
 }

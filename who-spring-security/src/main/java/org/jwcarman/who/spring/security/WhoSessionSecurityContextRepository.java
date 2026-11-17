@@ -230,10 +230,49 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   }
 
   /**
-   * The browser session this request acts as, for endpoints only a browser may call: the session
-   * whose record is live, whose identity is the authentication's, and which {@link #isLoaded
-   * loaded} that authentication, on a request that presents no {@link #presentsStatelessCredential
-   * stateless credential} beside its cookie.
+   * Classifies this request's caller by what signed the request in, never by which headers it
+   * carries:
+   *
+   * <ul>
+   *   <li>{@link WhoCaller.SignedOut}: no who sign-in;
+   *   <li>{@link WhoCaller.Session}: the browser session {@link #isLoaded loaded} the
+   *       authentication and the request presents no {@link #presentsStatelessCredential stateless
+   *       credential};
+   *   <li>{@link WhoCaller.SessionWithForeignCredential}: the session loaded it, and the request
+   *       also presents an API key or bearer token, ignored because the session signed it in;
+   *   <li>{@link WhoCaller.Stateless}: a bearer token or an API key signed it in, and no session
+   *       loaded it;
+   *   <li>{@link WhoCaller.Other}: any other who sign-in.
+   * </ul>
+   *
+   * @param request the current request
+   * @param authentication the request's authentication, or {@code null}
+   * @return the caller
+   */
+  public WhoCaller caller(HttpServletRequest request, Authentication authentication) {
+    if (!(authentication instanceof WhoAuthenticationToken token)) {
+      return new WhoCaller.SignedOut();
+    }
+    if (isLoaded(request, token)) {
+      if (presentsStatelessCredential(request)) {
+        return new WhoCaller.SessionWithForeignCredential(token);
+      }
+      UUID identityId = token.getPrincipal().identity().id();
+      return currentSession(request)
+          .filter(session -> session.identityId().equals(identityId))
+          .<WhoCaller>map(session -> new WhoCaller.Session(token, session))
+          .orElseGet(() -> new WhoCaller.Other(token));
+    }
+    return token
+        .signInMethod()
+        .filter(method -> method == SignInMethod.JWT || method == SignInMethod.API_KEY)
+        .<WhoCaller>map(method -> new WhoCaller.Stateless(token, method))
+        .orElseGet(() -> new WhoCaller.Other(token));
+  }
+
+  /**
+   * The browser session this request acts as, for endpoints only a browser may call: the session of
+   * a {@link WhoCaller.Session} {@link #caller caller}.
    *
    * @param request the current request
    * @param authentication the request's authentication, or {@code null}
@@ -241,13 +280,9 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    */
   public Optional<WhoSession> browserSession(
       HttpServletRequest request, Authentication authentication) {
-    if (!(authentication instanceof WhoAuthenticationToken token)
-        || !isLoaded(request, token)
-        || presentsStatelessCredential(request)) {
-      return Optional.empty();
-    }
-    UUID identityId = token.getPrincipal().identity().id();
-    return currentSession(request).filter(s -> s.identityId().equals(identityId));
+    return caller(request, authentication) instanceof WhoCaller.Session session
+        ? Optional.of(session.session())
+        : Optional.empty();
   }
 
   private SecurityContext load(HttpServletRequest request) {

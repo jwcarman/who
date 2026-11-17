@@ -204,7 +204,9 @@ class IdentitiesFilterTest {
           whoService,
           InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
           clock,
-          WhoEventPublisher.NOOP);
+          WhoEventPublisher.NOOP,
+          request ->
+              request.getHeader("X-API-Key") != null || request.getHeader("Authorization") != null);
   private Identity caller;
   private HttpSession browser;
   private IdentitiesFilter filter;
@@ -322,7 +324,13 @@ class IdentitiesFilterTest {
   }
 
   private MockHttpServletResponse send(String method, String uri, String body) throws Exception {
+    return send(method, uri, body, Map.of());
+  }
+
+  private MockHttpServletResponse send(
+      String method, String uri, String body, Map<String, String> headers) throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+    headers.forEach(request::addHeader);
     int query = uri.indexOf('?');
     if (query >= 0) {
       request.setRequestURI(uri.substring(0, query));
@@ -950,6 +958,55 @@ class IdentitiesFilterTest {
           .isEqualTo(200);
       assertThat(send("PUT", "/who/identities/" + other.id() + "/roles/admin", null).getStatus())
           .isEqualTo(204);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"X-API-Key: junk", "Authorization: Bearer junk"})
+    void a_stale_browser_with_an_ignored_credential_header_cannot_change_a_status(String header)
+        throws Exception {
+      staleBrowser();
+      String[] nameAndValue = header.split(": ", 2);
+
+      MockHttpServletResponse response =
+          send(
+              "PATCH",
+              "/who/identities/" + other.id(),
+              "{\"status\":\"DISABLED\"}",
+              Map.of(nameAndValue[0], nameAndValue[1]));
+
+      assertThat(response.getStatus()).isIn(401, 403);
+      assertThat(identities.findById(other.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.ACTIVE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"X-API-Key: junk", "Authorization: Bearer junk"})
+    void a_fresh_browser_with_a_credential_header_beside_its_cookie_is_forbidden_to_change(
+        String header) throws Exception {
+      browserSignIn(NOW.minusSeconds(60), READ, MANAGE);
+      String[] nameAndValue = header.split(": ", 2);
+
+      MockHttpServletResponse response =
+          send(
+              "PATCH",
+              "/who/identities/" + other.id(),
+              "{\"status\":\"DISABLED\"}",
+              Map.of(nameAndValue[0], nameAndValue[1]));
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(identities.findById(other.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.ACTIVE);
+    }
+
+    @Test
+    void a_sign_in_no_session_loaded_and_not_stateless_is_not_exempt() throws Exception {
+      signIn(SignInMethod.EMAIL_LINK, MANAGE);
+
+      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
+          .extracting(MockHttpServletResponse::getStatus)
+          .isEqualTo(403);
+      assertThat(identities.findById(other.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.ACTIVE);
     }
 
     @Test

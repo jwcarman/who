@@ -37,10 +37,9 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.exception.LastCredentialException;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -139,31 +138,15 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       remove(request, response);
       return;
     }
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken)) {
-      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
-    Optional<SignedIn> signedIn = browserSignIn(request, authentication);
+    Optional<WhoCaller.Session> signedIn = browserSession(request, response, "add or change");
     if (signedIn.isEmpty()) {
-      // signed in, but by an API key or a bearer token, or with one beside the session cookie
-      handoff.handOff(
-          request,
-          response,
-          new AccessDeniedException("Only a browser session can add or change an email address"),
-          HttpStatus.FORBIDDEN);
       return;
     }
-    if (!WhoSignInFactors.isRecent(
-        signedIn.get().session().signedInAt(), recentSignIn, clock.instant())) {
-      handoff.handOff(
-          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
+    Identity identity = signedIn.get().token().getPrincipal().identity();
     if (addresses.matches(request)) {
-      request(request, response, signedIn.get().identity());
+      request(request, response, identity);
     } else {
-      confirm(request, response, signedIn.get().identity());
+      confirm(request, response, identity);
     }
   }
 
@@ -193,29 +176,11 @@ final class EmailAddressFilter extends OncePerRequestFilter {
   }
 
   private void remove(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken token)) {
-      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
-    UUID identityId = token.getPrincipal().identity().id();
-    // the browser session that signed this request in; an API key or bearer token beside the
-    // session cookie, even one ignored, does not count
-    Optional<WhoSession> current = sessions.browserSession(request, token);
+    Optional<WhoCaller.Session> current = browserSession(request, response, "remove");
     if (current.isEmpty()) {
-      handoff.handOff(
-          request,
-          response,
-          new AccessDeniedException("Only a browser session can remove an email address"),
-          HttpStatus.FORBIDDEN);
       return;
     }
-    // before looking at the id, so a stale session learns nothing about any address
-    if (!WhoSignInFactors.isRecent(current.get().signedInAt(), recentSignIn, clock.instant())) {
-      handoff.handOff(
-          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
+    UUID identityId = current.get().token().getPrincipal().identity().id();
     // another identity's address and one that does not exist are the same answer
     Optional<UUID> credentialId =
         parse(remove.matcher(request).getVariables().get("id"))
@@ -293,17 +258,33 @@ final class EmailAddressFilter extends OncePerRequestFilter {
   }
 
   /**
-   * The identity signed in to this browser's who session. A caller signed in some other way, an API
-   * key or a bearer token, has no sign-in time to check.
+   * The browser session that signed this request in, which must have signed in recently; anything
+   * else is answered: signed out {@code 401}, not a browser {@code 403} (an API key or a bearer
+   * token, even one ignored beside the session cookie), not recent {@code 401}.
    */
-  private Optional<SignedIn> browserSignIn(
-      HttpServletRequest request, Authentication authentication) {
-    return sessions
-        .browserSession(request, authentication)
-        .map(
-            session ->
-                new SignedIn(
-                    ((WhoAuthenticationToken) authentication).getPrincipal().identity(), session));
+  private Optional<WhoCaller.Session> browserSession(
+      HttpServletRequest request, HttpServletResponse response, String action) throws IOException {
+    WhoCaller caller =
+        sessions.caller(request, SecurityContextHolder.getContext().getAuthentication());
+    if (caller instanceof WhoCaller.SignedOut) {
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return Optional.empty();
+    }
+    if (!(caller instanceof WhoCaller.Session session)) {
+      handoff.handOff(
+          request,
+          response,
+          new AccessDeniedException("Only a browser session can " + action + " an email address"),
+          HttpStatus.FORBIDDEN);
+      return Optional.empty();
+    }
+    // before looking at the body or the id, so a stale session learns nothing
+    if (!session.isRecent(recentSignIn, clock.instant())) {
+      handoff.handOff(
+          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
+      return Optional.empty();
+    }
+    return Optional.of(session);
   }
 
   private static Optional<UUID> parse(String id) {
@@ -313,6 +294,4 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       return Optional.empty();
     }
   }
-
-  private record SignedIn(Identity identity, WhoSession session) {}
 }

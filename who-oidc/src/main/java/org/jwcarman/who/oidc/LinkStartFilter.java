@@ -25,18 +25,15 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -46,7 +43,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -106,8 +102,14 @@ final class LinkStartFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    if (sessions.presentsStatelessCredential(request)) {
-      // an API key or bearer token beside the session cookie: not a browser session
+    WhoCaller caller =
+        sessions.caller(request, SecurityContextHolder.getContext().getAuthentication());
+    if (caller instanceof WhoCaller.SignedOut) {
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    if (!(caller instanceof WhoCaller.Session session)) {
+      // an API key or bearer token, even one ignored beside the session cookie: not a browser
       handoff.handOff(
           request,
           response,
@@ -115,21 +117,16 @@ final class LinkStartFilter extends OncePerRequestFilter {
           HttpStatus.FORBIDDEN);
       return;
     }
-    Optional<WhoSession> session = browserSignIn(request);
-    if (session.isEmpty()) {
-      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
     Instant now = clock.instant();
     // checked again at confirmation; here so a stale session fails before the trip to the provider
-    if (!WhoSignInFactors.isRecent(session.get().signedInAt(), recentSignIn, now)) {
+    if (!session.isRecent(recentSignIn, now)) {
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
     }
     String registrationId = linkStart.matcher(request).getVariables().get("registrationId");
     Optional<OAuth2AuthorizationRequest> authorization =
-        authorizationRequests.link(request, registrationId, session.get().identityId(), now);
+        authorizationRequests.link(request, registrationId, session.session().identityId(), now);
     if (authorization.isEmpty()) {
       handoff.handOff(request, response, new UnknownProviderException(), HttpStatus.NOT_FOUND);
       return;
@@ -158,20 +155,5 @@ final class LinkStartFilter extends OncePerRequestFilter {
     }
     return accepted.stream().anyMatch(MediaType.APPLICATION_JSON::equalsTypeAndSubtype)
         && accepted.stream().noneMatch(MediaType.TEXT_HTML::equalsTypeAndSubtype);
-  }
-
-  /**
-   * The identity signed in to this browser's who session. A caller signed in some other way, an API
-   * key or a bearer token, has no session for the provider's callback to finish the link in.
-   */
-  private Optional<WhoSession> browserSignIn(HttpServletRequest request) {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken token)) {
-      return Optional.empty();
-    }
-    UUID identityId = token.getPrincipal().identity().id();
-    return sessions
-        .currentSession(request)
-        .filter(session -> session.identityId().equals(identityId));
   }
 }

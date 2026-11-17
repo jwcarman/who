@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -121,7 +122,9 @@ class InvitationsFilterTest {
           whoService,
           InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
           clock,
-          WhoEventPublisher.NOOP);
+          WhoEventPublisher.NOOP,
+          request ->
+              request.getHeader("X-API-Key") != null || request.getHeader("Authorization") != null);
   private final Role editor = new Role(UUID.randomUUID(), "editor");
   private final Role member = new Role(UUID.randomUUID(), "member");
   private final UUID invited = UUID.randomUUID();
@@ -184,7 +187,13 @@ class InvitationsFilterTest {
   }
 
   private MockHttpServletResponse send(String method, String uri, String body) throws Exception {
+    return send(method, uri, body, Map.of());
+  }
+
+  private MockHttpServletResponse send(
+      String method, String uri, String body, Map<String, String> headers) throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+    headers.forEach(request::addHeader);
     if (body != null) {
       request.setContentType("application/json");
       request.setContent(body.getBytes(StandardCharsets.UTF_8));
@@ -328,6 +337,20 @@ class InvitationsFilterTest {
       browserSignIn(NOW.minusSeconds(60), MANAGE);
 
       assertThat(invite(body(ADDRESS)).getStatus()).isEqualTo(201);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"X-API-Key: junk", "Authorization: Bearer junk"})
+    void a_stale_browser_with_an_ignored_credential_header_cannot_invite(String header)
+        throws Exception {
+      browserSignIn(NOW.minus(RECENT).minusSeconds(1), MANAGE);
+      String[] nameAndValue = header.split(": ", 2);
+
+      MockHttpServletResponse response =
+          send("POST", PATH, body(ADDRESS), Map.of(nameAndValue[0], nameAndValue[1]));
+
+      assertThat(response.getStatus()).isIn(401, 403);
+      verifyNoInteractions(invitations);
     }
 
     @Test

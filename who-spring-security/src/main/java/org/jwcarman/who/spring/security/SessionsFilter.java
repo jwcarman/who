@@ -106,16 +106,14 @@ final class SessionsFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken token)) {
+    WhoCaller caller = repository.caller(request, authentication);
+    if (caller instanceof WhoCaller.SignedOut) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
       return;
     }
-    UUID identityId = token.getPrincipal().identity().id();
-    // the browser session that signed this request in; an API key or bearer token beside the
-    // session cookie, even one ignored, does not count
-    Optional<WhoSession> current = repository.browserSession(request, token);
-    if (current.isEmpty()) {
-      // an API key or a bearer token has no browser session to list or keep
+    if (!(caller instanceof WhoCaller.Session current)) {
+      // an API key or a bearer token, even one ignored beside the session cookie, has no browser
+      // session to list or keep
       handoff.handOff(
           request,
           response,
@@ -123,12 +121,14 @@ final class SessionsFilter extends OncePerRequestFilter {
           HttpStatus.FORBIDDEN);
       return;
     }
+    WhoAuthenticationToken token = current.token();
+    UUID identityId = token.getPrincipal().identity().id();
     if (list.matches(request)) {
-      list(response, identityId, current.get().sessionId());
+      list(response, identityId, current.session().sessionId());
     } else if (endAll.matches(request)) {
-      endOthers(request, response, identityId, current.get());
+      endOthers(request, response, identityId, current);
     } else {
-      endOne(request, response, token, identityId, current.get());
+      endOne(request, response, token, identityId, current);
     }
   }
 
@@ -152,7 +152,10 @@ final class SessionsFilter extends OncePerRequestFilter {
   }
 
   private void endOthers(
-      HttpServletRequest request, HttpServletResponse response, UUID identityId, WhoSession current)
+      HttpServletRequest request,
+      HttpServletResponse response,
+      UUID identityId,
+      WhoCaller.Session current)
       throws IOException {
     if (!"true".equals(request.getParameter("others"))) {
       handoff.handOff(
@@ -166,7 +169,7 @@ final class SessionsFilter extends OncePerRequestFilter {
     if (!recent(request, response, current)) {
       return;
     }
-    int ended = sessions.endAllExcept(identityId, current.sessionId());
+    int ended = sessions.endAllExcept(identityId, current.session().sessionId());
     writeJson(response, Map.of("ended", ended));
   }
 
@@ -175,7 +178,7 @@ final class SessionsFilter extends OncePerRequestFilter {
       HttpServletResponse response,
       WhoAuthenticationToken token,
       UUID identityId,
-      WhoSession current)
+      WhoCaller.Session current)
       throws IOException {
     Optional<SessionRecord> target =
         parse(endOne.matcher(request).getVariables().get("id"))
@@ -189,7 +192,7 @@ final class SessionsFilter extends OncePerRequestFilter {
           HttpStatus.NOT_FOUND);
       return;
     }
-    if (target.get().id().equals(current.sessionId())) {
+    if (target.get().id().equals(current.session().sessionId())) {
       signOut.logout(request, response, token);
       response.setStatus(HttpServletResponse.SC_NO_CONTENT);
       return;
@@ -202,9 +205,9 @@ final class SessionsFilter extends OncePerRequestFilter {
   }
 
   private boolean recent(
-      HttpServletRequest request, HttpServletResponse response, WhoSession current)
+      HttpServletRequest request, HttpServletResponse response, WhoCaller.Session current)
       throws IOException {
-    if (WhoSignInFactors.isRecent(current.signedInAt(), recentSignIn, clock.instant())) {
+    if (current.isRecent(recentSignIn, clock.instant())) {
       return true;
     }
     handoff.handOff(

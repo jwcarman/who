@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.servlet.FilterChain;
@@ -30,10 +29,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
@@ -44,6 +42,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -53,8 +52,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <root>/me/passkeys/options} and {@code POST <root>/me/passkeys}:
  *
  * <ul>
- *   <li>an API key or bearer token on the request, even beside a session cookie: {@code 403};
  *   <li>signed out: {@link NotSignedInException} (Spring alone answers {@code 400});
+ *   <li>signed in by anything but a browser session, or by a session with an API key or bearer
+ *       token beside its cookie: {@code 403};
  *   <li>signed in longer ago than the registration window: {@link
  *       ReauthenticationRequiredException}, after publishing {@link PasskeyRegistrationRefused};
  *   <li>a registration that fails verification: {@link InvalidPasskeyRegistrationException} (Spring
@@ -83,7 +83,7 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
    * Creates a guard that publishes no events.
    *
    * @param paths where the registration endpoints live
-   * @param sessionRepository where the current {@link WhoSession} is read from
+   * @param sessionRepository classifies the caller and gives its browser session
    * @param clock the current time
    * @param registrationWindow how long after signing in a passkey may be registered
    * @param handoff hands the guard's errors to the application
@@ -101,7 +101,7 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
    * Creates the guard.
    *
    * @param paths where the registration endpoints live
-   * @param sessionRepository where the current {@link WhoSession} is read from
+   * @param sessionRepository classifies the caller and gives its browser session
    * @param clock the current time, which also stamps the events
    * @param registrationWindow how long after signing in a passkey may be registered
    * @param handoff hands the guard's errors to the application
@@ -136,8 +136,14 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    if (sessionRepository.presentsStatelessCredential(request)) {
-      // an API key or bearer token beside the session cookie: not a browser session
+    WhoCaller caller =
+        sessionRepository.caller(request, SecurityContextHolder.getContext().getAuthentication());
+    if (caller instanceof WhoCaller.SignedOut) {
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    if (!(caller instanceof WhoCaller.Session session)) {
+      // an API key or bearer token, even one ignored beside the session cookie: not a browser
       handoff.handOff(
           request,
           response,
@@ -145,14 +151,9 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
           HttpStatus.FORBIDDEN);
       return;
     }
-    Optional<WhoSession> session = sessionRepository.currentSession(request);
-    if (session.isEmpty()) {
-      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
     Instant now = clock.instant();
-    if (!WhoSignInFactors.isRecent(session.get().signedInAt(), registrationWindow, now)) {
-      UUID identityId = session.get().identityId();
+    if (!session.isRecent(registrationWindow, now)) {
+      UUID identityId = session.session().identityId();
       log.debug(
           "Passkey registration refused: reauthentication required, identityId={}", identityId);
       eventPublisher.publish(

@@ -17,7 +17,9 @@ package org.jwcarman.who.passkey;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -26,18 +28,27 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.domain.SessionRecord;
+import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.WhoEventPublisher;
+import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -50,6 +61,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 class PasskeyRegistrationGuardFilterTest {
 
@@ -59,12 +71,12 @@ class PasskeyRegistrationGuardFilterTest {
   private static final String REGISTER = "/who/me/passkeys";
 
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+  private final WhoService whoService = mock(WhoService.class);
+  private final WhoSessions whoSessions =
+      InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP);
   private final WhoSessionSecurityContextRepository sessions =
       new WhoSessionSecurityContextRepository(
-          mock(WhoService.class),
-          InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),
-          clock,
-          WhoEventPublisher.NOOP);
+          whoService, whoSessions, clock, WhoEventPublisher.NOOP);
   private final List<Exception> handedOff = new ArrayList<>();
   private final PasskeyRegistrationGuardFilter guard =
       new PasskeyRegistrationGuardFilter(
@@ -88,12 +100,25 @@ class PasskeyRegistrationGuardFilterTest {
     return request;
   }
 
-  private static MockHttpServletRequest signedInAt(MockHttpServletRequest request, Instant when) {
+  @AfterEach
+  void clearContext() {
+    SecurityContextHolder.clearContext();
+  }
+
+  /** A browser session signed in at {@code signedInAt}, loaded as the chain would load it. */
+  private MockHttpServletRequest signedInAt(MockHttpServletRequest request, Instant signedInAt) {
+    Identity identity = Identity.create(IdentityStatus.ACTIVE);
+    UUID credentialId = UUID.randomUUID();
+    SessionRecord row =
+        whoSessions.start(identity.id(), credentialId, SignInMethod.PASSKEY, null, signedInAt);
+    when(whoService.resolveDetailed(any()))
+        .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
     MockHttpSession session = new MockHttpSession();
     session.setAttribute(
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        new WhoSession(UUID.randomUUID(), UUID.randomUUID(), when));
+        new WhoSession(identity.id(), credentialId, signedInAt, SignInMethod.PASSKEY, row.id()));
     request.setSession(session);
+    SecurityContextHolder.setContext(sessions.loadDeferredContext(request).get());
     return request;
   }
 

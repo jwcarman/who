@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +36,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -102,13 +100,8 @@ final class ApiKeysFilter extends OncePerRequestFilter {
   private final Clock clock;
   private final Duration recentSignIn;
 
-  /** Who is asking: a browser session, signed in at a time, or a bearer token. */
-  private record Caller(Identity identity, Instant browserSignedInAt) {
-
-    boolean isBrowser() {
-      return browserSignedInAt != null;
-    }
-  }
+  /** Who is asking: a browser session, or a bearer token when {@code browser} is null. */
+  private record Caller(Identity identity, WhoCaller.Session browser) {}
 
   ApiKeysFilter(
       WhoPaths paths,
@@ -185,26 +178,26 @@ final class ApiKeysFilter extends OncePerRequestFilter {
 
   /**
    * The browser session that signed this request in, or the bearer token that did; empty for
-   * anything else, such as an API key, even beside a session cookie.
+   * anything else, such as an API key, or a session cookie with an API key or bearer token beside
+   * it, even one ignored.
    */
   private Optional<Caller> caller(HttpServletRequest request, WhoAuthenticationToken token) {
     Identity identity = token.getPrincipal().identity();
-    // the browser session that signed this request in; an API key or bearer token beside the
-    // session cookie, even one ignored, does not count
-    Optional<WhoSession> session = sessions.browserSession(request, token);
-    if (session.isPresent()) {
-      return Optional.of(new Caller(identity, session.get().signedInAt()));
-    }
-    if (token.signInMethod().filter(SignInMethod.JWT::equals).isPresent()) {
-      return Optional.of(new Caller(identity, null));
-    }
-    return Optional.empty();
+    return switch (sessions.caller(request, token)) {
+      case WhoCaller.Session session -> Optional.of(new Caller(identity, session));
+      case WhoCaller.Stateless stateless when stateless.method() == SignInMethod.JWT ->
+          Optional.of(new Caller(identity, null));
+      case WhoCaller.Stateless _,
+          WhoCaller.SessionWithForeignCredential _,
+          WhoCaller.Other _,
+          WhoCaller.SignedOut _ ->
+          Optional.empty();
+    };
   }
 
   /** A browser that signed in too long ago; a bearer token is never stale here. */
   private boolean stale(Caller caller) {
-    return caller.isBrowser()
-        && !WhoSignInFactors.isRecent(caller.browserSignedInAt(), recentSignIn, clock.instant());
+    return caller.browser() != null && !caller.browser().isRecent(recentSignIn, clock.instant());
   }
 
   /** The key the authentication itself names, never one the client names. */

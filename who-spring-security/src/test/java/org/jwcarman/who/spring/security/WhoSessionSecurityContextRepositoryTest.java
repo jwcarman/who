@@ -40,6 +40,9 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.domain.WhoPrincipal;
@@ -149,6 +152,103 @@ class WhoSessionSecurityContextRepositoryTest {
       request.addHeader("X-API-Key", "anything");
 
       assertThat(repository.presentsStatelessCredential(request)).isFalse();
+    }
+  }
+
+  @Nested
+  class Caller {
+
+    private final WhoSessionSecurityContextRepository withStateless =
+        new WhoSessionSecurityContextRepository(
+            whoService,
+            sessions,
+            clock,
+            events::add,
+            r -> r.getHeader("X-API-Key") != null || r.getHeader("Authorization") != null);
+
+    private WhoAuthenticationToken loaded(Instant signedInAt) {
+      request.setSession(sessionWith(live(signedInAt)));
+      when(whoService.resolveDetailed(any(Credential.class)))
+          .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
+      return (WhoAuthenticationToken)
+          withStateless.loadDeferredContext(request).get().getAuthentication();
+    }
+
+    private WhoAuthenticationToken unloaded(SignInMethod method) {
+      return new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of()), credId, method);
+    }
+
+    @Test
+    void is_signed_out_without_a_who_sign_in() {
+      assertThat(withStateless.caller(request, null)).isInstanceOf(WhoCaller.SignedOut.class);
+      assertThat(
+              withStateless.caller(
+                  request, new TestingAuthenticationToken("someone", "secret", "ROLE_USER")))
+          .isInstanceOf(WhoCaller.SignedOut.class);
+    }
+
+    @Test
+    void is_the_session_that_signed_the_request_in() {
+      WhoAuthenticationToken token = loaded(NOW);
+
+      assertThat(withStateless.caller(request, token))
+          .isInstanceOfSatisfying(
+              WhoCaller.Session.class,
+              session -> {
+                assertThat(session.token()).isSameAs(token);
+                assertThat(session.session().identityId()).isEqualTo(identity.id());
+              });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"X-API-Key", "Authorization"})
+    void is_a_session_with_a_foreign_credential_when_a_header_is_ignored(String header) {
+      WhoAuthenticationToken token = loaded(NOW);
+      request.addHeader(header, "junk");
+
+      assertThat(withStateless.caller(request, token))
+          .isInstanceOf(WhoCaller.SessionWithForeignCredential.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = SignInMethod.class,
+        names = {"JWT", "API_KEY"})
+    void is_stateless_for_a_bearer_token_or_api_key_the_session_did_not_load(SignInMethod method) {
+      request.addHeader("X-API-Key", "anything");
+      WhoAuthenticationToken token = unloaded(method);
+
+      assertThat(withStateless.caller(request, token))
+          .isEqualTo(new WhoCaller.Stateless(token, method));
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = SignInMethod.class,
+        names = {"JWT", "API_KEY"},
+        mode = EnumSource.Mode.EXCLUDE)
+    void is_other_for_any_other_sign_in_the_session_did_not_load(SignInMethod method) {
+      loaded(NOW);
+
+      assertThat(withStateless.caller(request, unloaded(method)))
+          .isInstanceOf(WhoCaller.Other.class);
+    }
+
+    @Test
+    void is_other_for_a_sign_in_that_does_not_say_how() {
+      WhoAuthenticationToken token =
+          new WhoAuthenticationToken(new WhoPrincipal(identity, Set.of()), credId);
+
+      assertThat(withStateless.caller(request, token)).isInstanceOf(WhoCaller.Other.class);
+    }
+
+    @Test
+    void a_session_is_recent_within_the_window_only() {
+      WhoCaller.Session session =
+          (WhoCaller.Session) withStateless.caller(request, loaded(NOW.minusSeconds(60)));
+
+      assertThat(session.isRecent(Duration.ofMinutes(2), NOW)).isTrue();
+      assertThat(session.isRecent(Duration.ofMinutes(1), NOW)).isFalse();
     }
   }
 

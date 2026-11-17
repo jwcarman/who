@@ -26,22 +26,25 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * The checks every admin endpoint makes before it looks at anything the request names, in this
  * order: signed out is {@code 401}; a request whose permissions lack the one needed is {@code 403};
- * a request that changes something from a browser session (a who session cookie with no API key or
- * bearer token beside it) whose sign-in is no longer recent is {@code 401} and must sign in again.
- * A bearer token or an API key needs no recent sign-in. Every refusal goes through the
- * application's exception handling.
+ * then, for a request that changes something, the {@link WhoCaller caller} decides: a browser
+ * session whose sign-in is no longer recent is {@code 401} and must sign in again; a session cookie
+ * with an API key or bearer token beside it, which the session signed in and the header did not, is
+ * {@code 403}, as is any sign-in that is neither a browser session nor a bearer token or an API
+ * key. Only a bearer token or an API key that signed the request in needs no recent sign-in. Every
+ * refusal goes through the application's exception handling.
  */
 final class AdminGate {
 
@@ -67,7 +70,8 @@ final class AdminGate {
    * @param request the request
    * @param response its response, answered when the request is refused
    * @param permission the permission the request needs
-   * @param changes whether the request changes anything, so a browser session must be recent
+   * @param changes whether the request changes anything, so a browser session must be recent and
+   *     only a browser session, a bearer token or an API key may make it
    * @return the caller's authentication if admitted; empty if the response has been answered
    * @throws IOException if answering fails
    */
@@ -84,10 +88,31 @@ final class AdminGate {
           request, response, new PermissionRequiredException(permission), HttpStatus.FORBIDDEN);
       return Optional.empty();
     }
-    if (changes && staleBrowser(request, token)) {
-      handoff.handOff(
-          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
-      return Optional.empty();
+    if (changes) {
+      switch (sessions.caller(request, token)) {
+        case WhoCaller.Stateless _ -> {
+          // a bearer token or an API key needs no recent sign-in
+        }
+        case WhoCaller.Session session -> {
+          if (!session.isRecent(recentSignIn, clock.instant())) {
+            handoff.handOff(
+                request,
+                response,
+                new ReauthenticationRequiredException(),
+                HttpStatus.UNAUTHORIZED);
+            return Optional.empty();
+          }
+        }
+        case WhoCaller.SessionWithForeignCredential _, WhoCaller.Other _, WhoCaller.SignedOut _ -> {
+          handoff.handOff(
+              request,
+              response,
+              new AccessDeniedException(
+                  "Only a browser session or a bearer token or API key on its own can change this"),
+              HttpStatus.FORBIDDEN);
+          return Optional.empty();
+        }
+      }
     }
     return Optional.of(token);
   }
@@ -103,15 +128,5 @@ final class AdminGate {
   void refuse(HttpServletRequest request, HttpServletResponse response, Exception exception)
       throws IOException {
     handoff.handOff(request, response, exception, HttpStatus.BAD_REQUEST);
-  }
-
-  /** A browser session whose sign-in is no longer recent; a bearer token or an API key is not. */
-  private boolean staleBrowser(HttpServletRequest request, WhoAuthenticationToken token) {
-    return sessions
-        .browserSession(request, token)
-        .filter(
-            session ->
-                !WhoSignInFactors.isRecent(session.signedInAt(), recentSignIn, clock.instant()))
-        .isPresent();
   }
 }

@@ -37,10 +37,9 @@ import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -161,10 +160,8 @@ final class LinkedAccountsFilter extends OncePerRequestFilter {
       WhoAuthenticationToken token,
       UUID identityId)
       throws IOException {
-    // the browser session that signed this request in; an API key or bearer token beside the
-    // session cookie, even one ignored, does not count
-    Optional<WhoSession> current = sessions.browserSession(request, token);
-    if (current.isEmpty()) {
+    // an API key or bearer token, even one ignored beside the session cookie, is not a browser
+    if (!(sessions.caller(request, token) instanceof WhoCaller.Session current)) {
       handoff.handOff(
           request,
           response,
@@ -173,7 +170,7 @@ final class LinkedAccountsFilter extends OncePerRequestFilter {
       return;
     }
     // before looking at the id, so a stale session learns nothing about any account
-    if (!WhoSignInFactors.isRecent(current.get().signedInAt(), recentSignIn, clock.instant())) {
+    if (!current.isRecent(recentSignIn, clock.instant())) {
       handoff.handOff(
           request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
       return;
