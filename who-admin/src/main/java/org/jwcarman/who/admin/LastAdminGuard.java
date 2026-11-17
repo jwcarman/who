@@ -17,6 +17,7 @@ package org.jwcarman.who.admin;
 
 import static java.util.Objects.requireNonNull;
 
+import java.sql.Types;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -60,6 +61,17 @@ public final class LastAdminGuard {
 
   private static final String PERMISSION = "permission";
   private static final String IDENTITY = "identityId";
+
+  private static final String HOLDS =
+      """
+      SELECT COUNT(*)
+      FROM who_identity_role ir
+      JOIN who_role_permission p ON p.role_id = ir.role_id
+      JOIN who_identity i ON i.id = ir.identity_id
+      WHERE p.permission = :permission AND i.status = 'ACTIVE'
+        AND ir.identity_id = :identityId
+        AND (CAST(:exceptRole AS uuid) IS NULL OR ir.role_id <> :exceptRole)
+      """;
 
   private final JdbcClient jdbcClient;
   private final TransactionTemplate transactionTemplate;
@@ -183,23 +195,13 @@ public final class LastAdminGuard {
 
   /** Whether the identity is active and holds the permission through a role other than one. */
   private boolean holds(UUID identityId, @Nullable UUID exceptRole) {
-    String except = exceptRole == null ? "" : " AND ir.role_id <> :exceptRole";
-    JdbcClient.StatementSpec statement =
-        jdbcClient
-            .sql(
-                """
-                SELECT COUNT(*)
-                FROM who_identity_role ir
-                JOIN who_role_permission p ON p.role_id = ir.role_id
-                JOIN who_identity i ON i.id = ir.identity_id
-                WHERE p.permission = :permission AND i.status = 'ACTIVE'
-                  AND ir.identity_id = :identityId"""
-                    + except)
+    return jdbcClient
+            .sql(HOLDS)
             .param(PERMISSION, WhoAdminPermissions.IDENTITIES_MANAGE)
-            .param(IDENTITY, identityId);
-    if (exceptRole != null) {
-      statement = statement.param("exceptRole", exceptRole);
-    }
-    return statement.query(Long.class).single() > 0;
+            .param(IDENTITY, identityId)
+            .param("exceptRole", exceptRole, Types.OTHER)
+            .query(Long.class)
+            .single()
+        > 0;
   }
 }

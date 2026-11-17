@@ -221,6 +221,37 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
     }
 
     @Test
+    void status_role_and_ids_combine() {
+      jdbcClient
+          .sql(
+              "CREATE TABLE IF NOT EXISTS who_identity_role"
+                  + " (identity_id UUID NOT NULL, role_id UUID NOT NULL,"
+                  + " PRIMARY KEY (identity_id, role_id))")
+          .update();
+      UUID editor = UUID.randomUUID();
+      Identity match = saved(IdentityStatus.DISABLED, T0);
+      Identity wrongStatus = saved(IdentityStatus.ACTIVE, T0.plusSeconds(1));
+      Identity wrongIds = saved(IdentityStatus.DISABLED, T0.plusSeconds(2));
+      Identity noRole = saved(IdentityStatus.DISABLED, T0.plusSeconds(3));
+      for (Identity holder : List.of(match, wrongStatus, wrongIds)) {
+        jdbcClient
+            .sql("INSERT INTO who_identity_role (identity_id, role_id) VALUES (:i, :r)")
+            .param("i", holder.id())
+            .param("r", editor)
+            .update();
+      }
+      Optional<Set<UUID>> ids = Optional.of(Set.of(match.id(), wrongStatus.id(), noRole.id()));
+
+      assertThat(
+              repository.findPage(
+                  Optional.of(IdentityStatus.DISABLED), Optional.of(editor), ids, 0, 10))
+          .extracting(Identity::id)
+          .containsExactly(match.id());
+      assertThat(repository.count(Optional.of(IdentityStatus.DISABLED), Optional.of(editor), ids))
+          .isEqualTo(1);
+    }
+
+    @Test
     void pages_oldest_first_then_by_id() {
       Identity third = saved(IdentityStatus.ACTIVE, T0.plusSeconds(2));
       Identity tiedHigh =

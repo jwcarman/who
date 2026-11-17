@@ -18,7 +18,6 @@ package org.jwcarman.who.jdbc;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -37,6 +36,41 @@ public class JdbcIdentityRepository implements IdentityRepository {
   private static final String COL_STATUS = "status";
   private static final String COL_CREATED_AT = "created_at";
   private static final String COL_UPDATED_AT = "updated_at";
+
+  private static final String PAGE =
+      """
+      SELECT id, status, created_at, updated_at FROM who_identity
+      WHERE (CAST(:status AS varchar) IS NULL OR status = :status)
+        AND (:anyIds = FALSE OR id = ANY(CAST(:ids AS uuid[])))
+      ORDER BY created_at, id LIMIT :size OFFSET :offset
+      """;
+
+  // a join in the query, so a role with many holders is never a long list of ids
+  private static final String PAGE_BY_ROLE =
+      """
+      SELECT id, status, created_at, updated_at FROM who_identity
+      WHERE (CAST(:status AS varchar) IS NULL OR status = :status)
+        AND EXISTS (SELECT 1 FROM who_identity_role ir
+                    WHERE ir.identity_id = who_identity.id AND ir.role_id = :roleId)
+        AND (:anyIds = FALSE OR id = ANY(CAST(:ids AS uuid[])))
+      ORDER BY created_at, id LIMIT :size OFFSET :offset
+      """;
+
+  private static final String COUNT =
+      """
+      SELECT COUNT(*) FROM who_identity
+      WHERE (CAST(:status AS varchar) IS NULL OR status = :status)
+        AND (:anyIds = FALSE OR id = ANY(CAST(:ids AS uuid[])))
+      """;
+
+  private static final String COUNT_BY_ROLE =
+      """
+      SELECT COUNT(*) FROM who_identity
+      WHERE (CAST(:status AS varchar) IS NULL OR status = :status)
+        AND EXISTS (SELECT 1 FROM who_identity_role ir
+                    WHERE ir.identity_id = who_identity.id AND ir.role_id = :roleId)
+        AND (:anyIds = FALSE OR id = ANY(CAST(:ids AS uuid[])))
+      """;
 
   private static final RowMapper<Identity> IDENTITY_ROW_MAPPER =
       (rs, rowNum) ->
@@ -92,12 +126,8 @@ public class JdbcIdentityRepository implements IdentityRepository {
     if (ids.filter(Set::isEmpty).isPresent()) {
       return List.of();
     }
-    return filtered(
-            "SELECT id, status, created_at, updated_at FROM who_identity",
-            status,
-            roleId,
-            ids,
-            " ORDER BY created_at, id LIMIT :size OFFSET :offset")
+    return withFilters(
+            jdbcClient.sql(roleId.isPresent() ? PAGE_BY_ROLE : PAGE), status, roleId, ids)
         .param("size", size)
         .param("offset", (long) page * size)
         .query(IDENTITY_ROW_MAPPER)
@@ -110,39 +140,30 @@ public class JdbcIdentityRepository implements IdentityRepository {
     if (ids.filter(Set::isEmpty).isPresent()) {
       return 0;
     }
-    return filtered("SELECT COUNT(*) FROM who_identity", status, roleId, ids, "")
+    return withFilters(
+            jdbcClient.sql(roleId.isPresent() ? COUNT_BY_ROLE : COUNT), status, roleId, ids)
         .query(Long.class)
         .single();
   }
 
-  /** The query with a {@code WHERE} for whichever filters are present, and their parameters. */
-  private JdbcClient.StatementSpec filtered(
-      String select,
+  /**
+   * Binds the filters; an absent one is a typed null (or an empty array), which its predicate
+   * ignores. The query text never changes with them, apart from joining the role table only when a
+   * role is asked for, since that table belongs to who-rbac.
+   */
+  private static JdbcClient.StatementSpec withFilters(
+      JdbcClient.StatementSpec statement,
       Optional<IdentityStatus> status,
       Optional<UUID> roleId,
-      Optional<Set<UUID>> ids,
-      String suffix) {
-    List<String> conditions = new ArrayList<>();
-    status.ifPresent(s -> conditions.add("status = :status"));
-    // a join in the query, so a role with many holders is never a long list of ids
-    roleId.ifPresent(
-        r ->
-            conditions.add(
-                "EXISTS (SELECT 1 FROM who_identity_role ir"
-                    + " WHERE ir.identity_id = who_identity.id AND ir.role_id = :roleId)"));
-    ids.ifPresent(i -> conditions.add("id IN (:ids)"));
-    String where = conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
-    JdbcClient.StatementSpec statement = jdbcClient.sql(select + where + suffix);
-    if (status.isPresent()) {
-      statement = statement.param(COL_STATUS, status.get().name());
-    }
+      Optional<Set<UUID>> ids) {
+    JdbcClient.StatementSpec bound =
+        statement.param(COL_STATUS, status.map(IdentityStatus::name).orElse(null));
     if (roleId.isPresent()) {
-      statement = statement.param("roleId", roleId.get());
+      bound = bound.param("roleId", roleId.get());
     }
-    if (ids.isPresent()) {
-      statement = statement.param("ids", List.copyOf(ids.get()));
-    }
-    return statement;
+    return bound
+        .param("anyIds", ids.isPresent())
+        .param("ids", ids.map(set -> set.toArray(UUID[]::new)).orElseGet(() -> new UUID[0]));
   }
 
   @Override
