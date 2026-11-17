@@ -18,6 +18,7 @@ package org.jwcarman.who.federated;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -114,10 +115,44 @@ public class FederatedCredentialService {
   }
 
   /**
+   * Lists the identity's federated credentials, oldest first: by id, which is UUIDv7, so the
+   * earliest created comes first.
+   *
+   * @param identityId the identity
+   * @return its federated credentials, possibly none
+   */
+  public List<FederatedCredential> findAllFor(UUID identityId) {
+    requireNonNull(identityId, "identityId must not be null");
+    return federatedCredentialRepository.findAllByIdentityId(identityId);
+  }
+
+  /**
+   * Whether a federated credential is linked to the identity. An id that is not a federated
+   * credential, such as a passkey's, is not owned.
+   *
+   * @param credentialId the credential
+   * @param identityId the identity
+   * @return {@code true} if the credential is a federated credential of the identity
+   */
+  public boolean isOwnedBy(UUID credentialId, UUID identityId) {
+    requireNonNull(credentialId, "credentialId must not be null");
+    requireNonNull(identityId, "identityId must not be null");
+    return federatedCredentialRepository.findById(credentialId).isPresent()
+        && credentialIdentityRepository
+            .findIdentityIdByCredentialId(credentialId)
+            .filter(identityId::equals)
+            .isPresent();
+  }
+
+  /**
    * Deletes the credential and its identity link, so the pair stops signing in, then publishes
    * {@link CredentialRevoked} if it was linked to an identity. The label is the issuer, or {@code
    * null} when the repository cannot find the credential by id. Does nothing visible for an id that
    * is not linked.
+   *
+   * <p>This checks neither who owns the credential nor whether it is the identity's last one. A
+   * caller acting for a person must check {@link #isOwnedBy} first and run the removal through the
+   * last-credential guard.
    *
    * @param credentialId the id of the federated credential
    */

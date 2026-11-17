@@ -134,4 +134,25 @@ class JdbcFederatedCredentialRepositoryTest extends AbstractFederatedTest {
             });
     assertThat(repository.find(UUID.randomUUID())).isEmpty();
   }
+
+  @Test
+  void findsAnIdentitysCredentialsOldestFirstAndNoOneElses() {
+    Identity alice = identityRepository.save(Identity.create());
+    Identity bob = identityRepository.save(Identity.create());
+    // time-ordered ids a millisecond apart: ids made back to back may share a millisecond
+    FederatedCredential first =
+        repository.save(
+            new FederatedCredential(
+                UUID.fromString("019b0000-0000-7000-8000-000000000001"), ISSUER, "first"));
+    FederatedCredential second =
+        repository.save(
+            new FederatedCredential(
+                UUID.fromString("019b0000-0001-7000-8000-000000000001"), ISSUER, "second"));
+    FederatedCredential theirs = repository.save(FederatedCredential.create(ISSUER, "theirs"));
+    credentialIdentityRepository.link(second.id(), alice.id());
+    credentialIdentityRepository.link(first.id(), alice.id());
+    credentialIdentityRepository.link(theirs.id(), bob.id());
+
+    assertThat(repository.findAllByIdentityId(alice.id())).containsExactly(first, second);
+  }
 }

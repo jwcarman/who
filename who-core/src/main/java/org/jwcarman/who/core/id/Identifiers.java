@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.core.id;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.fasterxml.uuid.Generators;
@@ -34,5 +35,16 @@ public final class Identifiers {
    */
   public static UUID uuid() {
     return Generators.timeBasedEpochGenerator().generate();
+  }
+
+  /**
+   * When an identifier was generated, read from {@code id}: a UUIDv7 begins with its creation time
+   * in milliseconds. Meaningful only for an id made by {@link #uuid()}.
+   *
+   * @param id an identifier made by {@link #uuid()}
+   * @return the instant it was generated
+   */
+  public static Instant createdAt(UUID id) {
+    return Instant.ofEpochMilli(id.getMostSignificantBits() >>> 16);
   }
 }

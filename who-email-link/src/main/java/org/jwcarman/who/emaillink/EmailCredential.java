@@ -69,7 +69,7 @@ public record EmailCredential(UUID id, String address) implements Credential {
    * @return the instant the id was generated
    */
   public Instant created() {
-    return Instant.ofEpochMilli(id.getMostSignificantBits() >>> 16);
+    return Identifiers.createdAt(id);
   }
 
   /**

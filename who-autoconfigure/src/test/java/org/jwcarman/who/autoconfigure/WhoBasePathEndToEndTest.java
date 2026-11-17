@@ -247,6 +247,8 @@ class WhoBasePathEndToEndTest {
           GET    | /auth/me/email-addresses | true |                             | 200
           DELETE | /auth/me/email-addresses/00000000-0000-0000-0000-000000000000 | true |  | 404
           POST   | /auth/me/email-addresses/confirmations | true  | {"token":"nope"}            | 400
+          GET    | /auth/me/accounts        | true  |                             | 200
+          DELETE | /auth/me/accounts/00000000-0000-0000-0000-000000000000 | true |  | 404
           POST   | /auth/me/accounts/stub          | true  |                             | 302
           POST   | /auth/logout                  | true  |                             | 204
           """)
@@ -284,6 +286,8 @@ class WhoBasePathEndToEndTest {
           DELETE | /who/me/email-addresses/00000000-0000-0000-0000-000000000000 |
           POST | /who/me/email-addresses          | {"email":"bob@example.com"}
           GET  | /who/oidc/pending             |
+          GET  | /who/me/accounts                |
+          DELETE | /who/me/accounts/00000000-0000-0000-0000-000000000000 |
           GET  | /who/me/accounts/stub           |
           """)
   void no_old_path_reaches_who(String method, String path, String body) throws Exception {

@@ -24,8 +24,10 @@ import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
+import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -65,6 +67,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
   private final SignInRegistrations registrations;
   private final WhoService whoService;
   private final FederatedCredentialRepository credentials;
+  private final FederatedCredentialService accounts;
+  private final LastCredentialGuard lastCredentialGuard;
   private final WhoSessionSecurityContextRepository sessions;
   private final OidcSignUpService signUpService;
   private final IdentityRepository identities;
@@ -83,6 +87,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
    * @param registrations the registrations who signs in with
    * @param whoService resolves a credential to its identity
    * @param credentials finds the credential for an issuer and subject
+   * @param accounts lists and unlinks the caller's accounts
+   * @param lastCredentialGuard keeps an identity from losing its last sign-in credential
    * @param sessions stores the who session
    * @param signUpService confirms pending sign-ups and links
    * @param identities finds the identity signed in, for a link
@@ -96,6 +102,8 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
       SignInRegistrations registrations,
       WhoService whoService,
       FederatedCredentialRepository credentials,
+      FederatedCredentialService accounts,
+      LastCredentialGuard lastCredentialGuard,
       WhoSessionSecurityContextRepository sessions,
       OidcSignUpService signUpService,
       IdentityRepository identities,
@@ -107,6 +115,9 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
     this.registrations = requireNonNull(registrations, "registrations must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.credentials = requireNonNull(credentials, "credentials must not be null");
+    this.accounts = requireNonNull(accounts, "accounts must not be null");
+    this.lastCredentialGuard =
+        requireNonNull(lastCredentialGuard, "lastCredentialGuard must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.signUpService = requireNonNull(signUpService, "signUpService must not be null");
     this.identities = requireNonNull(identities, "identities must not be null");
@@ -237,6 +248,17 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
         http.addFilterAfter(
             new LinkStartFilter(
                 paths, resolver, authorizationRequests, sessions, handoff, clock, linkWindow),
+            ExceptionTranslationFilter.class);
+        http.addFilterAfter(
+            new LinkedAccountsFilter(
+                paths,
+                registrations,
+                accounts,
+                lastCredentialGuard,
+                sessions,
+                handoff,
+                clock,
+                linkWindow),
             ExceptionTranslationFilter.class);
         http.addFilterAfter(
             new PendingSignUpFilter(

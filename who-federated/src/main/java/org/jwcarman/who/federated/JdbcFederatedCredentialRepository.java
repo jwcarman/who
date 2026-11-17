@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.federated;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -77,6 +78,18 @@ public class JdbcFederatedCredentialRepository
   @Override
   public Optional<Credential> find(UUID credentialId) {
     return findById(credentialId).map(Credential.class::cast);
+  }
+
+  @Override
+  public List<FederatedCredential> findAllByIdentityId(UUID identityId) {
+    return jdbcClient
+        .sql(
+            "SELECT f.id, f.issuer, f.subject FROM who_federated_credential f"
+                + " JOIN who_credential_identity ci ON ci.credential_id = f.id"
+                + " WHERE ci.identity_id = :identity_id ORDER BY f.id")
+        .param("identity_id", identityId)
+        .query(ROW_MAPPER)
+        .list();
   }
 
   @Override

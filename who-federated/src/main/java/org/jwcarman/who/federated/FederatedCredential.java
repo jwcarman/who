@@ -17,6 +17,7 @@ package org.jwcarman.who.federated;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,6 +54,17 @@ public record FederatedCredential(UUID id, String issuer, String subject) implem
    */
   public static FederatedCredential create(String issuer, String subject) {
     return new FederatedCredential(Identifiers.uuid(), issuer, subject);
+  }
+
+  /**
+   * When the credential was created, read from its id: a UUIDv7 begins with its creation time in
+   * milliseconds. who does not store it separately; it is when the account was first linked or
+   * signed up with.
+   *
+   * @return the instant the id was generated
+   */
+  public Instant linkedAt() {
+    return Identifiers.createdAt(id);
   }
 
   /**

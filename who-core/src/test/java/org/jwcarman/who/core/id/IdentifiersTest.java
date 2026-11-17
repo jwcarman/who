@@ -17,6 +17,9 @@ package org.jwcarman.who.core.id;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 class IdentifiersTest {
@@ -34,5 +37,13 @@ class IdentifiersTest {
   @Test
   void uuidIsVersion7() {
     assertThat(Identifiers.uuid().version()).isEqualTo(7);
+  }
+
+  @Test
+  void createdAtIsReadFromTheTimeOrderedId() {
+    Instant before = Instant.now().minusSeconds(1);
+    UUID id = Identifiers.uuid();
+
+    assertThat(Identifiers.createdAt(id)).isBetween(before, Instant.now().plusSeconds(1));
   }
 }

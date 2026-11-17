@@ -128,4 +128,43 @@ class FederatedCredentialServiceTest {
         .containsExactly(
             new CredentialAdded(NOW, identity.id(), saved.id(), CredentialKind.FEDERATED, ISSUER));
   }
+
+  @Test
+  void find_all_for_lists_the_identitys_credentials() {
+    UUID identityId = UUID.randomUUID();
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
+    when(repository.findAllByIdentityId(identityId)).thenReturn(List.of(credential));
+
+    assertThat(service.findAllFor(identityId)).containsExactly(credential);
+  }
+
+  @Test
+  void is_owned_by_is_true_for_a_federated_credential_linked_to_the_identity() {
+    UUID identityId = UUID.randomUUID();
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
+    when(repository.findById(credential.id())).thenReturn(Optional.of(credential));
+    when(links.findIdentityIdByCredentialId(credential.id())).thenReturn(Optional.of(identityId));
+
+    assertThat(service.isOwnedBy(credential.id(), identityId)).isTrue();
+  }
+
+  @Test
+  void is_owned_by_is_false_for_another_identitys_credential() {
+    FederatedCredential credential = FederatedCredential.create(ISSUER, SUBJECT);
+    when(repository.findById(credential.id())).thenReturn(Optional.of(credential));
+    when(links.findIdentityIdByCredentialId(credential.id()))
+        .thenReturn(Optional.of(UUID.randomUUID()));
+
+    assertThat(service.isOwnedBy(credential.id(), UUID.randomUUID())).isFalse();
+  }
+
+  @Test
+  void is_owned_by_is_false_for_an_id_that_is_not_a_federated_credential() {
+    UUID identityId = UUID.randomUUID();
+    UUID passkeyId = UUID.randomUUID();
+    when(repository.findById(passkeyId)).thenReturn(Optional.empty());
+    when(links.findIdentityIdByCredentialId(passkeyId)).thenReturn(Optional.of(identityId));
+
+    assertThat(service.isOwnedBy(passkeyId, identityId)).isFalse();
+  }
 }

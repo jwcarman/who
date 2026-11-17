@@ -147,6 +147,8 @@ class WhoEmailAddressesEndpointsTest {
     @Test
     void lists_the_callers_addresses_and_only_theirs() throws Exception {
       EmailCredential first = credentials.register(alice, ALICE);
+      // ids made in the same millisecond have no order
+      Thread.sleep(2);
       credentials.register(alice, ALICE_TOO);
       credentials.register(bob, BOB);
       Browser browser = signedIn(ALICE);

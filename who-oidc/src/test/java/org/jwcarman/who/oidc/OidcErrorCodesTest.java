@@ -32,6 +32,7 @@ class OidcErrorCodesTest {
   static Stream<Arguments> codes() {
     return Stream.of(
         Arguments.of(new AlreadyLinkedException(), "already-linked"),
+        Arguments.of(new LinkedAccountNotFoundException(), "linked-account-not-found"),
         Arguments.of(new PendingSignUpNotFoundException(), "no-pending-sign-up"),
         Arguments.of(new SignUpRefusedException(), "sign-up-refused"),
         Arguments.of(new UnknownProviderException(), "unknown-provider"));

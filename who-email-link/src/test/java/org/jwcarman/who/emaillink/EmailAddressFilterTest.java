@@ -212,6 +212,8 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
     @Test
     void lists_the_callers_addresses_oldest_first() throws Exception {
       EmailCredential first = address(alice, "first@example.com");
+      // ids made in the same millisecond have no order
+      Thread.sleep(2);
       EmailCredential second = address(alice, "second@example.com");
       address(bob, "bob@example.com");
       HttpSession session = browser(alice, first.id(), NOW);

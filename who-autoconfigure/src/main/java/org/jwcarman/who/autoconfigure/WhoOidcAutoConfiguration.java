@@ -26,6 +26,7 @@ import java.util.Map;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
@@ -204,6 +205,9 @@ public class WhoOidcAutoConfiguration {
    * @param registrations the registrations who signs in with
    * @param whoService resolves credentials
    * @param credentials finds provider credentials
+   * @param accounts lists and unlinks the caller's accounts
+   * @param lastCredentialGuard required: accounts are never unlinked without the last-credential
+   *     rule, so an application without it fails to start
    * @param sessions stores the who session
    * @param signUpService confirms pending sign-ups and links
    * @param identities finds the identity signed in
@@ -218,6 +222,8 @@ public class WhoOidcAutoConfiguration {
       SignInRegistrations registrations,
       WhoService whoService,
       FederatedCredentialRepository credentials,
+      FederatedCredentialService accounts,
+      LastCredentialGuard lastCredentialGuard,
       WhoSessionSecurityContextRepository sessions,
       OidcSignUpService signUpService,
       IdentityRepository identities,
@@ -234,6 +240,8 @@ public class WhoOidcAutoConfiguration {
         registrations,
         whoService,
         credentials,
+        accounts,
+        lastCredentialGuard,
         sessions,
         signUpService,
         identities,

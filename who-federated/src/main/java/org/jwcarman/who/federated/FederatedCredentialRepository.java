@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.federated;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +41,15 @@ public interface FederatedCredentialRepository {
   default Optional<FederatedCredential> findById(UUID id) {
     return Optional.empty();
   }
+
+  /**
+   * Finds every federated credential linked to the identity, oldest first: by id, which is UUIDv7,
+   * so the earliest created comes first.
+   *
+   * @param identityId the identity
+   * @return its federated credentials, possibly none
+   */
+  List<FederatedCredential> findAllByIdentityId(UUID identityId);
 
   /**
    * Persists a credential. If a record with the same id already exists it is left unchanged
