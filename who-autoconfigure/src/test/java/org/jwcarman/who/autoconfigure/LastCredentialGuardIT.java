@@ -36,7 +36,7 @@ import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -74,7 +74,7 @@ class LastCredentialGuardIT {
   static class App {
 
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return email -> {
         // sign-in emails are not under test
       };

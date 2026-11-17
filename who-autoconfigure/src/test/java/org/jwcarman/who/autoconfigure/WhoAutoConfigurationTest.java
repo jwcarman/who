@@ -42,9 +42,9 @@ import org.jwcarman.who.emaillink.EmailCredentialRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
-import org.jwcarman.who.emaillink.MailEmailLinkSender;
+import org.jwcarman.who.emaillink.MailWhoEmailSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.JdbcFederatedCredentialRepository;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
@@ -138,7 +138,7 @@ class WhoAutoConfigurationTest {
         .withBean(
             CredentialIdentityRepository.class, () -> mock(CredentialIdentityRepository.class))
         .withBean(EmailCredentialService.class, () -> emailCredentials)
-        .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+        .withBean(WhoEmailSender.class, () -> mock(WhoEmailSender.class))
         .withPropertyValues("who.passkey.enabled=false")
         .run(
             context -> {
@@ -193,7 +193,7 @@ class WhoAutoConfigurationTest {
         .run(
             context -> {
               assertThat(context).hasNotFailed();
-              assertThat(context).doesNotHaveBean(MailEmailLinkSender.class);
+              assertThat(context).doesNotHaveBean(MailWhoEmailSender.class);
               assertThat(context).doesNotHaveBean(EmailLinkLoginMethod.class);
             });
   }
@@ -209,7 +209,7 @@ class WhoAutoConfigurationTest {
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET)
         .withBean(ObservationRegistry.class, () -> observations)
         .withBean(EmailCredentialService.class, () -> emailCredentials)
-        .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+        .withBean(WhoEmailSender.class, () -> mock(WhoEmailSender.class))
         .withPropertyValues("who.passkey.enabled=false")
         .run(
             context -> {
@@ -236,7 +236,7 @@ class WhoAutoConfigurationTest {
         .run(
             context -> {
               assertThat(context).hasNotFailed();
-              assertThat(context).hasSingleBean(MailEmailLinkSender.class);
+              assertThat(context).hasSingleBean(MailWhoEmailSender.class);
             });
   }
 
@@ -408,7 +408,7 @@ class WhoAutoConfigurationTest {
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(TestDataSourceConfig.class)
         .withPropertyValues(LINK_BASE_URL, CODE_SECRET, "who.passkey.enabled=false")
-        .withBean(EmailLinkSender.class, () -> message -> {})
+        .withBean(WhoEmailSender.class, () -> message -> {})
         .run(
             context -> {
               assertThat(context).hasNotFailed();

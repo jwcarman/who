@@ -129,7 +129,7 @@ with Spring Boot's Docker Compose support.
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
 | `who-admin` | Admin endpoints for identities, roles and invitations, guarded by `who.identities.read` and `who.identities.manage`; brings `who-rbac` |
-| `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |
+| `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `WhoEmailSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |
 | `who-turnstile` | Cloudflare Turnstile as the human check on who's email endpoints: `TurnstileHumanCheck` |
 | `who-passkey` | Passkey sign-in: `PasskeyService`, `PasskeyAddedNotifier`, and the hooks for Spring's WebAuthn login |
 | `who-spring-security` | `@RequiresPermission`, `WhoSecurity.all()`, `WhoWebSecurity.passwordless()`, `GET /who/me` and `GET /who/sign-in` |

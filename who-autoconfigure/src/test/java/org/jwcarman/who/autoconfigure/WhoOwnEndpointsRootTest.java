@@ -36,7 +36,7 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,7 +81,7 @@ class WhoOwnEndpointsRootTest {
   static class App {
 
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return email -> {
         if (email instanceof EmailLinkMessage message) {
           SENT.add(message);

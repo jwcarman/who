@@ -23,6 +23,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Breaking changes
 
+- `EmailLinkSender` is now `WhoEmailSender`, and the default `MailEmailLinkSender` is `MailWhoEmailSender`: it sends every who email, not only sign-in links. There is no alias; a custom sender implements `WhoEmailSender`, and an application that names the auto-configured bean (`mailEmailLinkSender`) calls it `mailWhoEmailSender`.
 - who's HTTP surface is REST-shaped: a person's own things live under `/who/me`, and the pending provider sign-up under `/who/oidc/pending`. The old paths reach no who endpoint, and there are no redirects:
 
   | Before | Now |

@@ -38,7 +38,7 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,7 +84,7 @@ class LastAdminGuardIT {
   static class App {
 
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return email -> {
         // sign-in emails are not under test
       };

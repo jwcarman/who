@@ -67,7 +67,7 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
 
   private final List<WhoEmail> sent = new CopyOnWriteArrayList<>();
   private final List<WhoEvent> events = new CopyOnWriteArrayList<>();
-  private EmailLinkSender sender = sent::add;
+  private WhoEmailSender sender = sent::add;
   private EmailCredentialService credentials;
   private Identity alice;
 

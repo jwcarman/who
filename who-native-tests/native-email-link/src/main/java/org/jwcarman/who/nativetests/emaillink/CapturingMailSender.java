@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Keeps the last plain-text email to each address in memory instead of sending it, so the test
- * reads sign-in links and codes without a mail server. who's own {@code MailEmailLinkSender} sends
+ * reads sign-in links and codes without a mail server. who's own {@code MailWhoEmailSender} sends
  * through it, as it would through Spring Boot's.
  */
 @Component

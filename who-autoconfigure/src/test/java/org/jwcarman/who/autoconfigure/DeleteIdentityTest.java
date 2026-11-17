@@ -27,7 +27,7 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.rbac.RbacService;
@@ -65,7 +65,7 @@ class DeleteIdentityTest {
               "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
               "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
               "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword())
-          .withBean(EmailLinkSender.class, () -> message -> {})
+          .withBean(WhoEmailSender.class, () -> message -> {})
           .withPropertyValues("who.passkey.enabled=false");
 
   @Test

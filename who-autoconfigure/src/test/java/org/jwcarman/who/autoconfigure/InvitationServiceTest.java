@@ -48,11 +48,11 @@ import org.jwcarman.who.emaillink.EmailAddressTakenException;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkOutcome;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.IdentityInvited;
 import org.jwcarman.who.emaillink.InvalidInvitationException;
 import org.jwcarman.who.emaillink.Invitation;
 import org.jwcarman.who.emaillink.InvitationService;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
@@ -162,7 +162,7 @@ class InvitationServiceTest {
   static class App {
 
     @Bean
-    EmailLinkSender emailLinkSender(JdbcClient jdbcClient) {
+    WhoEmailSender whoEmailSender(JdbcClient jdbcClient) {
       return email -> {
         if (email instanceof EmailLinkMessage message) {
           // this connection sees only what has committed, as the link must be sent with no

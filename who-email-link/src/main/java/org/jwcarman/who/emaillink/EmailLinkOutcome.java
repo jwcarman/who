@@ -18,7 +18,7 @@ package org.jwcarman.who.emaillink;
 /** What {@link EmailLinkIssuer#issue} did with a request. */
 public enum EmailLinkOutcome {
 
-  /** The link was stored and handed to the {@link EmailLinkSender}. */
+  /** The link was stored and handed to the {@link WhoEmailSender}. */
   SENT,
 
   /** The text is not an address, or no email credential has this address. */

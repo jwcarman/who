@@ -35,7 +35,6 @@ import org.jwcarman.who.emaillink.EmailLinkAuthenticationProvider;
 import org.jwcarman.who.emaillink.EmailLinkGenerationSuccessHandler;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.emaillink.EmailLinkTokenRepository;
 import org.jwcarman.who.emaillink.EmailSignInCredentialCounter;
@@ -46,8 +45,9 @@ import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
 import org.jwcarman.who.emaillink.JdbcEmailLinkTokenRepository;
 import org.jwcarman.who.emaillink.JsonGenerateOneTimeTokenRequestResolver;
 import org.jwcarman.who.emaillink.JsonOneTimeTokenAuthenticationConverter;
-import org.jwcarman.who.emaillink.MailEmailLinkSender;
+import org.jwcarman.who.emaillink.MailWhoEmailSender;
 import org.jwcarman.who.emaillink.RbacInvitationRoles;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.emaillink.WhoOneTimeTokenService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoPaths;
@@ -87,7 +87,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Startup fails with a {@link WhoConfigurationException} when {@code
  * who.email-link.link-base-url} or {@code who.email-link.code-secret} is missing, when {@code
  * who.email-link.resend-interval} exceeds {@code who.email-link.token-ttl}, or when no {@link
- * EmailLinkSender} is available.
+ * WhoEmailSender} is available.
  */
 @AutoConfiguration(
     after = WhoAutoConfiguration.class,
@@ -282,13 +282,13 @@ public class WhoEmailLinkAutoConfiguration {
 
   /**
    * Issues a sign-in link and code and sends them, only to the address of an active identity and
-   * not again within the resend interval. Startup fails when there is no {@code EmailLinkSender}:
-   * no bean, and no Spring mail.
+   * not again within the resend interval. Startup fails when there is no {@code WhoEmailSender}: no
+   * bean, and no Spring mail.
    *
    * @param emailCredentialService finds the address's credential
    * @param whoService finds the credential's identity
    * @param emailLinkTokenRepository stores the issued token's hash
-   * @param emailLinkSender sends the email: the application's, or Spring mail's
+   * @param whoEmailSender sends the email: the application's, or Spring mail's
    * @param settings the email-link settings
    * @param clock stamps the token and events
    * @param whoEventPublisher publishes the link-issued event
@@ -302,7 +302,7 @@ public class WhoEmailLinkAutoConfiguration {
       EmailCredentialService emailCredentialService,
       WhoService whoService,
       EmailLinkTokenRepository emailLinkTokenRepository,
-      ObjectProvider<EmailLinkSender> emailLinkSender,
+      ObjectProvider<WhoEmailSender> whoEmailSender,
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher whoEventPublisher,
@@ -312,16 +312,16 @@ public class WhoEmailLinkAutoConfiguration {
         emailCredentialService,
         whoService,
         emailLinkTokenRepository,
-        requireSender(emailLinkSender, resourceLoader),
+        requireSender(whoEmailSender, resourceLoader),
         settings,
         clock,
         whoEventPublisher,
         observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
   }
 
-  private static EmailLinkSender requireSender(
-      ObjectProvider<EmailLinkSender> emailLinkSender, ResourceLoader resourceLoader) {
-    EmailLinkSender sender = emailLinkSender.getIfAvailable();
+  private static WhoEmailSender requireSender(
+      ObjectProvider<WhoEmailSender> whoEmailSender, ResourceLoader resourceLoader) {
+    WhoEmailSender sender = whoEmailSender.getIfAvailable();
     if (sender == null
         && !ClassUtils.isPresent(JAVA_MAIL_SENDER, resourceLoader.getClassLoader())) {
       throw new WhoConfigurationException(
@@ -329,14 +329,14 @@ public class WhoEmailLinkAutoConfiguration {
           "cannot be used, because Spring's mail support is not on the classpath, so sign-in emails"
               + " cannot be sent",
           "Add spring-boot-starter-mail and set spring.mail.host and who.email-link.from, or"
-              + " register an EmailLinkSender bean."
+              + " register a WhoEmailSender bean."
               + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
     if (sender == null) {
       throw new WhoConfigurationException(
           "spring.mail.host",
           "is not set, so sign-in emails cannot be sent",
-          "Set spring.mail.host and who.email-link.from, or register an EmailLinkSender bean."
+          "Set spring.mail.host and who.email-link.from, or register a WhoEmailSender bean."
               + " Or turn email-link sign-in off with who.email-link.enabled=false.");
     }
     return sender;
@@ -442,11 +442,11 @@ public class WhoEmailLinkAutoConfiguration {
   /**
    * Adds or replaces an address only once its owner confirms it, by link or code. The link goes to
    * {@code who.email-link.address-confirmation-url}, or the sign-in link's base URL. Startup fails
-   * when there is no {@code EmailLinkSender}: no bean, and no Spring mail.
+   * when there is no {@code WhoEmailSender}: no bean, and no Spring mail.
    *
    * @param emailCredentialService adds and revokes the addresses
    * @param emailAddressRequestRepository the pending changes
-   * @param emailLinkSender sends the confirmation and the notice to the old address
+   * @param whoEmailSender sends the confirmation and the notice to the old address
    * @param resourceLoader checks whether Spring's mail support is on the classpath
    * @param settings the email-link settings
    * @param properties who's properties, for the confirmation URL
@@ -459,7 +459,7 @@ public class WhoEmailLinkAutoConfiguration {
   public EmailAddressChanges emailAddressChanges(
       EmailCredentialService emailCredentialService,
       EmailAddressRequestRepository emailAddressRequestRepository,
-      ObjectProvider<EmailLinkSender> emailLinkSender,
+      ObjectProvider<WhoEmailSender> whoEmailSender,
       ResourceLoader resourceLoader,
       EmailLinkSettings settings,
       WhoProperties properties,
@@ -469,7 +469,7 @@ public class WhoEmailLinkAutoConfiguration {
     return new EmailAddressChanges(
         emailCredentialService,
         emailAddressRequestRepository,
-        requireSender(emailLinkSender, resourceLoader),
+        requireSender(whoEmailSender, resourceLoader),
         settings,
         StringUtils.hasText(confirmationUrl) ? confirmationUrl : settings.linkBaseUrl(),
         clock,
@@ -574,15 +574,15 @@ public class WhoEmailLinkAutoConfiguration {
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnClass(
       name = {
-        "org.jwcarman.who.emaillink.MailEmailLinkSender",
+        "org.jwcarman.who.emaillink.MailWhoEmailSender",
         "org.springframework.mail.javamail.JavaMailSender"
       })
-  static class MailEmailLinkSenderConfiguration {
+  static class MailWhoEmailSenderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(EmailLinkSender.class)
+    @ConditionalOnMissingBean(WhoEmailSender.class)
     @ConditionalOnBean(JavaMailSender.class)
-    public MailEmailLinkSender mailEmailLinkSender(
+    public MailWhoEmailSender mailWhoEmailSender(
         JavaMailSender javaMailSender, WhoProperties properties, Clock clock) {
       WhoProperties.EmailLink emailLink = properties.getEmailLink();
       if (!StringUtils.hasText(emailLink.getFrom())) {
@@ -592,7 +592,7 @@ public class WhoEmailLinkAutoConfiguration {
             "Set it to the address sign-in emails come from, such as no-reply@example.com."
                 + " Or turn email-link sign-in off with who.email-link.enabled=false.");
       }
-      return new MailEmailLinkSender(
+      return new MailWhoEmailSender(
           javaMailSender,
           emailLink.getFrom(),
           emailLink.getSubject(),

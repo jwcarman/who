@@ -80,7 +80,7 @@ class EmailLinkIssuerTest {
   private final EmailCredentialService credentials = mock(EmailCredentialService.class);
   private final WhoService whoService = mock(WhoService.class);
   private final EmailLinkTokenRepository repository = mock(EmailLinkTokenRepository.class);
-  private final EmailLinkSender sender = mock(EmailLinkSender.class);
+  private final WhoEmailSender sender = mock(WhoEmailSender.class);
   private final EmailLinkIssuer issuer =
       new EmailLinkIssuer(
           credentials,

@@ -29,7 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
-class MailEmailLinkSenderTest {
+class MailWhoEmailSenderTest {
 
   private static final Instant EXPIRES_AT = Instant.parse("2026-11-07T10:15:00Z");
   private static final String LINK = "https://app.test/signin#token=abc";
@@ -39,8 +39,8 @@ class MailEmailLinkSenderTest {
 
   private SimpleMailMessage sendWithTimeLeft(Duration left) {
     Clock clock = Clock.fixed(EXPIRES_AT.minus(left), ZoneOffset.UTC);
-    MailEmailLinkSender sender =
-        new MailEmailLinkSender(mailSender, "noreply@app.test", "Your sign-in link", clock);
+    MailWhoEmailSender sender =
+        new MailWhoEmailSender(mailSender, "noreply@app.test", "Your sign-in link", clock);
     sender.send(new EmailLinkMessage("owner@example.com", LINK, "K7F2QM", EXPIRES_AT));
     ArgumentCaptor<SimpleMailMessage> message = ArgumentCaptor.forClass(SimpleMailMessage.class);
     verify(mailSender).send(message.capture());
@@ -72,7 +72,7 @@ class MailEmailLinkSenderTest {
 
   private SimpleMailMessage send(WhoEmail email) {
     Clock clock = Clock.fixed(EXPIRES_AT.minus(Duration.ofMinutes(5)), ZoneOffset.UTC);
-    new MailEmailLinkSender(
+    new MailWhoEmailSender(
             mailSender,
             "noreply@app.test",
             "Your sign-in link",

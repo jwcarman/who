@@ -42,7 +42,7 @@ who:
     code-secret: <at least 32 random characters>
 ```
 
-The application also needs a way to send mail. Either register an `EmailLinkSender` bean, or send through Spring Boot's `JavaMailSender`: add `spring-boot-starter-mail` (who-email-link does not bring it) and set `spring.mail.host` and `who.email-link.from`:
+The application also needs a way to send mail. Either register a `WhoEmailSender` bean, or send through Spring Boot's `JavaMailSender`: add `spring-boot-starter-mail` (who-email-link does not bring it) and set `spring.mail.host` and `who.email-link.from`:
 
 ```yaml
 spring:
@@ -61,7 +61,7 @@ Startup fails, and the message names the fix, if:
 - `who.email-link.code-length` is below 6;
 - `who.email-link.code-max-attempts` is below 1;
 - `who.email-link.code-secret` is missing, shorter than 32 characters, or an unresolved placeholder such as `${CODE_SECRET}` (Spring binds an unset variable as that literal text);
-- there is no `EmailLinkSender`, and no `JavaMailSender` (from `spring-boot-starter-mail` and `spring.mail.host`) with `who.email-link.from`;
+- there is no `WhoEmailSender`, and no `JavaMailSender` (from `spring-boot-starter-mail` and `spring.mail.host`) with `who.email-link.from`;
 - `who.email-link.resend-interval` is longer than `who.email-link.token-ttl`.
 
 Each message also says how to turn email links off without removing the jar:
@@ -71,7 +71,7 @@ A custom sender is one method, which takes any of who's three emails. `WhoEmail`
 
 ```java
 @Bean
-EmailLinkSender emailLinkSender(MyMailer mailer) {
+WhoEmailSender whoEmailSender(MyMailer mailer) {
     return email -> {
         switch (email) {
             case EmailLinkMessage m -> mailer.send(m.address(), "Your sign-in link and code",
@@ -317,7 +317,7 @@ To remove an address without replacing it, the person calls `DELETE /who/me/emai
 
 | Outcome | Meaning |
 |---|---|
-| `SENT` | The link and code were stored and handed to the `EmailLinkSender`. |
+| `SENT` | The link and code were stored and handed to the `WhoEmailSender`. |
 | `UNKNOWN_ADDRESS` | The text is not an address, or no email credential has it. |
 | `INACTIVE_IDENTITY` | The address is known, but its identity is not active. |
 | `RESEND_SUPPRESSED` | A link was sent within the [resend interval](#the-resend-interval). |

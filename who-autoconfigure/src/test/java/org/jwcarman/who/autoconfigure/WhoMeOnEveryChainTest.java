@@ -44,7 +44,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
@@ -120,7 +120,7 @@ class WhoMeOnEveryChainTest {
   static class App {
 
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return email -> {
         if (email instanceof EmailLinkMessage message) {
           SENT.add(message);

@@ -33,7 +33,7 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoSecurity;
 import org.springframework.boot.actuate.autoconfigure.endpoint.EndpointAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointAutoConfiguration;
@@ -334,7 +334,7 @@ class WhoDefaultChainTest {
   @Configuration(proxyBeanMethods = false)
   static class Mail {
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return message -> {};
     }
 

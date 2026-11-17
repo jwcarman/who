@@ -58,7 +58,7 @@ public class EmailLinkIssuer {
   private final EmailCredentialService credentialService;
   private final WhoService whoService;
   private final EmailLinkTokenRepository repository;
-  private final EmailLinkSender sender;
+  private final WhoEmailSender sender;
   private final EmailLinkSettings settings;
   private final Clock clock;
   private final WhoEventPublisher eventPublisher;
@@ -79,7 +79,7 @@ public class EmailLinkIssuer {
       EmailCredentialService credentialService,
       WhoService whoService,
       EmailLinkTokenRepository repository,
-      EmailLinkSender sender,
+      WhoEmailSender sender,
       EmailLinkSettings settings,
       Clock clock) {
     this(
@@ -101,7 +101,7 @@ public class EmailLinkIssuer {
       EmailCredentialService credentialService,
       WhoService whoService,
       EmailLinkTokenRepository repository,
-      EmailLinkSender sender,
+      WhoEmailSender sender,
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher eventPublisher) {
@@ -132,7 +132,7 @@ public class EmailLinkIssuer {
       EmailCredentialService credentialService,
       WhoService whoService,
       EmailLinkTokenRepository repository,
-      EmailLinkSender sender,
+      WhoEmailSender sender,
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher eventPublisher,

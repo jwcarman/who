@@ -43,8 +43,8 @@ import org.jwcarman.who.emaillink.EmailAddressConfirmationMessage;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.WhoEmail;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -107,7 +107,7 @@ class EmailAddressChangeTest {
     }
 
     @Bean
-    EmailLinkSender emailLinkSender(Outbox outbox) {
+    WhoEmailSender whoEmailSender(Outbox outbox) {
       return outbox.sent::add;
     }
 

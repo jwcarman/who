@@ -33,7 +33,7 @@ import org.jwcarman.who.core.event.IdentityDeactivated;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
@@ -72,7 +72,7 @@ class SpringWhoEventPublisherTest {
               "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
               "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
               "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword())
-          .withBean(EmailLinkSender.class, () -> message -> {})
+          .withBean(WhoEmailSender.class, () -> message -> {})
           .withPropertyValues("who.passkey.enabled=false");
 
   /** Records every event and can be told to fail. */

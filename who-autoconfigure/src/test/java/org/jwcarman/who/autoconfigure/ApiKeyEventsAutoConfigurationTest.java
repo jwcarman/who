@@ -41,7 +41,7 @@ import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.rbac.RbacService;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
@@ -82,7 +82,7 @@ class ApiKeyEventsAutoConfigurationTest {
               "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword(),
               "who.email-link.enabled=false",
               "who.passkey.enabled=false")
-          .withBean(EmailLinkSender.class, () -> message -> {})
+          .withBean(WhoEmailSender.class, () -> message -> {})
           .withBean(WhoEventPublisher.class, () -> events::add)
           .withBean(Clock.class, () -> Clock.fixed(NOW, ZoneOffset.UTC));
 

@@ -25,7 +25,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 /** Sends who's emails as plain text through a {@link JavaMailSender}. */
-public class MailEmailLinkSender implements EmailLinkSender {
+public class MailWhoEmailSender implements WhoEmailSender {
 
   private final JavaMailSender mailSender;
   private final String from;
@@ -42,7 +42,7 @@ public class MailEmailLinkSender implements EmailLinkSender {
    * @param subject the subject line of a sign-in email
    * @param clock the clock used to tell how long the link and code remain valid
    */
-  public MailEmailLinkSender(JavaMailSender mailSender, String from, String subject, Clock clock) {
+  public MailWhoEmailSender(JavaMailSender mailSender, String from, String subject, Clock clock) {
     this(
         mailSender,
         from,
@@ -62,7 +62,7 @@ public class MailEmailLinkSender implements EmailLinkSender {
    * @param changedSubject the subject line of the notice to a replaced address
    * @param clock the clock used to tell how long the link and code remain valid
    */
-  public MailEmailLinkSender(
+  public MailWhoEmailSender(
       JavaMailSender mailSender,
       String from,
       String subject,

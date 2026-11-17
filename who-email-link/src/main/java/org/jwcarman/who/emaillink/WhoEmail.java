@@ -16,8 +16,8 @@
 package org.jwcarman.who.emaillink;
 
 /**
- * An email who asks an {@link EmailLinkSender} to deliver. Sealed, so a sender can switch over
- * every kind and the compiler tells it when who adds one.
+ * An email who asks an {@link WhoEmailSender} to deliver. Sealed, so a sender can switch over every
+ * kind and the compiler tells it when who adds one.
  */
 public sealed interface WhoEmail
     permits EmailLinkMessage, EmailAddressConfirmationMessage, EmailAddressChangedMessage {

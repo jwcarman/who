@@ -35,7 +35,7 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.emaillink.EmailCredentialService;
-import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
@@ -419,7 +419,7 @@ class PasskeyAutoConfigurationTest {
   void withEmailLinksTheNameIsTheAddress() {
     postgresRunner()
         .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET)
-        .withBean(EmailLinkSender.class, () -> message -> {})
+        .withBean(WhoEmailSender.class, () -> message -> {})
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -441,7 +441,7 @@ class PasskeyAutoConfigurationTest {
   void withEmailLinksTheNameIsTheAddressTheSessionSignedInWith() {
     postgresRunner()
         .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET)
-        .withBean(EmailLinkSender.class, () -> message -> {})
+        .withBean(WhoEmailSender.class, () -> message -> {})
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -549,7 +549,7 @@ class PasskeyAutoConfigurationTest {
     ApplicationContextRunner runner =
         postgresRunner()
             .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
-            .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+            .withBean(WhoEmailSender.class, () -> mock(WhoEmailSender.class))
             .withPropertyValues(
                 RP_ID, LINK_BASE_URL, CODE_SECRET, "who.passkey.from=security@example.com");
 
@@ -639,7 +639,7 @@ class PasskeyAutoConfigurationTest {
     return passkeyAddedEmailWarnings(
         postgresRunner()
             // email links can then be on without a JavaMailSender
-            .withBean(EmailLinkSender.class, () -> mock(EmailLinkSender.class))
+            .withBean(WhoEmailSender.class, () -> mock(WhoEmailSender.class))
             .withPropertyValues(properties),
         sends);
   }

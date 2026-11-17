@@ -53,7 +53,7 @@ public class EmailAddressChanges {
 
   private final EmailCredentialService credentials;
   private final EmailAddressRequestRepository requests;
-  private final EmailLinkSender sender;
+  private final WhoEmailSender sender;
   private final EmailLinkSettings settings;
   private final EmailCodeHasher codeHasher;
   private final String confirmationUrl;
@@ -75,7 +75,7 @@ public class EmailAddressChanges {
   public EmailAddressChanges(
       EmailCredentialService credentials,
       EmailAddressRequestRepository requests,
-      EmailLinkSender sender,
+      WhoEmailSender sender,
       EmailLinkSettings settings,
       String confirmationUrl,
       Clock clock,

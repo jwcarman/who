@@ -151,6 +151,10 @@ caller's; who's do, and apply the [last-credential rule](account.md#the-last-cre
 invited person from an [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
 listener.
 
+### Rename: `EmailLinkSender` is `WhoEmailSender`
+
+A custom sender implements `WhoEmailSender` (it was `EmailLinkSender`), and `MailEmailLinkSender` is `MailWhoEmailSender`; there is no alias, so rename the type and the bean method.
+
 ## Upgrading to 0.20.0
 
 0.20.0 adds a [human check](email-links.md#human-check) on who's email endpoints, with

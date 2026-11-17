@@ -47,8 +47,8 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.WhoEmail;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.oidc.PendingSignUp;
 import org.jwcarman.who.oidc.PendingSignUps;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -150,7 +150,7 @@ class SpringSessionJdbcTest {
     }
   }
 
-  static final class RecordingSender implements EmailLinkSender {
+  static final class RecordingSender implements WhoEmailSender {
 
     final List<String> tokens = new CopyOnWriteArrayList<>();
 

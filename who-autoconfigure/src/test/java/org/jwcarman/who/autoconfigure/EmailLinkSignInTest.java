@@ -56,9 +56,9 @@ import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.emaillink.WhoEmail;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -201,7 +201,7 @@ class EmailLinkSignInTest {
     }
   }
 
-  static final class RecordingSender implements EmailLinkSender {
+  static final class RecordingSender implements WhoEmailSender {
 
     final List<SentLink> sent = new CopyOnWriteArrayList<>();
 
@@ -684,7 +684,7 @@ class EmailLinkSignInTest {
     }
 
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return message -> {};
     }
   }
@@ -774,7 +774,7 @@ class EmailLinkSignInTest {
                     .isNotNull()
                     .rootCause()
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("EmailLinkSender")
+                    .hasMessageContaining("WhoEmailSender")
                     .hasMessageContaining("spring.mail.host")
                     .hasMessageContaining("who.email-link.from"));
   }

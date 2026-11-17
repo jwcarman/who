@@ -37,10 +37,10 @@ import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
-import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.InvitationRoles;
 import org.jwcarman.who.emaillink.InvitationService;
 import org.jwcarman.who.emaillink.RbacInvitationRoles;
+import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.oidc.OidcLoginMethod;
@@ -643,7 +643,7 @@ class ModuleActivationTest {
   @Configuration(proxyBeanMethods = false)
   static class Sender {
     @Bean
-    EmailLinkSender emailLinkSender() {
+    WhoEmailSender whoEmailSender() {
       return message -> {};
     }
   }
