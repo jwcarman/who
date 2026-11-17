@@ -155,6 +155,8 @@ listener.
 
 A custom sender implements `WhoEmailSender` (it was `EmailLinkSender`), and `MailEmailLinkSender` is `MailWhoEmailSender`; there is no alias, so rename the type and the bean method.
 
+Invitations now arrive as an `InvitationMessage`, a fourth kind of `WhoEmail`, so a custom sender must handle it. A sender written with `instanceof EmailLinkMessage` checks, or with a `switch` that has a `default ->` branch, still compiles but silently drops every invitation, and who still reports the link as sent. Use an exhaustive `switch` without `default`, so the compiler flags the new kind. `MailWhoEmailSender`'s constructor gained the `invitationSubject` parameter, before the clock (property `who.email-link.invitation-subject`).
+
 ## Upgrading to 0.20.0
 
 0.20.0 adds a [human check](email-links.md#human-check) on who's email endpoints, with

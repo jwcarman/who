@@ -94,7 +94,7 @@ Before changing anything, find out what is already there:
 
    | Module | Required |
    |---|---|
-   | `who-email-link` | `who.email-link.link-base-url` (your sign-in page), `who.email-link.code-secret` (32+ chars, the same on every instance, from a secret store), and a way to send mail: an `WhoEmailSender` bean, or `spring-boot-starter-mail` (who-email-link does not bring it) with `spring.mail.host` and `who.email-link.from` |
+   | `who-email-link` | `who.email-link.link-base-url` (your sign-in page), `who.email-link.code-secret` (32+ chars, the same on every instance, from a secret store), and a way to send mail: a `WhoEmailSender` bean, or `spring-boot-starter-mail` (who-email-link does not bring it) with `spring.mail.host` and `who.email-link.from` |
    | `who-passkey` | `who.passkey.rp-id` (the app's own host, e.g. `localhost` in development), and `who.passkey.allowed-origins` whenever the browser does not reach the app at `https://<rp-id>` exactly, such as `http://localhost:8080` or https on another port |
    | `who-turnstile` | `who.turnstile.secret-key` |
    | `who-jwt` | Spring's resource-server settings, including `spring.security.oauth2.resourceserver.jwt.audiences` |

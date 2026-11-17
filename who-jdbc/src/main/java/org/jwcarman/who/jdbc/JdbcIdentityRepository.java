@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.jdbc;
 
+import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -157,7 +158,7 @@ public class JdbcIdentityRepository implements IdentityRepository {
       Optional<UUID> roleId,
       Optional<Set<UUID>> ids) {
     JdbcClient.StatementSpec bound =
-        statement.param(COL_STATUS, status.map(IdentityStatus::name).orElse(null));
+        statement.param(COL_STATUS, status.map(IdentityStatus::name).orElse(null), Types.VARCHAR);
     if (roleId.isPresent()) {
       bound = bound.param("roleId", roleId.get());
     }

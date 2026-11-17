@@ -155,9 +155,8 @@ public class EmailLinkIssuer {
    * {@link EmailLinkOutcome#SEND_FAILED}. Publishes one {@link SignInEmailRequested} with the
    * outcome.
    *
-   * <p>This method is synchronous and uses its own transactions. A caller already in a transaction
-   * should call it after that transaction commits, for example from {@code
-   * TransactionSynchronization.afterCommit} with {@code REQUIRES_NEW}.
+   * <p>This method is synchronous. Call it with no transaction open, after your own transaction
+   * commits; it does its own writes and sends the email with none open.
    *
    * @param address the requested address, as typed; the link goes to the registered (normalized)
    *     address

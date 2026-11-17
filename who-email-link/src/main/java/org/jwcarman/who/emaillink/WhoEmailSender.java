@@ -16,9 +16,10 @@
 package org.jwcarman.who.emaillink;
 
 /**
- * Delivers every email who sends: a sign-in link and code ({@link EmailLinkMessage}), the
- * confirmation of an address being added or changed ({@link EmailAddressConfirmationMessage}), and
- * the notice to an address that was replaced ({@link EmailAddressChangedMessage}).
+ * Delivers every email who sends: a sign-in link and code ({@link EmailLinkMessage}), an invitation
+ * ({@link InvitationMessage}), the confirmation of an address being added or changed ({@link
+ * EmailAddressConfirmationMessage}), and the notice to an address that was replaced ({@link
+ * EmailAddressChangedMessage}).
  */
 @FunctionalInterface
 public interface WhoEmailSender {
