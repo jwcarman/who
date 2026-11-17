@@ -135,8 +135,17 @@ public class InvitationService {
    *
    * <p>If the callback throws, the whole invitation rolls back: no identity, address or role
    * remains, {@link IdentityInvited} is not heard by anything, no who event from these steps is
-   * delivered and no link is sent. The exception propagates to the caller unchanged, neither
-   * wrapped nor translated.
+   * delivered and no link is sent. A {@link RuntimeException} or {@link Error} propagates to the
+   * caller unchanged; a checked exception thrown by sneaky means arrives wrapped in an {@link
+   * java.lang.reflect.UndeclaredThrowableException}, as {@code TransactionTemplate} does. Nothing
+   * is translated.
+   *
+   * <p>The callback's writes join the invitation's transaction only if they use the same
+   * transaction manager with joining propagation. A {@code REQUIRES_NEW} call inside it runs on
+   * another connection, cannot see the uncommitted identity, and survives a rollback. If the
+   * callback catches an exception from a {@code @Transactional} call that marked the transaction
+   * rollback-only, {@code invite} throws {@code UnexpectedRollbackException} at commit and sends
+   * nothing.
    *
    * <p>The method returns only after the send attempt, with its result in {@link
    * Invitation#linkOutcome}. Call it outside any transaction: the link is issued after the
@@ -148,6 +157,7 @@ public class InvitationService {
    * @param roleNames the names of the roles to give the identity; empty for none
    * @param inTransaction receives the new identity, inside the invitation's transaction
    * @return the new identity and what became of its sign-in link
+   * @throws NullPointerException if {@code roleNames} or {@code inTransaction} is null
    * @throws InvalidInvitationException before anything is created, if the address is missing or is
    *     not an address, a role name is blank, or roles are asked for without {@code who-rbac}; and,
    *     with everything rolled back, if a name names no role
@@ -185,7 +195,7 @@ public class InvitationService {
       credential = emailCredentials.register(identity, email);
     } catch (DuplicateKeyException _) {
       // the address's unique key: a concurrent invitation or registration took it first. Only
-      // here, so a listener's own unique key further on is never reported as this
+      // here, so a callback's or listener's own unique key further on is never reported as this
       throw new EmailAddressTakenException();
     }
     if (!names.isEmpty() && roles != null) {

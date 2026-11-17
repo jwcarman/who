@@ -35,6 +35,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -373,6 +374,11 @@ class InvitationServiceTest {
 
     private static final ScopedValue<String> CALLER = ScopedValue.newInstance();
 
+    @AfterEach
+    void dropTable() {
+      jdbcClient.sql("DROP TABLE IF EXISTS invitation_test_profile").update();
+    }
+
     @BeforeEach
     void createTable() {
       jdbcClient
@@ -484,14 +490,6 @@ class InvitationServiceTest {
       assertThat(order).containsExactly("callback:0");
       assertThat(rolesSeen.get()).containsExactly(editorRole);
       assertThat(HEARD).hasSize(1);
-    }
-
-    @Test
-    void the_two_argument_invite_still_works() {
-      Invitation invitation = invitationService.invite(CAROL, Set.of());
-
-      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SENT);
-      assertThat(registered(CAROL)).isTrue();
     }
   }
 

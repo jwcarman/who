@@ -133,8 +133,9 @@ lists and invitations. Endpoints of your own over `PasskeyService.revoke`,
 `FederatedCredentialService.unlink` or `ApiKeyService.revoke` should check that the id is the
 caller's; who's do, and apply the [last-credential rule](account.md#the-last-credential-rule) too.
 `InvitationService.invite` must be called outside any transaction: store your own data for the
-invited person from an [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
-listener.
+invited person with the callback of `invite(email, roleNames, callback)`, which runs inside the
+invitation's transaction. An [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
+listener is for cross-cutting reactions such as auditing.
 
 ### Rename: `EmailLinkSender` is `WhoEmailSender`
 

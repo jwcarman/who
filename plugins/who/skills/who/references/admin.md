@@ -314,8 +314,17 @@ identity is created, the address registered and the roles assigned, and before `
 is published, so its writes commit or roll back with the invitation. It runs on the caller's
 thread, so the `SecurityContext`, request attributes, a `ScopedValue` and the locale are all
 reachable inside it. If it throws, the whole invitation rolls back (no identity, address or
-role), nothing is sent, and the exception reaches the caller unchanged. `invite` returns only
+role), nothing is sent, and a `RuntimeException` or `Error` reaches the caller unchanged (a sneaked checked exception arrives wrapped in `UndeclaredThrowableException`). `invite` returns only
 after the send attempt, with its result in `invitation.linkOutcome()`.
+
+The callback's writes join the invitation's transaction only when they use the same transaction
+manager with joining propagation: a `REQUIRES_NEW` call inside it runs on another connection,
+cannot see the uncommitted identity, and survives a rollback (see [a listener with its own
+transaction](events.md#a-listener-with-its-own-transaction)). If the callback catches an exception
+from a `@Transactional` call that marked the transaction rollback-only, `invite` throws
+`UnexpectedRollbackException` at commit and sends nothing. `identity` does not carry the address,
+and who stores it normalized, so an app that keeps its own copy should normalize it the same way,
+or not store it at all.
 
 An [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation) listener runs in the
 same transaction too, but it is for cross-cutting reactions, such as auditing, that do not need

@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -38,6 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -213,6 +215,9 @@ class InvitationServiceUnitTest {
     }
   }
 
+  /** A callback a mock can make throw a checked exception, as a sneaky throw would. */
+  interface IdentityCallback extends Consumer<Identity> {}
+
   @Nested
   class The_callback {
 
@@ -293,6 +298,44 @@ class InvitationServiceUnitTest {
                       }))
           .isSameAs(failure);
       assertThat(published).isEmpty();
+      verifyNoInteractions(issuer);
+    }
+
+    @Test
+    void a_sneaked_checked_exception_arrives_wrapped_and_sends_nothing() {
+      Exception checked = new Exception("checked");
+      IdentityCallback callback = mock(IdentityCallback.class);
+      doAnswer(
+              _ -> {
+                throw checked;
+              })
+          .when(callback)
+          .accept(any());
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, none, callback))
+          .isInstanceOf(UndeclaredThrowableException.class)
+          .hasCause(checked);
+      assertThat(published).isEmpty();
+      verifyNoInteractions(issuer);
+    }
+
+    @Test
+    void a_callbacks_unique_key_violation_is_not_a_taken_address() {
+      DuplicateKeyException callbacks = new DuplicateKeyException("app_profile_key");
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(
+              () ->
+                  service.invite(
+                      ADDRESS,
+                      none,
+                      _ -> {
+                        throw callbacks;
+                      }))
+          .isSameAs(callbacks);
       verifyNoInteractions(issuer);
     }
 
