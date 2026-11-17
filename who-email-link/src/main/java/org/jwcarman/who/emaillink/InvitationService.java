@@ -136,9 +136,8 @@ public class InvitationService {
    * <p>If the callback throws, the whole invitation rolls back: no identity, address or role
    * remains, {@link IdentityInvited} is not heard by anything, no who event from these steps is
    * delivered and no link is sent. A {@link RuntimeException} or {@link Error} propagates to the
-   * caller unchanged; a checked exception thrown by sneaky means arrives wrapped in an {@link
-   * java.lang.reflect.UndeclaredThrowableException}, as {@code TransactionTemplate} does. Nothing
-   * is translated.
+   * caller unchanged; a checked exception thrown by sneaky means arrives wrapped in an {@code
+   * UndeclaredThrowableException}, as {@code TransactionTemplate} does. Nothing is translated.
    *
    * <p>The callback's writes join the invitation's transaction only if they use the same
    * transaction manager with joining propagation. A {@code REQUIRES_NEW} call inside it runs on
