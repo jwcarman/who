@@ -56,7 +56,7 @@ class SignInOptionsFilterTest {
   private MockHttpServletResponse get(
       String path, WhoPaths paths, List<PasswordlessLoginMethod> methods) throws Exception {
     MockHttpServletResponse response = new MockHttpServletResponse();
-    new SignInOptionsFilter(paths, methods, json)
+    new SignInOptionsFilter(paths, methods)
         .doFilter(new MockHttpServletRequest("GET", path), response, chain);
     return response;
   }
@@ -128,7 +128,7 @@ class SignInOptionsFilterTest {
     void only_a_get_is_answered() throws Exception {
       MockHttpServletResponse response = new MockHttpServletResponse();
 
-      new SignInOptionsFilter(WhoPaths.defaults(), List.of(), json)
+      new SignInOptionsFilter(WhoPaths.defaults(), List.of())
           .doFilter(new MockHttpServletRequest("POST", "/who/sign-in"), response, chain);
 
       assertThat(reachedChain).isTrue();

@@ -486,7 +486,7 @@ public class WhoEmailLinkAutoConfiguration {
    * @param sessionRepository finds the browser session, for the recent-sign-in check
    * @param handoff hands errors to the application's exception handling, when present
    * @param executor sends the confirmation off the request thread
-   * @param jsonMapper reads and writes JSON; a default one when the application has none
+   * @param jsonMapper reads the request bodies; a default one when the application has none
    * @param clock checks how recently the person signed in
    * @param properties who's properties, for the recent-sign-in window
    * @param paths where the endpoints live

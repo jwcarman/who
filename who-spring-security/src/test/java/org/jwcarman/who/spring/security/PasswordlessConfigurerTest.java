@@ -84,7 +84,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(classes = PasswordlessConfigurerTest.TestApp.class)
 class PasswordlessConfigurerTest {
@@ -131,12 +130,7 @@ class PasswordlessConfigurerTest {
     SessionEndpoints sessionEndpoints(
         WhoSessions sessions, WhoSessionSecurityContextRepository repository, Clock clock) {
       return new SessionEndpoints(
-          sessions,
-          repository,
-          new WhoExceptionHandoff(null),
-          JsonMapper.builder().build(),
-          clock,
-          Duration.ofMinutes(10));
+          sessions, repository, new WhoExceptionHandoff(null), clock, Duration.ofMinutes(10));
     }
 
     @Bean

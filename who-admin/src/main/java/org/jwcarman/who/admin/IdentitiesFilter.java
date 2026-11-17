@@ -371,8 +371,9 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     return AdminJson.readObject(jsonMapper, request);
   }
 
-  private void writeJson(HttpServletResponse response, int status, Object body) throws IOException {
-    AdminJson.write(jsonMapper, response, status, body);
+  private static void writeJson(HttpServletResponse response, int status, Object body)
+      throws IOException {
+    AdminJson.write(response, status, body);
   }
 
   /**

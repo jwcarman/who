@@ -19,7 +19,6 @@ import static java.util.Objects.requireNonNull;
 import static org.jwcarman.who.core.observation.WhoObservations.tagValue;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -39,9 +38,9 @@ import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.SessionNotFoundException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -50,8 +49,6 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.server.ResponseStatusException;
-
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@code GET /who/me/sessions} lists the caller's live browser sessions; {@code DELETE
@@ -69,7 +66,6 @@ final class SessionsFilter extends OncePerRequestFilter {
   private final WhoSessions sessions;
   private final WhoSessionSecurityContextRepository repository;
   private final WhoExceptionHandoff handoff;
-  private final JsonMapper jsonMapper;
   private final Clock clock;
   private final Duration recentSignIn;
   private final LogoutHandler signOut;
@@ -79,7 +75,6 @@ final class SessionsFilter extends OncePerRequestFilter {
       WhoSessions sessions,
       WhoSessionSecurityContextRepository repository,
       WhoExceptionHandoff handoff,
-      JsonMapper jsonMapper,
       Clock clock,
       Duration recentSignIn,
       LogoutHandler signOut) {
@@ -91,7 +86,6 @@ final class SessionsFilter extends OncePerRequestFilter {
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
-    this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
     this.signOut = requireNonNull(signOut, "signOut must not be null");
@@ -212,11 +206,8 @@ final class SessionsFilter extends OncePerRequestFilter {
     return false;
   }
 
-  private void writeJson(HttpServletResponse response, Object body) throws IOException {
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(body));
+  private static void writeJson(HttpServletResponse response, Object body) throws IOException {
+    WhoJson.write(response, HttpServletResponse.SC_OK, body);
   }
 
   private static Optional<UUID> parse(String id) {

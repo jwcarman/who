@@ -59,7 +59,7 @@ public class WhoInvitationEndpoints implements BrowserEndpoints, StatelessEndpoi
    * @param sessions tells a browser session from a bearer token or an API key, and reads its
    *     sign-in time
    * @param handoff answers errors through the application's exception handling
-   * @param jsonMapper reads the request bodies and writes the answers
+   * @param jsonMapper reads the request bodies; who writes the answers with its own mapper
    * @param clock the current time
    * @param recentSignIn how recently a browser session must have signed in to invite
    */

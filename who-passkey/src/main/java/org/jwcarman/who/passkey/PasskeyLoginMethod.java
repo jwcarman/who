@@ -176,7 +176,6 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
             passkeyService,
             lastCredentialGuard,
             handoff,
-            jsonMapper,
             clock,
             registrationWindow),
         ExceptionTranslationFilter.class);

@@ -112,7 +112,6 @@ final class InvitationsFilter extends OncePerRequestFilter {
         return;
       }
       AdminJson.write(
-          jsonMapper,
           response,
           HttpServletResponse.SC_CREATED,
           new Created(invitation.get().identityId(), invitation.get().linkSent()));

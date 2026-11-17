@@ -29,8 +29,6 @@ import org.springframework.security.web.authentication.logout.CompositeLogoutHan
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
-import tools.jackson.databind.json.JsonMapper;
-
 /**
  * Adds the endpoints that let a signed-in person see their browser sessions and end them: {@code
  * GET /who/me/sessions}, {@code DELETE /who/me/sessions/{id}} and {@code DELETE
@@ -43,7 +41,6 @@ public class SessionEndpoints {
   private final WhoSessions sessions;
   private final WhoSessionSecurityContextRepository repository;
   private final WhoExceptionHandoff handoff;
-  private final JsonMapper jsonMapper;
   private final Clock clock;
   private final Duration recentSignIn;
 
@@ -53,7 +50,6 @@ public class SessionEndpoints {
    * @param sessions who's record of sessions
    * @param repository reads the browser's who session and signs it out
    * @param handoff answers errors through the application's exception handling
-   * @param jsonMapper writes the answers
    * @param clock the current time
    * @param recentSignIn how recently the session must have signed in to end another session
    */
@@ -61,13 +57,11 @@ public class SessionEndpoints {
       WhoSessions sessions,
       WhoSessionSecurityContextRepository repository,
       WhoExceptionHandoff handoff,
-      JsonMapper jsonMapper,
       Clock clock,
       Duration recentSignIn) {
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
-    this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
   }
@@ -84,14 +78,7 @@ public class SessionEndpoints {
     // answer
     http.addFilterAfter(
         new SessionsFilter(
-            paths,
-            sessions,
-            repository,
-            handoff,
-            jsonMapper,
-            clock,
-            recentSignIn,
-            signOutHandler(logout)),
+            paths, sessions, repository, handoff, clock, recentSignIn, signOutHandler(logout)),
         ExceptionTranslationFilter.class);
   }
 

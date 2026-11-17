@@ -18,7 +18,6 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -43,9 +42,9 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -161,10 +160,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
         credentials.findAllFor(token.getPrincipal().identity().id()).stream()
             .map(EmailAddressFilter::view)
             .toList();
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(body));
+    WhoJson.write(response, HttpServletResponse.SC_OK, body);
   }
 
   private static Map<String, Object> view(EmailCredential credential) {
@@ -249,12 +245,8 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       handoff.handOff(request, response, e, HttpStatus.CONFLICT);
       return;
     }
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response
-        .getWriter()
-        .write(jsonMapper.writeValueAsString(Map.of("credentialId", credential.id().toString())));
+    WhoJson.write(
+        response, HttpServletResponse.SC_OK, Map.of("credentialId", credential.id().toString()));
   }
 
   /**

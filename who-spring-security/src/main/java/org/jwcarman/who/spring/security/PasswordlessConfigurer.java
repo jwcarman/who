@@ -40,8 +40,6 @@ import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
-import tools.jackson.databind.json.JsonMapper;
-
 /**
  * Makes a browser chain safe for session sign-in, using only Spring Security's own types: Spring's
  * SPA CSRF setup ({@link CsrfConfigurer#spa()}), {@code 401} instead of login redirects, a logout
@@ -142,12 +140,7 @@ public class PasswordlessConfigurer
       method.configure(http);
     }
     // public, so before authorization: a signed-out page learns which methods to draw
-    http.addFilterAfter(
-        new SignInOptionsFilter(
-            paths,
-            methods,
-            context.getBeanProvider(JsonMapper.class).getIfAvailable(JsonMapper::new)),
-        ExceptionTranslationFilter.class);
+    http.addFilterAfter(new SignInOptionsFilter(paths, methods), ExceptionTranslationFilter.class);
     context.getBeanProvider(BrowserEndpoints.class).orderedStream().forEach(e -> e.configure(http));
     Map<String, String> checked = new LinkedHashMap<>();
     methods.forEach(method -> checked.putAll(method.humanCheckedPaths()));

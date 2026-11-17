@@ -18,7 +18,6 @@ package org.jwcarman.who.spring.security;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,13 +28,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@code GET /who/sign-in} tells a signed-out page which ways of signing in are on, so it can draw
@@ -50,18 +47,13 @@ final class SignInOptionsFilter extends OncePerRequestFilter {
 
   private final RequestMatcher matcher;
   private final List<PasswordlessLoginMethod> methods;
-  private final JsonMapper jsonMapper;
 
-  SignInOptionsFilter(
-      WhoPaths paths,
-      Collection<? extends PasswordlessLoginMethod> methods,
-      JsonMapper jsonMapper) {
+  SignInOptionsFilter(WhoPaths paths, Collection<? extends PasswordlessLoginMethod> methods) {
     this.matcher =
         PathPatternRequestMatcher.withDefaults()
             .matcher(
                 HttpMethod.GET, requireNonNull(paths, "paths must not be null").of("/sign-in"));
     this.methods = List.copyOf(requireNonNull(methods, "methods must not be null"));
-    this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
   }
 
   @Override
@@ -78,9 +70,6 @@ final class SignInOptionsFilter extends OncePerRequestFilter {
     options.put("passkey", false);
     options.put("providers", List.of());
     methods.forEach(method -> options.putAll(method.signInOptions()));
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(options));
+    WhoJson.write(response, HttpServletResponse.SC_OK, options);
   }
 }

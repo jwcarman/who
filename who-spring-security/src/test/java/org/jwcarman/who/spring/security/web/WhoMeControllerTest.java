@@ -45,8 +45,6 @@ import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -90,9 +88,7 @@ class WhoMeControllerTest {
 
   private WhoMeController.WhoMeResponse me(
       WhoMeController controller, WhoAuthenticationToken token) {
-    ResponseEntity<WhoMeController.WhoMeResponse> response = controller.me(request, token);
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    return response.getBody();
+    return controller.resolve(request, token);
   }
 
   @Nested
@@ -166,7 +162,7 @@ class WhoMeControllerTest {
 
     @Test
     void signed_out_throws_not_signed_in() {
-      assertThatThrownBy(() -> controller(null).me(request, null))
+      assertThatThrownBy(() -> controller(null).resolve(request, null))
           .isInstanceOf(NotSignedInException.class);
     }
 
@@ -175,7 +171,7 @@ class WhoMeControllerTest {
       assertThatThrownBy(
               () ->
                   controller(null)
-                      .me(
+                      .resolve(
                           request,
                           UsernamePasswordAuthenticationToken.authenticated("x", "y", List.of())))
           .isInstanceOf(NotSignedInException.class);

@@ -63,7 +63,7 @@ public class EmailAddressEndpoints implements BrowserEndpoints, StatelessEndpoin
    * @param sessions reads the browser's who session and its sign-in time
    * @param handoff answers errors through the application's exception handling
    * @param executor runs a request's lookup and sending off the request thread
-   * @param jsonMapper reads the request bodies and writes the answer
+   * @param jsonMapper reads the request bodies; who writes the answer with its own mapper
    * @param clock the current time
    * @param recentSignIn how recently the session must have signed in
    */

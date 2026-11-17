@@ -81,7 +81,6 @@ class SessionsFilterTest {
           sessions,
           repository,
           new WhoExceptionHandoff(null),
-          json,
           clock,
           RECENT,
           SessionEndpoints.signOutHandler(

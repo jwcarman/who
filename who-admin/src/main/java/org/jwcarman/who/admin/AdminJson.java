@@ -16,12 +16,11 @@
 package org.jwcarman.who.admin;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.http.MediaType;
+import org.jwcarman.who.spring.security.web.WhoJson;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -67,19 +66,14 @@ final class AdminJson {
   }
 
   /**
-   * Answers with a JSON body.
+   * Answers with a JSON body, written by who's own mapper (see {@link WhoJson}).
    *
-   * @param jsonMapper writes the JSON
    * @param response the response
    * @param status its status
    * @param body what to write
    * @throws IOException if writing fails
    */
-  static void write(JsonMapper jsonMapper, HttpServletResponse response, int status, Object body)
-      throws IOException {
-    response.setStatus(status);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(body));
+  static void write(HttpServletResponse response, int status, Object body) throws IOException {
+    WhoJson.write(response, status, body);
   }
 }

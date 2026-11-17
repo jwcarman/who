@@ -18,7 +18,6 @@ package org.jwcarman.who.apikey;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
@@ -42,9 +41,9 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -60,8 +59,8 @@ import tools.jackson.databind.json.JsonMapper;
  * The caller's API keys under {@code /who/me/api-keys}:
  *
  * <ul>
- *   <li>{@code GET} lists them, by name, as {@code [{id, name, scopes, created, expiresAt,
- *       lastUsed}]};
+ *   <li>{@code GET} lists them, by name, as {@code [{id, name, scopes, createdAt, expiresAt,
+ *       lastUsedAt}]}, {@code lastUsedAt} {@code null} for a key that never signed in;
  *   <li>{@code POST} with {@code {name, lifetime, scopes}} makes one ({@code lifetime} an ISO-8601
  *       duration) and answers {@code 201} with {@code {id, name, scopes, expiresAt, key}};
  *   <li>{@code POST /{id}/rotations} with {@code {overlap}} (an ISO-8601 duration) replaces one, as
@@ -347,11 +346,9 @@ final class ApiKeysFilter extends OncePerRequestFilter {
     return Set.copyOf(scopes);
   }
 
-  private void writeJson(HttpServletResponse response, int status, Object body) throws IOException {
-    response.setStatus(status);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(body));
+  private static void writeJson(HttpServletResponse response, int status, Object body)
+      throws IOException {
+    WhoJson.write(response, status, body);
   }
 
   /**

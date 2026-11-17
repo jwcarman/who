@@ -133,7 +133,6 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
                 List.of(new PasskeySignInCredentialCounter(jdbcClient)),
                 new TransactionTemplate(transactionManager)),
             new WhoExceptionHandoff(null),
-            json,
             clock,
             RECENT);
     alice = identityRepository.save(Identity.create());

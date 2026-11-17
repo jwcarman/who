@@ -66,8 +66,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.util.ClassUtils;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
-import tools.jackson.databind.json.JsonMapper;
-
 /**
  * Wires who into Spring Security when {@code who-spring-security} is on the classpath: the session
  * repository, {@code GET /who/me}, the exception hand-off, and method security so that
@@ -218,7 +216,6 @@ public class WhoSpringSecurityAutoConfiguration {
    * @param whoSessions who's record of sessions
    * @param repository reads the browser's who session and signs it out
    * @param handoff answers errors through the application's exception handling, when it has one
-   * @param jsonMapper writes the answers; a default one when the application has none
    * @param clock the current time
    * @param properties who's properties, for the recent-sign-in window
    * @return the endpoints
@@ -229,14 +226,12 @@ public class WhoSpringSecurityAutoConfiguration {
       WhoSessions whoSessions,
       WhoSessionSecurityContextRepository repository,
       ObjectProvider<WhoExceptionHandoff> handoff,
-      ObjectProvider<JsonMapper> jsonMapper,
       Clock clock,
       WhoProperties properties) {
     return new SessionEndpoints(
         whoSessions,
         repository,
         handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
-        jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
         properties.getSecurity().getRecentSignIn());
   }

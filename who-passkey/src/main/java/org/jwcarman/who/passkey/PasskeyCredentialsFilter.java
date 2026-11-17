@@ -18,7 +18,6 @@ package org.jwcarman.who.passkey;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -40,16 +39,14 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@code GET <root>/me/passkeys} lists the caller's passkeys, oldest first; {@code DELETE
@@ -76,7 +73,6 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
   private final PasskeyService passkeys;
   private final LastCredentialGuard guard;
   private final WhoExceptionHandoff handoff;
-  private final JsonMapper jsonMapper;
   private final Clock clock;
   private final Duration recentSignIn;
 
@@ -88,7 +84,6 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
    * @param passkeys lists and revokes passkeys
    * @param guard keeps an identity from losing its last sign-in credential
    * @param handoff hands errors to the application
-   * @param jsonMapper writes the list
    * @param clock the current time
    * @param recentSignIn how recently the session must have signed in to remove a passkey
    */
@@ -98,7 +93,6 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
       PasskeyService passkeys,
       LastCredentialGuard guard,
       WhoExceptionHandoff handoff,
-      JsonMapper jsonMapper,
       Clock clock,
       Duration recentSignIn) {
     String url = requireNonNull(paths, "paths must not be null").of(PasskeyFilters.CREDENTIALS);
@@ -110,7 +104,6 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
     this.passkeys = requireNonNull(passkeys, "passkeys must not be null");
     this.guard = requireNonNull(guard, "guard must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
-    this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
   }
@@ -149,10 +142,7 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
 
   private void list(HttpServletResponse response, UUID identityId) throws IOException {
     List<Map<String, Object>> body = passkeys.list(identityId).stream().map(this::view).toList();
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(body));
+    WhoJson.write(response, HttpServletResponse.SC_OK, body);
   }
 
   /** Never the internal id: the credential id is what names a passkey. */

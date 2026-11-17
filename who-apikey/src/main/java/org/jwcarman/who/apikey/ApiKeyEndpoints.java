@@ -53,7 +53,7 @@ public class ApiKeyEndpoints implements BrowserEndpoints, StatelessEndpoints {
    * @param keys makes, lists, rotates and revokes the keys
    * @param sessions reads the browser's who session and its sign-in time
    * @param handoff answers errors through the application's exception handling
-   * @param jsonMapper reads the request bodies and writes the answers
+   * @param jsonMapper reads the request bodies; who writes the answers with its own mapper
    * @param clock the current time
    * @param recentSignIn how recently a browser session must have signed in to make or rotate a key
    */

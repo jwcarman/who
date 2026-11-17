@@ -17,6 +17,7 @@ package org.jwcarman.who.spring.security.web;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
@@ -34,7 +36,6 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -92,16 +93,25 @@ public class WhoMeController {
       Map<String, Long> credentials) {}
 
   /**
-   * Returns the current principal, freshly resolved for this request.
+   * Answers the current principal, freshly resolved for this request, as {@link WhoMeResponse}
+   * written by who's own mapper (see {@link WhoJson}), so the application's Jackson settings do not
+   * change its names or its instants.
    *
    * @param request the request
+   * @param response answers {@code 200} with the identity
    * @param authentication the request's authentication, or {@code null} if there is none
-   * @return {@code 200} with the identity
    * @throws NotSignedInException when no one is signed in; the application formats it
+   * @throws IOException if writing fails
    */
   @GetMapping("${who.base-path:/who}/me")
-  public ResponseEntity<WhoMeResponse> me(
-      HttpServletRequest request, Authentication authentication) {
+  public void me(
+      HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+      throws IOException {
+    WhoJson.write(response, HttpServletResponse.SC_OK, resolve(request, authentication));
+  }
+
+  /** The answer for this request; signed out is {@link NotSignedInException}. */
+  WhoMeResponse resolve(HttpServletRequest request, Authentication authentication) {
     if (authentication == null
         || !(authentication.getPrincipal() instanceof WhoPrincipal principal)) {
       throw new NotSignedInException();
@@ -119,8 +129,7 @@ public class WhoMeController {
     Instant recentUntil = session.map(s -> s.signedInAt().plus(recentSignIn.window())).orElse(null);
     Map<String, Long> credentials =
         Optional.ofNullable(guard.getIfAvailable()).map(g -> g.counts(identityId)).orElse(Map.of());
-    return ResponseEntity.ok(
-        new WhoMeResponse(identityId, principal.permissions(), method, recentUntil, credentials));
+    return new WhoMeResponse(identityId, principal.permissions(), method, recentUntil, credentials);
   }
 
   private static Optional<SignInMethod> tokenMethod(Authentication authentication) {

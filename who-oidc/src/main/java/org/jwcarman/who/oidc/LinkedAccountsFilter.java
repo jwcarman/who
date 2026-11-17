@@ -18,7 +18,6 @@ package org.jwcarman.who.oidc;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -43,17 +42,15 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import com.nimbusds.jose.util.JSONArrayUtils;
 
 /**
  * Lists and unlinks the caller's provider accounts: {@code GET /who/me/accounts} and {@code DELETE
@@ -131,10 +128,7 @@ final class LinkedAccountsFilter extends OncePerRequestFilter {
   private void list(HttpServletResponse response, UUID identityId) throws IOException {
     List<Map<String, Object>> body =
         credentials.findAllFor(identityId).stream().map(this::view).toList();
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(JSONArrayUtils.toJSONString(body));
+    WhoJson.write(response, HttpServletResponse.SC_OK, body);
   }
 
   private Map<String, Object> view(FederatedCredential credential) {
