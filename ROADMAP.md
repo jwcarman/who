@@ -1,6 +1,6 @@
 # Roadmap
 
-Where who is going after 0.19.0. Each release below is a theme, not a promise: order and scope
+Where who is going after 0.20.0. Each release below is a theme, not a promise: order and scope
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 
@@ -56,10 +56,10 @@ is a tag.
   its scopes, never more than its owner has now; keys rotate with an overlap and carry a
   recognizable prefix and checksum for secret scanners.
 
-## 0.20: more identity providers
+## 0.20: human check and the startup log
 
-0.19.0 shipped sessions, recent sign-in, one endpoint root and the TypeScript client instead, so
-these moved to 0.20.
+(Done in 0.20.0.) Planned as "more identity providers"; Entra ID and email-link sign-up moved
+to 0.21.
 
 - **Startup log of sign-in methods.** (Done: each chain logs the methods it accepts at startup;
   see [Observability](docs/guides/observability.md#startup-log).) An Actuator `info` contributor
@@ -71,15 +71,18 @@ these moved to 0.20.
   Connect provider.
 - **Human check.** (Done: `WhoHumanCheck` guards the email endpoints, and `who-turnstile` adds
   Cloudflare Turnstile; see [Email Links](docs/guides/email-links.md#human-check).)
+
+## 0.21: more identity providers
+
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
 - Sign-up through `WhoSignUpPolicy` for email links.
 
-## 0.21: organizations
+## 0.22: organizations
 
 - Roles and permissions scoped to an organization ("admin in Acme, member in Globex"),
   invitations to an organization, and permission checks against the current one.
 - This changes the data model more than anything else here, so its design should start early,
-  well before 0.21, even if the code comes last.
+  well before 0.22, even if the code comes last.
 
 ## 1.0: stability
 

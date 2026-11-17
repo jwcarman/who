@@ -1,5 +1,49 @@
 # Upgrading
 
+## Upgrading to 0.20.0
+
+0.20.0 adds a [human check](email-links.md#human-check) on who's email endpoints, with
+Cloudflare Turnstile in the new `who-turnstile` module, and a
+[startup log](observability.md#startup-log) of the sign-in methods each chain accepts. Two
+changes can break an application.
+
+### The email-address endpoints are not a sign-in method
+
+`EmailAddressEndpoints`, which serves `/who/email/addresses`, now implements
+`BrowserEndpoints` instead of `PasswordlessLoginMethod`. `WhoWebSecurity.passwordless()` applies
+every `BrowserEndpoints` bean after its sign-in methods, so a chain built with it, or who's
+default chain, changes nothing.
+
+Code that applies `PasswordlessLoginMethod` beans to a chain itself no longer gets the
+email-address endpoints that way. Apply `BrowserEndpoints` beans as well:
+
+```java
+@Bean
+SecurityFilterChain web(HttpSecurity http, List<PasswordlessLoginMethod> methods,
+    List<BrowserEndpoints> endpoints) throws Exception {
+  // ...apply the methods, then:
+  endpoints.forEach(e -> e.configure(http));
+  return http.build();
+}
+```
+
+### The TypeScript client's `email.send` answers a result
+
+`email.send` returns a `WhoResult` instead of `void`, so a page can see a refused
+[human check](email-links.md#human-check). A page that only awaits it still compiles and works
+as before until the application adds a human check; from then on a refusal comes back as
+`'human-check-failed'` instead of throwing, so check `ok`:
+
+```ts
+const result = await who.email.send(address, { humanCheck: token });
+if (!result.ok && result.reason === 'human-check-failed') {
+  return showWidgetAgain();
+}
+```
+
+Other failures still throw a `WhoError`. To have the refusal throw too, use
+`unwrap(await who.email.send(address))`.
+
 ## Upgrading to 0.19.0
 
 0.19.0 adds [`@RequiresRecentSignIn`](security-model.md#recent-sign-in), lets people

@@ -351,13 +351,12 @@ Anyone can call `/who/email/send` and `/who/email/sign-in` while signed out. A s
 
 ### Cloudflare Turnstile
 
-Add `who-turnstile`. Its jar turns the check on, and it needs the widget's secret key:
+Add `who-turnstile` (its version comes from who's BOM). Its jar turns the check on, and it needs the widget's secret key:
 
 ```xml
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-turnstile</artifactId>
-    <version>0.20.0</version>
 </dependency>
 ```
 
