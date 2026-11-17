@@ -1,0 +1,121 @@
+# Errors
+
+**Contents**
+
+- The exceptions
+- The `Who-Error` header
+- How errors raised in filters reach your advice
+- Example: Problem Details
+
+who formats no error responses. When something goes wrong it throws an exception, and your application answers it the same way it answers its own errors, for example with RFC 9457 Problem Details from a `@RestControllerAdvice`.
+
+## The exceptions
+
+| Exception | Status if unmapped | When |
+|---|---|---|
+| `SignInFailedException` | 401 | A sign-in failed: a bad, expired or used email-link token; an unknown or invalid passkey; an inactive identity. Its message is always `"Sign-in failed"`, so the reason never reaches a response. The cause keeps it for your logs. |
+| `NotSignedInException` | 401 | A request needs a signed-in caller and has none: a protected URL, `GET /who/me`, or passkey registration while signed out. |
+| `ReauthenticationRequiredException` | 401 | Adding a credential (a passkey, a provider account, an email address), or calling an action marked [`@RequiresRecentSignIn`](security-model.md#recent-sign-in), more than `who.security.recent-sign-in` after signing in. Sign the user in again, then retry. |
+| `InsufficientUserAuthenticationException` | 401 | A JWT whose `auth_time` is too old called an action marked `@RequiresRecentSignIn`. A `401` answer carries `WWW-Authenticate: Bearer error="insufficient_user_authentication", …, max_age=<seconds>` (RFC 9470), whether who, your advice or Spring MVC writes it; any other answer carries none. An answer that sets its own `Bearer` challenge (a realm, a scope) keeps it; one challenging with another scheme gets who's beside it. The client signs the person in again and retries. The challenge is also on the exception, `challenge()`. |
+| `RecentSignInUnavailableException` | 403 | An API key, or a JWT without an `auth_time` claim, called an action marked `@RequiresRecentSignIn`. Neither can ever be recent, so it is a `403`, not a challenge. It is an `AccessDeniedException`. |
+| `InvalidPasskeyRegistrationException` | 400 | A passkey registration failed verification. It carries no cause, because WebAuthn details must not travel. |
+| `AccessDeniedException` (Spring Security's own) | 403 | A signed-in caller lacks a permission. Spring Security 7 raises its subclass `AuthorizationDeniedException`. |
+
+Provider sign-in adds four, for its [confirm endpoints](social-login.md#sign-up):
+
+| Exception | Status if unmapped | When |
+|---|---|---|
+| `HumanCheckFailedException` | 403 | The application's [human check](email-links.md#human-check) refused a request to `/who/email/send` or `/who/email/sign-in`, or could not decide it. It is an `AccessDeniedException`. |
+| `SignUpRefusedException` | 403 | `POST /who/oidc/sign-up` refused by the sign-up policy, or sent by a browser that is signed in. |
+| `UnknownProviderException` | 404 | `POST /who/oidc/link/{registrationId}` named a registration who does not sign in with. |
+| `PendingSignUpNotFoundException` | 404 | No pending sign-up, or an expired or used one, at `GET /who/oidc/pending`, `POST /who/oidc/sign-up` or `POST /who/oidc/link`. |
+| `AlreadyLinkedException` | 409 | `POST /who/oidc/link` for an account linked to another identity. |
+
+`POST /who/oidc/link` and `POST /who/oidc/link/{registrationId}`, which starts a link, also answer `NotSignedInException` and `ReauthenticationRequiredException`.
+
+Adding or changing an [email address](email-links.md#adding-or-changing-an-address) adds three, besides `NotSignedInException` and `ReauthenticationRequiredException`:
+
+| Exception | Status if unmapped | When |
+|---|---|---|
+| `EmailCredentialNotFoundException` | 404 | `POST /who/email/addresses` named a `replaces` that is not one of the caller's email addresses. |
+| `InvalidEmailAddressConfirmationException` | 400 | `POST /who/email/addresses/confirm` matched nothing: no request by this identity, an expired or used one, a wrong code, a code with no attempts left, or neither or both of `token` and `code`. |
+| `EmailAddressTakenException` | 409 | The confirmed address was registered to someone in the meantime. `EmailCredentialService.register` throws it too. |
+
+All of them are in `org.jwcarman.who.spring.security.web`, except Spring's `AccessDeniedException`, the provider sign-in exceptions, which are in `org.jwcarman.who.oidc`, and the email address exceptions, which are in `org.jwcarman.who.emaillink`.
+
+## The `Who-Error` header
+
+Every failure in the tables above, except Spring's own `AccessDeniedException`, also names itself in a `Who-Error` response header, whatever body your application writes. A client can tell failures apart by it without knowing your body's shape; who's [TypeScript client](client.md#the-who-error-header) does.
+
+| `Who-Error` | Exception |
+|---|---|
+| `not-signed-in` | `NotSignedInException` |
+| `reauthentication-required` | `ReauthenticationRequiredException` |
+| `sign-in-failed` | `SignInFailedException` |
+| `insufficient-user-authentication` | `InsufficientUserAuthenticationException` |
+| `recent-sign-in-unavailable` | `RecentSignInUnavailableException` |
+| `invalid-passkey-registration` | `InvalidPasskeyRegistrationException` |
+| `invalid-confirmation` | `InvalidEmailAddressConfirmationException` |
+| `email-address-not-found` | `EmailCredentialNotFoundException` |
+| `email-address-taken` | `EmailAddressTakenException` |
+| `no-pending-sign-up` | `PendingSignUpNotFoundException` |
+| `human-check-failed` | `HumanCheckFailedException` |
+| `sign-up-refused` | `SignUpRefusedException` |
+| `unknown-provider` | `UnknownProviderException` |
+| `already-linked` | `AlreadyLinkedException` |
+
+The codes are a public contract and do not change between releases. Each exception returns its code from `errorCode()` (the `WhoErrorCode` interface).
+
+who sets the header before handing the exception to your application, so your advice's body and the header arrive together. An advice that calls `response.reset()` clears it. A page on another origin can read it only if your CORS configuration lists it in `Access-Control-Expose-Headers`.
+
+## How errors raised in filters reach your advice
+
+Most of these errors happen inside Spring Security's filters, before Spring MVC runs, and an exception thrown there never reaches a `@RestControllerAdvice`. who therefore hands each one to your application's Spring MVC exception resolvers, the `handlerExceptionResolver` bean, through `WhoExceptionHandoff`. A controller exception travels the same path, so one advice covers both. This needs Spring MVC, which every Spring Boot servlet application has.
+
+The advice must be global: one limited by `basePackages`, `assignableTypes` or `annotations` never sees who's errors, because they are not raised by a controller. A catch-all `@ExceptionHandler(Exception.class)` sees them too, so map who's exceptions explicitly or it answers them instead.
+
+When nothing in your application handles an exception, who calls `response.sendError(status)` with the status in the table, and Spring Boot forwards the request to its error page, `/error`. What the client receives then depends on your chain. If `/error` needs a signed-in caller, as it does under `anyRequest().authenticated()`, a signed-out client gets the bare status with an empty body. Permit it (`requestMatchers("/error").permitAll()`) to get Spring Boot's default error body instead.
+
+who's autoconfiguration connects the handoff to your exception resolvers. An application that builds who's beans itself, without the autoconfiguration, gets a handoff with no resolver: it only calls `sendError`, and your advice never sees who's errors. Build one with `new WhoExceptionHandoff((request, response, e) -> resolver.resolveException(request, response, null, e) != null)` over your `handlerExceptionResolver` bean.
+
+## Example: Problem Details
+
+```java
+@RestControllerAdvice
+class WhoProblems {
+
+  @ExceptionHandler(SignInFailedException.class)
+  ProblemDetail signInFailed() {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Sign-in failed");
+  }
+
+  @ExceptionHandler(NotSignedInException.class)
+  ProblemDetail notSignedIn() {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Sign in to continue");
+  }
+
+  @ExceptionHandler(ReauthenticationRequiredException.class)
+  ProblemDetail reauthenticate() {
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.UNAUTHORIZED, "Sign in again to register a passkey");
+  }
+
+  @ExceptionHandler(InvalidPasskeyRegistrationException.class)
+  ProblemDetail invalidRegistration() {
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.BAD_REQUEST, "The passkey could not be registered");
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  ProblemDetail denied() {
+    // a signed-out caller can reach a method-security check when the URL rules let it through
+    Authentication caller = SecurityContextHolder.getContext().getAuthentication();
+    if (caller == null || caller instanceof AnonymousAuthenticationToken) {
+      return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Sign in to continue");
+    }
+    return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "You do not have permission");
+  }
+}
+```
+
+Give each one a `type` URI if your clients tell problems apart by type. Don't put the exception's cause in the response.

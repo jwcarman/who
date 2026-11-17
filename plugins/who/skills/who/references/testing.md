@@ -1,0 +1,93 @@
+# Testing
+
+The `who-test` module helps you test an app built on who with `MockMvc`. It signs a user in without an email link, and it behaves like a single-page app in a browser: it keeps the session and cookies and sends the CSRF header.
+
+Import `who-bom` (see [Getting Started](getting-started.md)), then add `who-test` with test scope and no version:
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-bom</artifactId>
+            <version>0.19.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-test</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+It depends on `who-spring-security`, `spring-test` and `spring-security-test`. It adds no runtime code to your app.
+
+## Signed-in sessions
+
+`WhoTestSessions.signedIn(whoSessions, identityId, credentialId)` records an email-code sign-in through the app's `WhoSessions` bean, as a real sign-in does, and returns a `MockHttpSession` that holds it:
+
+```java
+@Autowired WhoSessions whoSessions;
+
+Identity identity = whoService.createIdentity();
+EmailCredential credential = emailCredentialService.register(identity, "ada@example.com");
+
+mockMvc.perform(get("/api/notes")
+                .session(WhoTestSessions.signedIn(whoSessions, identity.id(), credential.id())))
+        .andExpect(status().isOk());
+```
+
+Who stores ids only and checks them against the database on every request, as in production. So the identity must exist and be active, the credential must exist, and the session's record must be live, in the database the test uses. A session built by hand, with no record behind it, is signed out on its first request.
+
+For a test without a database, `InMemorySessionRecordRepository.whoSessions(clock, events)` builds a `WhoSessions` over an in-memory store.
+
+## A browser for MockMvc
+
+A bare `MockMvc` forgets the session and cookies between requests. `WhoMockMvcBrowser` wraps a `MockMvc` and remembers them:
+
+```java
+WhoMockMvcBrowser browser = new WhoMockMvcBrowser(mockMvc)
+        .signedInAs(identity.id(), credential.id());
+
+browser.perform(post("/api/notes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"text\":\"hello\"}"))
+        .andExpect(status().isCreated());
+
+browser.perform(post("/who/logout")).andExpect(status().isNoContent());
+browser.perform(get("/who/me")).andExpect(status().isUnauthorized());
+```
+
+On every request the browser owns:
+
+- **The session.** One session is kept. It is replaced by the one the app creates, and by a fresh one after the app invalidates it, for example on logout.
+- **The cookies.** It keeps the cookies from every response and drops those the app expires. If a cookie on your request builder has the same name as one the browser holds, the browser's cookie is used.
+- **The CSRF header.** On `POST`, `PUT`, `PATCH` and `DELETE` it sets `X-XSRF-TOKEN` to the value of the `XSRF-TOKEN` cookie, as an SPA does with `csrf.spa()`. Spring Security Test's `csrf().asHeader()` sends a masked token, which `csrf.spa()` rejects, so do not use it here.
+
+The CSRF cookie comes from `GET /who/me`. When the browser holds no such cookie, on its first request and after logout, it sends that `GET` first. This assumes a chain built with `WhoWebSecurity.passwordless()`.
+
+To prove an endpoint rejects a forged cross-site request, send it with `browser.performWithoutCsrf(post("/api/notes"))`. It applies the session and cookies as `perform` does, but sets no `X-XSRF-TOKEN` header and fetches no token first, so a CSRF-protected endpoint should answer `403`.
+
+`browser.cookie(name)` returns a held cookie, and `browser.session()` returns the current session. Without `signedInAs`, the browser starts signed out.
+
+Build the `MockMvc` with Spring Security applied, for example with `@AutoConfigureMockMvc` or `MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())`. An instance is not thread-safe, so use one per test.
+
+## With Spring Session
+
+With Spring Session (for example `spring-boot-starter-session-jdbc`), `@AutoConfigureMockMvc` puts Spring Session's filter in the `MockMvc` chain. That filter ignores the `MockHttpSession` a request carries, so a session from `WhoTestSessions` is never seen and every request is signed out.
+
+`WhoMockMvcBrowser.signedInAs` handles this. When the app has a `SessionRepository` bean, it saves the signed-in session in that repository, with the principal index who writes in production, and the browser holds the session cookie. The cookie is written by the app's `CookieSerializer`, so it has the name and encoding the app reads (`SESSION` and a Base64 session id by default, or `server.servlet.session.cookie.name`). `findByPrincipalName(identityId.toString())` finds the session, and logout deletes it, as in production.
+
+Use `WhoTestSessions` only in apps without Spring Session. who-test does not need Spring Session on the classpath.
+
+## The sign-in time
+
+`signedIn` and `signedInAs` record the sign-in time from the app's `Clock`, so a fixed clock needs nothing more. To sign in a while ago, for instance to test a [recent sign-in](security-model.md#recent-sign-in) requirement, pass the time: `WhoTestSessions.signedIn(whoSessions, identityId, credentialId, signedInAt)` or `browser.signedInAs(identityId, credentialId, signedInAt)`. The session still counts as used now, so it is not idle.
+
+## What it does not do
+
+`who-test` has no emulated authenticator, so it cannot run a passkey registration or sign-in. Test those ceremonies with a browser-level test, or sign the user in with `signedInAs` and test what the user does next.

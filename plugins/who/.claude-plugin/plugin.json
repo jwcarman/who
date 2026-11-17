@@ -1,0 +1,9 @@
+{
+  "name": "who",
+  "description": "Agent skill for who, identity, passwordless sign-in and permissions for Spring Boot: setup, modules, configuration and the rules that keep it secure.",
+  "author": { "name": "jwcarman" },
+  "homepage": "https://jwcarman.github.io/who/",
+  "repository": "https://github.com/jwcarman/who",
+  "license": "Apache-2.0",
+  "keywords": ["spring-boot", "spring-security", "authentication", "passkeys", "passwordless"]
+}

@@ -100,6 +100,7 @@ nav:
       - Testing: guides/testing.md
       - Configuration Reference: guides/configuration.md
       - Upgrading: guides/upgrading.md
+  - Agent Skill: agent-skill.md
   - Reference:
       - API (Javadoc): https://jwcarman.github.io/who/api/latest/
       - Changelog: https://github.com/jwcarman/who/blob/main/CHANGELOG.md

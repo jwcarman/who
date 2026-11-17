@@ -95,6 +95,20 @@ sessions and an API with tokens and keys, each with a security chain of its own
 Grafana's LGTM stack, with a provisioned dashboard and a traffic generator
 (`-pl who-examples/observability`).
 
+## Agent skill
+
+who ships an Agent Skill for Claude Code and other coding agents, so an agent adding sign-in or
+permissions to your app follows who's guides instead of guessing. In Claude Code:
+
+```text
+/plugin marketplace add jwcarman/who
+/plugin install who@who
+```
+
+Other agents (Codex, Cursor, Gemini CLI, Copilot and more):
+`npx skills add https://github.com/jwcarman/who/tree/main/plugins/who/skills/who`. See
+[Agent Skill](https://jwcarman.github.io/who/agent-skill/).
+
 ## Upgrading to 0.10.0
 
 0.10.0 is a security release with breaking changes: the API-key filter is no longer

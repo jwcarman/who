@@ -1,0 +1,14 @@
+{
+  "name": "who",
+  "owner": {
+    "name": "jwcarman"
+  },
+  "description": "who's agent skill: identity, passwordless sign-in and permissions for Spring Boot.",
+  "plugins": [
+    {
+      "name": "who",
+      "source": "./plugins/who",
+      "description": "Agent skill for who, identity, passwordless sign-in and permissions for Spring Boot."
+    }
+  ]
+}

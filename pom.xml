@@ -66,6 +66,7 @@
         <google-java-format.version>1.35.0</google-java-format.version>
         <!-- who-bom only; see its pom for why. -->
         <flatten-maven-plugin.version>1.9.0</flatten-maven-plugin.version>
+        <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
 
         <!-- SonarCloud Configuration -->
         <sonar.organization>jwcarman</sonar.organization>
@@ -262,6 +263,31 @@
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
                 <version>${sonar.plugin.version}</version>
+            </plugin>
+            <!-- Copies who's guides and changelog into the agent skill (plugins/who/skills/who/references),
+                 so a build from the root refreshes them; CI fails when a commit's copies are stale. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec-maven-plugin.version}</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>sync-skill-references</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>${java.home}/bin/java</executable>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                            <arguments>
+                                <argument>plugins/SyncReferences.java</argument>
+                                <argument>${project.basedir}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>

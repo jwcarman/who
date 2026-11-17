@@ -20,7 +20,8 @@ permissions:
 
 jobs:
   # First and fast: a formatting slip or a missing license header fails here, in about a minute,
-  # and the build never starts. A shallow clone, and no compiling: both goals only read the sources.
+  # and the build never starts. A shallow clone, and no compiling: the checks only read the sources,
+  # apart from regenerating the agent skill's references to compare them.
   checks:
     runs-on: ubuntu-latest
     steps:
@@ -34,6 +35,14 @@ jobs:
         cache: maven
     - name: Check formatting and license headers
       run: mvn -B -Plicense spotless:check license:check
+    - name: Check the agent skill's references match docs/guides and the changelog
+      run: |
+        mvn -B -N generate-resources
+        if [ -n "$(git status --porcelain -- plugins/who/skills/who/references)" ]; then
+          echo "::error::The agent skill's references (guides, changelog) are stale. Run ./mvnw -N generate-resources and commit."
+          git status --short -- plugins/who/skills/who/references
+          exit 1
+        fi
 
   build:
     needs: checks

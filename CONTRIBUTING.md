@@ -84,6 +84,9 @@ To work on the docs site, run `pip install --require-hashes -r docs/requirements
 - **Docs:** update the guide under `docs/guides/` that the change affects, and add a line under
   `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md). A breaking change also needs a section in
   `docs/guides/upgrading.md` with the steps to upgrade.
+  The agent skill carries copies of the guides and the changelog in
+  `plugins/who/skills/who/references`; a build from the root refreshes them (`./mvnw -N
+  generate-resources` is enough), so commit them with the change.
 - **Schema changes:** a new Liquibase changeSet (never edit a released one), the same change in
   the module's `who-<module>-schema.sql`, and the SQL for Flyway and script users in the
   upgrading guide.
