@@ -66,14 +66,15 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>{@code GET /identities?status=&role=&email=&page=0&size=20} pages through identities,
  *       oldest first, as {@code {items: [IdentityView], page, size, total}}. {@code status} is an
- *       {@link IdentityStatus} name; {@code role} a role's name, an unknown one {@code 404}; {@code
- *       email} an address, matched as email sign-in matches it, which finds at most one identity
- *       and is {@code 400} without email sign-in. Given together, every filter must match. {@code
- *       size} runs from 1 to 100;
+ *       {@link IdentityStatus} name; {@code role} a role's name, which an unknown role matches no
+ *       identity by; {@code email} an address, matched as email sign-in matches it, which finds at
+ *       most one identity and is {@code 400} without email sign-in. Given together, every filter
+ *       must match. {@code size} runs from 1 to 100;
  *   <li>{@code GET /identities/{id}} answers one {@link IdentityView};
  *   <li>{@code PATCH /identities/{id}} with {@code {"status": "ACTIVE"}} reactivates the identity
- *       and with {@code {"status": "INACTIVE"}} deactivates it, as {@link WhoService} does, and
- *       answers its {@link IdentityView}. The caller cannot deactivate itself: {@code 409};
+ *       and with {@code {"status": "DISABLED"}} deactivates it, as {@link WhoService} does, and
+ *       answers its {@link IdentityView}; any other status, {@code SUSPENDED} included, is {@code
+ *       400}. The caller cannot deactivate itself: {@code 409};
  *   <li>{@code PUT} and {@code DELETE /identities/{id}/roles/{role}} assign and remove a role,
  *       {@code 204} whether or not anything changed;
  *   <li>{@code GET /roles} lists every role as {@code [{name, permissions}]}, by name.
@@ -250,8 +251,12 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     Optional<Set<UUID>> ids = Optional.empty();
     Optional<String> roleName = parameter(request, "role");
     if (roleName.isPresent()) {
-      Role role = rbac.findRole(roleName.get()).orElseThrow(UnknownRoleException::new);
-      ids = Optional.of(Set.copyOf(rbac.findIdentityIdsWithRole(role)));
+      // a role that does not exist has no holders
+      ids =
+          Optional.of(
+              rbac.findRole(roleName.get())
+                  .map(role -> Set.copyOf(rbac.findIdentityIdsWithRole(role)))
+                  .orElse(Set.of()));
     }
     Optional<String> address = parameter(request, "email");
     if (address.isPresent()) {
@@ -282,13 +287,13 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     boolean exists =
         switch (status.asString()) {
           case "ACTIVE" -> whoService.reactivate(id);
-          case "INACTIVE" -> {
+          case "DISABLED" -> {
             if (id.equals(callerId)) {
               throw new SelfDeactivationException();
             }
             yield whoService.deactivate(id);
           }
-          default -> throw new InvalidAdminRequestException("status must be ACTIVE or INACTIVE");
+          default -> throw new InvalidAdminRequestException("status must be ACTIVE or DISABLED");
         };
     if (!exists) {
       // deleted after it was found

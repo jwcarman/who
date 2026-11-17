@@ -388,7 +388,7 @@ class IdentitiesFilterTest {
       signIn(READ);
       Identity other = identity(IdentityStatus.ACTIVE, T0.plusSeconds(1));
 
-      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"INACTIVE\"}"))
+      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)
           .isEqualTo(403);
       assertThat(send("PUT", "/who/identities/" + other.id() + "/roles/admin", null).getStatus())
@@ -413,7 +413,7 @@ class IdentitiesFilterTest {
       Identity other = identity(IdentityStatus.ACTIVE, T0.plusSeconds(1));
 
       assertThat(get("/who/identities").getStatus()).isEqualTo(200);
-      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"INACTIVE\"}"))
+      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)
           .isEqualTo(200);
     }
@@ -481,13 +481,14 @@ class IdentitiesFilterTest {
     }
 
     @Test
-    void an_unknown_role_is_not_found() throws Exception {
+    void an_unknown_role_is_an_empty_page() throws Exception {
       when(rbac.findRole("nope")).thenReturn(Optional.empty());
 
       MockHttpServletResponse response = get("/who/identities?role=nope");
 
-      assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getHeader(HEADER)).isEqualTo("unknown-role");
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(ids(json(response))).isEmpty();
+      assertThat(json(response).get("total").asLong()).isZero();
     }
 
     @Test
@@ -644,7 +645,7 @@ class IdentitiesFilterTest {
 
     @Test
     void deactivates_and_reactivates() throws Exception {
-      MockHttpServletResponse off = patch(other.id(), "{\"status\":\"INACTIVE\"}");
+      MockHttpServletResponse off = patch(other.id(), "{\"status\":\"DISABLED\"}");
 
       assertThat(off.getStatus()).isEqualTo(200);
       assertThat(json(off).get("status").asString()).isEqualTo("DISABLED");
@@ -660,7 +661,7 @@ class IdentitiesFilterTest {
 
     @Test
     void cannot_deactivate_oneself() throws Exception {
-      MockHttpServletResponse response = patch(caller.id(), "{\"status\":\"INACTIVE\"}");
+      MockHttpServletResponse response = patch(caller.id(), "{\"status\":\"DISABLED\"}");
 
       assertThat(response.getStatus()).isEqualTo(409);
       assertThat(response.getHeader(HEADER)).isEqualTo("self-deactivation");
@@ -679,8 +680,8 @@ class IdentitiesFilterTest {
     @ParameterizedTest
     @ValueSource(
         strings = {
-          "{\"status\":\"DISABLED\"}",
-          "{\"status\":\"inactive\"}",
+          "{\"status\":\"SUSPENDED\"}",
+          "{\"status\":\"disabled\"}",
           "{\"status\":1}",
           "{}",
           "[]",
@@ -697,6 +698,16 @@ class IdentitiesFilterTest {
     }
 
     @Test
+    void inactive_is_a_bad_request() throws Exception {
+      MockHttpServletResponse response = patch(other.id(), "{\"status\":\"INACTIVE\"}");
+
+      assertThat(response.getStatus()).isEqualTo(400);
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-admin-request");
+      assertThat(identities.findById(other.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.ACTIVE);
+    }
+
+    @Test
     void a_body_too_large_is_a_bad_request() throws Exception {
       String body = "{\"status\":\"ACTIVE\",\"pad\":\"" + "x".repeat(9000) + "\"}";
 
@@ -705,7 +716,7 @@ class IdentitiesFilterTest {
 
     @Test
     void an_unknown_identity_is_not_found() throws Exception {
-      MockHttpServletResponse response = patch(UUID.randomUUID(), "{\"status\":\"INACTIVE\"}");
+      MockHttpServletResponse response = patch(UUID.randomUUID(), "{\"status\":\"DISABLED\"}");
 
       assertThat(response.getStatus()).isEqualTo(404);
       assertThat(response.getHeader(HEADER)).isEqualTo("identity-not-found");
@@ -802,7 +813,7 @@ class IdentitiesFilterTest {
       staleBrowser();
 
       MockHttpServletResponse response =
-          send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"INACTIVE\"}");
+          send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}");
 
       assertThat(response.getStatus()).isEqualTo(401);
       assertThat(response.getHeader(HEADER)).isEqualTo("reauthentication-required");
@@ -835,7 +846,7 @@ class IdentitiesFilterTest {
     void a_stale_browser_without_the_permission_is_forbidden() throws Exception {
       browserSignIn(NOW.minus(RECENT).minusSeconds(1), READ);
 
-      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"INACTIVE\"}"))
+      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)
           .isEqualTo(403);
     }
@@ -853,7 +864,7 @@ class IdentitiesFilterTest {
     void a_fresh_browser_may_change_an_identity() throws Exception {
       browserSignIn(NOW.minusSeconds(60), READ, MANAGE);
 
-      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"INACTIVE\"}"))
+      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)
           .isEqualTo(200);
       assertThat(send("PUT", "/who/identities/" + other.id() + "/roles/admin", null).getStatus())
@@ -864,7 +875,7 @@ class IdentitiesFilterTest {
     void an_api_key_needs_no_recent_sign_in() throws Exception {
       signIn(SignInMethod.API_KEY, MANAGE);
 
-      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"INACTIVE\"}"))
+      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)
           .isEqualTo(200);
       assertThat(send("PUT", "/who/identities/" + other.id() + "/roles/admin", null).getStatus())

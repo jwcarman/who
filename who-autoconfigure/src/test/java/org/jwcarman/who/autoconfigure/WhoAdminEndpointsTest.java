@@ -380,6 +380,15 @@ class WhoAdminEndpointsTest {
     }
 
     @Test
+    void an_unknown_role_filters_to_an_empty_page() throws Exception {
+      HttpResponse<String> response = asAlice("GET", "/who/identities?role=no-such-role", null);
+
+      assertThat(response.statusCode()).isEqualTo(200);
+      assertThat(ids(response)).isEmpty();
+      assertThat(json(response).get("total").asLong()).isZero();
+    }
+
+    @Test
     void an_unknown_identity_is_not_found() throws Exception {
       HttpResponse<String> response =
           asAlice("GET", "/who/identities/00000000-0000-0000-0000-000000000000", null);
@@ -423,7 +432,7 @@ class WhoAdminEndpointsTest {
 
       HttpResponse<String> listed = carrying("X-API-Key", key, "GET", "/who/identities", null);
       HttpResponse<String> deactivated =
-          carrying("X-API-Key", key, "PATCH", "/who/identities/" + bob.id(), status("INACTIVE"));
+          carrying("X-API-Key", key, "PATCH", "/who/identities/" + bob.id(), status("DISABLED"));
 
       assertThat(listed.statusCode()).as(listed.body()).isEqualTo(200);
       assertThat(deactivated.statusCode()).as(deactivated.body()).isEqualTo(200);
@@ -440,7 +449,7 @@ class WhoAdminEndpointsTest {
               .key();
 
       HttpResponse<String> response =
-          carrying("X-API-Key", key, "PATCH", "/who/identities/" + bob.id(), status("INACTIVE"));
+          carrying("X-API-Key", key, "PATCH", "/who/identities/" + bob.id(), status("DISABLED"));
 
       assertThat(response.statusCode()).isEqualTo(403);
       assertThat(identityRepository.findById(bob.id()).orElseThrow().status())
@@ -456,7 +465,7 @@ class WhoAdminEndpointsTest {
       signIn();
 
       HttpResponse<String> off =
-          browser("PATCH", "/who/identities/" + bob.id(), status("INACTIVE"));
+          browser("PATCH", "/who/identities/" + bob.id(), status("DISABLED"));
       assertThat(off.statusCode()).as(off.body()).isEqualTo(200);
       assertThat(json(off).get("status").asString()).isEqualTo("DISABLED");
       // a deactivated identity's credentials no longer sign it in
@@ -473,7 +482,7 @@ class WhoAdminEndpointsTest {
       signIn();
 
       HttpResponse<String> response =
-          browser("PATCH", "/who/identities/" + alice.id(), status("INACTIVE"));
+          browser("PATCH", "/who/identities/" + alice.id(), status("DISABLED"));
 
       assertThat(response.statusCode()).isEqualTo(409);
       assertThat(response.headers().firstValue("Who-Error")).contains("self-deactivation");
@@ -513,7 +522,7 @@ class WhoAdminEndpointsTest {
           send(
               HttpRequest.newBuilder(uri("/who/identities/" + bob.id()))
                   .header("Content-Type", "application/json")
-                  .method("PATCH", HttpRequest.BodyPublishers.ofString(status("INACTIVE"))));
+                  .method("PATCH", HttpRequest.BodyPublishers.ofString(status("DISABLED"))));
 
       assertThat(response.statusCode()).isEqualTo(403);
       assertThat(identityRepository.findById(bob.id()).orElseThrow().status())
