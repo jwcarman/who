@@ -120,6 +120,20 @@ class HumanCheckFilterTest {
   }
 
   @Test
+  void a_request_without_a_client_address_is_still_refused_with_403() throws Exception {
+    MockHttpServletRequest request = post("/who/email/send");
+    request.setRemoteAddr(null);
+
+    MockHttpServletResponse response = run(answering(false), request);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(events)
+        .containsExactly(
+            new HumanCheckPerformed(
+                NOW, "stub", "email-send", "unknown", HumanCheckOutcome.REFUSED));
+  }
+
+  @Test
   void an_unchecked_request_publishes_nothing() throws Exception {
     run(answering(true), post("/who/me"));
 

@@ -31,7 +31,8 @@ import org.jwcarman.who.core.event.WhoEvent;
  * @param occurredAt when the request was checked
  * @param check the check's {@linkplain WhoHumanCheck#name() name}
  * @param action the endpoint's action, such as {@code email-send}
- * @param clientIp the client's address, as the check was told it
+ * @param clientIp the client's address, as the check was told it; {@code unknown} when the
+ *     container reported none
  * @param outcome what became of the request
  */
 public record HumanCheckPerformed(

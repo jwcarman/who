@@ -26,7 +26,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Counts who's events as Micrometer meters when the application has a {@link MeterRegistry} (for
- * example, with Spring Boot Actuator). See {@link WhoMetrics} and {@link WhoEmailLinkMetrics}.
+ * example, with Spring Boot Actuator). See {@link WhoMetrics}, {@link WhoEmailLinkMetrics} and
+ * {@link WhoHumanCheckMetrics}.
  */
 @AutoConfiguration(
     afterName = {
@@ -70,6 +71,24 @@ public class WhoMetricsAutoConfiguration {
     @ConditionalOnMissingBean
     public WhoEmailLinkMetrics whoEmailLinkMetrics(MeterRegistry registry) {
       return new WhoEmailLinkMetrics(registry);
+    }
+  }
+
+  /** Counts human checks when who-spring-security is on the classpath. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.spring.security.HumanCheckPerformed")
+  static class HumanCheckMetricsConfiguration {
+
+    /**
+     * Counts human checks.
+     *
+     * @param registry the application's meter registry
+     * @return the listener
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public WhoHumanCheckMetrics whoHumanCheckMetrics(MeterRegistry registry) {
+      return new WhoHumanCheckMetrics(registry);
     }
   }
 }

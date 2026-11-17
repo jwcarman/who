@@ -28,6 +28,7 @@ import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInFailureReason;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.emaillink.SignInEmailRequested;
+import org.jwcarman.who.spring.security.HumanCheckPerformed;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
 import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
@@ -67,6 +68,7 @@ class WhoMetricsAutoConfigurationTest {
               context -> {
                 assertThat(context).hasSingleBean(WhoMetrics.class);
                 assertThat(context).hasSingleBean(WhoEmailLinkMetrics.class);
+                assertThat(context).hasSingleBean(WhoHumanCheckMetrics.class);
               });
     }
 
@@ -183,6 +185,23 @@ class WhoMetricsAutoConfigurationTest {
                 assertThat(context).hasNotFailed();
                 assertThat(context).hasSingleBean(WhoMetrics.class);
                 assertThat(context).doesNotHaveBean(WhoEmailLinkMetrics.class);
+              });
+    }
+  }
+
+  @Nested
+  class Without_who_spring_security {
+
+    @Test
+    void counts_the_rest_and_never_loads_human_check_classes() {
+      runner
+          .withClassLoader(new FilteredClassLoader(HumanCheckPerformed.class))
+          .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).hasSingleBean(WhoMetrics.class);
+                assertThat(context).doesNotHaveBean(WhoHumanCheckMetrics.class);
               });
     }
   }

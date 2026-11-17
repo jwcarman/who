@@ -181,9 +181,11 @@ class WhoMetricsTest {
   @Nested
   class Human_checks {
 
+    private final WhoHumanCheckMetrics humanChecks = new WhoHumanCheckMetrics(registry);
+
     @Test
     void a_check_counts_with_its_check_action_and_outcome() {
-      metrics.on(
+      humanChecks.on(
           new HumanCheckPerformed(
               NOW, "turnstile", "email-send", "203.0.113.7", HumanCheckOutcome.REFUSED));
 
@@ -201,7 +203,7 @@ class WhoMetricsTest {
 
     @Test
     void the_client_address_never_becomes_a_tag() {
-      metrics.on(
+      humanChecks.on(
           new HumanCheckPerformed(
               NOW, "turnstile", "email-send", "203.0.113.7", HumanCheckOutcome.PASSED));
 

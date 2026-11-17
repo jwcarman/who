@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import jakarta.servlet.FilterChain;
@@ -104,7 +105,8 @@ final class HumanCheckFilter extends OncePerRequestFilter {
     String header = request.getHeader(WhoHumanCheck.HEADER);
     Optional<String> token =
         StringUtils.hasText(header) ? Optional.of(header.strip()) : Optional.empty();
-    String clientIp = request.getRemoteAddr();
+    // a container may report no address; the check and the event still need one
+    String clientIp = Objects.requireNonNullElse(request.getRemoteAddr(), "unknown");
     HumanCheckOutcome outcome;
     try {
       outcome =

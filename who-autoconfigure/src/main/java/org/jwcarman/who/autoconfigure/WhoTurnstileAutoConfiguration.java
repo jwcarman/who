@@ -18,6 +18,7 @@ package org.jwcarman.who.autoconfigure;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.Set;
 
 import org.jwcarman.who.spring.security.WhoHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileHumanCheck;
@@ -37,6 +38,8 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import io.micrometer.observation.ObservationRegistry;
+
 /**
  * Cloudflare Turnstile as who's human check, on with the {@code who-turnstile} jar. Startup fails
  * without {@code who.turnstile.secret-key}; {@code who.turnstile.enabled=false} turns it off. An
@@ -46,22 +49,20 @@ import org.springframework.web.client.RestClient;
  * Without one, a Cloudflare test secret key passes on success alone, with a warning at startup, and
  * any other key gets the strict {@link TurnstileVerifier}.
  *
- * <p>The client is built from Spring Boot's {@link RestClient.Builder} and the application's HTTP
- * client settings, which {@code who-turnstile} brings; only the timeouts are who's.
+ * <p>The client is a fresh {@link RestClient} built from the application's HTTP client settings,
+ * which {@code who-turnstile} brings, with who's timeouts, and observed with the application's
+ * {@link ObservationRegistry}. The application's own {@code RestClient.Builder}, with its default
+ * headers and interceptors, is never used: the secret goes to Cloudflare alone.
  */
-// named, not referenced: these come with who-turnstile, which may be absent
-@AutoConfiguration(
-    afterName = {
-      "org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration",
-      "org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration",
-      "org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration"
-    })
+@AutoConfiguration
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.turnstile.TurnstileHumanCheck")
 @ConditionalOnBooleanProperty(name = "who.turnstile.enabled", matchIfMissing = true)
 public class WhoTurnstileAutoConfiguration {
 
   private static final Logger log = LoggerFactory.getLogger(WhoTurnstileAutoConfiguration.class);
+
+  private static final String ENABLED = "who.turnstile.enabled";
 
   private static final String SECRET_KEY = "who.turnstile.secret-key";
   private static final String TURN_OFF = " Or turn the check off with who.turnstile.enabled=false.";
@@ -76,11 +77,10 @@ public class WhoTurnstileAutoConfiguration {
    *
    * @param whoProperties who's properties
    * @param verifiers the application's verifier, if it has one
-   * @param restClientBuilder Spring Boot's {@link RestClient.Builder}, or the application's, with
-   *     its observations and customizers; copied, then given who's request factory
    * @param requestFactories builds request factories with the application's HTTP client library
    * @param httpClientSettings the application's HTTP client settings, which who keeps but for the
    *     timeouts
+   * @param observationRegistry observes calls to Cloudflare, when the application has one
    * @return the check
    */
   @Bean
@@ -88,9 +88,9 @@ public class WhoTurnstileAutoConfiguration {
   public TurnstileHumanCheck turnstileHumanCheck(
       WhoProperties whoProperties,
       ObjectProvider<TurnstileVerifier> verifiers,
-      RestClient.Builder restClientBuilder,
-      ClientHttpRequestFactoryBuilder<?> requestFactories,
-      HttpClientSettings httpClientSettings) {
+      ObjectProvider<ClientHttpRequestFactoryBuilder<?>> requestFactories,
+      ObjectProvider<HttpClientSettings> httpClientSettings,
+      ObjectProvider<ObservationRegistry> observationRegistry) {
     WhoProperties.Turnstile properties = whoProperties.getTurnstile();
     String secretKey = properties.getSecretKey();
     if (!StringUtils.hasText(secretKey)) {
@@ -115,16 +115,27 @@ public class WhoTurnstileAutoConfiguration {
           "Set how long to wait for Cloudflare, such as 3s, or leave it out.");
     }
     URI verifyUrl = verifyUrl(properties.getVerifyUrl());
-    // the application's settings, all but the timeouts, which are who's to bound a sign-in
+    hostnames(properties.getHostnames());
+    ClientHttpRequestFactoryBuilder<?> factories = requestFactories.getIfAvailable();
+    HttpClientSettings settings = httpClientSettings.getIfAvailable();
+    if (factories == null || settings == null) {
+      throw new WhoConfigurationException(
+          ENABLED,
+          "is on, but Spring Boot's HTTP client settings are missing",
+          "Keep HttpClientAutoConfiguration and ImperativeHttpClientAutoConfiguration, which"
+              + " who-turnstile brings, or turn the check off with who.turnstile.enabled=false.");
+    }
+    // the application's HTTP client settings, all but the timeouts, which are who's to bound a
+    // sign-in
     ClientHttpRequestFactory requestFactory =
-        requestFactories.build(httpClientSettings.withTimeouts(timeout, timeout));
+        factories.build(settings.withTimeouts(timeout, timeout));
     String secret = secretKey.strip();
+    // a fresh builder, not the application's: its default headers and interceptors are for the
+    // application's own services and must not reach Cloudflare beside the secret
+    RestClient.Builder builder = RestClient.builder().requestFactory(requestFactory);
+    observationRegistry.ifAvailable(builder::observationRegistry);
     return new TurnstileHumanCheck(
-        restClientBuilder
-            .clone()
-            // who.turnstile.timeout must hold, so who's request factory replaces the builder's
-            .requestFactory(requestFactory)
-            .build(),
+        builder.build(),
         verifyUrl,
         secret,
         verifiers.getIfAvailable(() -> defaultVerifier(secret, properties)),
@@ -137,10 +148,23 @@ public class WhoTurnstileAutoConfiguration {
     if (TurnstileVerifier.isTestSecret(secretKey)) {
       log.warn(
           "who.turnstile.secret-key is one of Cloudflare's test keys: Cloudflare decides every"
-              + " request by the key, not by the person. Never use it in production.");
+              + " request by the key, not by the person, and who.turnstile.hostnames is ignored."
+              + " Never use it in production.");
       return TurnstileVerifier.successOnly();
     }
     return TurnstileVerifier.strict(properties.getHostnames());
+  }
+
+  /** Each hostname must be bare: no scheme, port or path, which Cloudflare's answer never has. */
+  private static void hostnames(Set<String> hostnames) {
+    for (String hostname : hostnames) {
+      if (!StringUtils.hasText(hostname) || hostname.contains("/") || hostname.contains(":")) {
+        throw new WhoConfigurationException(
+            "who.turnstile.hostnames",
+            "must list bare hostnames, such as app.example.com",
+            "Leave out the scheme, port and path; Cloudflare reports only the hostname.");
+      }
+    }
   }
 
   /** The verify URL, which must be an absolute http or https URL. */

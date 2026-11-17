@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -43,7 +44,6 @@ import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.boot.http.client.HttpRedirects;
 import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration;
 import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration;
-import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -55,22 +55,24 @@ import org.springframework.web.client.RestClient;
 
 import com.sun.net.httpserver.HttpServer;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationRegistry;
+
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 @ExtendWith(OutputCaptureExtension.class)
 class WhoTurnstileAutoConfigurationTest {
 
   private static final String SECRET = "who.turnstile.secret-key=0x4AAAAAAAsecret";
 
-  /** Spring Boot's HTTP client and RestClient auto-configurations, which who-turnstile brings. */
-  private static final AutoConfigurations SPRING_BOOT_REST_CLIENT =
+  /** Spring Boot's HTTP client auto-configurations, which who-turnstile brings. */
+  private static final AutoConfigurations SPRING_BOOT_HTTP_CLIENT =
       AutoConfigurations.of(
-          HttpClientAutoConfiguration.class,
-          ImperativeHttpClientAutoConfiguration.class,
-          RestClientAutoConfiguration.class);
+          HttpClientAutoConfiguration.class, ImperativeHttpClientAutoConfiguration.class);
 
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
-          .withConfiguration(SPRING_BOOT_REST_CLIENT)
+          .withConfiguration(SPRING_BOOT_HTTP_CLIENT)
           .withConfiguration(AutoConfigurations.of(WhoTurnstileAutoConfiguration.class))
           // this module's surefire turns Turnstile off for every other test
           .withPropertyValues("who.turnstile.enabled=true");
@@ -128,11 +130,15 @@ class WhoTurnstileAutoConfigurationTest {
     return siteverify(delay, "{\"success\":true,\"action\":\"email-send\"}");
   }
 
+  /** The Authorization header the last siteverify request carried, or null. */
+  static final AtomicReference<String> AUTHORIZATION = new AtomicReference<>();
+
   private static HttpServer siteverify(Duration delay, String answer) throws IOException {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
         "/siteverify",
         exchange -> {
+          AUTHORIZATION.set(exchange.getRequestHeaders().getFirst("Authorization"));
           try {
             Thread.sleep(delay);
           } catch (InterruptedException e) {
@@ -208,7 +214,9 @@ class WhoTurnstileAutoConfigurationTest {
         .withPropertyValues("who.turnstile.secret-key=1x0000000000000000000000000000000AA")
         .run(context -> assertThat(context).hasNotFailed());
 
-    assertThat(output).contains("who.turnstile.secret-key is one of Cloudflare's test keys");
+    assertThat(output)
+        .contains("who.turnstile.secret-key is one of Cloudflare's test keys")
+        .contains("who.turnstile.hostnames is ignored");
   }
 
   @Test
@@ -255,6 +263,7 @@ class WhoTurnstileAutoConfigurationTest {
     @Bean
     RestClient.Builder restClientBuilder() {
       return RestClient.builder()
+          .defaultHeader("Authorization", "Bearer the-apps-own-token")
           .requestInterceptor(
               (request, body, execution) -> {
                 INTERCEPTED.incrementAndGet();
@@ -264,8 +273,9 @@ class WhoTurnstileAutoConfigurationTest {
   }
 
   @Test
-  void the_applications_rest_client_builder_is_used() throws IOException {
+  void the_applications_rest_client_builder_never_reaches_cloudflare() throws IOException {
     INTERCEPTED.set(0);
+    AUTHORIZATION.set("unset");
     HttpServer server = siteverify(Duration.ZERO);
     try {
       runner
@@ -274,7 +284,51 @@ class WhoTurnstileAutoConfigurationTest {
           .run(
               context -> {
                 assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isTrue();
-                assertThat(INTERCEPTED).hasValue(1);
+                assertThat(INTERCEPTED).hasValue(0);
+                assertThat(AUTHORIZATION.get()).isNull();
+              });
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  static final List<String> OBSERVED = new CopyOnWriteArrayList<>();
+
+  @Configuration(proxyBeanMethods = false)
+  static class Observed {
+    @Bean
+    ObservationRegistry observationRegistry() {
+      ObservationRegistry registry = ObservationRegistry.create();
+      registry
+          .observationConfig()
+          .observationHandler(
+              new ObservationHandler<>() {
+                @Override
+                public void onStart(Observation.Context context) {
+                  OBSERVED.add(context.getName());
+                }
+
+                @Override
+                public boolean supportsContext(Observation.Context context) {
+                  return true;
+                }
+              });
+      return registry;
+    }
+  }
+
+  @Test
+  void calls_to_cloudflare_are_observed() throws IOException {
+    OBSERVED.clear();
+    HttpServer server = siteverify(Duration.ZERO);
+    try {
+      runner
+          .withUserConfiguration(Observed.class)
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(
+              context -> {
+                assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isTrue();
+                assertThat(OBSERVED).contains("http.client.requests");
               });
     } finally {
       server.stop(0);
@@ -359,7 +413,19 @@ class WhoTurnstileAutoConfigurationTest {
   }
 
   @Test
-  void without_a_rest_client_builder_startup_fails() {
+  void needs_no_rest_client_builder() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(
+                HttpClientAutoConfiguration.class,
+                ImperativeHttpClientAutoConfiguration.class,
+                WhoTurnstileAutoConfiguration.class))
+        .withPropertyValues("who.turnstile.enabled=true", SECRET)
+        .run(context -> assertThat(context).hasSingleBean(WhoHumanCheck.class));
+  }
+
+  @Test
+  void without_spring_boots_http_client_settings_startup_fails_saying_so() {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WhoTurnstileAutoConfiguration.class))
         .withPropertyValues("who.turnstile.enabled=true", SECRET)
@@ -367,7 +433,29 @@ class WhoTurnstileAutoConfigurationTest {
             context ->
                 assertThat(context.getStartupFailure())
                     .isNotNull()
-                    .hasStackTraceContaining(RestClient.Builder.class.getName()));
+                    .rootCause()
+                    .isInstanceOfSatisfying(
+                        WhoConfigurationException.class,
+                        e -> {
+                          assertThat(e.property()).isEqualTo("who.turnstile.enabled");
+                          assertThat(e.getMessage()).contains("HttpClientAutoConfiguration");
+                        }));
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {"https://app.example.com", "app.example.com:443", "app.example.com/x", " "})
+  void a_hostname_that_is_not_a_bare_hostname_fails_startup(String hostname) {
+    runner
+        .withPropertyValues(SECRET, "who.turnstile.hostnames[0]=" + hostname)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .rootCause()
+                    .isInstanceOfSatisfying(
+                        WhoConfigurationException.class,
+                        e -> assertThat(e.property()).isEqualTo("who.turnstile.hostnames")));
   }
 
   @Test

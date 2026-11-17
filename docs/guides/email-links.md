@@ -413,9 +413,11 @@ Your verifier is used even with a test key.
 
 ### The HTTP client
 
-`who-turnstile` brings Spring Boot's RestClient support (`spring-boot-restclient`), and who calls Cloudflare with Spring Boot's `RestClient.Builder`, or yours if you define one, so its observations, interceptors and customizers apply. who copies the builder, so yours is left as it was.
+who calls Cloudflare with a `RestClient` of its own, built from your application's HTTP client settings: `spring.http.clients.*`, or your own `HttpClientSettings` and `ClientHttpRequestFactoryBuilder` beans. The client library, SSL bundle, redirects and the rest carry over (`who-turnstile` brings `spring-boot-http-client` for them). Only the timeouts are replaced, by `who.turnstile.timeout`, so a slow Cloudflare can never hold a sign-in longer than who allows. With an `ObservationRegistry`, as Actuator provides, each call is observed as `http.client.requests`.
 
-The client is built from your application's HTTP client settings, `spring.http.clients.*` or your own `HttpClientSettings` and `ClientHttpRequestFactoryBuilder` beans: the client library, SSL bundle, redirects and the rest carry over. Only the timeouts are replaced, by `who.turnstile.timeout`, so a slow Cloudflare can never hold a sign-in longer than who allows.
+who never uses your application's `RestClient.Builder`: its default headers and interceptors are meant for your own services, and must not travel to Cloudflare beside the secret, or log the form that carries it.
+
+`who.turnstile.hostnames` takes bare hostnames such as `app.example.com`; a scheme, port or path fails startup, since Cloudflare reports the hostname alone.
 
 The timeout bounds connecting and reading separately, so a call that connects slowly and then answers slowly can take up to twice `who.turnstile.timeout`.
 

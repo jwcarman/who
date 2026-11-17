@@ -75,6 +75,12 @@
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
+        <!-- Turnstile's client is built from the application's HTTP client settings (who-turnstile brings them) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-http-client</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
             <artifactId>who-enrollment</artifactId>
@@ -143,12 +149,6 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-observation-test</artifactId>
             <scope>test</scope>
-        </dependency>
-        <!-- Turnstile's client is built from the application's HTTP client settings (who-turnstile brings them) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-http-client</artifactId>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
