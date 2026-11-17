@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -35,6 +36,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -207,6 +210,118 @@ class InvitationServiceUnitTest {
       assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.RESEND_SUPPRESSED);
       assertThat(invitation.linkSent()).isFalse();
       assertThat(output).contains("WARN").doesNotContainIgnoringCase(ADDRESS);
+    }
+  }
+
+  @Nested
+  class The_callback {
+
+    private static final ScopedValue<String> CALLER = ScopedValue.newInstance();
+
+    @Test
+    void receives_the_new_identity_and_the_invitation_returns_after_the_send() {
+      List<Identity> received = new ArrayList<>();
+
+      Invitation invitation = service(roles).invite(ADDRESS, Set.of("editor"), received::add);
+
+      assertThat(received).containsExactly(carol);
+      assertThat(invitation.identityId()).isEqualTo(carol.id());
+      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SENT);
+      verify(issuer).issue(eq("carol@example.com"), anyString(), any());
+    }
+
+    @Test
+    void runs_after_the_roles_are_assigned_and_before_the_event_is_published() {
+      List<String> order = new ArrayList<>();
+      doAnswer(
+              call -> {
+                order.add("roles");
+                return null;
+              })
+          .when(roles)
+          .assign(any(), any());
+      InvitationService service =
+          new InvitationService(
+              whoService,
+              credentials,
+              roles,
+              issuer,
+              event -> order.add("event"),
+              mock(PlatformTransactionManager.class),
+              Clock.fixed(NOW, ZoneOffset.UTC));
+
+      service.invite(ADDRESS, Set.of("editor"), _ -> order.add("callback"));
+
+      assertThat(order).containsExactly("roles", "callback", "event");
+    }
+
+    @Test
+    void runs_on_the_callers_thread_and_sees_its_bound_state() {
+      AtomicReference<Thread> ran = new AtomicReference<>();
+      AtomicReference<String> seen = new AtomicReference<>();
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      ScopedValue.where(CALLER, "request-42")
+          .run(
+              () ->
+                  service.invite(
+                      ADDRESS,
+                      none,
+                      _ -> {
+                        ran.set(Thread.currentThread());
+                        seen.set(CALLER.orElse("lost"));
+                      }));
+
+      assertThat(ran.get()).isSameAs(Thread.currentThread());
+      assertThat(seen.get()).isEqualTo("request-42");
+    }
+
+    @Test
+    void a_throwing_callback_propagates_unchanged_and_sends_and_publishes_nothing() {
+      IllegalStateException failure = new IllegalStateException("the app refuses");
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(
+              () ->
+                  service.invite(
+                      ADDRESS,
+                      none,
+                      _ -> {
+                        throw failure;
+                      }))
+          .isSameAs(failure);
+      assertThat(published).isEmpty();
+      verifyNoInteractions(issuer);
+    }
+
+    @Test
+    void a_missing_callback_is_refused() {
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, none, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("inTransaction must not be null");
+    }
+
+    @Test
+    void a_refused_invitation_never_runs_it() {
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+      AtomicBoolean ran = new AtomicBoolean();
+
+      assertThatThrownBy(() -> service.invite("not-an-address", none, _ -> ran.set(true)))
+          .isInstanceOf(InvalidInvitationException.class);
+      TransactionSynchronizationManager.setActualTransactionActive(true);
+      try {
+        assertThatThrownBy(() -> service.invite(ADDRESS, none, _ -> ran.set(true)))
+            .isInstanceOf(IllegalStateException.class);
+      } finally {
+        TransactionSynchronizationManager.setActualTransactionActive(false);
+      }
+      assertThat(ran).isFalse();
     }
   }
 

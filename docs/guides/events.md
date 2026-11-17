@@ -173,17 +173,20 @@ Two limits to know:
 `IdentityInvited` is the one exception to the rules above. `InvitationService.invite` publishes it
 through Spring's `ApplicationEventPublisher` directly, synchronously, inside the transaction that
 creates the identity, registers its address and assigns its roles, before that transaction commits.
-So a listener can write your application's own data for the new person (a profile row, a team
-membership) in the same transaction, with a plain `@EventListener` and no `REQUIRES_NEW`:
+So a listener can react in the same transaction, with a plain `@EventListener` and no
+`REQUIRES_NEW`. It is for cross-cutting reactions such as auditing; your application's own data for
+the new person (a profile row, a team membership) comes from the request, so it goes through the
+callback of `InvitationService.invite(email, roleNames, callback)`, which runs in the same
+transaction, on the caller's thread, before this event is published:
 
 ```java
 @EventListener
 void on(IdentityInvited event) {
-  members.add(event.identityId(), event.roles());   // joins the invitation's transaction
+  audit.record("invited", event.identityId(), event.roles());   // joins the invitation's transaction
 }
 ```
 
-A listener that throws rolls the whole invitation back: no identity, address or role remains, no
+A listener (or the callback) that throws rolls the whole invitation back: no identity, address or role remains, no
 sign-in link is sent, and the exception reaches the caller of `invite`. Through
 `POST /who/invitations` it is not one who maps, so the request fails as a server error; throw only
 when the invitation must not stand. who's own events from the same steps,
@@ -191,7 +194,7 @@ such as `IdentityCreated` and `CredentialAdded`, are published only after the co
 rolled-back invitation publishes none of them. The link is sent only after the commit.
 
 This is also why `invite` must be called outside any transaction of yours (it throws
-`IllegalStateException` otherwise): attach your data from the listener, not from code around the
+`IllegalStateException` otherwise): attach your data from the callback, not from code around the
 call. See [Admin](admin.md#invitations).
 
 ### A listener with its own transaction

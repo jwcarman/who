@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 import org.jwcarman.who.core.crypto.Secrets;
@@ -44,11 +45,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <ol>
  *   <li>In one transaction: the identity is created, the address registered to it, each role
- *       assigned, and {@link IdentityInvited} published synchronously, so a listener can write the
- *       application's own data in the same transaction. If any step throws, a listener included,
- *       the whole transaction rolls back: no identity, address or role remains, and no link is
- *       sent. who's own events from these steps, such as {@code IdentityCreated}, are delivered
- *       only if it commits.
+ *       assigned, the caller's callback run (see {@link #invite(String, Set, Consumer)}), and
+ *       {@link IdentityInvited} published synchronously, so a listener can react in the same
+ *       transaction. If any step throws, the callback or a listener included, the whole transaction
+ *       rolls back: no identity, address or role remains, and no link is sent. who's own events
+ *       from these steps, such as {@code IdentityCreated}, are delivered only if it commits.
  *   <li>Only after that transaction has committed, the sign-in link is issued by {@link
  *       EmailLinkIssuer#issue} with no transaction open, so a link is only ever sent for an
  *       identity that exists, and no database connection is held while the email goes out. The
@@ -102,9 +103,10 @@ public class InvitationService {
   }
 
   /**
-   * Invites the address with the named roles, in the order the class describes. Call it outside any
-   * transaction: the link is issued after the invitation commits, with no transaction open, which a
-   * caller's transaction would postpone.
+   * Invites the address with the named roles, in the order the class describes, with nothing of the
+   * application's own to store. Equivalent to {@link #invite(String, Set, Consumer)} with a
+   * callback that does nothing. Call it outside any transaction: the link is issued after the
+   * invitation commits, with no transaction open, which a caller's transaction would postpone.
    *
    * @param email the address, as typed; registered normalized
    * @param roleNames the names of the roles to give the identity; empty for none
@@ -117,7 +119,46 @@ public class InvitationService {
    * @throws IllegalStateException if called inside a transaction
    */
   public Invitation invite(@Nullable String email, Set<String> roleNames) {
+    return invite(email, roleNames, _ -> {});
+  }
+
+  /**
+   * Invites the address with the named roles, in the order the class describes, running {@code
+   * inTransaction} inside the invitation's transaction: after the identity is created, the address
+   * registered and the roles assigned, and before {@link IdentityInvited} is published. Use it to
+   * write the application's own data for the new person, such as a profile row or an activity-log
+   * entry, so it commits or rolls back with the invitation.
+   *
+   * <p><b>The callback runs on the caller's thread</b>, so request-scoped state is reachable inside
+   * it: the {@code SecurityContext}, request attributes, a {@link ScopedValue}, the locale. Its
+   * database writes join the invitation's transaction.
+   *
+   * <p>If the callback throws, the whole invitation rolls back: no identity, address or role
+   * remains, {@link IdentityInvited} is not heard by anything, no who event from these steps is
+   * delivered and no link is sent. The exception propagates to the caller unchanged, neither
+   * wrapped nor translated.
+   *
+   * <p>The method returns only after the send attempt, with its result in {@link
+   * Invitation#linkOutcome}. Call it outside any transaction: the link is issued after the
+   * invitation commits, with no transaction open, which a caller's transaction would postpone.
+   * Everything that is checked before anything is created (the address, the role names, roles
+   * without {@code who-rbac}, an open transaction) is checked before the callback can run.
+   *
+   * @param email the address, as typed; registered normalized
+   * @param roleNames the names of the roles to give the identity; empty for none
+   * @param inTransaction receives the new identity, inside the invitation's transaction
+   * @return the new identity and what became of its sign-in link
+   * @throws InvalidInvitationException before anything is created, if the address is missing or is
+   *     not an address, a role name is blank, or roles are asked for without {@code who-rbac}; and,
+   *     with everything rolled back, if a name names no role
+   * @throws EmailAddressTakenException if the address already belongs to an identity, or a
+   *     concurrent invitation or registration of it wins; nothing is created
+   * @throws IllegalStateException if called inside a transaction
+   */
+  public Invitation invite(
+      @Nullable String email, Set<String> roleNames, Consumer<Identity> inTransaction) {
     requireNonNull(roleNames, "roleNames must not be null");
+    requireNonNull(inTransaction, "inTransaction must not be null");
     if (email == null || !EmailAddresses.isSafe(email) || email.indexOf('@') < 0) {
       throw new InvalidInvitationException("email must be an email address");
     }
@@ -132,11 +173,12 @@ public class InvitationService {
           "invite must be called outside a transaction, so the link goes after it commits");
     }
     Set<String> names = Set.copyOf(roleNames);
-    Invited invited = requireNonNull(invitation.execute(_ -> register(email, names)), "invited");
+    Invited invited =
+        requireNonNull(invitation.execute(_ -> register(email, names, inTransaction)), "invited");
     return new Invitation(invited.identityId(), sendLink(invited, names));
   }
 
-  private Invited register(String email, Set<String> names) {
+  private Invited register(String email, Set<String> names, Consumer<Identity> inTransaction) {
     Identity identity = whoService.createIdentity();
     EmailCredential credential;
     try {
@@ -149,6 +191,7 @@ public class InvitationService {
     if (!names.isEmpty() && roles != null) {
       roles.assign(identity, names);
     }
+    inTransaction.accept(identity);
     events.publishEvent(
         new IdentityInvited(clock.instant(), identity.id(), credential.address(), names));
     return new Invited(identity.id(), credential.address());

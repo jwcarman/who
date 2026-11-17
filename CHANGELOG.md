@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `InvitationService.invite(email, roleNames, callback)`: the callback receives the new identity and runs inside the invitation's transaction, on the caller's thread, after the roles are assigned and before `IdentityInvited` is published. It is the way to write the application's own data (a profile row, an activity-log entry) so it commits or rolls back with the invitation. If it throws, the whole invitation rolls back, nothing is sent, and the exception reaches the caller unchanged.
+
 ## [0.21.0] - 2026-11-17
 
 ### Breaking changes

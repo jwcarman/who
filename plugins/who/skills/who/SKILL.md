@@ -185,8 +185,9 @@ SecurityFilterChain web(HttpSecurity http, WhoPublicPaths publicPaths) {
   last-credential rule. The services behind them (`PasskeyService.revoke`,
   `EmailCredentialService.revoke`, `FederatedCredentialService.unlink`, `ApiKeyService.revoke`)
   check none of that, so an endpoint of your own over them must. Call
-  `InvitationService.invite` outside any transaction, and attach the app's own data from an
-  `IdentityInvited` listener. See `references/account.md` and `references/admin.md`.
+  `InvitationService.invite` outside any transaction, and attach the app's own data with the callback of
+  `invite(email, roleNames, callback)` (it runs in the invitation's transaction, on the caller's
+  thread); an `IdentityInvited` listener is for cross-cutting reactions such as auditing. See `references/account.md` and `references/admin.md`.
 - **Answer who's errors in the app's own format.** who throws exceptions (such as
   `NotSignedInException`) and hands even filter-level ones to Spring MVC's exception resolvers,
   so one `@RestControllerAdvice` covers them. Each also sets a `Who-Error` header with a stable

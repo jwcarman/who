@@ -245,7 +245,7 @@ Then:
 Nothing is created in any of these cases.
 
 An exception from your [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
-listener rolls the invitation back and goes through your exception handling, like every who
+listener (or from a callback passed to `InvitationService.invite`) rolls the invitation back and goes through your exception handling, like every who
 failure (see [Errors](errors.md)), even a `DuplicateKeyException` from your own tables, which is
 never reported as `email-address-taken`: a `@RestControllerAdvice` of yours answers it, or the
 exception's own `@ResponseStatus` does. A listener that refuses an invitation can say why:
@@ -280,44 +280,46 @@ invitation.linkOutcome();
 It applies no role-grant policy: it trusts its caller, as `RbacService` does. It guarantees this
 order:
 
-1. In one transaction: the identity is created, the address registered, each role assigned, and
+1. In one transaction: the identity is created, the address registered, each role assigned, your
+   [callback](#attaching-your-own-data) run, and
    [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation) published,
-   synchronously, inside the transaction. If any step throws, a listener included, everything
-   rolls back and no link is sent.
+   synchronously, inside the transaction. If any step throws, the callback or a listener included,
+   everything rolls back and no link is sent.
 2. Only after that commits, the sign-in link is issued by `EmailLinkIssuer.issue`, with
    no transaction open, so a link is only ever sent for an identity that exists. A link that is
    not sent is logged at WARN, without the address or the token.
 
 **Call `invite` outside any transaction.** Called inside one, it throws `IllegalStateException`:
 the link must go after the invitation commits, and a transaction of yours would hold the
-invitation back while the link went out. To store your own data for the new person, such as a
-profile or a team membership, listen for `IdentityInvited`. The listener runs inside the
-invitation's transaction, so its writes commit or roll back with it:
+invitation back while the link went out.
+
+#### Attaching your own data
+
+To store your own data for the new person, such as a profile or a team membership, pass a
+callback. It is **the** way to attach the application's data to an invitation:
 
 ```java
-@Service
-class Members {
-
-  private final InvitationService invitations;
-  private final MembershipRepository memberships;
-
-  Members(InvitationService invitations, MembershipRepository memberships) {
-    this.invitations = invitations;
-    this.memberships = memberships;
-  }
-
+@PostMapping("/members")
+Invitation invite(@RequestBody InviteForm form) {
   // no @Transactional here
-  UUID invite(String email, TeamRole role) {
-    return invitations.invite(email, Set.of(role.name())).identityId();
-  }
-
-  @EventListener
-  void on(IdentityInvited event) {
-    // joins the invitation's transaction: saved only if the invitation is
-    memberships.save(event.identityId(), event.roles());
-  }
+  return invitations.invite(
+      form.email(),
+      Set.of(form.role()),
+      identity -> profiles.save(new Profile(identity.id(), form.displayName())));
 }
 ```
+
+The callback receives the new identity. It runs inside the invitation's transaction, after the
+identity is created, the address registered and the roles assigned, and before `IdentityInvited`
+is published, so its writes commit or roll back with the invitation. It runs on the caller's
+thread, so the `SecurityContext`, request attributes, a `ScopedValue` and the locale are all
+reachable inside it. If it throws, the whole invitation rolls back (no identity, address or
+role), nothing is sent, and the exception reaches the caller unchanged. `invite` returns only
+after the send attempt, with its result in `invitation.linkOutcome()`.
+
+An [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation) listener runs in the
+same transaction too, but it is for cross-cutting reactions, such as auditing, that do not need
+the request. Data that comes from the request goes through the callback.
 
 `InvitationService` needs a single `PlatformTransactionManager` too. Without one, who builds
 neither it nor `POST /who/invitations`, but the application does not get that far: the rest of

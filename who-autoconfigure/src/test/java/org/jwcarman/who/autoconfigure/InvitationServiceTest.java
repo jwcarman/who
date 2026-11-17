@@ -369,6 +369,133 @@ class InvitationServiceTest {
   }
 
   @Nested
+  class The_callback {
+
+    private static final ScopedValue<String> CALLER = ScopedValue.newInstance();
+
+    @BeforeEach
+    void createTable() {
+      jdbcClient
+          .sql(
+              "CREATE TABLE IF NOT EXISTS invitation_test_profile"
+                  + " (identity_id UUID PRIMARY KEY, display_name TEXT NOT NULL)")
+          .update();
+      jdbcClient.sql("DELETE FROM invitation_test_profile").update();
+    }
+
+    private long profiles() {
+      return jdbcClient
+          .sql("SELECT COUNT(*) FROM invitation_test_profile")
+          .query(Long.class)
+          .single();
+    }
+
+    @Test
+    void its_writes_commit_with_the_invitation() {
+      Invitation invitation =
+          invitationService.invite(
+              CAROL,
+              Set.of(EDITOR_ROLE),
+              identity ->
+                  jdbcClient
+                      .sql("INSERT INTO invitation_test_profile VALUES (:id, :name)")
+                      .param("id", identity.id())
+                      .param("name", "Carol")
+                      .update());
+
+      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SENT);
+      assertThat(
+              jdbcClient
+                  .sql("SELECT display_name FROM invitation_test_profile WHERE identity_id = :id")
+                  .param("id", invitation.identityId())
+                  .query(String.class)
+                  .single())
+          .isEqualTo("Carol");
+      assertThat(registered(CAROL)).isTrue();
+      assertThat(SENT).hasSize(1);
+    }
+
+    @Test
+    void a_throwing_callback_rolls_everything_back_and_sends_nothing() {
+      long before = identities();
+      IllegalStateException failure = new IllegalStateException("the app refuses");
+      Set<String> editor = Set.of(EDITOR_ROLE);
+
+      assertThatThrownBy(
+              () ->
+                  invitationService.invite(
+                      CAROL,
+                      editor,
+                      identity -> {
+                        jdbcClient
+                            .sql("INSERT INTO invitation_test_profile VALUES (:id, 'Carol')")
+                            .param("id", identity.id())
+                            .update();
+                        throw failure;
+                      }))
+          .isSameAs(failure);
+
+      assertThat(identities()).isEqualTo(before);
+      assertThat(registered(CAROL)).isFalse();
+      assertThat(rbacService.findIdentityIdsWithRole(editorRole)).isEmpty();
+      assertThat(profiles()).isZero();
+      assertThat(HEARD).isEmpty();
+      assertThat(SENT).isEmpty();
+    }
+
+    @Test
+    void runs_inside_the_transaction_on_the_callers_thread_with_its_state() {
+      AtomicBoolean inTransaction = new AtomicBoolean();
+      AtomicReference<Thread> ran = new AtomicReference<>();
+      AtomicReference<String> seen = new AtomicReference<>();
+      Set<String> none = Set.of();
+
+      ScopedValue.where(CALLER, "request-42")
+          .run(
+              () ->
+                  invitationService.invite(
+                      CAROL,
+                      none,
+                      _ -> {
+                        inTransaction.set(
+                            TransactionSynchronizationManager.isActualTransactionActive());
+                        ran.set(Thread.currentThread());
+                        seen.set(CALLER.orElse("lost"));
+                      }));
+
+      assertThat(inTransaction).isTrue();
+      assertThat(ran.get()).isSameAs(Thread.currentThread());
+      assertThat(seen.get()).isEqualTo("request-42");
+    }
+
+    @Test
+    void sees_the_roles_already_assigned_and_runs_before_the_event_is_heard() {
+      List<String> order = new CopyOnWriteArrayList<>();
+      AtomicReference<List<Role>> rolesSeen = new AtomicReference<>();
+
+      invitationService.invite(
+          CAROL,
+          Set.of(EDITOR_ROLE),
+          identity -> {
+            order.add("callback:" + HEARD.size());
+            rolesSeen.set(rbacService.findRolesForIdentity(identity.id()));
+          });
+
+      assertThat(order).containsExactly("callback:0");
+      assertThat(rolesSeen.get()).containsExactly(editorRole);
+      assertThat(HEARD).hasSize(1);
+    }
+
+    @Test
+    void the_two_argument_invite_still_works() {
+      Invitation invitation = invitationService.invite(CAROL, Set.of());
+
+      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SENT);
+      assertThat(registered(CAROL)).isTrue();
+    }
+  }
+
+  @Nested
   class The_endpoint {
 
     private HttpResponse<String> post(String header, String value, String body) throws Exception {
