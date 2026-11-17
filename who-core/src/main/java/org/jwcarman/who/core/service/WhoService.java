@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
@@ -239,6 +240,19 @@ public class WhoService {
     }
     return new Resolution.Resolved(
         new WhoPrincipal(identity, permissionsResolver.resolve(identity)));
+  }
+
+  /**
+   * The permissions who resolves for an identity, whatever its status: what it would hold if it
+   * signed in while active. Admin rules that compare one identity's permissions with another's use
+   * it.
+   *
+   * @param identity the identity
+   * @return its permissions; empty is valid
+   */
+  public Set<String> permissionsOf(Identity identity) {
+    requireNonNull(identity, "identity must not be null");
+    return Set.copyOf(permissionsResolver.resolve(identity));
   }
 
   /**

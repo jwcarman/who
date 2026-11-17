@@ -66,7 +66,7 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>{@code PUT} and {@code DELETE /identities/{id}/roles/{role}} assign and remove a role,
  *       {@code 204} whether or not anything changed. The caller may assign only a role whose every
  *       permission it holds itself, or it is {@code 403} (see {@link RoleGrants}); removing is not
- *       restricted;
+ *       restricted by the role's permissions;
  *   <li>{@code GET /roles} lists every role as {@code [{name, permissions}]}, by name.
  * </ul>
  *
@@ -78,7 +78,10 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code 401} and must sign in again; a bearer token or an API key need not. These are checked in
  * that order, signed out ({@code 401}) first, by {@link AdminGate}, before any identity, role or
  * body is looked at. Then an unknown identity, an id that is not a UUID and an unknown role are
- * {@code 404}, and a query or body who refuses is {@code 400}.
+ * {@code 404}. A change to an identity other than the caller's own that holds a permission the
+ * caller does not, as who resolves its permissions whatever its status, is {@code 403} {@link
+ * IdentityOutranksCallerException}, checked before the role-grant rule and before the body. A query
+ * or body who refuses is {@code 400}.
  */
 final class IdentitiesFilter extends OncePerRequestFilter {
 
@@ -161,6 +164,7 @@ final class IdentitiesFilter extends OncePerRequestFilter {
         | UnknownRoleException
         | SelfDeactivationException
         | RoleGrantForbiddenException
+        | IdentityOutranksCallerException
         | InvalidAdminRequestException e) {
       // each carries its own status
       gate.refuse(request, response, e);
@@ -176,10 +180,11 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     } else if (roles.matches(request)) {
       writeJson(response, HttpServletResponse.SC_OK, roles());
     } else if (patch.matches(request)) {
-      writeJson(response, HttpServletResponse.SC_OK, changeStatus(request, caller.identity().id()));
+      writeJson(response, HttpServletResponse.SC_OK, changeStatus(request, caller));
     } else if (assign.matches(request)) {
       Identity identity = identity(assign, request);
       Role role = role(assign, request);
+      requireNotOutranked(caller, identity);
       RoleGrants.requireMayGrant(rbac, caller.permissions(), List.of(role));
       try {
         rbac.assignRoleToIdentity(identity, role);
@@ -190,8 +195,10 @@ final class IdentitiesFilter extends OncePerRequestFilter {
       response.setStatus(HttpServletResponse.SC_NO_CONTENT);
     } else {
       Identity identity = identity(unassign, request);
+      Role role = role(unassign, request);
+      requireNotOutranked(caller, identity);
       try {
-        rbac.removeRoleFromIdentity(identity, role(unassign, request));
+        rbac.removeRoleFromIdentity(identity, role);
       } catch (IllegalArgumentException _) {
         // not assigned, or no longer: removing it is done either way
       }
@@ -239,8 +246,25 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     return both;
   }
 
-  private IdentityView changeStatus(HttpServletRequest request, UUID callerId) throws IOException {
-    UUID id = identity(patch, request).id();
+  /**
+   * Refuses a change to an identity holding a permission the caller does not, as who resolves the
+   * identity's permissions whatever its status; acting on oneself always passes.
+   */
+  private void requireNotOutranked(WhoPrincipal caller, Identity target) {
+    if (target.id().equals(caller.identity().id())) {
+      return;
+    }
+    if (!caller.permissions().containsAll(whoService.permissionsOf(target))) {
+      throw new IdentityOutranksCallerException();
+    }
+  }
+
+  private IdentityView changeStatus(HttpServletRequest request, WhoPrincipal caller)
+      throws IOException {
+    UUID callerId = caller.identity().id();
+    Identity target = identity(patch, request);
+    requireNotOutranked(caller, target);
+    UUID id = target.id();
     JsonNode status = readBody(request).get("status");
     if (status == null || !status.isString()) {
       throw new InvalidAdminRequestException("The body needs status as a string");

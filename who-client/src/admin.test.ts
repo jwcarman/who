@@ -121,6 +121,7 @@ describe("admin.identities.setStatus", () => {
     [401, "reauthentication-required", "reauthentication-required"],
     [401, "not-signed-in", "signed-out"],
     [403, "permission-required", "permission-required"],
+    [403, "identity-outranks-caller", "identity-outranks-caller"],
     [404, "identity-not-found", "identity-not-found"],
     [400, "invalid-admin-request", "invalid-admin-request"],
     [409, "self-deactivation", "self-deactivation"],
@@ -158,6 +159,7 @@ describe("admin.identities.addRole", () => {
     [401, "reauthentication-required", "reauthentication-required"],
     [403, "permission-required", "permission-required"],
     [403, "role-grant-forbidden", "role-grant-forbidden"],
+    [403, "identity-outranks-caller", "identity-outranks-caller"],
     [404, "identity-not-found", "identity-not-found"],
     [404, "unknown-role", "unknown-role"],
   ])("answers %i %s as %s", async (status, code, reason) => {
@@ -184,6 +186,7 @@ describe("admin.identities.removeRole", () => {
   it.each([
     [401, "reauthentication-required", "reauthentication-required"],
     [403, "permission-required", "permission-required"],
+    [403, "identity-outranks-caller", "identity-outranks-caller"],
     [404, "identity-not-found", "identity-not-found"],
     [404, "unknown-role", "unknown-role"],
   ])("answers %i %s as %s", async (status, code, reason) => {

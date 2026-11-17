@@ -92,6 +92,7 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `invalid-api-key-request` | `InvalidApiKeyRequestException` |
 | `permission-required` | `PermissionRequiredException` |
 | `role-grant-forbidden` | `RoleGrantForbiddenException` |
+| `identity-outranks-caller` | `IdentityOutranksCallerException` |
 | `identity-not-found` | `IdentityNotFoundException` |
 | `unknown-role` | `UnknownRoleException` |
 | `invalid-admin-request` | `InvalidAdminRequestException` |

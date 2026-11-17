@@ -55,7 +55,23 @@ Every admin endpoint checks, in this order, before it looks at anything the requ
    API key needs no recent sign-in. Reads never do.
 
 Then an unknown identity or role is `404`, and a query or body who refuses is `400`
-(`InvalidAdminRequestException`, which names the rule broken).
+(`InvalidAdminRequestException`, which names the rule broken). A session cookie with an `X-API-Key`
+or `Authorization: Bearer` header beside it is neither a browser session nor a stateless caller:
+it may read, but a change from it is `403`, even when the header is ignored.
+
+### Changing an identity
+
+A change to an existing identity (`PATCH` its status, `PUT` or `DELETE` one of its roles) is then
+checked, in this order, before anything changes:
+
+1. The identity outranks the caller: `403` `IdentityOutranksCallerException`
+   (`identity-outranks-caller`). The caller must hold every permission the identity holds, as who
+   resolves them for it whatever its status, so a manager cannot deactivate, reactivate or change
+   the roles of an owner who holds more than they do. The caller's permissions are those of its
+   sign-in, so an API key counts only what its scopes keep. Acting on yourself always passes.
+2. Assigning a role the caller could not hold: `403` `role-grant-forbidden` (see
+   [Roles](#roles)).
+3. Deactivating yourself: `409` `self-deactivation`.
 
 | Endpoint | Permission | Success |
 |---|---|---|

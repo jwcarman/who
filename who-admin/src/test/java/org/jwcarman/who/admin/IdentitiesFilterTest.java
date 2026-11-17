@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -197,8 +198,21 @@ class IdentitiesFilterTest {
   private final Role editor = new Role(UUID.randomUUID(), "editor");
   private final MutableClock clock = new MutableClock();
   private final CredentialIdentityRepository links = mock(CredentialIdentityRepository.class);
+
+  /** The caller's own permissions, as who resolves them for its identity. */
   private final Set<String> granted = new HashSet<>();
-  private final WhoService whoService = new WhoService(identities, links, i -> Set.copyOf(granted));
+
+  /** Every other identity's permissions, as who resolves them; none unless set. */
+  private final Map<UUID, Set<String>> resolved = new HashMap<>();
+
+  private final WhoService whoService =
+      new WhoService(
+          identities,
+          links,
+          i ->
+              i.id().equals(this.caller.id())
+                  ? Set.copyOf(granted)
+                  : resolved.getOrDefault(i.id(), Set.of()));
   private final WhoSessionSecurityContextRepository sessions =
       new WhoSessionSecurityContextRepository(
           whoService,
@@ -801,6 +815,117 @@ class IdentitiesFilterTest {
           .containsExactly("admin", "editor");
       assertThat(roles.get(0).get("permissions").valueStream().map(JsonNode::asString))
           .containsExactly("task.read", "task.write");
+    }
+  }
+
+  @Nested
+  class Outranking {
+
+    private static final String BILLING = "billing.admin";
+
+    private Identity owner;
+
+    @BeforeEach
+    void anOwner() {
+      owner = identity(IdentityStatus.ACTIVE, T0.plusSeconds(1));
+      resolved.put(owner.id(), Set.of(READ, MANAGE, BILLING));
+      held.computeIfAbsent(owner.id(), id -> new HashSet<>()).add(admin);
+    }
+
+    private void assertOutranked(MockHttpServletResponse response) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader(HEADER)).isEqualTo("identity-outranks-caller");
+    }
+
+    @Test
+    void a_manager_without_the_owners_permissions_cannot_disable_the_owner() throws Exception {
+      signIn(READ, MANAGE);
+
+      assertOutranked(send("PATCH", "/who/identities/" + owner.id(), "{\"status\":\"DISABLED\"}"));
+      assertThat(identities.findById(owner.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.ACTIVE);
+    }
+
+    @Test
+    void nor_reactivate_the_owner() throws Exception {
+      Identity disabled = identity(IdentityStatus.DISABLED, T0.plusSeconds(2));
+      resolved.put(disabled.id(), Set.of(READ, MANAGE, BILLING));
+      signIn(READ, MANAGE);
+
+      assertOutranked(send("PATCH", "/who/identities/" + disabled.id(), "{\"status\":\"ACTIVE\"}"));
+      assertThat(identities.findById(disabled.id()).orElseThrow().status())
+          .isEqualTo(IdentityStatus.DISABLED);
+    }
+
+    @Test
+    void nor_remove_or_assign_the_owners_roles() throws Exception {
+      signIn(READ, MANAGE, TASK_READ, TASK_WRITE);
+
+      assertOutranked(send("DELETE", "/who/identities/" + owner.id() + "/roles/admin", null));
+      assertOutranked(send("PUT", "/who/identities/" + owner.id() + "/roles/editor", null));
+      assertThat(held.get(owner.id())).containsExactly(admin);
+      verify(rbac, never()).removeRoleFromIdentity(any(), any());
+      verify(rbac, never()).assignRoleToIdentity(any(), any());
+    }
+
+    @Test
+    void is_checked_after_an_unknown_identity_and_before_the_grant_rule() throws Exception {
+      signIn(READ, MANAGE);
+
+      assertThat(
+              send("DELETE", "/who/identities/" + UUID.randomUUID() + "/roles/admin", null)
+                  .getStatus())
+          .isEqualTo(404);
+      // the caller could not grant editor either; outranking is answered first
+      assertOutranked(send("PUT", "/who/identities/" + owner.id() + "/roles/editor", null));
+    }
+
+    @Test
+    void an_api_key_is_ranked_by_the_permissions_its_scopes_keep() throws Exception {
+      granted.addAll(Set.of(READ, MANAGE, BILLING));
+      signIn(SignInMethod.API_KEY, READ, MANAGE);
+
+      assertOutranked(send("PATCH", "/who/identities/" + owner.id(), "{\"status\":\"DISABLED\"}"));
+    }
+
+    @Test
+    void an_equal_target_may_be_changed() throws Exception {
+      signIn(READ, MANAGE, BILLING);
+
+      assertThat(
+              send("PATCH", "/who/identities/" + owner.id(), "{\"status\":\"DISABLED\"}")
+                  .getStatus())
+          .isEqualTo(200);
+      assertThat(send("DELETE", "/who/identities/" + owner.id() + "/roles/admin", null).getStatus())
+          .isEqualTo(204);
+    }
+
+    @Test
+    void a_lower_target_may_be_changed() throws Exception {
+      Identity member = identity(IdentityStatus.ACTIVE, T0.plusSeconds(3));
+      resolved.put(member.id(), Set.of(TASK_READ));
+      signIn(READ, MANAGE, TASK_READ);
+
+      assertThat(
+              send("PATCH", "/who/identities/" + member.id(), "{\"status\":\"DISABLED\"}")
+                  .getStatus())
+          .isEqualTo(200);
+    }
+
+    @Test
+    void acting_on_oneself_always_passes() throws Exception {
+      // the caller resolves to more than the key it signed in with keeps
+      granted.addAll(Set.of(READ, MANAGE, BILLING));
+      held.computeIfAbsent(caller.id(), id -> new HashSet<>()).add(admin);
+      signIn(SignInMethod.API_KEY, READ, MANAGE);
+
+      assertThat(
+              send("DELETE", "/who/identities/" + caller.id() + "/roles/admin", null).getStatus())
+          .isEqualTo(204);
+      MockHttpServletResponse self =
+          send("PATCH", "/who/identities/" + caller.id(), "{\"status\":\"DISABLED\"}");
+      assertThat(self.getStatus()).isEqualTo(409);
+      assertThat(self.getHeader(HEADER)).isEqualTo("self-deactivation");
     }
   }
 

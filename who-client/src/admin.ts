@@ -80,6 +80,9 @@ export type PermissionRequired = "permission-required";
 /** The caller may not grant a role carrying a permission it does not hold itself (`403`). */
 export type RoleGrantForbidden = "role-grant-forbidden";
 
+/** The identity holds a permission the caller does not, so the caller may not change it (`403`). */
+export type IdentityOutranksCaller = "identity-outranks-caller";
+
 /** A query or body who refuses (`400`). */
 export type InvalidAdminRequest = "invalid-admin-request";
 
@@ -97,27 +100,41 @@ export interface AdminIdentities<D> {
   get(id: string): Promise<WhoResult<AdminIdentity, AdminReadFailure | "identity-not-found", D>>;
   /**
    * Reactivates (`ACTIVE`) or deactivates (`DISABLED`) an identity, answering it. Needs
-   * `who.identities.manage`; you cannot deactivate yourself (`"self-deactivation"`).
+   * `who.identities.manage` and every permission the identity holds (`"identity-outranks-caller"`);
+   * you cannot deactivate yourself (`"self-deactivation"`).
    */
   setStatus(
     id: string,
     status: "ACTIVE" | "DISABLED",
   ): Promise<
-    WhoResult<AdminIdentity, AdminChangeFailure | "identity-not-found" | InvalidAdminRequest | "self-deactivation", D>
+    WhoResult<
+      AdminIdentity,
+      AdminChangeFailure | IdentityOutranksCaller | "identity-not-found" | InvalidAdminRequest | "self-deactivation",
+      D
+    >
   >;
   /**
-   * Assigns a role; done already is done. Needs `who.identities.manage`, and every permission the
-   * role carries.
+   * Assigns a role; done already is done. Needs `who.identities.manage`, every permission the
+   * identity holds, and every permission the role carries.
    */
   addRole(
     id: string,
     role: string,
-  ): Promise<WhoResult<void, AdminChangeFailure | RoleGrantForbidden | "identity-not-found" | "unknown-role", D>>;
-  /** Removes a role; not held is done. Needs `who.identities.manage`. */
+  ): Promise<
+    WhoResult<
+      void,
+      AdminChangeFailure | IdentityOutranksCaller | RoleGrantForbidden | "identity-not-found" | "unknown-role",
+      D
+    >
+  >;
+  /**
+   * Removes a role; not held is done. Needs `who.identities.manage` and every permission the
+   * identity holds.
+   */
   removeRole(
     id: string,
     role: string,
-  ): Promise<WhoResult<void, AdminChangeFailure | "identity-not-found" | "unknown-role", D>>;
+  ): Promise<WhoResult<void, AdminChangeFailure | IdentityOutranksCaller | "identity-not-found" | "unknown-role", D>>;
 }
 
 /** The roles that exist (`client.admin.roles`). */
@@ -150,6 +167,11 @@ export interface Admin<D> {
 /** A 403: the role grant refused when who says so, else the missing permission. */
 function forbidden(code: string | null): PermissionRequired | RoleGrantForbidden {
   return code === "role-grant-forbidden" ? code : "permission-required";
+}
+
+/** A change to an identity refused because it outranks the caller, when who says so. */
+function outranked(status: number, code: string | null): IdentityOutranksCaller | undefined {
+  return status === 403 && code === "identity-outranks-caller" ? code : undefined;
 }
 
 function read(status: number): AdminReadFailure | undefined {
@@ -217,7 +239,13 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
           reason: (
             answered,
             code,
-          ): AdminChangeFailure | "identity-not-found" | InvalidAdminRequest | "self-deactivation" | undefined => {
+          ):
+            | AdminChangeFailure
+            | IdentityOutranksCaller
+            | "identity-not-found"
+            | InvalidAdminRequest
+            | "self-deactivation"
+            | undefined => {
             if (answered === 404) {
               return "identity-not-found";
             }
@@ -225,7 +253,7 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
               // who's only conflict here; one it does not name is unexpected
               return code === "self-deactivation" ? code : undefined;
             }
-            return change(answered, code) ?? invalid(answered);
+            return outranked(answered, code) ?? change(answered, code) ?? invalid(answered);
           },
         }),
       addRole: (id, role) =>
@@ -234,14 +262,16 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
           path: rolePath(id, role),
           read: nothing,
           reason: (status, code) =>
-            signInRequired(status, code) ?? (status === 403 ? forbidden(code) : roleNotFound(status, code)),
+            signInRequired(status, code) ??
+            outranked(status, code) ??
+            (status === 403 ? forbidden(code) : roleNotFound(status, code)),
         }),
       removeRole: (id, role) =>
         http.call({
           method: "DELETE",
           path: rolePath(id, role),
           read: nothing,
-          reason: (status, code) => change(status, code) ?? roleNotFound(status, code),
+          reason: (status, code) => outranked(status, code) ?? change(status, code) ?? roleNotFound(status, code),
         }),
     },
     roles: {

@@ -22,6 +22,7 @@ export type {
   AdminRole,
   AdminRoles,
   CredentialCounts,
+  IdentityOutranksCaller,
   IdentityPage,
   IdentityQuery,
   IdentityStatus,
