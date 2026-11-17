@@ -24,3 +24,4 @@ org.jwcarman.who.spring.security
 org.jwcarman.who.spring.security.aot
 org.jwcarman.who.spring.security.web
 org.jwcarman.who.test
+org.jwcarman.who.turnstile
