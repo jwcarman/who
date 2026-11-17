@@ -101,8 +101,10 @@ change:
   `EmailAddressEndpoints` an `EmailCredentialService` and a `LastCredentialGuard`.
 - **`WhoMeController`** takes `(WhoSessionSecurityContextRepository,
   RecentSignInAuthorizationManager, ObjectProvider<LastCredentialGuard>)`, and `me` takes
-  `(HttpServletRequest, Authentication)`. An application that `@Import`s it needs a
+  `(HttpServletRequest, HttpServletResponse, Authentication)` and writes the answer itself, with
+  who's own JSON mapper. An application that `@Import`s it needs a
   `RecentSignInAuthorizationManager` bean. `WhoMeResponse` has three more components.
+- **`SessionEndpoints`** no longer takes a `JsonMapper`.
 - **`WhoPublicPaths`** has one constructor, `(WhoPaths, methods, configured, contributed)`. Pass
   `List.of()` for `contributed`. Every pattern must be non-blank. To add public paths from a
   library, declare a `WhoPublicPathContributor` bean instead of replacing `WhoPublicPaths`:
@@ -114,6 +116,14 @@ change:
   from CSRF any request its converter reads.
 - **API-key filter order.** `ApiKeyAuthenticationFilter` is now added before
   `ExceptionTranslationFilter`, not before `AuthorizationFilter`.
+
+### who's JSON ignores your Jackson settings
+
+who writes `GET /who/me`, `GET /who/sign-in`, everything under `/who/me/` and the admin and
+invitation answers with its own Jackson mapper. `spring.jackson.*` settings (a naming strategy,
+dates as numbers, leaving nulls out) no longer reach them: names are camelCase, instants are
+ISO-8601 strings and a `null` is written. A client that read `/who/me` in the application's own
+naming reads who's names now.
 
 ### Bearer tokens beside a session
 

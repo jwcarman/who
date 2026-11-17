@@ -64,9 +64,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Unlinking is for a browser session only (an API key or bearer token beside the cookie is
  * {@code 403}), needs a recent sign-in, and runs through the {@link LastCredentialGuard}, so
- * unlinking the last sign-in credential is {@code 409}. An account that does not exist and one that
- * belongs to someone else are both {@code 404}. Unlinking the account the session signed in with is
- * allowed and ends that session, which who re-resolves on every request.
+ * unlinking the last sign-in credential is {@code 409}. Only an account a configured registration
+ * signs in with counts toward that rule (see {@link OidcSignInCredentialCounter}); one whose
+ * registration was removed, or a JWT's issuer and subject, is unlinked without it. An account that
+ * does not exist and one that belongs to someone else are both {@code 404}. Unlinking the account
+ * the session signed in with is allowed and ends that session, which who re-resolves on every
+ * request.
  */
 final class LinkedAccountsFilter extends OncePerRequestFilter {
 
@@ -171,19 +174,30 @@ final class LinkedAccountsFilter extends OncePerRequestFilter {
     }
     // another identity's account and one that does not exist are the same answer; unlinking
     // itself checks no owner, so this is the check
-    Optional<UUID> credentialId =
+    Optional<FederatedCredential> account =
         parse(unlink.matcher(request).getVariables().get("id"))
-            .filter(id -> credentials.isOwnedBy(id, identityId));
-    if (credentialId.isEmpty()) {
+            .flatMap(
+                id ->
+                    credentials.findAllFor(identityId).stream()
+                        .filter(credential -> credential.id().equals(id))
+                        .findFirst());
+    if (account.isEmpty()) {
       handoff.handOff(
           request, response, new LinkedAccountNotFoundException(), HttpStatus.NOT_FOUND);
+      return;
+    }
+    UUID credentialId = account.get().id();
+    if (!signsIn(account.get().issuer())) {
+      // an account no registration signs in with is not counted, so it is never the last
+      credentials.unlink(credentialId);
+      response.setStatus(HttpServletResponse.SC_NO_CONTENT);
       return;
     }
     try {
       guard.removeIfNotLast(
           identityId,
           () -> {
-            credentials.unlink(credentialId.get());
+            credentials.unlink(credentialId);
             return Boolean.TRUE;
           });
     } catch (LastCredentialException e) {
@@ -191,6 +205,12 @@ final class LinkedAccountsFilter extends OncePerRequestFilter {
       return;
     }
     response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+  }
+
+  /** Whether a configured registration signs in with this issuer's accounts. */
+  private boolean signsIn(String issuer) {
+    return registrations.all().stream()
+        .anyMatch(registration -> registration.issuer().equals(issuer));
   }
 
   private static Optional<UUID> parse(String id) {

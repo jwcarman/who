@@ -28,7 +28,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.service.LastCredentialGuard;
+import org.jwcarman.who.emaillink.EmailCredential;
+import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.federated.FederatedCredential;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MvcResult;
 
 import tools.jackson.databind.JsonNode;
@@ -49,6 +53,9 @@ class LinkedAccountsEndpointsTest extends AbstractOidcTest {
     assertThat(listed.getResponse().getStatus()).isEqualTo(200);
     return JSON.readTree(listed.getResponse().getContentAsString());
   }
+
+  @Autowired private EmailCredentialService emailCredentialService;
+  @Autowired private LastCredentialGuard guard;
 
   private int unlink(String id) throws Exception {
     return browser.perform(delete(ACCOUNTS + "/" + id)).andReturn().getResponse().getStatus();
@@ -128,6 +135,69 @@ class LinkedAccountsEndpointsTest extends AbstractOidcTest {
       browser.signedInAs(alice.id(), aliceCredential.id());
 
       assertThat(unlink(UUID.randomUUID().toString())).isEqualTo(404);
+    }
+  }
+
+  /**
+   * Only an account a configured provider registration signs in counts toward the last-credential
+   * rule: one whose registration was removed, or a JWT issuer and subject, signs no one in.
+   */
+  @Nested
+  class Last_credential_rule {
+
+    private static final String GONE_ISSUER = "https://gone.example.com";
+    private static final String JWT_ISSUER = "https://jwt-issuer.example.com";
+
+    private Identity carol;
+    private EmailCredential carolEmail;
+
+    private void carolWithAnEmailAndAnAccountAt(String issuer) {
+      carol = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
+      carolEmail = emailCredentialService.register(carol, "carol@example.com");
+      federatedCredentialService.link(carol, issuer, "carol");
+      browser.signedInAs(carol.id(), carolEmail.id());
+    }
+
+    private int removeEmail() throws Exception {
+      return browser
+          .perform(delete("/who/me/email-addresses/" + carolEmail.id()))
+          .andReturn()
+          .getResponse()
+          .getStatus();
+    }
+
+    @Test
+    void an_account_whose_registration_was_removed_does_not_count() throws Exception {
+      carolWithAnEmailAndAnAccountAt(GONE_ISSUER);
+
+      assertThat(guard.counts(carol.id())).containsEntry("account", 0L);
+      assertThat(removeEmail()).isEqualTo(409);
+    }
+
+    @Test
+    void a_jwt_enrolled_subject_does_not_count() throws Exception {
+      carolWithAnEmailAndAnAccountAt(JWT_ISSUER);
+
+      assertThat(guard.counts(carol.id())).containsEntry("account", 0L);
+      assertThat(removeEmail()).isEqualTo(409);
+    }
+
+    @Test
+    void an_account_a_configured_registration_signs_in_counts() throws Exception {
+      carolWithAnEmailAndAnAccountAt(PROVIDER.issuer());
+
+      assertThat(guard.counts(carol.id())).containsEntry("account", 1L);
+      assertThat(removeEmail()).isEqualTo(204);
+    }
+
+    @Test
+    void unlinking_an_account_that_does_not_count_is_never_the_last() throws Exception {
+      FederatedCredential gone = federatedCredentialService.link(alice, GONE_ISSUER, "alice");
+      browser.signedInAs(alice.id(), aliceCredential.id());
+
+      assertThat(unlink(gone.id().toString())).isEqualTo(204);
+
+      assertThat(federatedCredentialRepository.findById(gone.id())).isEmpty();
     }
   }
 }

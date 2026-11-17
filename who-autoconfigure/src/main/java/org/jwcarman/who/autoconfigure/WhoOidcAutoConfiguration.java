@@ -37,6 +37,7 @@ import org.jwcarman.who.oidc.InvalidRegistrationException;
 import org.jwcarman.who.oidc.LinkedAccountsEndpoints;
 import org.jwcarman.who.oidc.OidcLoginMethod;
 import org.jwcarman.who.oidc.OidcRedirects;
+import org.jwcarman.who.oidc.OidcSignInCredentialCounter;
 import org.jwcarman.who.oidc.OidcSignUpService;
 import org.jwcarman.who.oidc.ProviderSettings;
 import org.jwcarman.who.oidc.SignInRegistrations;
@@ -53,6 +54,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.server.PathContainer;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -91,6 +93,21 @@ public class WhoOidcAutoConfiguration {
   @ConditionalOnMissingBean(WhoSignUpPolicy.class)
   public ClosedSignUpPolicy whoSignUpPolicy() {
     return new ClosedSignUpPolicy();
+  }
+
+  /**
+   * Counts the linked accounts a configured registration signs in, for the last-credential rule; an
+   * account whose registration is gone, or a JWT's issuer and subject, is not counted.
+   *
+   * @param jdbcClient the database
+   * @param registrations the registrations who signs in with
+   * @return the counter
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public OidcSignInCredentialCounter oidcSignInCredentialCounter(
+      JdbcClient jdbcClient, SignInRegistrations registrations) {
+    return new OidcSignInCredentialCounter(jdbcClient, registrations);
   }
 
   /**

@@ -101,7 +101,8 @@ Which chains serve them:
   before an action that needs it. It is `null` for anything but a browser session, since an API
   key or a bearer token stands for no sign-in.
 - `credentials` counts the identity's sign-in credentials by kind (`email`, `passkey`, `account`),
-  for each sign-in module present. A page can use it to hide a Remove button on the last one. It is
+  for each sign-in module present; `account` counts only the linked accounts a configured provider
+  registration signs in (see [the last-credential rule](#the-last-credential-rule)). A page can use it to hide a Remove button on the last one. It is
   empty when who cannot count, which happens when there is no single `PlatformTransactionManager`
   (see [the last-credential rule](#the-last-credential-rule)).
 
@@ -217,13 +218,13 @@ The count and the removal happen in one transaction that locks the identity's ro
 on a removal is: signed out (`401`), not a browser (`403`), not recent (`401`), not the caller's
 (`404`), the last credential (`409`).
 
-The count is of the credentials the identity has, not of the ways in that work today. A linked
-account counts even when `who.oidc.enabled=false`, or when its provider's registration has been
-removed from the configuration, though no one can sign in with it then. So a person whose only
-other credential is such an account can remove their last usable one and lock themselves out.
-Before turning OIDC off or removing a provider, make sure the people who sign in with it have an
-email address or a passkey too; an admin can [invite](admin.md#invitations) anyone who is locked
-out.
+Only a linked account that a configured provider registration signs in counts: one whose
+issuer is the issuer of a [registration](social-login.md) who signs in with today. An account
+whose provider was removed from the configuration, and an `(issuer, subject)` a [JWT](jwt.md)
+signs in with, are not counted, since no one can sign in with them at `/who/oidc`; without
+`who-oidc`, or with `who.oidc.enabled=false`, no linked account counts. Unlinking such an account
+is never refused: it cannot be the last way in. Email addresses and passkeys count whenever their
+module is on.
 
 The services keep their contract: `PasskeyService.revoke`, `EmailCredentialService.revoke` and
 `FederatedCredentialService.unlink` check neither ownership nor this rule. Code of yours that

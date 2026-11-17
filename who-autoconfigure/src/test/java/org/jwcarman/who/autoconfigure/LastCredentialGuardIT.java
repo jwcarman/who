@@ -37,7 +37,6 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkSender;
-import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -91,9 +90,8 @@ class LastCredentialGuardIT {
   void concurrent_removals_leave_one_credential() throws Exception {
     Identity identity = whoService.createIdentity();
     EmailCredential email = emailCredentialService.register(identity, "carol@example.com");
-    FederatedCredential account =
-        federatedCredentialService.link(identity, "https://issuer.example.com", "carol-subject");
-    assertThat(guard.counts(identity.id())).containsEntry("email", 1L).containsEntry("account", 1L);
+    EmailCredential other = emailCredentialService.register(identity, "carol@example.org");
+    assertThat(guard.counts(identity.id())).containsEntry("email", 2L);
 
     CountDownLatch go = new CountDownLatch(1);
     // Each removal waits here, after the count, for the other to arrive. With the row lock the
@@ -110,25 +108,34 @@ class LastCredentialGuardIT {
                     emailCredentialService.revoke(email.id());
                     return true;
                   }));
-      Future<Boolean> removeAccount =
+      Future<Boolean> removeOther =
           pool.submit(
               removal(
                   go,
                   identity.id(),
                   () -> {
                     meet(bothCounted);
-                    federatedCredentialService.unlink(account.id());
+                    emailCredentialService.revoke(other.id());
                     return true;
                   }));
       go.countDown();
 
-      List<Boolean> outcomes = List.of(removeEmail.get(), removeAccount.get());
+      List<Boolean> outcomes = List.of(removeEmail.get(), removeOther.get());
 
       assertThat(outcomes).containsExactlyInAnyOrder(true, false);
     }
 
     long remaining = guard.counts(identity.id()).values().stream().mapToLong(Long::longValue).sum();
     assertThat(remaining).isEqualTo(1);
+  }
+
+  @Test
+  void without_oidc_a_linked_account_does_not_count() {
+    Identity identity = whoService.createIdentity();
+    emailCredentialService.register(identity, "dave@example.com");
+    federatedCredentialService.link(identity, "https://issuer.example.com", "dave-subject");
+
+    assertThat(guard.counts(identity.id())).containsOnlyKeys("email");
   }
 
   private Callable<Boolean> removal(CountDownLatch go, UUID identityId, Supplier<Boolean> removal) {

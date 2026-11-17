@@ -314,7 +314,8 @@ class WhoAdminEndpointsTest {
           .containsExactly(ADMIN_ROLE);
       assertThat(view.get("emailAddresses").get(0).asString()).isEqualTo(ADDRESS);
       assertThat(view.get("credentials").get("email").asLong()).isEqualTo(1);
-      assertThat(view.get("credentials").get("account").asLong()).isEqualTo(1);
+      // alice's issuer and subject are a JWT's, which no provider registration signs in with
+      assertThat(view.get("credentials").path("account").asLong()).isZero();
       assertThat(Instant.parse(view.get("createdAt").asString()).truncatedTo(ChronoUnit.MILLIS))
           .isEqualTo(
               identityRepository
