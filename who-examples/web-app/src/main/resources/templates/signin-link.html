@@ -4,7 +4,7 @@
 <body th:attr="data-turnstile-site-key=${turnstileSiteKey}">
 <main>
   <h1>Signing you in…</h1>
-  <!-- Turnstile shows a challenge here only when it needs the person to act -->
+  <!-- the Turnstile widget, shown for each email request (see human-check.js) -->
   <div id="human-check"></div>
   <section id="failed" hidden>
     <p>This link did not work. It may have been used already, or be more than a few minutes old.</p>
