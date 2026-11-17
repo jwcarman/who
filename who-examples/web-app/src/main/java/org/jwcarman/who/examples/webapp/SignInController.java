@@ -34,7 +34,7 @@ class SignInController {
   private final String turnstileSiteKey;
 
   SignInController(
-      Providers providers, @Value("${example.turnstile-site-key:}") String turnstileSiteKey) {
+      Providers providers, @Value("${example.turnstile-site-key}") String turnstileSiteKey) {
     this.providers = providers;
     this.turnstileSiteKey = turnstileSiteKey;
   }
@@ -54,7 +54,7 @@ class SignInController {
     }
     model.addAttribute("signedIn", principal != null);
     model.addAttribute("providers", providers.all());
-    // the turnstile profile sets it; the page then gets a Turnstile token for each email request
+    // the page gets a Turnstile token with it for each email request
     model.addAttribute("turnstileSiteKey", turnstileSiteKey);
     return "signin";
   }

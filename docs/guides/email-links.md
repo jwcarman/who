@@ -382,13 +382,27 @@ if (!sent.ok) {
 }
 ```
 
-Turnstile also guards the page your sign-in links open, since it posts the link's token to `/who/email/sign-in`. That page needs the widget and an `email-sign-in` token too. The [web-app example](https://github.com/jwcarman/who/tree/main/who-examples/web-app) does all of this with its `turnstile` profile.
+Turnstile also guards the page your sign-in links open, since it posts the link's token to `/who/email/sign-in`. That page needs the widget and an `email-sign-in` token too. The [web-app example](https://github.com/jwcarman/who/tree/main/who-examples/web-app) does all of this.
 
 A request with no token, a token Cloudflare refuses, a wrong action or a hostname not listed fails with `HumanCheckFailedException`: `403`, `Who-Error: human-check-failed`. The endpoint never runs, so no email is sent and no code is tried. When Cloudflare cannot be reached in time or answers an error, the request fails too, unless `fail-open: true`; with it, those requests go through, but a token Cloudflare refuses still fails.
 
 In your own tests, point `who.turnstile.verify-url` at a stand-in for Cloudflare, such as WireMock, that answers like siteverify: `{"success": true, "action": "email-send", "hostname": "app.example.com"}`.
 
-Cloudflare's test keys do not work with who. A test secret's answer carries no action, so who refuses every test token. Test with your own widget, with `localhost` among its hostnames.
+Cloudflare's [test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) work for trying the check locally. Their answers carry no action and always the hostname `example.com`, so with one of the three test secret keys who passes a request on Cloudflare's success alone, and warns at startup. The always-fail (`2x…`) and already-spent (`3x…`) keys exercise your page's refusal path. A test key never accepts a real token, so never use one in production.
+
+### Your own verifier
+
+`TurnstileHumanCheck` asks Cloudflare and hands the answer to a `TurnstileVerifier`, which decides. A `TurnstileVerifier` bean replaces who's. To add a rule of your own, start from `TurnstileVerifier.strict` so the action and hostname checks stay:
+
+```java
+@Bean
+TurnstileVerifier turnstileVerifier(WhoProperties properties) {
+  TurnstileVerifier strict = TurnstileVerifier.strict(properties.getTurnstile().getHostnames());
+  return (answer, request) -> strict.accepts(answer, request) && yourOwnRule(answer, request);
+}
+```
+
+Your verifier is used even with a test key.
 
 ### Behind a proxy
 

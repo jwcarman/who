@@ -27,21 +27,26 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.spring.security.HumanCheckRequest;
 import org.jwcarman.who.spring.security.WhoHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileHumanCheck;
+import org.jwcarman.who.turnstile.TurnstileVerifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.sun.net.httpserver.HttpServer;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+@ExtendWith(OutputCaptureExtension.class)
 class WhoTurnstileAutoConfigurationTest {
 
   private static final String SECRET = "who.turnstile.secret-key=0x4AAAAAAAsecret";
@@ -102,6 +107,10 @@ class WhoTurnstileAutoConfigurationTest {
    * A local siteverify that answers after {@code delay}, saying the token is good for email-send.
    */
   private static HttpServer siteverify(Duration delay) throws IOException {
+    return siteverify(delay, "{\"success\":true,\"action\":\"email-send\"}");
+  }
+
+  private static HttpServer siteverify(Duration delay, String answer) throws IOException {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
         "/siteverify",
@@ -111,8 +120,7 @@ class WhoTurnstileAutoConfigurationTest {
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
           }
-          byte[] body =
-              "{\"success\":true,\"action\":\"email-send\"}".getBytes(StandardCharsets.UTF_8);
+          byte[] body = answer.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().add("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, body.length);
           exchange.getResponseBody().write(body);
@@ -174,6 +182,87 @@ class WhoTurnstileAutoConfigurationTest {
                     .isInstanceOfSatisfying(
                         WhoConfigurationException.class,
                         e -> assertThat(e.property()).isEqualTo("who.turnstile.verify-url")));
+  }
+
+  @Test
+  void a_cloudflare_test_secret_is_warned_about(CapturedOutput output) {
+    runner
+        .withPropertyValues("who.turnstile.secret-key=1x0000000000000000000000000000000AA")
+        .run(context -> assertThat(context).hasNotFailed());
+
+    assertThat(output).contains("who.turnstile.secret-key is one of Cloudflare's test keys");
+  }
+
+  @Test
+  void a_real_secret_is_not_warned_about(CapturedOutput output) {
+    runner.withPropertyValues(SECRET).run(context -> assertThat(context).hasNotFailed());
+
+    assertThat(output).doesNotContain("Cloudflare's test keys");
+  }
+
+  /** Cloudflare's answer for a test key: success, no action, hostname example.com. */
+  private static final String TEST_KEY_ANSWER = "{\"success\":true,\"hostname\":\"example.com\"}";
+
+  @Test
+  void a_cloudflare_test_secret_passes_on_success_alone() throws IOException {
+    HttpServer server = siteverify(Duration.ZERO, TEST_KEY_ANSWER);
+    try {
+      runner
+          .withPropertyValues(
+              "who.turnstile.secret-key=1x0000000000000000000000000000000AA",
+              "who.turnstile.hostnames=localhost",
+              verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isTrue());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void a_real_secret_needs_the_action() throws IOException {
+    HttpServer server = siteverify(Duration.ZERO, TEST_KEY_ANSWER);
+    try {
+      runner
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class RefusingVerifier {
+    @Bean
+    TurnstileVerifier refusingVerifier() {
+      return (answer, request) -> false;
+    }
+  }
+
+  @Test
+  void an_application_verifier_decides() throws IOException {
+    HttpServer server = siteverify(Duration.ZERO);
+    try {
+      runner
+          .withUserConfiguration(RefusingVerifier.class)
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void an_application_verifier_is_used_even_with_a_test_secret() throws IOException {
+    HttpServer server = siteverify(Duration.ZERO, TEST_KEY_ANSWER);
+    try {
+      runner
+          .withUserConfiguration(RefusingVerifier.class)
+          .withPropertyValues(
+              "who.turnstile.secret-key=1x0000000000000000000000000000000AA", verifyUrl(server))
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse());
+    } finally {
+      server.stop(0);
+    }
   }
 
   @Test

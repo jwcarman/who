@@ -103,7 +103,7 @@ class TurnstileHumanCheckHttpTest {
         RestClient.builder().requestFactory(requestFactory).build(),
         verifyUrl,
         SECRET,
-        Set.of(),
+        TurnstileVerifier.strict(Set.of()),
         failOpen);
   }
 

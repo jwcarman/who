@@ -20,11 +20,9 @@ import static java.util.Objects.requireNonNull;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.jwcarman.who.spring.security.HumanCheckRequest;
 import org.jwcarman.who.spring.security.WhoHumanCheck;
@@ -39,8 +37,9 @@ import org.springframework.web.client.RestClientException;
  * Cloudflare Turnstile as who's human check. The page runs Turnstile's widget with the action of
  * the endpoint it calls ({@code email-send} or {@code email-sign-in}) and sends the token it gets
  * in the {@value WhoHumanCheck#HEADER} header. This check asks Cloudflare's siteverify API about
- * the token, and passes only when Cloudflare says it is good, was made for the same action, and,
- * when hostnames are listed, on one of them. Cloudflare lets a token be verified once.
+ * the token and hands the answer to its {@link TurnstileVerifier}, which decides; {@link
+ * TurnstileVerifier#strict(Set)} passes only a success made for the same action and, when hostnames
+ * are listed, on one of them. Cloudflare lets a token be verified once.
  *
  * <p>A request without a token fails without calling Cloudflare. When Cloudflare cannot be reached,
  * or answers an error, the request fails unless this check was made to fail open; a token
@@ -60,7 +59,7 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
   private final RestClient restClient;
   private final URI verifyUrl;
   private final String secretKey;
-  private final Set<String> hostnames;
+  private final TurnstileVerifier verifier;
   private final boolean failOpen;
 
   /**
@@ -70,7 +69,7 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
    * @param verifyUrl the siteverify endpoint, normally {@link #DEFAULT_VERIFY_URL}; another for a
    *     stand-in in tests
    * @param secretKey the widget's secret key
-   * @param hostnames the hostnames a token may be made on; empty for any
+   * @param verifier decides whether Cloudflare's answer passes a request
    * @param failOpen true to let requests through when Cloudflare cannot be reached or answers an
    *     error
    */
@@ -78,16 +77,12 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
       RestClient restClient,
       URI verifyUrl,
       String secretKey,
-      Set<String> hostnames,
+      TurnstileVerifier verifier,
       boolean failOpen) {
     this.restClient = requireNonNull(restClient, "restClient must not be null");
     this.verifyUrl = requireNonNull(verifyUrl, "verifyUrl must not be null");
     this.secretKey = requireNonNull(secretKey, "secretKey must not be null");
-    // hostnames are case-insensitive: compare them lower-cased
-    this.hostnames =
-        requireNonNull(hostnames, "hostnames must not be null").stream()
-            .map(TurnstileHumanCheck::normalized)
-            .collect(Collectors.toUnmodifiableSet());
+    this.verifier = requireNonNull(verifier, "verifier must not be null");
     this.failOpen = failOpen;
   }
 
@@ -100,12 +95,7 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
     if (answer.isEmpty()) {
       return failOpen;
     }
-    Map<String, Object> verdict = answer.get();
-    return Boolean.TRUE.equals(verdict.get("success"))
-        && request.action().equals(verdict.get("action"))
-        && (hostnames.isEmpty()
-            || verdict.get("hostname") instanceof String hostname
-                && hostnames.contains(normalized(hostname)));
+    return verifier.accepts(TurnstileAnswer.of(answer.get()), request);
   }
 
   /** Cloudflare's answer, or empty when it could not be had. */
@@ -131,10 +121,6 @@ public final class TurnstileHumanCheck implements WhoHumanCheck {
       log.warn("Cloudflare Turnstile could not be asked: {}", e.getClass().getName());
       return Optional.empty();
     }
-  }
-
-  private static String normalized(String hostname) {
-    return hostname.strip().toLowerCase(Locale.ROOT);
   }
 
   private static String field(String name, String value) {

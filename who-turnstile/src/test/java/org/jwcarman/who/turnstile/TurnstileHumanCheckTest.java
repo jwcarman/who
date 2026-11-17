@@ -25,6 +25,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -60,7 +62,7 @@ class TurnstileHumanCheckTest {
         builder.build(),
         URI.create(TurnstileHumanCheck.DEFAULT_VERIFY_URL),
         SECRET,
-        hostnames,
+        TurnstileVerifier.strict(hostnames),
         failOpen);
   }
 
@@ -245,11 +247,31 @@ class TurnstileHumanCheckTest {
                     builder.build(),
                     URI.create("http://localhost:9999/siteverify"),
                     SECRET,
-                    Set.of(),
+                    TurnstileVerifier.strict(Set.of()),
                     false)
                 .passes(SEND))
         .isTrue();
     cloudflare.verify();
+  }
+
+  @Test
+  void hands_cloudflares_answer_to_its_verifier() {
+    cloudflareAnswers("{\"success\":true,\"hostname\":\"example.com\"}");
+    List<TurnstileAnswer> seen = new ArrayList<>();
+
+    boolean passed =
+        new TurnstileHumanCheck(
+                builder.build(),
+                URI.create(TurnstileHumanCheck.DEFAULT_VERIFY_URL),
+                SECRET,
+                (answer, request) -> seen.add(answer),
+                false)
+            .passes(SEND);
+
+    assertThat(passed).isTrue();
+    assertThat(seen)
+        .containsExactly(
+            new TurnstileAnswer(true, Optional.empty(), Optional.of("example.com"), List.of()));
   }
 
   @Test
