@@ -188,7 +188,9 @@ class WhoEmailAddressesEndpointsTest {
       EmailCredential only = credentials.register(alice, ALICE);
       Browser browser = signedIn(ALICE);
 
-      assertThat(deleteStatus(browser, only.id().toString())).isEqualTo(409);
+      MvcResult refused = browser.performWithCsrf(delete("/who/me/email-addresses/" + only.id()));
+      assertThat(refused.getResponse().getStatus()).isEqualTo(409);
+      assertThat(refused.getResponse().getHeader("Who-Error")).isEqualTo("last-credential");
 
       assertThat(credentials.findById(only.id())).isPresent();
     }

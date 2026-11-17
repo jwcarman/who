@@ -222,7 +222,8 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
               return "identity-not-found";
             }
             if (answered === 409) {
-              return "self-deactivation";
+              // who's only conflict here; one it does not name is unexpected
+              return code === "self-deactivation" ? code : undefined;
             }
             return change(answered, code) ?? invalid(answered);
           },

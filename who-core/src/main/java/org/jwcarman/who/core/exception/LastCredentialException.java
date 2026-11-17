@@ -19,14 +19,29 @@ import java.io.Serial;
 
 /**
  * Thrown when removing a credential would leave an identity with no way to sign in. The web layer
- * answers it with {@code 409}.
+ * answers it with {@code 409} and names it {@value #ERROR_CODE} in its {@code Who-Error} header.
  */
 public class LastCredentialException extends WhoException {
+
+  /**
+   * The code the web layer sends in its {@code Who-Error} header. who-core has no web layer, so it
+   * cannot implement who's {@code WhoErrorCode}; the code is the same public contract.
+   */
+  public static final String ERROR_CODE = "last-credential";
 
   @Serial private static final long serialVersionUID = 1L;
 
   /** Creates the exception. */
   public LastCredentialException() {
     super("the identity's last sign-in credential cannot be removed");
+  }
+
+  /**
+   * Returns the code the web layer sends in its {@code Who-Error} header.
+   *
+   * @return {@value #ERROR_CODE}
+   */
+  public String errorCode() {
+    return ERROR_CODE;
   }
 }

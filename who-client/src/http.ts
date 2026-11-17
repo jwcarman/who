@@ -81,7 +81,8 @@ export function signedOut(status: number): "signed-out" | undefined {
 
 /**
  * The reasons removing one of your sign-in credentials (a passkey, an email address, a linked
- * account) can fail: it needs a recent sign-in, the id is not one of yours, or it is your last.
+ * account) can fail: it needs a recent sign-in, the id is not one of yours, or it is your last,
+ * which who names `last-credential` in `Who-Error`. A 409 that does not say so is unexpected.
  */
 export function removeCredential(
   status: number,
@@ -90,7 +91,10 @@ export function removeCredential(
   if (status === 404) {
     return "not-found";
   }
-  return status === 409 ? "last-credential" : signInRequired(status, code);
+  if (status === 409) {
+    return code === "last-credential" ? code : undefined;
+  }
+  return signInRequired(status, code);
 }
 
 /** The default `decodeError`: a JSON body, or undefined. */

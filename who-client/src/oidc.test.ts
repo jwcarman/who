@@ -146,10 +146,19 @@ describe("me.accounts.unlink", () => {
     [401, "reauthentication-required", "reauthentication-required"],
     [401, "not-signed-in", "signed-out"],
     [404, "linked-account-not-found", "not-found"],
-    [409, undefined, "last-credential"],
+    [409, "last-credential", "last-credential"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.delete(at("/who/me/accounts/a1"), () => refused(status, code)));
 
     await expect(createWhoClient().me.accounts.unlink("a1")).resolves.toMatchObject({ ok: false, reason, status });
+  });
+
+  it("throws on a 409 that does not say last-credential", async () => {
+    server.use(http.delete(at("/who/me/accounts/a1"), () => refused(409)));
+
+    await expect(createWhoClient().me.accounts.unlink("a1")).rejects.toMatchObject({
+      reason: "unexpected",
+      status: 409,
+    });
   });
 });

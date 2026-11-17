@@ -133,6 +133,15 @@ describe("admin.identities.setStatus", () => {
       status,
     });
   });
+
+  it("throws on a 409 that does not say self-deactivation", async () => {
+    server.use(http.patch(at("/who/identities/i1"), () => refused(409)));
+
+    await expect(createWhoClient().admin.identities.setStatus("i1", "DISABLED")).rejects.toMatchObject({
+      reason: "unexpected",
+      status: 409,
+    });
+  });
 });
 
 describe("admin.identities.addRole", () => {

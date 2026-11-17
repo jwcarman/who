@@ -280,10 +280,19 @@ describe("me.passkeys.remove", () => {
     [401, "reauthentication-required", "reauthentication-required"],
     [401, "not-signed-in", "signed-out"],
     [404, undefined, "not-found"],
-    [409, undefined, "last-credential"],
+    [409, "last-credential", "last-credential"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.delete(at("/who/me/passkeys/x"), () => refused(status, code)));
 
     await expect(createWhoClient().me.passkeys.remove("x")).resolves.toMatchObject({ ok: false, reason, status });
+  });
+
+  it("throws on a 409 that does not say last-credential", async () => {
+    server.use(http.delete(at("/who/me/passkeys/x"), () => refused(409)));
+
+    await expect(createWhoClient().me.passkeys.remove("x")).rejects.toMatchObject({
+      reason: "unexpected",
+      status: 409,
+    });
   });
 });

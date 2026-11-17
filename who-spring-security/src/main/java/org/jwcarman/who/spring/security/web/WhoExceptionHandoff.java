@@ -39,7 +39,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  */
 public final class WhoExceptionHandoff {
 
-  /** The response header naming a failure that carries a {@link WhoErrorCode}. */
+  /**
+   * The response header naming a failure that carries a {@link WhoErrorCode}, or a {@link
+   * LastCredentialException} ({@value LastCredentialException#ERROR_CODE}).
+   */
   public static final String HEADER = "Who-Error";
 
   private static final Logger log = LoggerFactory.getLogger(WhoExceptionHandoff.class);
@@ -89,8 +92,9 @@ public final class WhoExceptionHandoff {
       return;
     }
     // set first, so it stands beside whatever the application writes
-    if (exception instanceof WhoErrorCode coded) {
-      response.setHeader(HEADER, coded.errorCode());
+    String code = codeOf(exception);
+    if (code != null) {
+      response.setHeader(HEADER, code);
     }
     // a resolver that answered and then failed has still answered
     if (resolver != null && resolved(request, response, exception) || response.isCommitted()) {
@@ -107,6 +111,14 @@ public final class WhoExceptionHandoff {
       log.debug("Resolving {} failed: {}", exception.getClass().getName(), e.getClass().getName());
       return false;
     }
+  }
+
+  private static @Nullable String codeOf(Exception exception) {
+    if (exception instanceof WhoErrorCode coded) {
+      return coded.errorCode();
+    }
+    // who-core has no WhoErrorCode to implement
+    return exception instanceof LastCredentialException last ? last.errorCode() : null;
   }
 
   private static HttpStatus statusOf(Exception exception, HttpStatus fallback) {

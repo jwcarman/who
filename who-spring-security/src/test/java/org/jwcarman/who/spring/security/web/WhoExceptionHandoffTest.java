@@ -80,6 +80,13 @@ class WhoExceptionHandoffTest {
   }
 
   @Test
+  void the_last_credential_exception_names_itself_in_the_header() throws Exception {
+    new WhoExceptionHandoff(resolving(409))
+        .handOff(request, response, new LastCredentialException(), HttpStatus.CONFLICT);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("last-credential");
+  }
+
+  @Test
   void anUnannotatedExceptionSendsTheFallback() throws Exception {
     new WhoExceptionHandoff(unresolving())
         .handOff(request, response, new AccessDeniedException("x"), HttpStatus.FORBIDDEN);

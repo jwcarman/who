@@ -48,7 +48,7 @@ export type SignInRequired = "signed-out" | "reauthentication-required" | "sign-
 
 /**
  * Removing the credential would leave the identity no way to sign in: who keeps an identity's last
- * email address, passkey or linked account (`409`).
+ * email address, passkey or linked account (`409`, `Who-Error: last-credential`).
  */
 export type LastCredential = "last-credential";
 

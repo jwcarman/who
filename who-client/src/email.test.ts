@@ -290,7 +290,7 @@ describe("me.emailAddresses.remove", () => {
     [401, "reauthentication-required", "reauthentication-required"],
     [401, "not-signed-in", "signed-out"],
     [404, "email-address-not-found", "not-found"],
-    [409, undefined, "last-credential"],
+    [409, "last-credential", "last-credential"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.delete(at("/who/me/email-addresses/e1"), () => refused(status, code)));
 
@@ -298,6 +298,15 @@ describe("me.emailAddresses.remove", () => {
       ok: false,
       reason,
       status,
+    });
+  });
+
+  it("throws on a 409 that does not say last-credential", async () => {
+    server.use(http.delete(at("/who/me/email-addresses/e1"), () => refused(409)));
+
+    await expect(createWhoClient().me.emailAddresses.remove("e1")).rejects.toMatchObject({
+      reason: "unexpected",
+      status: 409,
     });
   });
 });
