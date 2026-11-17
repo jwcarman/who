@@ -1,0 +1,266 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { SignInRequired, WhoResult } from "./result.js";
+
+/** Whether an identity may sign in. */
+export type IdentityStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
+
+/** An identity as who's admin endpoints show it. */
+export interface AdminIdentity {
+  id: string;
+  status: IdentityStatus;
+  created: string;
+  /** The names of its roles, sorted. */
+  roles: string[];
+  /** Its email addresses, sorted; empty without email sign-in. */
+  emailAddresses: string[];
+  /** How many sign-in credentials it holds, by kind; empty when who cannot count them. */
+  credentials: CredentialCounts;
+}
+
+/** How many sign-in credentials an identity holds, by kind. */
+export interface CredentialCounts {
+  email?: number;
+  passkey?: number;
+  account?: number;
+}
+
+/** Which identities to list; every filter given must match. */
+export interface IdentityQuery {
+  status?: IdentityStatus;
+  /** A role's name; an unknown role matches no one. */
+  role?: string;
+  /** An email address, matched as email sign-in matches it. */
+  email?: string;
+  /** The zero-based page (default 0). */
+  page?: number;
+  /** Identities per page, 1 to 100 (default 20). */
+  size?: number;
+}
+
+/** One page of identities, oldest first. */
+export interface IdentityPage {
+  items: AdminIdentity[];
+  page: number;
+  size: number;
+  /** How many identities match, on every page. */
+  total: number;
+}
+
+/** A role and its permissions, sorted. */
+export interface AdminRole {
+  name: string;
+  permissions: string[];
+}
+
+/** An invitation who made. */
+export interface Invitation {
+  identityId: string;
+  /** Whether the sign-in link was sent; the invitation stands either way. */
+  linkSent: boolean;
+}
+
+/** The caller lacks the admin permission the call needs (`403`). */
+export type PermissionRequired = "permission-required";
+
+/** The caller may not grant a role carrying a permission it does not hold itself (`403`). */
+export type RoleGrantForbidden = "role-grant-forbidden";
+
+/** A query or body who refuses (`400`). */
+export type InvalidAdminRequest = "invalid-admin-request";
+
+/** The reasons reading as an admin can fail. */
+export type AdminReadFailure = "signed-out" | PermissionRequired;
+
+/** The reasons changing something as an admin can fail; a browser session needs a recent sign-in. */
+export type AdminChangeFailure = SignInRequired | PermissionRequired;
+
+/** Identities: listing, reading, (de)activating them and assigning roles (`client.admin.identities`). */
+export interface AdminIdentities<D> {
+  /** A page of identities. Needs `who.identities.read`. */
+  list(query?: IdentityQuery): Promise<WhoResult<IdentityPage, AdminReadFailure | InvalidAdminRequest, D>>;
+  /** One identity. Needs `who.identities.read`. */
+  get(id: string): Promise<WhoResult<AdminIdentity, AdminReadFailure | "identity-not-found", D>>;
+  /**
+   * Reactivates (`ACTIVE`) or deactivates (`DISABLED`) an identity, answering it. Needs
+   * `who.identities.manage`; you cannot deactivate yourself (`"self-deactivation"`).
+   */
+  setStatus(
+    id: string,
+    status: "ACTIVE" | "DISABLED",
+  ): Promise<
+    WhoResult<AdminIdentity, AdminChangeFailure | "identity-not-found" | InvalidAdminRequest | "self-deactivation", D>
+  >;
+  /**
+   * Assigns a role; done already is done. Needs `who.identities.manage`, and every permission the
+   * role carries.
+   */
+  addRole(
+    id: string,
+    role: string,
+  ): Promise<WhoResult<void, AdminChangeFailure | RoleGrantForbidden | "identity-not-found" | "unknown-role", D>>;
+  /** Removes a role; not held is done. Needs `who.identities.manage`. */
+  removeRole(
+    id: string,
+    role: string,
+  ): Promise<WhoResult<void, AdminChangeFailure | "identity-not-found" | "unknown-role", D>>;
+}
+
+/** The roles that exist (`client.admin.roles`). */
+export interface AdminRoles<D> {
+  /** Every role, by name. Needs `who.identities.read`. */
+  list(): Promise<WhoResult<AdminRole[], AdminReadFailure, D>>;
+}
+
+/** Managing identities with who's own permissions (`client.admin`). Needs who-admin. */
+export interface Admin<D> {
+  identities: AdminIdentities<D>;
+  roles: AdminRoles<D>;
+  /**
+   * Invites an address as a new identity holding `roles`, and emails it a sign-in link. Needs
+   * `who.identities.manage` and every permission the roles carry. An unknown role is
+   * `"invalid-invitation"`; an address already someone's is `"email-address-taken"`.
+   */
+  invite(
+    email: string,
+    roles?: string[],
+  ): Promise<
+    WhoResult<
+      Invitation,
+      AdminChangeFailure | RoleGrantForbidden | "invalid-invitation" | InvalidAdminRequest | "email-address-taken",
+      D
+    >
+  >;
+}
+
+/** A 403: the role grant refused when who says so, else the missing permission. */
+function forbidden(code: string | null): PermissionRequired | RoleGrantForbidden {
+  return code === "role-grant-forbidden" ? code : "permission-required";
+}
+
+function read(status: number): AdminReadFailure | undefined {
+  return signedOut(status) ?? (status === 403 ? "permission-required" : undefined);
+}
+
+function change(status: number, code: string | null): AdminChangeFailure | undefined {
+  return signInRequired(status, code) ?? (status === 403 ? "permission-required" : undefined);
+}
+
+/** A 404 on a role call: the unknown role when who says so, else the identity. */
+function roleNotFound(status: number, code: string | null): "identity-not-found" | "unknown-role" | undefined {
+  if (status !== 404) {
+    return undefined;
+  }
+  return code === "unknown-role" ? code : "identity-not-found";
+}
+
+function invalid(status: number): InvalidAdminRequest | undefined {
+  return status === 400 ? "invalid-admin-request" : undefined;
+}
+
+function identityPath(id: string): string {
+  return `/identities/${encodeURIComponent(id)}`;
+}
+
+function rolePath(id: string, role: string): string {
+  return `${identityPath(id)}/roles/${encodeURIComponent(role)}`;
+}
+
+function queryString(query: IdentityQuery): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      params.set(name, String(value));
+    }
+  }
+  const search = params.toString();
+  return search === "" ? "" : `?${search}`;
+}
+
+export function admin<D>(http: WhoHttp<D>): Admin<D> {
+  return {
+    identities: {
+      list: (query = {}) =>
+        http.call({
+          method: "GET",
+          path: `/identities${queryString(query)}`,
+          read: json<IdentityPage>(),
+          reason: (status) => read(status) ?? invalid(status),
+        }),
+      get: (id) =>
+        http.call({
+          method: "GET",
+          path: identityPath(id),
+          read: json<AdminIdentity>(),
+          reason: (status) => read(status) ?? (status === 404 ? "identity-not-found" : undefined),
+        }),
+      setStatus: (id, status) =>
+        http.call({
+          method: "PATCH",
+          path: identityPath(id),
+          body: { status },
+          read: json<AdminIdentity>(),
+          reason: (
+            answered,
+            code,
+          ): AdminChangeFailure | "identity-not-found" | InvalidAdminRequest | "self-deactivation" | undefined => {
+            if (answered === 404) {
+              return "identity-not-found";
+            }
+            if (answered === 409) {
+              return "self-deactivation";
+            }
+            return change(answered, code) ?? invalid(answered);
+          },
+        }),
+      addRole: (id, role) =>
+        http.call({
+          method: "PUT",
+          path: rolePath(id, role),
+          read: nothing,
+          reason: (status, code) =>
+            signInRequired(status, code) ?? (status === 403 ? forbidden(code) : roleNotFound(status, code)),
+        }),
+      removeRole: (id, role) =>
+        http.call({
+          method: "DELETE",
+          path: rolePath(id, role),
+          read: nothing,
+          reason: (status, code) => change(status, code) ?? roleNotFound(status, code),
+        }),
+    },
+    roles: {
+      list: () => http.call({ method: "GET", path: "/roles", read: json<AdminRole[]>(), reason: read }),
+    },
+    invite: (email, roles = []) =>
+      http.call({
+        method: "POST",
+        path: "/invitations",
+        body: { email, roles },
+        read: json<Invitation>(),
+        reason: (status, code) => {
+          if (status === 400) {
+            return code === "invalid-invitation" ? code : "invalid-admin-request";
+          }
+          if (status === 409) {
+            return "email-address-taken";
+          }
+          return signInRequired(status, code) ?? (status === 403 ? forbidden(code) : undefined);
+        },
+      }),
+  };
+}

@@ -36,17 +36,6 @@ function send(method: string, path: string, body?: unknown): Promise<Response> {
   });
 }
 
-export type EmailAddress = { id: string; address: string };
-export type Passkey = { id: string; credentialId: string; label: string; created: string };
-export type Account = { id: string; issuer: string; subject: string };
-export type Provider = { id: string; name: string };
-export type Me = {
-  identityId: string;
-  permissions: string[];
-  emails: EmailAddress[];
-  passkeys: Passkey[];
-  accounts: Account[];
-};
 export type Task = { id: string; title: string; createdBy: string; createdAt: string };
 export type Member = { identityId: string; email: string | null; roles: string[] };
 
@@ -66,10 +55,4 @@ export async function getJson<T>(path: string): Promise<T> {
     throw new Error(`${path} answered ${res.status}`);
   }
   return res.json();
-}
-
-// Public, so the sign-in page can show a button per provider.
-export async function providers(): Promise<Provider[]> {
-  const res = await fetch('/api/providers', { credentials: 'same-origin' });
-  return res.ok ? res.json() : [];
 }

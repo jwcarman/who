@@ -13,21 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { createWhoClient, type Me, type WhoClient } from "./client.js";
+export type {
+  Admin,
+  AdminChangeFailure,
+  AdminIdentities,
+  AdminIdentity,
+  AdminReadFailure,
+  AdminRole,
+  AdminRoles,
+  CredentialCounts,
+  IdentityPage,
+  IdentityQuery,
+  IdentityStatus,
+  InvalidAdminRequest,
+  Invitation,
+  PermissionRequired,
+  RoleGrantForbidden,
+} from "./admin.js";
+export type { ApiKey, ApiKeyRequest, ApiKeys, InvalidApiKeyRequest, NewApiKey } from "./apiKeys.js";
+export { createWhoClient, type SignInOptions, type SignInProvider, type WhoClient } from "./client.js";
 export type {
   ConfirmAddressFailure,
+  ConfirmedAddress,
   Email,
+  EmailAddress,
+  EmailAddresses,
   EmailSignInFailure,
   HumanCheckFailed,
   HumanCheckOptions,
   SignedIn,
 } from "./email.js";
 export type { WhoClientOptions } from "./http.js";
-export type { Oidc, PendingSignUp } from "./oidc.js";
-export type { Passkeys } from "./passkeys.js";
+export type { Me, MyAccount } from "./me.js";
+export type { Accounts, LinkedAccount, Oidc, PendingSignUp } from "./oidc.js";
+export type { MyPasskeys, Passkey, Passkeys } from "./passkeys.js";
 export {
   type AlreadyRegistered,
   type Cancelled,
+  type LastCredential,
   type PromptFailure,
   type SignInRequired,
   unwrap,

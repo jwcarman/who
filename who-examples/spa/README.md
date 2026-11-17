@@ -63,11 +63,15 @@ The same goes for production behind a proxy or a CDN: these settings name your p
   email's link), so `ClientRoutes` answers `index.html` for each, and `who.security.public-paths`
   lists them with the built files. The data is under `/api`, which who's chain answers with `401`
   when signed out; the front end then goes to `/signin`. Keep the two lists in step.
-- **Permissions come from the server.** `GET /api/me` says who is signed in and what they may do.
+- **Permissions come from the server.** who's `GET /who/me` says who is signed in and what they
+  may do.
   The front end hides what they may not do, for convenience only: `@RequiresPermission` checks
   every call.
+- **The profile page is who's own.** It lists and removes email addresses, passkeys and linked
+  accounts through who's `/who/me` endpoints, and draws the provider buttons from `GET /who/sign-in`:
+  the app writes no endpoint for them.
 - **Starting a provider link** is a `fetch` with `Accept: application/json`: who answers where the
-  provider is, and the page goes there (`who.oidc.startLink`). A plain form cannot carry the
+  provider is, and the page goes there (`who.me.accounts.link`). A plain form cannot carry the
   CSRF token a SPA holds.
 - **Links and tokens in fragments.** A sign-in link (`/signin/link#token=`) and an address
   confirmation (`/profile#confirm-address=`) carry their token after `#`, which never reaches a

@@ -156,17 +156,17 @@ describe("email.signInFromLocation", () => {
   });
 });
 
-describe("email.addAddress", () => {
+describe("me.emailAddresses.add", () => {
   it("adds an address", async () => {
     let body: unknown;
     server.use(
-      http.post(at("/who/email/addresses"), async ({ request }) => {
+      http.post(at("/who/me/email-addresses"), async ({ request }) => {
         body = await request.json();
         return new HttpResponse(null, { status: 202 });
       }),
     );
 
-    await expect(createWhoClient().email.addAddress("bob@example.com")).resolves.toEqual({
+    await expect(createWhoClient().me.emailAddresses.add("bob@example.com")).resolves.toEqual({
       ok: true,
       value: undefined,
     });
@@ -176,13 +176,13 @@ describe("email.addAddress", () => {
   it("replaces an address", async () => {
     let body: unknown;
     server.use(
-      http.post(at("/who/email/addresses"), async ({ request }) => {
+      http.post(at("/who/me/email-addresses"), async ({ request }) => {
         body = await request.json();
         return new HttpResponse(null, { status: 202 });
       }),
     );
 
-    await createWhoClient().email.addAddress("bob@example.com", "id1");
+    await createWhoClient().me.emailAddresses.add("bob@example.com", "id1");
 
     expect(body).toEqual({ address: "bob@example.com", replaces: "id1" });
   });
@@ -192,26 +192,29 @@ describe("email.addAddress", () => {
     [401, "not-signed-in", "signed-out"],
     [404, "email-address-not-found", "not-found"],
   ])("answers %i %s as %s", async (status, code, reason) => {
-    server.use(http.post(at("/who/email/addresses"), () => refused(status, code)));
+    server.use(http.post(at("/who/me/email-addresses"), () => refused(status, code)));
 
-    await expect(createWhoClient().email.addAddress("bob@example.com", "id1")).resolves.toMatchObject({
+    await expect(createWhoClient().me.emailAddresses.add("bob@example.com", "id1")).resolves.toMatchObject({
       ok: false,
       reason,
     });
   });
 });
 
-describe("email.confirmAddress", () => {
+describe("me.emailAddresses.confirm", () => {
   it.each([[{ token: "abc" }], [{ code: "123456" }]])("confirms with %o", async (proof) => {
     let body: unknown;
     server.use(
-      http.post(at("/who/email/addresses/confirm"), async ({ request }) => {
+      http.post(at("/who/me/email-addresses/confirmations"), async ({ request }) => {
         body = await request.json();
-        return new HttpResponse(null, { status: 200 });
+        return HttpResponse.json({ credentialId: "c1" });
       }),
     );
 
-    await expect(createWhoClient().email.confirmAddress(proof)).resolves.toEqual({ ok: true, value: undefined });
+    await expect(createWhoClient().me.emailAddresses.confirm(proof)).resolves.toEqual({
+      ok: true,
+      value: { credentialId: "c1" },
+    });
     expect(body).toEqual(proof);
   });
 
@@ -220,20 +223,20 @@ describe("email.confirmAddress", () => {
     [409, "email-address-taken", "conflict"],
     [401, "reauthentication-required", "reauthentication-required"],
   ])("answers %i %s as %s", async (status, code, reason) => {
-    server.use(http.post(at("/who/email/addresses/confirm"), () => refused(status, code)));
+    server.use(http.post(at("/who/me/email-addresses/confirmations"), () => refused(status, code)));
 
-    await expect(createWhoClient().email.confirmAddress({ code: "000000" })).resolves.toMatchObject({
+    await expect(createWhoClient().me.emailAddresses.confirm({ code: "000000" })).resolves.toMatchObject({
       ok: false,
       reason,
     });
   });
 });
 
-describe("email.confirmAddressFromLocation", () => {
+describe("me.emailAddresses.confirmFromLocation", () => {
   it("answers null without a confirm-address token", async () => {
     history.replaceState(null, "", "/profile");
 
-    await expect(createWhoClient().email.confirmAddressFromLocation()).resolves.toBeNull();
+    await expect(createWhoClient().me.emailAddresses.confirmFromLocation()).resolves.toBeNull();
   });
 
   it("takes the token out of the address bar before confirming", async () => {
@@ -241,19 +244,60 @@ describe("email.confirmAddressFromLocation", () => {
     let urlAtRequest = "";
     let body: unknown;
     server.use(
-      http.post(at("/who/email/addresses/confirm"), async ({ request }) => {
+      http.post(at("/who/me/email-addresses/confirmations"), async ({ request }) => {
         urlAtRequest = location.href;
         body = await request.json();
-        return new HttpResponse(null, { status: 200 });
+        return HttpResponse.json({ credentialId: "c1" });
       }),
     );
 
-    await expect(createWhoClient().email.confirmAddressFromLocation()).resolves.toEqual({
+    await expect(createWhoClient().me.emailAddresses.confirmFromLocation()).resolves.toEqual({
       ok: true,
-      value: undefined,
+      value: { credentialId: "c1" },
     });
 
     expect(urlAtRequest).toBe(at("/profile?tab=email"));
     expect(body).toEqual({ token: "abc" });
+  });
+});
+
+describe("me.emailAddresses.list", () => {
+  it("answers the addresses", async () => {
+    const address = { id: "e1", address: "bob@example.com", created: "2026-11-16T10:00:00Z" };
+    server.use(http.get(at("/who/me/email-addresses"), () => HttpResponse.json([address])));
+
+    await expect(createWhoClient().me.emailAddresses.list()).resolves.toEqual({ ok: true, value: [address] });
+  });
+
+  it("answers signed-out on a 401", async () => {
+    server.use(http.get(at("/who/me/email-addresses"), () => refused(401, "not-signed-in")));
+
+    await expect(createWhoClient().me.emailAddresses.list()).resolves.toMatchObject({
+      ok: false,
+      reason: "signed-out",
+    });
+  });
+});
+
+describe("me.emailAddresses.remove", () => {
+  it("removes by the escaped id", async () => {
+    server.use(http.delete(at("/who/me/email-addresses/a%2Fb"), () => new HttpResponse(null, { status: 204 })));
+
+    await expect(createWhoClient().me.emailAddresses.remove("a/b")).resolves.toEqual({ ok: true, value: undefined });
+  });
+
+  it.each([
+    [401, "reauthentication-required", "reauthentication-required"],
+    [401, "not-signed-in", "signed-out"],
+    [404, "email-address-not-found", "not-found"],
+    [409, undefined, "last-credential"],
+  ])("answers %i %s as %s", async (status, code, reason) => {
+    server.use(http.delete(at("/who/me/email-addresses/e1"), () => refused(status, code)));
+
+    await expect(createWhoClient().me.emailAddresses.remove("e1")).resolves.toMatchObject({
+      ok: false,
+      reason,
+      status,
+    });
   });
 });

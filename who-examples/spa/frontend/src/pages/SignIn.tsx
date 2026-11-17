@@ -15,8 +15,7 @@
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { providers as loadProviders, type Provider } from '../api';
-import type { PendingSignUp } from '@jwcarman/who-client';
+import type { PendingSignUp, SignInProvider } from '@jwcarman/who-client';
 import { who } from '../who-client';
 
 // Where who.oidc.failure-url lands: ?error= for what failed, ?pending=sign-up for an account who
@@ -30,7 +29,7 @@ const ERRORS: Record<string, string> = {
 export function SignIn() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<SignInProvider[]>([]);
   const [email, setEmail] = useState('');
   const [codeStep, setCodeStep] = useState(false);
   const [code, setCode] = useState('');
@@ -39,7 +38,7 @@ export function SignIn() {
   const asked = useRef(false);
 
   useEffect(() => {
-    void loadProviders().then(setProviders);
+    void who.signInOptions().then(result => setProviders(result.ok ? result.value.providers : []));
   }, []);
 
   useEffect(() => {

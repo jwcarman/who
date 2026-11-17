@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { type SignInRequired, WhoError, type WhoResult } from "./result.js";
+import { type LastCredential, type SignInRequired, WhoError, type WhoResult } from "./result.js";
 
 /** How a client is made. */
 export interface WhoClientOptions<D> {
@@ -36,7 +36,7 @@ export interface WhoClientOptions<D> {
 
 /** One request a call makes, and how it reads the answer. */
 export interface Call<T, R extends string> {
-  method: "GET" | "POST" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Below the base URL, starting with `/`. */
   path: string;
   body?: unknown;
@@ -77,6 +77,20 @@ export function signInRequired(status: number, code: string | null): SignInRequi
 /** A 401 on a call that needs only a sign-in. */
 export function signedOut(status: number): "signed-out" | undefined {
   return status === 401 ? "signed-out" : undefined;
+}
+
+/**
+ * The reasons removing one of your sign-in credentials (a passkey, an email address, a linked
+ * account) can fail: it needs a recent sign-in, the id is not one of yours, or it is your last.
+ */
+export function removeCredential(
+  status: number,
+  code: string | null,
+): SignInRequired | "not-found" | LastCredential | undefined {
+  if (status === 404) {
+    return "not-found";
+  }
+  return status === 409 ? "last-credential" : signInRequired(status, code);
 }
 
 /** The default `decodeError`: a JSON body, or undefined. */

@@ -38,14 +38,14 @@ export function Sessions() {
 
   const load = useCallback(async () => {
     setError(null);
-    const result = await who.sessions.list();
+    const result = await who.me.sessions.list();
     setSessions(result.ok ? result.value : []);
   }, []);
 
   useEffect(() => { void load(); }, [load]);
 
   async function end(session: Session) {
-    const result = await who.sessions.end(session.id);
+    const result = await who.me.sessions.end(session.id);
     // this browser's own session ends at once, with no recent sign-in needed
     if (result.ok && session.current) window.location.assign('/signin');
     else if (!result.ok && result.reason !== 'not-found') setError(signInAgain(result.reason, TOO_LONG));
@@ -53,7 +53,7 @@ export function Sessions() {
   }
 
   async function endOthers() {
-    const result = await who.sessions.endOthers();
+    const result = await who.me.sessions.endOthers();
     if (!result.ok) setError(signInAgain(result.reason, TOO_LONG));
     else await load();
   }

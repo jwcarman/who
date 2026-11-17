@@ -25,19 +25,18 @@ import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
-import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.passkey.PasskeyService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 
 /**
  * The signed-in person's ways in: their email address, their passkeys and the provider accounts
- * linked to them. Adding a passkey, removing one and confirming a link go through {@code who.js};
- * linking starts with a plain link to {@code /who/oidc/authorize/{id}}.
+ * linked to them, read from who's services for the page. Every change goes to who itself: adding or
+ * removing a passkey, changing an address, unlinking an account and confirming a link through the
+ * who client ({@code profile.js}), and starting a link with a form posting to {@code
+ * /who/me/accounts/{id}}.
  */
 @Controller
 class ProfileController {
@@ -45,7 +44,6 @@ class ProfileController {
   private final CredentialIdentityRepository credentialIdentities;
   private final EmailCredentialService emailCredentials;
   private final FederatedCredentialRepository federatedCredentials;
-  private final FederatedCredentialService federatedCredentialService;
   private final PasskeyService passkeys;
   private final Providers providers;
 
@@ -53,13 +51,11 @@ class ProfileController {
       CredentialIdentityRepository credentialIdentities,
       EmailCredentialService emailCredentials,
       FederatedCredentialRepository federatedCredentials,
-      FederatedCredentialService federatedCredentialService,
       PasskeyService passkeys,
       Providers providers) {
     this.credentialIdentities = credentialIdentities;
     this.emailCredentials = emailCredentials;
     this.federatedCredentials = federatedCredentials;
-    this.federatedCredentialService = federatedCredentialService;
     this.passkeys = passkeys;
     this.providers = providers;
   }
@@ -79,22 +75,5 @@ class ProfileController {
     model.addAttribute("passkeys", passkeys.list(identityId));
     model.addAttribute("providers", providers.all());
     return "profile";
-  }
-
-  /**
-   * Unlinks a provider account. {@link FederatedCredentialService#unlink} checks no ownership, so
-   * the app checks that the account is the caller's before calling it.
-   */
-  @PostMapping("/profile/accounts/{id}/unlink")
-  String unlink(@PathVariable UUID id, @AuthenticationPrincipal WhoPrincipal principal) {
-    boolean owned =
-        credentialIdentities
-            .findIdentityIdByCredentialId(id)
-            .filter(principal.identity().id()::equals)
-            .isPresent();
-    if (owned && federatedCredentials.findById(id).isPresent()) {
-      federatedCredentialService.unlink(id);
-    }
-    return "redirect:/profile";
   }
 }

@@ -15,25 +15,47 @@
  */
 import { decode, encode } from "./base64url.js";
 import type { SignedIn } from "./email.js";
-import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { AlreadyRegistered, Cancelled, PromptFailure, SignInRequired, WhoResult } from "./result.js";
+import { json, nothing, removeCredential, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type {
+  AlreadyRegistered,
+  Cancelled,
+  LastCredential,
+  PromptFailure,
+  SignInRequired,
+  WhoResult,
+} from "./result.js";
 
-/** Signing in with a passkey, and registering and removing them. */
+/** Signing in with a passkey. Your own passkeys are under `client.me.passkeys`. */
 export interface Passkeys<D> {
   /** Whether this browser can use passkeys at all. */
   supported(): boolean;
-  /**
-   * Registers a new passkey for the signed-in person, under `label`. Needs a recent sign-in; who
-   * answers that before the browser is asked anything.
-   */
-  register(label: string): Promise<WhoResult<void, SignInRequired | "rejected", D> | Cancelled | AlreadyRegistered>;
   /** Signs in with a passkey this browser can find. */
   signIn(): Promise<WhoResult<SignedIn, "rejected", D> | Cancelled>;
+}
+
+/** One of your passkeys, named by its WebAuthn credential id; who's own id is never shown. */
+export interface Passkey {
+  credentialId: string;
+  label: string;
+  created: string;
+  /** When it last signed in, or null if never. */
+  lastUsed: string | null;
+}
+
+/** Your passkeys: listing, registering and removing them (`client.me.passkeys`). */
+export interface MyPasskeys<D> {
+  /** Your passkeys, oldest first. */
+  list(): Promise<WhoResult<Passkey[], "signed-out", D>>;
   /**
-   * Removes one of your passkeys, by its WebAuthn credential id (`PasskeySummary.credentialId`),
-   * not who's id. Someone else's is refused.
+   * Registers a new passkey under `label`. Needs a recent sign-in; who answers that before the
+   * browser is asked anything.
    */
-  remove(credentialId: string): Promise<WhoResult<void, "signed-out" | "refused", D>>;
+  register(label: string): Promise<WhoResult<void, SignInRequired | "rejected", D> | Cancelled | AlreadyRegistered>;
+  /**
+   * Removes one of your passkeys by its credential id. Needs a recent sign-in; another identity's
+   * passkey is `"not-found"`, and your last sign-in credential is `"last-credential"`.
+   */
+  remove(credentialId: string): Promise<WhoResult<void, SignInRequired | "not-found" | LastCredential, D>>;
 }
 
 /** A credential id as WebAuthn's JSON carries it. */
@@ -91,59 +113,6 @@ export function passkeys<D>(http: WhoHttp<D>): Passkeys<D> {
   return {
     supported: () => typeof window !== "undefined" && "PublicKeyCredential" in window,
 
-    register: async (label) => {
-      const options = await http.call({
-        method: "POST",
-        path: "/passkey/register/options",
-        read: json<CreationOptionsJson>(),
-        reason: signInRequired,
-      });
-      if (!options.ok) {
-        return options;
-      }
-      const json_ = options.value;
-      const credential = await prompt(
-        () =>
-          navigator.credentials.create({
-            publicKey: {
-              ...(json_ as unknown as PublicKeyCredentialCreationOptions),
-              challenge: decode(json_.challenge),
-              user: { ...json_.user, id: decode(json_.user.id) },
-              excludeCredentials: descriptors(json_.excludeCredentials),
-            },
-          }),
-        EXCLUDED,
-      );
-      if ("ok" in credential) {
-        return credential;
-      }
-      const response = credential.response as AuthenticatorAttestationResponse;
-      return http.call({
-        method: "POST",
-        path: "/passkey/register",
-        body: {
-          publicKey: {
-            credential: {
-              id: credential.id,
-              rawId: encode(credential.rawId),
-              type: credential.type,
-              response: {
-                attestationObject: encode(response.attestationObject),
-                clientDataJSON: encode(response.clientDataJSON),
-                transports: response.getTransports?.() ?? [],
-              },
-              clientExtensionResults: credential.getClientExtensionResults(),
-              authenticatorAttachment: credential.authenticatorAttachment,
-            },
-            label,
-          },
-        },
-        read: nothing,
-        reason: (status, code): SignInRequired | "rejected" | undefined =>
-          signInRequired(status, code) ?? (status === 400 ? "rejected" : undefined),
-      });
-    },
-
     signIn: async () => {
       const options = await http.call<RequestOptionsJson, never>({
         method: "POST",
@@ -191,13 +160,72 @@ export function passkeys<D>(http: WhoHttp<D>): Passkeys<D> {
         reason: (status) => (status === 401 ? "rejected" : undefined),
       });
     },
+  };
+}
+
+export function myPasskeys<D>(http: WhoHttp<D>): MyPasskeys<D> {
+  return {
+    list: () => http.call({ method: "GET", path: "/me/passkeys", read: json<Passkey[]>(), reason: signedOut }),
+
+    register: async (label) => {
+      const options = await http.call({
+        method: "POST",
+        path: "/me/passkeys/options",
+        read: json<CreationOptionsJson>(),
+        reason: signInRequired,
+      });
+      if (!options.ok) {
+        return options;
+      }
+      const json_ = options.value;
+      const credential = await prompt(
+        () =>
+          navigator.credentials.create({
+            publicKey: {
+              ...(json_ as unknown as PublicKeyCredentialCreationOptions),
+              challenge: decode(json_.challenge),
+              user: { ...json_.user, id: decode(json_.user.id) },
+              excludeCredentials: descriptors(json_.excludeCredentials),
+            },
+          }),
+        EXCLUDED,
+      );
+      if ("ok" in credential) {
+        return credential;
+      }
+      const response = credential.response as AuthenticatorAttestationResponse;
+      return http.call({
+        method: "POST",
+        path: "/me/passkeys",
+        body: {
+          publicKey: {
+            credential: {
+              id: credential.id,
+              rawId: encode(credential.rawId),
+              type: credential.type,
+              response: {
+                attestationObject: encode(response.attestationObject),
+                clientDataJSON: encode(response.clientDataJSON),
+                transports: response.getTransports?.() ?? [],
+              },
+              clientExtensionResults: credential.getClientExtensionResults(),
+              authenticatorAttachment: credential.authenticatorAttachment,
+            },
+            label,
+          },
+        },
+        read: nothing,
+        reason: (status, code): SignInRequired | "rejected" | undefined =>
+          signInRequired(status, code) ?? (status === 400 ? "rejected" : undefined),
+      });
+    },
 
     remove: (credentialId) =>
       http.call({
         method: "DELETE",
-        path: `/passkey/register/${encodeURIComponent(credentialId)}`,
+        path: `/me/passkeys/${encodeURIComponent(credentialId)}`,
         read: nothing,
-        reason: (status) => signedOut(status) ?? (status === 403 ? "refused" : undefined),
+        reason: removeCredential,
       }),
   };
 }

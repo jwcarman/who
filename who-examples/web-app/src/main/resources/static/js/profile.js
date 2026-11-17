@@ -30,7 +30,7 @@ function signInAgain(reason, tooLong) {
 
 $('passkey-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const result = await who.passkeys.register($('passkey-label').value);
+  const result = await who.me.passkeys.register($('passkey-label').value);
   if (result.ok) location.reload();
   else if (result.reason === 'cancelled') showError('No passkey was created.');
   else if (result.reason === 'already-registered') showError('This device already has a passkey for your account.');
@@ -38,10 +38,25 @@ $('passkey-form').addEventListener('submit', async e => {
   else signInAgain(result.reason, 'You signed in too long ago. Sign out, sign in again, then add the passkey.');
 });
 
+// a removal who refused: who keeps an identity's last way in, so it can always sign in
+function notRemoved(reason) {
+  if (reason === 'last-credential') showError('That is your last way in: add another before removing it.');
+  else if (reason === 'not-found') location.reload();
+  else signInAgain(reason, 'You signed in too long ago. Sign out, sign in again, then try again.');
+}
+
 document.querySelectorAll('[data-remove-passkey]').forEach(button =>
   button.addEventListener('click', async () => {
-    if ((await who.passkeys.remove(button.dataset.credentialId)).ok) location.reload();
-    else showError('The passkey could not be removed.');
+    const result = await who.me.passkeys.remove(button.dataset.credentialId);
+    if (result.ok) location.reload();
+    else notRemoved(result.reason);
+  }));
+
+document.querySelectorAll('[data-unlink-account]').forEach(button =>
+  button.addEventListener('click', async () => {
+    const result = await who.me.accounts.unlink(button.dataset.accountId);
+    if (result.ok) location.reload();
+    else notRemoved(result.reason);
   }));
 
 // --- Email addresses ---
@@ -60,7 +75,7 @@ function confirmed(result) {
 
 // a click on the link in the email lands here, with the token in the fragment
 async function confirmFromLocation() {
-  const result = await who.email.confirmAddressFromLocation();
+  const result = await who.me.emailAddresses.confirmFromLocation();
   if (result !== null) confirmed(result);
 }
 confirmFromLocation();
@@ -76,7 +91,7 @@ document.querySelectorAll('[data-change-address]').forEach(button =>
 
 $('address-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const result = await who.email.addAddress($('address').value, $('replaces').value || undefined);
+  const result = await who.me.emailAddresses.add($('address').value, $('replaces').value || undefined);
   if (result.ok) {
     showNotice('If that address can be added, we sent it a link and a code. Click the link, or enter the code here.');
     $('address-code-form').hidden = false;
@@ -89,7 +104,7 @@ $('address-form').addEventListener('submit', async e => {
 
 $('address-code-form').addEventListener('submit', async e => {
   e.preventDefault();
-  confirmed(await who.email.confirmAddress({ code: $('address-code').value }));
+  confirmed(await who.me.emailAddresses.confirm({ code: $('address-code').value }));
 });
 
 // --- Back from a provider (who.oidc.link-url points here) ---

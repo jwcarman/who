@@ -74,7 +74,7 @@ the provider.
 | `SignUpConfig.java` | a sign-up policy: open to one provider, closed to the rest |
 | `Setup.java`, `Invitations.java` | creating identities, registering email addresses, assigning roles |
 | `BoardController.java`, `MembersController.java` | `@RequiresPermission` on pages and actions |
-| `ProfileController.java` | listing an identity's credentials, unlinking a provider account with an ownership check |
+| `ProfileController.java` | listing an identity's credentials; `profile.js` changes them through who's `/who/me` endpoints |
 | `WebErrors.java` | sending a signed-out browser to the sign-in page instead of a bare `401` |
 | `static/js/client.js` | the who client, `@jwcarman/who-client` (the build copies it in as `static/js/who-client/`): CSRF, email links, passkeys, provider sign-up and linking, sign-out |
 

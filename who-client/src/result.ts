@@ -47,6 +47,12 @@ export type AlreadyRegistered = PromptFailure<"already-registered">;
 export type SignInRequired = "signed-out" | "reauthentication-required" | "sign-in-required";
 
 /**
+ * Removing the credential would leave the identity no way to sign in: who keeps an identity's last
+ * email address, passkey or linked account (`409`).
+ */
+export type LastCredential = "last-credential";
+
+/**
  * A failure thrown rather than answered: a failed result passed to {@link unwrap}, or (with reason
  * `"unexpected"`) an answer the call does not expect, such as a 500 or a malformed success body.
  */

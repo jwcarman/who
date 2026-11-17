@@ -15,7 +15,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router';
-import { getJson, SignInRequired, type Me } from './api';
+import type { Me } from '@jwcarman/who-client';
 import { who } from './who-client';
 import { Board } from './pages/Board';
 import { Members } from './pages/Members';
@@ -47,7 +47,7 @@ export function App() {
 }
 
 /**
- * A page for someone signed in: loads /api/me, and sends a stranger to /signin. Who the person is
+ * A page for someone signed in: loads who's /who/me, and sends a stranger to /signin. Who the person is
  * comes from the server on every load; nothing about the session is kept in the browser.
  */
 function SignedIn({ children }: { children: ReactNode }) {
@@ -56,12 +56,9 @@ function SignedIn({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   const refresh = useCallback(async () => {
-    try {
-      setMe(await getJson<Me>('/api/me'));
-    } catch (e) {
-      if (e instanceof SignInRequired) navigate('/signin', { replace: true });
-      else throw e;
-    }
+    const result = await who.me.get();
+    if (result.ok) setMe(result.value);
+    else navigate('/signin', { replace: true });
   }, [navigate]);
 
   useEffect(() => { void refresh(); }, [refresh, location.pathname]);

@@ -34,13 +34,13 @@ describe("createWhoClient", () => {
   it("defaults to /who", async () => {
     server.use(http.get(at("/who/me"), () => HttpResponse.json({ identityId: "i", permissions: [] })));
 
-    await expect(createWhoClient().me()).resolves.toMatchObject({ ok: true });
+    await expect(createWhoClient().me.get()).resolves.toMatchObject({ ok: true });
   });
 
   it("drops a trailing slash from baseUrl", async () => {
     server.use(http.get(at("/auth/me"), () => HttpResponse.json({ identityId: "i", permissions: [] })));
 
-    await expect(createWhoClient({ baseUrl: "/auth/" }).me()).resolves.toMatchObject({ ok: true });
+    await expect(createWhoClient({ baseUrl: "/auth/" }).me.get()).resolves.toMatchObject({ ok: true });
   });
 
   it.each(["/who?x=1", "/who#x"])("refuses a baseUrl with a query or fragment: %s", (baseUrl) => {
@@ -51,7 +51,7 @@ describe("createWhoClient", () => {
     server.use(http.get(at("/who/me"), () => HttpResponse.json({ identityId: "i", permissions: [] })));
     const recording = recordingFetch();
 
-    await createWhoClient({ fetch: recording.fetch }).me();
+    await createWhoClient({ fetch: recording.fetch }).me.get();
 
     expect(recording.calls[0]?.[1]?.credentials).toBe("same-origin");
   });
@@ -62,7 +62,7 @@ describe("createWhoClient", () => {
     );
     const recording = recordingFetch();
 
-    await createWhoClient({ baseUrl: "https://auth.example.com/who", fetch: recording.fetch }).me();
+    await createWhoClient({ baseUrl: "https://auth.example.com/who", fetch: recording.fetch }).me.get();
 
     expect(recording.calls[0]?.[0]).toBe("https://auth.example.com/who/me");
     expect(recording.calls[0]?.[1]?.credentials).toBe("include");
@@ -78,21 +78,21 @@ describe("CSRF", () => {
         setCsrfCookie("a%2Fb");
         return new HttpResponse(null, { status: 401 });
       }),
-      http.delete(at("/who/sessions/a"), ({ request }) => {
-        order.push(`DELETE /who/sessions/a ${request.headers.get("X-XSRF-TOKEN")}`);
+      http.delete(at("/who/me/sessions/a"), ({ request }) => {
+        order.push(`DELETE /who/me/sessions/a ${request.headers.get("X-XSRF-TOKEN")}`);
         return new HttpResponse(null, { status: 204 });
       }),
     );
 
-    await expect(createWhoClient().sessions.end("a")).resolves.toEqual({ ok: true, value: undefined });
+    await expect(createWhoClient().me.sessions.end("a")).resolves.toEqual({ ok: true, value: undefined });
 
-    expect(order).toEqual(["GET /who/me", "DELETE /who/sessions/a a/b"]);
+    expect(order).toEqual(["GET /who/me", "DELETE /who/me/sessions/a a/b"]);
   });
 
   it("reads the cookie fresh on every request", async () => {
     const tokens: (string | null)[] = [];
     server.use(
-      http.delete(at("/who/sessions/a"), ({ request }) => {
+      http.delete(at("/who/me/sessions/a"), ({ request }) => {
         tokens.push(request.headers.get("X-XSRF-TOKEN"));
         return new HttpResponse(null, { status: 204 });
       }),
@@ -100,9 +100,9 @@ describe("CSRF", () => {
     const who = createWhoClient();
 
     setCsrfCookie("one");
-    await who.sessions.end("a");
+    await who.me.sessions.end("a");
     setCsrfCookie("two");
-    await who.sessions.end("a");
+    await who.me.sessions.end("a");
 
     expect(tokens).toEqual(["one", "two"]);
   });
@@ -117,26 +117,30 @@ describe("CSRF", () => {
       }),
     );
 
-    await createWhoClient().me();
+    await createWhoClient().me.get();
 
     expect(header).toBeNull();
   });
 });
 
-describe("me", () => {
+describe("me.get", () => {
   it("answers the signed-in identity", async () => {
-    server.use(http.get(at("/who/me"), () => HttpResponse.json({ identityId: "i1", permissions: ["read"] })));
+    const me = {
+      identityId: "i1",
+      permissions: ["read"],
+      signInMethod: "email-link",
+      recentSignInUntil: "2026-11-16T10:05:00Z",
+      credentials: { email: 1, passkey: 2, account: 0 },
+    };
+    server.use(http.get(at("/who/me"), () => HttpResponse.json(me)));
 
-    await expect(createWhoClient().me()).resolves.toEqual({
-      ok: true,
-      value: { identityId: "i1", permissions: ["read"] },
-    });
+    await expect(createWhoClient().me.get()).resolves.toEqual({ ok: true, value: me });
   });
 
   it("answers signed-out on a 401", async () => {
     server.use(http.get(at("/who/me"), () => new HttpResponse(null, { status: 401 })));
 
-    await expect(createWhoClient().me()).resolves.toEqual({
+    await expect(createWhoClient().me.get()).resolves.toEqual({
       ok: false,
       reason: "signed-out",
       status: 401,
@@ -147,7 +151,7 @@ describe("me", () => {
   it("throws on a status it does not expect", async () => {
     server.use(http.get(at("/who/me"), () => new HttpResponse(null, { status: 500 })));
 
-    const failure = createWhoClient().me();
+    const failure = createWhoClient().me.get();
 
     await expect(failure).rejects.toBeInstanceOf(WhoError);
     await expect(failure).rejects.toMatchObject({ reason: "unexpected", status: 500 });
@@ -156,13 +160,28 @@ describe("me", () => {
   it("throws on a success body that is not JSON", async () => {
     server.use(http.get(at("/who/me"), () => new HttpResponse("nope", { status: 200 })));
 
-    await expect(createWhoClient().me()).rejects.toMatchObject({ reason: "unexpected", status: 200 });
+    await expect(createWhoClient().me.get()).rejects.toMatchObject({ reason: "unexpected", status: 200 });
   });
 
   it("lets a network failure through as it is", async () => {
     server.use(http.get(at("/who/me"), () => HttpResponse.error()));
 
-    await expect(createWhoClient().me()).rejects.toBeInstanceOf(TypeError);
+    await expect(createWhoClient().me.get()).rejects.toBeInstanceOf(TypeError);
+  });
+});
+
+describe("signInOptions", () => {
+  it("answers the ways of signing in", async () => {
+    const options = { email: true, passkey: false, providers: [{ id: "github", name: "GitHub" }] };
+    server.use(http.get(at("/who/sign-in"), () => HttpResponse.json(options)));
+
+    await expect(createWhoClient().signInOptions()).resolves.toEqual({ ok: true, value: options });
+  });
+
+  it("throws on a status it does not expect", async () => {
+    server.use(http.get(at("/who/sign-in"), () => new HttpResponse(null, { status: 500 })));
+
+    await expect(createWhoClient().signInOptions()).rejects.toMatchObject({ reason: "unexpected", status: 500 });
   });
 });
 
@@ -170,13 +189,13 @@ describe("decodeError", () => {
   it("by default parses a JSON error body", async () => {
     server.use(http.get(at("/who/me"), () => HttpResponse.json({ title: "Sign in first" }, { status: 401 })));
 
-    await expect(createWhoClient().me()).resolves.toMatchObject({ detail: { title: "Sign in first" } });
+    await expect(createWhoClient().me.get()).resolves.toMatchObject({ detail: { title: "Sign in first" } });
   });
 
   it("by default gives undefined for a body that is not JSON", async () => {
     server.use(http.get(at("/who/me"), () => new HttpResponse("<html>", { status: 401 })));
 
-    await expect(createWhoClient().me()).resolves.toMatchObject({ detail: undefined });
+    await expect(createWhoClient().me.get()).resolves.toMatchObject({ detail: undefined });
   });
 
   it("puts the application's decoding in detail", async () => {
@@ -185,7 +204,7 @@ describe("decodeError", () => {
       decodeError: async (response) => ((await response.json()) as { detail: string }).detail,
     });
 
-    const result = await who.me();
+    const result = await who.me.get();
 
     expect(result.ok ? undefined : result.detail).toBe("Sign in first");
   });
@@ -195,7 +214,7 @@ describe("decodeError", () => {
     const broken = new Error("decoder broke");
     const who = createWhoClient({ decodeError: () => Promise.reject(broken) });
 
-    await expect(who.me()).rejects.toBe(broken);
+    await expect(who.me.get()).rejects.toBe(broken);
   });
 });
 

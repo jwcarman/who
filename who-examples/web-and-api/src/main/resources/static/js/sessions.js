@@ -77,7 +77,7 @@ function row(session) {
   button.className = 'secondary';
   button.textContent = 'Sign out';
   button.addEventListener('click', async () => {
-    const result = await who.sessions.end(session.id);
+    const result = await who.me.sessions.end(session.id);
     if (result.ok && session.current) location.assign('/signin');
     else if (!result.ok && result.reason !== 'not-found') refused(result.reason);
     else show();
@@ -88,14 +88,14 @@ function row(session) {
 
 async function show() {
   say('');
-  const result = await who.sessions.list();
+  const result = await who.me.sessions.list();
   const sessions = result.ok ? result.value : [];
   list.replaceChildren(...sessions.map(row));
   endOthers.hidden = sessions.length < 2;
 }
 
 endOthers.addEventListener('click', async () => {
-  const result = await who.sessions.endOthers();
+  const result = await who.me.sessions.endOthers();
   if (result.ok) show();
   else refused(result.reason);
 });

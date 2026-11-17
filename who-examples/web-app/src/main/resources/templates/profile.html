@@ -69,9 +69,7 @@
           <span th:text="${a.issuer}">https://accounts.google.com</span><br>
           <span class="muted" th:text="${a.subject}">subject</span>
         </span>
-        <form method="post" th:action="@{/profile/accounts/{id}/unlink(id=${a.id})}">
-          <button type="submit" class="secondary">Unlink</button>
-        </form>
+        <button type="button" class="secondary" data-unlink-account th:attr="data-account-id=${a.id}">Unlink</button>
       </li>
     </ul>
     <!-- A form, not a link: who starts a link only from a CSRF-protected POST. -->

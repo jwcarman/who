@@ -49,7 +49,6 @@ who:
       - /signin/**
       - /members
       - /profile
-      - /api/providers
 
   email-link:
     link-base-url: http://localhost:8080/signin/link

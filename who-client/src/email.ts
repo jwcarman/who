@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, signInRequired, type WhoHttp } from "./http.js";
-import type { SignInRequired, WhoResult } from "./result.js";
+import { json, nothing, removeCredential, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { LastCredential, SignInRequired, WhoResult } from "./result.js";
 
 /** Who signed in. */
 export interface SignedIn {
@@ -36,7 +36,7 @@ export type EmailSignInFailure = "rejected" | HumanCheckFailed;
 /** The reasons confirming a new address can fail. */
 export type ConfirmAddressFailure = SignInRequired | "rejected" | "conflict";
 
-/** Signing in by email link or code, and adding or changing an email address. */
+/** Signing in by email link or code. Your own addresses are under `client.me.emailAddresses`. */
 export interface Email<D> {
   /**
    * Emails a sign-in link and code. who answers the same whether or not the address is known, so
@@ -53,18 +53,42 @@ export interface Email<D> {
    * address bar and history; answers null when the URL has none.
    */
   signInFromLocation(options?: HumanCheckOptions): Promise<WhoResult<SignedIn, EmailSignInFailure, D> | null>;
+}
+
+/** One of your email addresses. */
+export interface EmailAddress {
+  /** who's id for it, which `remove` and `add`'s `replaces` take. */
+  id: string;
+  address: string;
+  created: string;
+}
+
+/** The address a confirmation added. */
+export interface ConfirmedAddress {
+  credentialId: string;
+}
+
+/** Your email addresses: listing, adding, confirming and removing them (`client.me.emailAddresses`). */
+export interface EmailAddresses<D> {
+  /** Your addresses, oldest first. */
+  list(): Promise<WhoResult<EmailAddress[], "signed-out", D>>;
   /**
    * Emails a confirmation to a new address, or one replacing `replaces` (the id of one of your
    * addresses). Needs a recent sign-in.
    */
-  addAddress(address: string, replaces?: string): Promise<WhoResult<void, SignInRequired | "not-found", D>>;
+  add(address: string, replaces?: string): Promise<WhoResult<void, SignInRequired | "not-found", D>>;
   /** Confirms a new address with the emailed link's token or code. */
-  confirmAddress(proof: { token: string } | { code: string }): Promise<WhoResult<void, ConfirmAddressFailure, D>>;
+  confirm(proof: { token: string } | { code: string }): Promise<WhoResult<ConfirmedAddress, ConfirmAddressFailure, D>>;
   /**
    * Confirms with the token in this page's URL (`#confirm-address=...`), first taking it out of the
    * address bar and history; answers null when the URL has none.
    */
-  confirmAddressFromLocation(): Promise<WhoResult<void, ConfirmAddressFailure, D> | null>;
+  confirmFromLocation(): Promise<WhoResult<ConfirmedAddress, ConfirmAddressFailure, D> | null>;
+  /**
+   * Removes one of your addresses by its id. Needs a recent sign-in; another identity's address is
+   * `"not-found"`, and your last sign-in credential is `"last-credential"`.
+   */
+  remove(id: string): Promise<WhoResult<void, SignInRequired | "not-found" | LastCredential, D>>;
 }
 
 /**
@@ -99,15 +123,6 @@ export function email<D>(http: WhoHttp<D>): Email<D> {
       reason: (status, code): EmailSignInFailure | undefined =>
         status === 401 ? "rejected" : humanCheckFailed(status, code),
     });
-  const confirmAddress = (proof: { token: string } | { code: string }) =>
-    http.call({
-      method: "POST",
-      path: "/email/addresses/confirm",
-      body: proof,
-      read: nothing,
-      reason: (status, code): ConfirmAddressFailure | undefined =>
-        signInRequired(status, code) ?? (status === 400 ? "rejected" : status === 409 ? "conflict" : undefined),
-    });
   return {
     send: (address, options) =>
       http.call({
@@ -123,18 +138,41 @@ export function email<D>(http: WhoHttp<D>): Email<D> {
       const token = takeFromFragment("token");
       return token === null ? null : signIn({ token }, options);
     },
-    addAddress: (address, replaces) =>
+  };
+}
+
+export function emailAddresses<D>(http: WhoHttp<D>): EmailAddresses<D> {
+  const confirm = (proof: { token: string } | { code: string }) =>
+    http.call({
+      method: "POST",
+      path: "/me/email-addresses/confirmations",
+      body: proof,
+      read: json<ConfirmedAddress>(),
+      reason: (status, code): ConfirmAddressFailure | undefined =>
+        signInRequired(status, code) ?? (status === 400 ? "rejected" : status === 409 ? "conflict" : undefined),
+    });
+  return {
+    list: () =>
+      http.call({ method: "GET", path: "/me/email-addresses", read: json<EmailAddress[]>(), reason: signedOut }),
+    add: (address, replaces) =>
       http.call({
         method: "POST",
-        path: "/email/addresses",
+        path: "/me/email-addresses",
         body: replaces === undefined ? { address } : { address, replaces },
         read: nothing,
         reason: (status, code) => signInRequired(status, code) ?? (status === 404 ? "not-found" : undefined),
       }),
-    confirmAddress,
-    confirmAddressFromLocation: async () => {
+    confirm,
+    confirmFromLocation: async () => {
       const token = takeFromFragment("confirm-address");
-      return token === null ? null : confirmAddress({ token });
+      return token === null ? null : confirm({ token });
     },
+    remove: (id) =>
+      http.call({
+        method: "DELETE",
+        path: `/me/email-addresses/${encodeURIComponent(id)}`,
+        read: nothing,
+        reason: removeCredential,
+      }),
   };
 }

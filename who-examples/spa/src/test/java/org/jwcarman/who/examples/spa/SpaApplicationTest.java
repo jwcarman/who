@@ -108,10 +108,13 @@ class SpaApplicationTest {
     MockHttpSession member = signedInAs("me@example.com", TeamRole.MEMBER);
 
     mockMvc
-        .perform(get("/api/me").session(member).accept(MediaType.APPLICATION_JSON))
+        .perform(get("/who/me").session(member).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.emails[0].address").value("me@example.com"))
         .andExpect(jsonPath("$.permissions").isArray());
+    mockMvc
+        .perform(get("/who/me/email-addresses").session(member).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].address").value("me@example.com"));
   }
 
   @Test
@@ -120,7 +123,7 @@ class SpaApplicationTest {
         .perform(get("/api/tasks").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isUnauthorized());
     mockMvc
-        .perform(get("/api/me").accept(MediaType.APPLICATION_JSON))
+        .perform(get("/who/me").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isUnauthorized());
   }
 
@@ -133,9 +136,9 @@ class SpaApplicationTest {
           .andExpect(forwardedUrl("/index.html"));
     }
     mockMvc
-        .perform(get("/api/providers").accept(MediaType.APPLICATION_JSON))
+        .perform(get("/who/sign-in").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].id").value("keycloak"));
+        .andExpect(jsonPath("$.providers[0].id").value("keycloak"));
   }
 
   private MockHttpSession signedInAs(String address, TeamRole role) {

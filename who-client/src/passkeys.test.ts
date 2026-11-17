@@ -97,19 +97,19 @@ describe("passkeys.supported", () => {
   });
 });
 
-describe("passkeys.register", () => {
+describe("me.passkeys.register", () => {
   it("turns who's options into bytes, and the new passkey back into who's JSON", async () => {
     let body: unknown;
     server.use(
-      http.post(at("/who/passkey/register/options"), () => HttpResponse.json(CREATION_OPTIONS)),
-      http.post(at("/who/passkey/register"), async ({ request }) => {
+      http.post(at("/who/me/passkeys/options"), () => HttpResponse.json(CREATION_OPTIONS)),
+      http.post(at("/who/me/passkeys"), async ({ request }) => {
         body = await request.json();
         return HttpResponse.json({ success: true });
       }),
     );
     create.mockResolvedValue(created);
 
-    await expect(createWhoClient().passkeys.register("Laptop")).resolves.toEqual({ ok: true, value: undefined });
+    await expect(createWhoClient().me.passkeys.register("Laptop")).resolves.toEqual({ ok: true, value: undefined });
 
     const publicKey = create.mock.calls[0]?.[0].publicKey;
     expect(Array.from(new Uint8Array(publicKey?.challenge as ArrayBuffer))).toEqual([1, 2, 3]);
@@ -136,9 +136,9 @@ describe("passkeys.register", () => {
   });
 
   it("asks nothing of the browser when who needs a recent sign-in", async () => {
-    server.use(http.post(at("/who/passkey/register/options"), () => refused(401, "reauthentication-required")));
+    server.use(http.post(at("/who/me/passkeys/options"), () => refused(401, "reauthentication-required")));
 
-    await expect(createWhoClient().passkeys.register("Laptop")).resolves.toMatchObject({
+    await expect(createWhoClient().me.passkeys.register("Laptop")).resolves.toMatchObject({
       ok: false,
       reason: "reauthentication-required",
     });
@@ -147,22 +147,22 @@ describe("passkeys.register", () => {
 
   it("answers rejected when who refuses the passkey", async () => {
     server.use(
-      http.post(at("/who/passkey/register/options"), () => HttpResponse.json(CREATION_OPTIONS)),
-      http.post(at("/who/passkey/register"), () => refused(400, "invalid-passkey-registration")),
+      http.post(at("/who/me/passkeys/options"), () => HttpResponse.json(CREATION_OPTIONS)),
+      http.post(at("/who/me/passkeys"), () => refused(400, "invalid-passkey-registration")),
     );
     create.mockResolvedValue(created);
 
-    await expect(createWhoClient().passkeys.register("Laptop")).resolves.toMatchObject({
+    await expect(createWhoClient().me.passkeys.register("Laptop")).resolves.toMatchObject({
       ok: false,
       reason: "rejected",
     });
   });
 
   it("answers cancelled when the person dismisses the prompt", async () => {
-    server.use(http.post(at("/who/passkey/register/options"), () => HttpResponse.json(CREATION_OPTIONS)));
+    server.use(http.post(at("/who/me/passkeys/options"), () => HttpResponse.json(CREATION_OPTIONS)));
     create.mockRejectedValue(new DOMException("dismissed", "NotAllowedError"));
 
-    await expect(createWhoClient().passkeys.register("Laptop")).resolves.toEqual({
+    await expect(createWhoClient().me.passkeys.register("Laptop")).resolves.toEqual({
       ok: false,
       reason: "cancelled",
       status: 0,
@@ -171,10 +171,10 @@ describe("passkeys.register", () => {
   });
 
   it("answers already-registered when this device holds a passkey for the account", async () => {
-    server.use(http.post(at("/who/passkey/register/options"), () => HttpResponse.json(CREATION_OPTIONS)));
+    server.use(http.post(at("/who/me/passkeys/options"), () => HttpResponse.json(CREATION_OPTIONS)));
     create.mockRejectedValue(new DOMException("excluded", "InvalidStateError"));
 
-    await expect(createWhoClient().passkeys.register("Laptop")).resolves.toEqual({
+    await expect(createWhoClient().me.passkeys.register("Laptop")).resolves.toEqual({
       ok: false,
       reason: "already-registered",
       status: 0,
@@ -183,11 +183,11 @@ describe("passkeys.register", () => {
   });
 
   it("lets any other browser failure through", async () => {
-    server.use(http.post(at("/who/passkey/register/options"), () => HttpResponse.json(CREATION_OPTIONS)));
+    server.use(http.post(at("/who/me/passkeys/options"), () => HttpResponse.json(CREATION_OPTIONS)));
     const failure = new DOMException("wrong origin", "SecurityError");
     create.mockRejectedValue(failure);
 
-    await expect(createWhoClient().passkeys.register("Laptop")).rejects.toBe(failure);
+    await expect(createWhoClient().me.passkeys.register("Laptop")).rejects.toBe(failure);
   });
 });
 
@@ -254,22 +254,36 @@ describe("passkeys.signIn", () => {
   });
 });
 
-describe("passkeys.remove", () => {
-  it("removes by the escaped credential id", async () => {
-    server.use(http.delete(at("/who/passkey/register/a%2Fb"), () => new HttpResponse(null, { status: 204 })));
+describe("me.passkeys.list", () => {
+  it("answers the passkeys", async () => {
+    const passkey = { credentialId: "cred-1", label: "Laptop", created: "2026-11-16T10:00:00Z", lastUsed: null };
+    server.use(http.get(at("/who/me/passkeys"), () => HttpResponse.json([passkey])));
 
-    await expect(createWhoClient().passkeys.remove("a/b")).resolves.toEqual({ ok: true, value: undefined });
-  });
-
-  it("answers refused for someone else's passkey", async () => {
-    server.use(http.delete(at("/who/passkey/register/x"), () => refused(403)));
-
-    await expect(createWhoClient().passkeys.remove("x")).resolves.toMatchObject({ ok: false, reason: "refused" });
+    await expect(createWhoClient().me.passkeys.list()).resolves.toEqual({ ok: true, value: [passkey] });
   });
 
   it("answers signed-out on a 401", async () => {
-    server.use(http.delete(at("/who/passkey/register/x"), () => refused(401)));
+    server.use(http.get(at("/who/me/passkeys"), () => refused(401, "not-signed-in")));
 
-    await expect(createWhoClient().passkeys.remove("x")).resolves.toMatchObject({ ok: false, reason: "signed-out" });
+    await expect(createWhoClient().me.passkeys.list()).resolves.toMatchObject({ ok: false, reason: "signed-out" });
+  });
+});
+
+describe("me.passkeys.remove", () => {
+  it("removes by the escaped credential id", async () => {
+    server.use(http.delete(at("/who/me/passkeys/a%2Fb"), () => new HttpResponse(null, { status: 204 })));
+
+    await expect(createWhoClient().me.passkeys.remove("a/b")).resolves.toEqual({ ok: true, value: undefined });
+  });
+
+  it.each([
+    [401, "reauthentication-required", "reauthentication-required"],
+    [401, "not-signed-in", "signed-out"],
+    [404, undefined, "not-found"],
+    [409, undefined, "last-credential"],
+  ])("answers %i %s as %s", async (status, code, reason) => {
+    server.use(http.delete(at("/who/me/passkeys/x"), () => refused(status, code)));
+
+    await expect(createWhoClient().me.passkeys.remove("x")).resolves.toMatchObject({ ok: false, reason, status });
   });
 });

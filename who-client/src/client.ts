@@ -13,33 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { type Admin, admin } from "./admin.js";
 import { type Email, email } from "./email.js";
-import { json, nothing, signedOut, type WhoClientOptions, WhoHttp } from "./http.js";
+import { json, nothing, type WhoClientOptions, WhoHttp } from "./http.js";
+import { me, type MyAccount } from "./me.js";
 import { type Oidc, oidc } from "./oidc.js";
 import { type Passkeys, passkeys } from "./passkeys.js";
 import type { WhoResult } from "./result.js";
-import { type Sessions, sessions } from "./sessions.js";
 
-/** The signed-in identity. */
-export interface Me {
-  identityId: string;
-  permissions: string[];
+/** A provider to draw a sign-in button for. */
+export interface SignInProvider {
+  /** The registration id, which `oidc.authorizeUrl` takes. */
+  id: string;
+  name: string;
+}
+
+/** The ways of signing in that are on, for a signed-out page to draw. */
+export interface SignInOptions {
+  email: boolean;
+  passkey: boolean;
+  providers: SignInProvider[];
 }
 
 /** who's browser endpoints, each a typed call. */
 export interface WhoClient<D> {
-  /** The signed-in identity and its permissions. */
-  me(): Promise<WhoResult<Me, "signed-out", D>>;
+  /** The ways of signing in that are on; public. */
+  signInOptions(): Promise<WhoResult<SignInOptions, never, D>>;
   /** Signs out, and fetches a fresh CSRF cookie for whoever signs in next. */
   signOut(): Promise<void>;
-  /** Where this person is signed in. */
-  sessions: Sessions<D>;
-  /** Signing in by email link or code, and email addresses. */
+  /** Your own account: who you are, your sessions, passkeys, addresses, linked accounts, API keys. */
+  me: MyAccount<D>;
+  /** Signing in by email link or code. */
   email: Email<D>;
-  /** Signing in with a passkey, and registering and removing them. */
+  /** Signing in with a passkey. */
   passkeys: Passkeys<D>;
-  /** Signing in with a provider, and linking provider accounts. */
+  /** Signing in with a provider, and finishing a pending sign-up or link. */
   oidc: Oidc<D>;
+  /** Managing identities, roles and invitations, with who's admin permissions. */
+  admin: Admin<D>;
 }
 
 /**
@@ -50,14 +61,21 @@ export interface WhoClient<D> {
 export function createWhoClient<D = unknown>(options: WhoClientOptions<D> = {}): WhoClient<D> {
   const http = new WhoHttp<D>(options);
   return {
-    me: () => http.call({ method: "GET", path: "/me", read: json<Me>(), reason: signedOut }),
+    signInOptions: () =>
+      http.call<SignInOptions, never>({
+        method: "GET",
+        path: "/sign-in",
+        read: json<SignInOptions>(),
+        reason: () => undefined,
+      }),
     signOut: async () => {
       await http.call({ method: "POST", path: "/logout", read: nothing, reason: () => undefined });
       await http.refreshCsrf();
     },
-    sessions: sessions(http),
+    me: me(http),
     email: email(http),
     passkeys: passkeys(http),
     oidc: oidc(http),
+    admin: admin(http),
   };
 }

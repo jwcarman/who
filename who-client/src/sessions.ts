@@ -24,13 +24,14 @@ export interface Session {
   id: string;
   device: string;
   userAgent: string | null;
+  /** How the browser signed in, as a lowercase hyphenated tag: `email-link`, `passkey`, `oidc`... */
   signInMethod: string;
   signedInAt: string;
   lastSeenAt: string;
   current: boolean;
 }
 
-/** Where this person is signed in, and signing browsers out. */
+/** Where you are signed in, and signing browsers out (`client.me.sessions`). */
 export interface Sessions<D> {
   /** Where this person is signed in, newest first. */
   list(): Promise<WhoResult<Session[], "signed-out", D>>;
@@ -42,18 +43,18 @@ export interface Sessions<D> {
 
 export function sessions<D>(http: WhoHttp<D>): Sessions<D> {
   return {
-    list: () => http.call({ method: "GET", path: "/sessions", read: json<Session[]>(), reason: signedOut }),
+    list: () => http.call({ method: "GET", path: "/me/sessions", read: json<Session[]>(), reason: signedOut }),
     end: (id) =>
       http.call({
         method: "DELETE",
-        path: `/sessions/${encodeURIComponent(id)}`,
+        path: `/me/sessions/${encodeURIComponent(id)}`,
         read: nothing,
         reason: (status, code) => signInRequired(status, code) ?? (status === 404 ? "not-found" : undefined),
       }),
     endOthers: () =>
       http.call({
         method: "DELETE",
-        path: "/sessions?others=true",
+        path: "/me/sessions?others=true",
         read: json<{ ended: number }>(),
         reason: signInRequired,
       }),
