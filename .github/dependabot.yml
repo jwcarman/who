@@ -17,6 +17,13 @@ updates:
       include: "scope"
     reviewers:
       - "jwcarman"
+    ignore:
+      # Must match the OpenTelemetry version Spring Boot manages; moved by hand with Spring Boot.
+      # The observability example's OpenTelemetryLogsTest fails when the two disagree.
+      - dependency-name: "io.opentelemetry.instrumentation:*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
     # Group updates by dependency type
     groups:
       spring:
