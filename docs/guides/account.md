@@ -205,6 +205,14 @@ The count and the removal happen in one transaction that locks the identity's ro
 on a removal is: signed out (`401`), not a browser (`403`), not recent (`401`), not the caller's
 (`404`), the last credential (`409`).
 
+The count is of the credentials the identity has, not of the ways in that work today. A linked
+account counts even when `who.oidc.enabled=false`, or when its provider's registration has been
+removed from the configuration, though no one can sign in with it then. So a person whose only
+other credential is such an account can remove their last usable one and lock themselves out.
+Before turning OIDC off or removing a provider, make sure the people who sign in with it have an
+email address or a passkey too; an admin can [invite](admin.md#invitations) anyone who is locked
+out.
+
 The services keep their contract: `PasskeyService.revoke`, `EmailCredentialService.revoke` and
 `FederatedCredentialService.unlink` check neither ownership nor this rule. Code of yours that
 removes a credential on a person's behalf applies the rule with the `LastCredentialGuard` bean:

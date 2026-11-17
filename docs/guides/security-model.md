@@ -220,6 +220,11 @@ that ever broke the parsers.
   [events](events.md).
 - **Answer errors safely.** who throws and your application formats the response
   ([Errors](errors.md)); keep failure responses as uniform as who's.
+- **Know that who's endpoints answer before your authorization rules.** The `/who/me` and admin
+  endpoints answer from filters that run before Spring Security's `AuthorizationFilter`, so an
+  `authorizeHttpRequests` rule of yours (an IP allow-list, `hasRole`) never sees them; who's own
+  checks guard them ([Admin](admin.md#turn-it-on)). To restrict the admin endpoints further, turn
+  them off with `who.admin.enabled=false` and serve your own, or replace their beans.
 
 ## What who assumes
 

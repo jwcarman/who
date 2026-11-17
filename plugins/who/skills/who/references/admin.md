@@ -32,6 +32,15 @@ The endpoints go on every chain who's configurers build, browser and stateless a
 `who.admin.enabled=false` turns them off without removing the jar. Invitations also need
 `who-email-link`; without it there is no `POST /who/invitations`.
 
+**Your authorization rules do not see them.** The endpoints answer from a filter right after
+`ExceptionTranslationFilter`, before Spring Security's `AuthorizationFilter`, so rules you write in
+`authorizeHttpRequests` (an IP allow-list, `hasRole`, a network check) never run for
+`/who/identities`, `/who/roles` or `/who/invitations`; neither do they for who's `/who/me`
+endpoints. who's own checks below are what guard them. To put the admin screen behind more than
+that, set `who.admin.enabled=false` and serve your own endpoints (see
+[Your own admin endpoints](#your-own-admin-endpoints)), or replace the `WhoAdminEndpoints` and
+`WhoInvitationEndpoints` beans.
+
 ## Permissions
 
 who defines two permissions, as constants in `WhoAdminPermissions`, and grants them to no one:
@@ -65,7 +74,47 @@ Every admin endpoint checks, in this order, before it looks at anything the requ
    API key needs no recent sign-in. Reads never do.
 
 Then an unknown identity or role is `404`, and a query or body who refuses is `400`
-(`InvalidAdminRequestException`, which names the rule broken).
+(`InvalidAdminRequestException`, which names the rule broken). A session cookie with an `X-API-Key`
+or `Authorization: Bearer` header beside it is neither a browser session nor a stateless caller:
+it may read, but a change from it is `403`, even when the header is ignored.
+
+### Changing an identity
+
+A change to an existing identity (`PATCH` its status, `PUT` or `DELETE` one of its roles) is then
+checked, in this order, before anything changes:
+
+1. The identity outranks the caller: `403` `IdentityOutranksCallerException`
+   (`identity-outranks-caller`). The caller must hold every permission the identity holds, as who
+   resolves them for it whatever its status, so a manager cannot deactivate, reactivate or change
+   the roles of an owner who holds more than they do. The caller's permissions are those of its
+   sign-in, so an API key counts only what its scopes keep. Acting on yourself always passes.
+2. Assigning a role the caller could not hold: `403` `role-grant-forbidden` (see
+   [Roles](#roles)).
+3. Deactivating yourself: `409` `self-deactivation`.
+4. Leaving no admin: `409` `LastAdminException` (`last-admin`), described next.
+
+### The last admin
+
+Deactivating an identity, or removing a role from one, is refused with `409`
+`LastAdminException` (`last-admin`) when it would leave no `ACTIVE` identity holding
+`who.identities.manage`. That covers removing your own admin role when no one else holds it, and
+deactivating the only other holder. It applies only to a change from one or more holders to none:
+when no one holds the permission, nothing is refused.
+
+The count and the change run in one transaction that first locks the `who_role` rows of every role
+carrying `who.identities.manage` (`SELECT ... FOR UPDATE`), so two changes cannot both count before
+either commits: two admins demoting each other at the same moment leave one admin, not none. A
+concurrent assignment of one of those roles waits for the lock. `LastAdminGuard` is the bean that
+does this; it needs exactly one `PlatformTransactionManager`, and without one the admin endpoints
+fail startup rather than run without the rule.
+
+who counts holders from who-rbac's tables, the active identities assigned a role that carries the
+permission, because that is who holds it when who-rbac resolves permissions. With a
+`PermissionsResolver` of your own (marked `@Primary` over who-rbac's), who cannot tell who holds
+the permission, so the rule refuses nothing rather than refuse on a count it cannot trust, and who
+logs a warning at startup: `who: the last-admin rule is off`. Keep an admin of your own in that
+case. Changes made in your own code through `RbacService` or `WhoService.deactivate` are not
+checked.
 
 | Endpoint | Permission | Success |
 |---|---|---|
@@ -87,7 +136,7 @@ An identity looks like this:
 {
   "id": "0f8e5c1a-6d1b-4e55-9a49-4c9f3a0a7d2e",
   "status": "ACTIVE",
-  "created": "2026-11-16T09:12:44Z",
+  "createdAt": "2026-11-16T09:12:44Z",
   "roles": ["admin", "editor"],
   "emailAddresses": ["alice@example.com"],
   "credentials": { "email": 1, "passkey": 2, "account": 0 }
@@ -183,9 +232,28 @@ Then:
 | `400` | `invalid-admin-request` | The body is not a JSON object, `email` is not a string, or `roles` is not an array of strings |
 | `400` | `invalid-invitation` | The address is missing or malformed, a role name is blank or names no role, or roles were asked for without `who-rbac` |
 | `403` | `role-grant-forbidden` | A role carries a permission the caller does not hold, as for assigning one |
-| `409` | `email-address-taken` | The address is already an identity's |
+| `409` | `email-address-taken` | The address is already an identity's, or a concurrent invite of the same address took it first |
 
 Nothing is created in any of these cases.
+
+An exception from your [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
+listener rolls the invitation back and goes through your exception handling, like every who
+failure (see [Errors](errors.md)): a `@RestControllerAdvice` of yours answers it, or the
+exception's own `@ResponseStatus` does. A listener that refuses an invitation can say why:
+
+```java
+@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+class SeatLimitReachedException extends RuntimeException {}
+
+@EventListener
+void on(IdentityInvited event) {
+  if (seats.full()) {
+    throw new SeatLimitReachedException(); // POST /who/invitations answers 422, nothing created
+  }
+}
+```
+
+An exception nothing answers and that carries no status is `500`.
 
 ### `InvitationService`
 

@@ -168,9 +168,9 @@ Each needs a [permission](admin.md#permissions): `who.identities.read` for the r
 |---|---|---|---|
 | `admin.identities.list(query?)` | `GET /identities` | `IdentityPage` | `'signed-out'`, `'permission-required'`, `'invalid-admin-request'` |
 | `admin.identities.get(id)` | `GET /identities/{id}` | `AdminIdentity` | `'signed-out'`, `'permission-required'`, `'identity-not-found'` |
-| `admin.identities.setStatus(id, 'ACTIVE' \| 'DISABLED')` | `PATCH /identities/{id}` | `AdminIdentity` | *sign-in*, `'permission-required'`, `'identity-not-found'`, `'invalid-admin-request'`, `'self-deactivation'` |
-| `admin.identities.addRole(id, role)` | `PUT /identities/{id}/roles/{role}` | none | *sign-in*, `'permission-required'`, `'role-grant-forbidden'`, `'identity-not-found'`, `'unknown-role'` |
-| `admin.identities.removeRole(id, role)` | `DELETE /identities/{id}/roles/{role}` | none | *sign-in*, `'permission-required'`, `'identity-not-found'`, `'unknown-role'` |
+| `admin.identities.setStatus(id, 'ACTIVE' \| 'DISABLED')` | `PATCH /identities/{id}` | `AdminIdentity` | *sign-in*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'invalid-admin-request'`, `'self-deactivation'`, `'last-admin'` |
+| `admin.identities.addRole(id, role)` | `PUT /identities/{id}/roles/{role}` | none | *sign-in*, `'permission-required'`, `'identity-outranks-caller'`, `'role-grant-forbidden'`, `'identity-not-found'`, `'unknown-role'` |
+| `admin.identities.removeRole(id, role)` | `DELETE /identities/{id}/roles/{role}` | none | *sign-in*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'unknown-role'`, `'last-admin'` |
 | `admin.roles.list()` | `GET /roles` | `AdminRole[]` | `'signed-out'`, `'permission-required'` |
 | `admin.invite(email, roles?)` | `POST /invitations` | `{ identityId, linkSent }` | *sign-in*, `'permission-required'`, `'role-grant-forbidden'`, `'invalid-invitation'`, `'invalid-admin-request'`, `'email-address-taken'` |
 

@@ -83,6 +83,8 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `insufficient-user-authentication` | `InsufficientUserAuthenticationException` |
 | `recent-sign-in-unavailable` | `RecentSignInUnavailableException` |
 | `invalid-passkey-registration` | `InvalidPasskeyRegistrationException` |
+| `session-not-found` | `SessionNotFoundException` |
+| `passkey-not-found` | `PasskeyNotFoundException` |
 | `invalid-confirmation` | `InvalidEmailAddressConfirmationException` |
 | `email-address-not-found` | `EmailCredentialNotFoundException` |
 | `email-address-taken` | `EmailAddressTakenException` |
@@ -97,10 +99,12 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `invalid-api-key-request` | `InvalidApiKeyRequestException` |
 | `permission-required` | `PermissionRequiredException` |
 | `role-grant-forbidden` | `RoleGrantForbiddenException` |
+| `identity-outranks-caller` | `IdentityOutranksCallerException` |
 | `identity-not-found` | `IdentityNotFoundException` |
 | `unknown-role` | `UnknownRoleException` |
 | `invalid-admin-request` | `InvalidAdminRequestException` |
 | `self-deactivation` | `SelfDeactivationException` |
+| `last-admin` | `LastAdminException` |
 | `invalid-invitation` | `InvalidInvitationException` |
 
 The codes are a public contract and do not change between releases. Each exception returns its code from `errorCode()`: the `WhoErrorCode` interface, or, for `LastCredentialException`, which lives in `who-core` without Spring, a method of its own.

@@ -22,6 +22,15 @@ The endpoints go on every chain who's configurers build, browser and stateless a
 `who.admin.enabled=false` turns them off without removing the jar. Invitations also need
 `who-email-link`; without it there is no `POST /who/invitations`.
 
+**Your authorization rules do not see them.** The endpoints answer from a filter right after
+`ExceptionTranslationFilter`, before Spring Security's `AuthorizationFilter`, so rules you write in
+`authorizeHttpRequests` (an IP allow-list, `hasRole`, a network check) never run for
+`/who/identities`, `/who/roles` or `/who/invitations`; neither do they for who's `/who/me`
+endpoints. who's own checks below are what guard them. To put the admin screen behind more than
+that, set `who.admin.enabled=false` and serve your own endpoints (see
+[Your own admin endpoints](#your-own-admin-endpoints)), or replace the `WhoAdminEndpoints` and
+`WhoInvitationEndpoints` beans.
+
 ## Permissions
 
 who defines two permissions, as constants in `WhoAdminPermissions`, and grants them to no one:
