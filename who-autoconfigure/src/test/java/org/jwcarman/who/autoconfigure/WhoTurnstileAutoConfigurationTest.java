@@ -41,6 +41,9 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.boot.http.client.HttpRedirects;
+import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration;
+import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration;
+import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -58,8 +61,16 @@ class WhoTurnstileAutoConfigurationTest {
 
   private static final String SECRET = "who.turnstile.secret-key=0x4AAAAAAAsecret";
 
+  /** Spring Boot's HTTP client and RestClient auto-configurations, which who-turnstile brings. */
+  private static final AutoConfigurations SPRING_BOOT_REST_CLIENT =
+      AutoConfigurations.of(
+          HttpClientAutoConfiguration.class,
+          ImperativeHttpClientAutoConfiguration.class,
+          RestClientAutoConfiguration.class);
+
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
+          .withConfiguration(SPRING_BOOT_REST_CLIENT)
           .withConfiguration(AutoConfigurations.of(WhoTurnstileAutoConfiguration.class))
           // this module's surefire turns Turnstile off for every other test
           .withPropertyValues("who.turnstile.enabled=true");
@@ -335,6 +346,31 @@ class WhoTurnstileAutoConfigurationTest {
   }
 
   @Test
+  void spring_boots_http_client_properties_are_used() throws IOException {
+    HttpServer server = redirecting();
+    try {
+      runner
+          .withPropertyValues(
+              SECRET, verifyUrl(server), "spring.http.clients.redirects=dont-follow")
+          .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void without_a_rest_client_builder_startup_fails() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(WhoTurnstileAutoConfiguration.class))
+        .withPropertyValues("who.turnstile.enabled=true", SECRET)
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .isNotNull()
+                    .hasStackTraceContaining(RestClient.Builder.class.getName()));
+  }
+
+  @Test
   void the_applications_http_client_settings_are_used() throws IOException {
     HttpServer server = redirecting();
     try {
@@ -376,32 +412,13 @@ class WhoTurnstileAutoConfigurationTest {
         .run(
             context -> {
               assertThat(context).hasNotFailed();
+              // Spring Boot builds its own factory from the same builder, with the app's 5 minutes
               assertThat(BUILT_WITH)
-                  .singleElement()
-                  .isEqualTo(
+                  .contains(
                       HttpClientSettings.defaults()
                           .withRedirects(HttpRedirects.DONT_FOLLOW)
                           .withTimeouts(Duration.ofMillis(750), Duration.ofMillis(750)));
             });
-  }
-
-  @Test
-  void without_spring_boots_http_client_the_timeout_still_holds() throws IOException {
-    HttpServer server = siteverify(Duration.ofSeconds(2));
-    try {
-      runner
-          .withClassLoader(new FilteredClassLoader(ClientHttpRequestFactoryBuilder.class))
-          .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
-          .run(
-              context -> {
-                WhoHumanCheck check = context.getBean(WhoHumanCheck.class);
-                assertThat(
-                        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> check.passes(SEND)))
-                    .isFalse();
-              });
-    } finally {
-      server.stop(0);
-    }
   }
 
   @Configuration(proxyBeanMethods = false)

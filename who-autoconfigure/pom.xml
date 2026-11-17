@@ -144,7 +144,7 @@
             <artifactId>micrometer-observation-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Turnstile builds its client from the application's HTTP client settings when present -->
+        <!-- Turnstile's client is built from the application's HTTP client settings (who-turnstile brings them) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-http-client</artifactId>

@@ -413,9 +413,9 @@ Your verifier is used even with a test key.
 
 ### The HTTP client
 
-who calls Cloudflare with your application's `RestClient.Builder` bean when it has one, such as Spring Boot's from `spring-boot-starter-restclient`, so its observations, interceptors and customizers apply. who copies the builder, so yours is left as it was.
+`who-turnstile` brings Spring Boot's RestClient support (`spring-boot-restclient`), and who calls Cloudflare with Spring Boot's `RestClient.Builder`, or yours if you define one, so its observations, interceptors and customizers apply. who copies the builder, so yours is left as it was.
 
-With Spring Boot's HTTP client module on the classpath (`spring-boot-http-client`, which `spring-boot-starter-restclient` brings), who builds the client from your application's HTTP client settings, `spring.http.clients.*` or your own `HttpClientSettings` and `ClientHttpRequestFactoryBuilder` beans: the client library, SSL bundle, redirects and the rest carry over, and only the timeouts are replaced by `who.turnstile.timeout`. Without that module, who uses Spring's plain `SimpleClientHttpRequestFactory` with its timeout; outbound proxies set through the JVM's `https.proxyHost` and `https.proxyPort` system properties apply.
+The client is built from your application's HTTP client settings, `spring.http.clients.*` or your own `HttpClientSettings` and `ClientHttpRequestFactoryBuilder` beans: the client library, SSL bundle, redirects and the rest carry over. Only the timeouts are replaced, by `who.turnstile.timeout`, so a slow Cloudflare can never hold a sign-in longer than who allows.
 
 The timeout bounds connecting and reading separately, so a call that connects slowly and then answers slowly can take up to twice `who.turnstile.timeout`.
 

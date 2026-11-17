@@ -24,9 +24,7 @@ import org.jwcarman.who.turnstile.TurnstileHumanCheck;
 import org.jwcarman.who.turnstile.TurnstileVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -36,8 +34,6 @@ import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
@@ -49,7 +45,11 @@ import org.springframework.web.client.RestClient;
  * <p>An application's {@link TurnstileVerifier} bean decides what Cloudflare's answers pass.
  * Without one, a Cloudflare test secret key passes on success alone, with a warning at startup, and
  * any other key gets the strict {@link TurnstileVerifier}.
+ *
+ * <p>The client is built from Spring Boot's {@link RestClient.Builder} and the application's HTTP
+ * client settings, which {@code who-turnstile} brings; only the timeouts are who's.
  */
+// named, not referenced: these come with who-turnstile, which may be absent
 @AutoConfiguration(
     afterName = {
       "org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration",
@@ -62,9 +62,6 @@ import org.springframework.web.client.RestClient;
 public class WhoTurnstileAutoConfiguration {
 
   private static final Logger log = LoggerFactory.getLogger(WhoTurnstileAutoConfiguration.class);
-
-  private static final String SPRING_BOOT_HTTP_CLIENT =
-      "org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder";
 
   private static final String SECRET_KEY = "who.turnstile.secret-key";
   private static final String TURN_OFF = " Or turn the check off with who.turnstile.enabled=false.";
@@ -79,9 +76,11 @@ public class WhoTurnstileAutoConfiguration {
    *
    * @param whoProperties who's properties
    * @param verifiers the application's verifier, if it has one
-   * @param builders the application's {@link RestClient.Builder}, such as Spring Boot's with its
-   *     observations and customizers; copied, then given who's request factory
-   * @param beanFactory where Spring Boot's HTTP client settings are found, when it has them
+   * @param restClientBuilder Spring Boot's {@link RestClient.Builder}, or the application's, with
+   *     its observations and customizers; copied, then given who's request factory
+   * @param requestFactories builds request factories with the application's HTTP client library
+   * @param httpClientSettings the application's HTTP client settings, which who keeps but for the
+   *     timeouts
    * @return the check
    */
   @Bean
@@ -89,8 +88,9 @@ public class WhoTurnstileAutoConfiguration {
   public TurnstileHumanCheck turnstileHumanCheck(
       WhoProperties whoProperties,
       ObjectProvider<TurnstileVerifier> verifiers,
-      ObjectProvider<RestClient.Builder> builders,
-      BeanFactory beanFactory) {
+      RestClient.Builder restClientBuilder,
+      ClientHttpRequestFactoryBuilder<?> requestFactories,
+      HttpClientSettings httpClientSettings) {
     WhoProperties.Turnstile properties = whoProperties.getTurnstile();
     String secretKey = properties.getSecretKey();
     if (!StringUtils.hasText(secretKey)) {
@@ -115,11 +115,12 @@ public class WhoTurnstileAutoConfiguration {
           "Set how long to wait for Cloudflare, such as 3s, or leave it out.");
     }
     URI verifyUrl = verifyUrl(properties.getVerifyUrl());
-    ClientHttpRequestFactory requestFactory = requestFactory(beanFactory, timeout);
+    // the application's settings, all but the timeouts, which are who's to bound a sign-in
+    ClientHttpRequestFactory requestFactory =
+        requestFactories.build(httpClientSettings.withTimeouts(timeout, timeout));
     String secret = secretKey.strip();
     return new TurnstileHumanCheck(
-        builders
-            .getIfAvailable(RestClient::builder)
+        restClientBuilder
             .clone()
             // who.turnstile.timeout must hold, so who's request factory replaces the builder's
             .requestFactory(requestFactory)
@@ -140,44 +141,6 @@ public class WhoTurnstileAutoConfiguration {
       return TurnstileVerifier.successOnly();
     }
     return TurnstileVerifier.strict(properties.getHostnames());
-  }
-
-  /**
-   * The request factory for Cloudflare: built from the application's HTTP client settings, all but
-   * the timeouts, which are who's, when Spring Boot's HTTP client module is present; otherwise a
-   * plain one with who's timeouts.
-   */
-  private static ClientHttpRequestFactory requestFactory(
-      BeanFactory beanFactory, Duration timeout) {
-    ClassLoader classLoader =
-        beanFactory instanceof ConfigurableBeanFactory configurable
-            ? configurable.getBeanClassLoader()
-            : WhoTurnstileAutoConfiguration.class.getClassLoader();
-    if (ClassUtils.isPresent(SPRING_BOOT_HTTP_CLIENT, classLoader)) {
-      return SpringBootHttpClient.requestFactory(beanFactory, timeout);
-    }
-    SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-    requestFactory.setConnectTimeout(timeout);
-    requestFactory.setReadTimeout(timeout);
-    return requestFactory;
-  }
-
-  /** Touches Spring Boot's HTTP client types; loaded only when they are on the classpath. */
-  private static final class SpringBootHttpClient {
-
-    private SpringBootHttpClient() {}
-
-    static ClientHttpRequestFactory requestFactory(BeanFactory beanFactory, Duration timeout) {
-      ClientHttpRequestFactoryBuilder<?> factories =
-          beanFactory
-              .getBeanProvider(ClientHttpRequestFactoryBuilder.class)
-              .getIfAvailable(ClientHttpRequestFactoryBuilder::detect);
-      HttpClientSettings settings =
-          beanFactory
-              .getBeanProvider(HttpClientSettings.class)
-              .getIfAvailable(HttpClientSettings::defaults);
-      return factories.build(settings.withTimeouts(timeout, timeout));
-    }
   }
 
   /** The verify URL, which must be an absolute http or https URL. */
