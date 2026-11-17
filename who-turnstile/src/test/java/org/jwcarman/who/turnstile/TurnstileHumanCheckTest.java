@@ -271,7 +271,13 @@ class TurnstileHumanCheckTest {
     assertThat(passed).isTrue();
     assertThat(seen)
         .containsExactly(
-            new TurnstileAnswer(true, Optional.empty(), Optional.of("example.com"), List.of()));
+            new TurnstileAnswer(
+                true,
+                Optional.empty(),
+                Optional.of("example.com"),
+                Optional.empty(),
+                Optional.empty(),
+                List.of()));
   }
 
   @Test

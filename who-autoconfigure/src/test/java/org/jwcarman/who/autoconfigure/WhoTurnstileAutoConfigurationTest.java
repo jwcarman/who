@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -42,6 +43,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestClient;
 
 import com.sun.net.httpserver.HttpServer;
 
@@ -225,6 +227,58 @@ class WhoTurnstileAutoConfigurationTest {
       runner
           .withPropertyValues(SECRET, verifyUrl(server))
           .run(context -> assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isFalse());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  static final AtomicInteger INTERCEPTED = new AtomicInteger();
+
+  @Configuration(proxyBeanMethods = false)
+  static class ApplicationBuilder {
+    @Bean
+    RestClient.Builder restClientBuilder() {
+      return RestClient.builder()
+          .requestInterceptor(
+              (request, body, execution) -> {
+                INTERCEPTED.incrementAndGet();
+                return execution.execute(request, body);
+              });
+    }
+  }
+
+  @Test
+  void the_applications_rest_client_builder_is_used() throws IOException {
+    INTERCEPTED.set(0);
+    HttpServer server = siteverify(Duration.ZERO);
+    try {
+      runner
+          .withUserConfiguration(ApplicationBuilder.class)
+          .withPropertyValues(SECRET, verifyUrl(server))
+          .run(
+              context -> {
+                assertThat(context.getBean(WhoHumanCheck.class).passes(SEND)).isTrue();
+                assertThat(INTERCEPTED).hasValue(1);
+              });
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void the_timeout_holds_with_the_applications_builder() throws IOException {
+    HttpServer server = siteverify(Duration.ofSeconds(2));
+    try {
+      runner
+          .withUserConfiguration(ApplicationBuilder.class)
+          .withPropertyValues(SECRET, verifyUrl(server), "who.turnstile.timeout=200ms")
+          .run(
+              context -> {
+                WhoHumanCheck check = context.getBean(WhoHumanCheck.class);
+                assertThat(
+                        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> check.passes(SEND)))
+                    .isFalse();
+              });
     } finally {
       server.stop(0);
     }

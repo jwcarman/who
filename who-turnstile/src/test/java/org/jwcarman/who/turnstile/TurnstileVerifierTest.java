@@ -17,6 +17,7 @@ package org.jwcarman.who.turnstile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +38,12 @@ class TurnstileVerifierTest {
 
   private static TurnstileAnswer answer(boolean success, String action, String hostname) {
     return new TurnstileAnswer(
-        success, Optional.ofNullable(action), Optional.ofNullable(hostname), List.of());
+        success,
+        Optional.ofNullable(action),
+        Optional.ofNullable(hostname),
+        Optional.empty(),
+        Optional.empty(),
+        List.of());
   }
 
   @Test
@@ -80,17 +86,26 @@ class TurnstileVerifierTest {
     assertThat(
             TurnstileAnswer.of(
                 Map.of(
-                    "success",
-                    true,
-                    "action",
-                    "email-send",
-                    "hostname",
-                    "app.example.com",
-                    "error-codes",
-                    List.of("x", 3))))
+                    "success", true,
+                    "action", "email-send",
+                    "hostname", "app.example.com",
+                    "challenge_ts", "2026-11-16T12:00:00.000Z",
+                    "cdata", "session-42",
+                    "error-codes", List.of("x", 3))))
         .isEqualTo(
             new TurnstileAnswer(
-                true, Optional.of("email-send"), Optional.of("app.example.com"), List.of("x")));
+                true,
+                Optional.of("email-send"),
+                Optional.of("app.example.com"),
+                Optional.of(Instant.parse("2026-11-16T12:00:00Z")),
+                Optional.of("session-42"),
+                List.of("x")));
+  }
+
+  @Test
+  void a_challenge_time_that_is_not_a_time_is_absent() {
+    assertThat(TurnstileAnswer.of(Map.of("challenge_ts", "yesterday")).challengeTs()).isEmpty();
+    assertThat(TurnstileAnswer.of(Map.of("challenge_ts", 42)).challengeTs()).isEmpty();
   }
 
   @Test

@@ -37,7 +37,7 @@
 | `who.turnstile.secret-key` | none | The Turnstile widget's secret key. Required with `who-turnstile`: a missing, blank or unresolved value fails startup. See [Human check](email-links.md#human-check) |
 | `who.turnstile.verify-url` | `https://challenges.cloudflare.com/turnstile/v0/siteverify` | Where tokens are verified. Point it at a stand-in, such as WireMock, in tests. An absolute `http` or `https` URL; anything else fails startup |
 | `who.turnstile.hostnames` | none | Hostnames a Turnstile token may be made on. Empty accepts any |
-| `who.turnstile.timeout` | `3s` | How long to wait for Cloudflare, to connect and to answer |
+| `who.turnstile.timeout` | `3s` | How long to wait for Cloudflare, to connect and, separately, to answer; a call can take up to twice this |
 | `who.turnstile.fail-open` | `false` | Lets requests through when Cloudflare cannot be reached or answers an error. A token Cloudflare refuses always fails |
 | `who.passkey.rp-id` | none | The application's own host, such as `app.example.com`. Required with `who-passkey`: startup fails without it. Never use a registrable domain that other apps share |
 | `who.passkey.rp-name` | `who` | Name of the relying party, shown by authenticators. Must not be blank |

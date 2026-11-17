@@ -18,6 +18,9 @@ package org.jwcarman.who.spring.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -38,14 +42,22 @@ class HumanCheckFilterTest {
   private static final Map<String, String> ACTIONS =
       Map.of("/who/email/send", "email-send", "/who/email/sign-in", "email-sign-in");
 
+  private static final Instant NOW = Instant.parse("2026-11-16T12:00:00Z");
+
   private final List<HumanCheckRequest> seen = new ArrayList<>();
+  private final List<WhoEvent> events = new ArrayList<>();
 
   private MockHttpServletResponse run(WhoHumanCheck check, MockHttpServletRequest request)
       throws Exception {
     MockHttpServletResponse response = new MockHttpServletResponse();
     MockFilterChain chain = new MockFilterChain();
     new HumanCheckFilter(
-            check, new WhoExceptionHandoff(null), PathPatternRequestMatcher.withDefaults(), ACTIONS)
+            check,
+            new WhoExceptionHandoff(null),
+            PathPatternRequestMatcher.withDefaults(),
+            ACTIONS,
+            events::add,
+            Clock.fixed(NOW, ZoneOffset.UTC))
         .doFilter(request, response, chain);
     reached = chain.getRequest() != null;
     return response;
@@ -54,10 +66,64 @@ class HumanCheckFilterTest {
   private boolean reached;
 
   private WhoHumanCheck answering(boolean answer) {
-    return request -> {
-      seen.add(request);
-      return answer;
+    return new WhoHumanCheck() {
+      @Override
+      public boolean passes(HumanCheckRequest request) {
+        seen.add(request);
+        return answer;
+      }
+
+      @Override
+      public String name() {
+        return "stub";
+      }
     };
+  }
+
+  @Test
+  void a_pass_is_published() throws Exception {
+    MockHttpServletRequest request = post("/who/email/send");
+    request.addHeader(WhoHumanCheck.HEADER, "tok");
+
+    run(answering(true), request);
+
+    assertThat(events)
+        .containsExactly(
+            new HumanCheckPerformed(
+                NOW, "stub", "email-send", "203.0.113.7", HumanCheckOutcome.PASSED));
+  }
+
+  @Test
+  void a_refusal_is_published() throws Exception {
+    run(answering(false), post("/who/email/sign-in"));
+
+    assertThat(events)
+        .containsExactly(
+            new HumanCheckPerformed(
+                NOW, "stub", "email-sign-in", "203.0.113.7", HumanCheckOutcome.REFUSED));
+  }
+
+  @Test
+  void a_check_that_throws_is_published_as_an_error() throws Exception {
+    WhoHumanCheck throwing =
+        request -> {
+          throw new IllegalStateException("vendor down");
+        };
+
+    run(throwing, post("/who/email/send"));
+
+    assertThat(events)
+        .singleElement()
+        .extracting(event -> ((HumanCheckPerformed) event).outcome())
+        .isEqualTo(HumanCheckOutcome.ERROR);
+    assertThat(reached).isFalse();
+  }
+
+  @Test
+  void an_unchecked_request_publishes_nothing() throws Exception {
+    run(answering(true), post("/who/me"));
+
+    assertThat(events).isEmpty();
   }
 
   private static MockHttpServletRequest post(String path) {

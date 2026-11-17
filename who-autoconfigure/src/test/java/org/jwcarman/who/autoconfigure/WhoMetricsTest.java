@@ -39,6 +39,8 @@ import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.SignedOut;
 import org.jwcarman.who.emaillink.EmailLinkOutcome;
 import org.jwcarman.who.emaillink.SignInEmailRequested;
+import org.jwcarman.who.spring.security.HumanCheckOutcome;
+import org.jwcarman.who.spring.security.HumanCheckPerformed;
 
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
@@ -173,6 +175,43 @@ class WhoMetricsTest {
       metrics.on(new CredentialRevoked(NOW, IDENTITY, CREDENTIAL, CredentialKind.API_KEY, "CI"));
 
       assertThat(count("who.credentials.revoked", "kind", "api-key")).isEqualTo(1.0);
+    }
+  }
+
+  @Nested
+  class Human_checks {
+
+    @Test
+    void a_check_counts_with_its_check_action_and_outcome() {
+      metrics.on(
+          new HumanCheckPerformed(
+              NOW, "turnstile", "email-send", "203.0.113.7", HumanCheckOutcome.REFUSED));
+
+      assertThat(
+              count(
+                  "who.human-checks",
+                  "check",
+                  "turnstile",
+                  "action",
+                  "email-send",
+                  "outcome",
+                  "refused"))
+          .isEqualTo(1.0);
+    }
+
+    @Test
+    void the_client_address_never_becomes_a_tag() {
+      metrics.on(
+          new HumanCheckPerformed(
+              NOW, "turnstile", "email-send", "203.0.113.7", HumanCheckOutcome.PASSED));
+
+      assertThat(registry.getMeters())
+          .singleElement()
+          .satisfies(
+              meter ->
+                  assertThat(meter.getId().getTags())
+                      .extracting(Tag::getKey)
+                      .containsExactlyInAnyOrder("check", "action", "outcome"));
     }
   }
 

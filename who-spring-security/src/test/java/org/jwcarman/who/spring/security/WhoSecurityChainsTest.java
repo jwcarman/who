@@ -31,12 +31,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
 import org.slf4j.LoggerFactory;
@@ -347,6 +349,41 @@ class WhoSecurityChainsTest {
         }
       };
     }
+  }
+
+  static final List<WhoEvent> PUBLISHED = new CopyOnWriteArrayList<>();
+
+  @Configuration(proxyBeanMethods = false)
+  static class Publishing {
+    @Bean
+    WhoEventPublisher whoEventPublisher() {
+      return PUBLISHED::add;
+    }
+  }
+
+  @Test
+  void each_check_is_published_through_the_applications_publisher() {
+    PUBLISHED.clear();
+    new WebApplicationContextRunner()
+        .withUserConfiguration(
+            Checked.class, Refusing.class, Publishing.class, PasswordlessChain.class)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              mockMvc(context)
+                  .perform(post("/who/email/send").with(csrf()))
+                  .andExpect(status().isForbidden());
+              assertThat(PUBLISHED)
+                  .filteredOn(HumanCheckPerformed.class::isInstance)
+                  .singleElement()
+                  .satisfies(
+                      event -> {
+                        HumanCheckPerformed checked = (HumanCheckPerformed) event;
+                        assertThat(checked.check()).isEqualTo("robots");
+                        assertThat(checked.action()).isEqualTo("email-send");
+                        assertThat(checked.outcome()).isEqualTo(HumanCheckOutcome.REFUSED);
+                      });
+            });
   }
 
   @Test

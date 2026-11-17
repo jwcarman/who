@@ -18,6 +18,7 @@ package org.jwcarman.who.spring.security;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +28,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.web.HumanCheckFailedException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
@@ -49,6 +51,8 @@ final class HumanCheckFilter extends OncePerRequestFilter {
   private final WhoHumanCheck check;
   private final WhoExceptionHandoff handoff;
   private final Map<RequestMatcher, String> actions = new LinkedHashMap<>();
+  private final WhoEventPublisher eventPublisher;
+  private final Clock clock;
 
   /**
    * Creates the filter.
@@ -57,18 +61,24 @@ final class HumanCheckFilter extends OncePerRequestFilter {
    * @param handoff answers a refusal through the application's exception handling
    * @param matchers the chain's own path matching, so a path the endpoint answers is always checked
    * @param actions each checked path, mapped to the action the check is told
+   * @param eventPublisher where each check's {@link HumanCheckPerformed} goes
+   * @param clock stamps the events
    */
   HumanCheckFilter(
       WhoHumanCheck check,
       WhoExceptionHandoff handoff,
       PathPatternRequestMatcher.Builder matchers,
-      Map<String, String> actions) {
+      Map<String, String> actions,
+      WhoEventPublisher eventPublisher,
+      Clock clock) {
     this.check = requireNonNull(check, "check must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     requireNonNull(matchers, "matchers must not be null");
     requireNonNull(actions, "actions must not be null")
         .forEach(
             (path, action) -> this.actions.put(matchers.matcher(HttpMethod.POST, path), action));
+    this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
+    this.clock = requireNonNull(clock, "clock must not be null");
   }
 
   @Override
@@ -94,11 +104,19 @@ final class HumanCheckFilter extends OncePerRequestFilter {
     String header = request.getHeader(WhoHumanCheck.HEADER);
     Optional<String> token =
         StringUtils.hasText(header) ? Optional.of(header.strip()) : Optional.empty();
+    String clientIp = request.getRemoteAddr();
+    HumanCheckOutcome outcome;
     try {
-      return check.passes(new HumanCheckRequest(token, request.getRemoteAddr(), action));
+      outcome =
+          check.passes(new HumanCheckRequest(token, clientIp, action))
+              ? HumanCheckOutcome.PASSED
+              : HumanCheckOutcome.REFUSED;
     } catch (RuntimeException e) {
       log.warn("The human check failed, so the request is refused: {}", e.getClass().getName());
-      return false;
+      outcome = HumanCheckOutcome.ERROR;
     }
+    eventPublisher.publish(
+        new HumanCheckPerformed(clock.instant(), check.name(), action, clientIp, outcome));
+    return outcome == HumanCheckOutcome.PASSED;
   }
 }

@@ -65,12 +65,16 @@ public class WhoTurnstileAutoConfiguration {
    *
    * @param whoProperties who's properties
    * @param verifiers the application's verifier, if it has one
+   * @param builders the application's {@link RestClient.Builder}, such as Spring Boot's with its
+   *     observations and customizers; copied, then given who's timeouts
    * @return the check
    */
   @Bean
   @ConditionalOnMissingBean(WhoHumanCheck.class)
   public TurnstileHumanCheck turnstileHumanCheck(
-      WhoProperties whoProperties, ObjectProvider<TurnstileVerifier> verifiers) {
+      WhoProperties whoProperties,
+      ObjectProvider<TurnstileVerifier> verifiers,
+      ObjectProvider<RestClient.Builder> builders) {
     WhoProperties.Turnstile properties = whoProperties.getTurnstile();
     String secretKey = properties.getSecretKey();
     if (!StringUtils.hasText(secretKey)) {
@@ -100,7 +104,12 @@ public class WhoTurnstileAutoConfiguration {
     requestFactory.setReadTimeout(timeout);
     String secret = secretKey.strip();
     return new TurnstileHumanCheck(
-        RestClient.builder().requestFactory(requestFactory).build(),
+        builders
+            .getIfAvailable(RestClient::builder)
+            .clone()
+            // who.turnstile.timeout must hold, so who's request factory replaces the builder's
+            .requestFactory(requestFactory)
+            .build(),
         verifyUrl,
         secret,
         verifiers.getIfAvailable(() -> defaultVerifier(secret, properties)),

@@ -17,10 +17,12 @@ package org.jwcarman.who.spring.security;
 
 import static org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER;
 
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
@@ -153,7 +155,11 @@ public class PasswordlessConfigurer
               check,
               handoff,
               matchers != null ? matchers : PathPatternRequestMatcher.withDefaults(),
-              checked),
+              checked,
+              context
+                  .getBeanProvider(WhoEventPublisher.class)
+                  .getIfAvailable(() -> WhoEventPublisher.NOOP),
+              context.getBeanProvider(Clock.class).getIfUnique(Clock::systemUTC)),
           CsrfFilter.class);
       checkedBy = ", human check: " + check.name();
     }

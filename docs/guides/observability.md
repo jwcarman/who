@@ -30,6 +30,7 @@ or role is ever a tag. A series appears the first time it counts.
 | `who.sign-ins` | Sign-in attempts | `method`, `outcome`, `reason` |
 | `who.sign-in.emails` | Sign-in email requests | `outcome` |
 | `who.sign-outs` | Sign-outs of who sessions | none |
+| `who.human-checks` | Requests to who's human-checked endpoints | `check`, `action`, `outcome` (`passed`, `refused`, `error`) |
 | `who.sessions.ended` | Sessions who ended | `reason` |
 | `who.sessions.purged` | Ended or abandoned session records deleted | none |
 | `who.credentials.added` | Credentials added | `kind` |
@@ -112,6 +113,13 @@ sum(rate(who_sign_in_emails_total{outcome="send-failed"}[15m])) > 0
 
 # Someone is trying API keys
 sum(rate(who_sign_ins_total{method="api-key", reason="unknown-key"}[5m])) > 1
+
+# A bot is at the email endpoints
+sum(rate(who_human_checks_total{outcome="refused"}[5m])) > 1
+
+# The human check passes nobody: a broken site key, or the vendor is down
+sum(rate(who_human_checks_total{outcome="passed"}[15m])) == 0
+  and sum(rate(who_human_checks_total[15m])) > 0
 ```
 
 ## Protect the metrics endpoint

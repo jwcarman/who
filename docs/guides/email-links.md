@@ -402,7 +402,21 @@ TurnstileVerifier turnstileVerifier(WhoProperties properties) {
 }
 ```
 
+`TurnstileAnswer` carries everything a rule needs from Cloudflare's answer: `success`, `action`, `hostname`, `challengeTs` (when the challenge was solved), `cdata` (the data your page gave the widget) and `errorCodes`. For example, to refuse tokens solved more than a minute ago:
+
+```java
+return (answer, request) -> strict.accepts(answer, request)
+    && answer.challengeTs().filter(solved -> solved.isAfter(Instant.now().minusSeconds(60))).isPresent();
+```
+
 Your verifier is used even with a test key.
+
+### The HTTP client
+
+who calls Cloudflare with your application's `RestClient.Builder` bean when it has one, such as Spring Boot's from `spring-boot-starter-restclient`, so its observations, interceptors and customizers apply. who copies the builder and gives the copy its own request factory, so `who.turnstile.timeout` always holds; the builder's own request factory and HTTP client settings are not used. Outbound proxies set through the JVM's `https.proxyHost` and `https.proxyPort` system properties apply.
+
+The timeout bounds connecting and reading separately, so a call that connects slowly and then answers slowly can take up to twice `who.turnstile.timeout`.
+
 
 ### Behind a proxy
 
@@ -422,6 +436,52 @@ WhoHumanCheck humanCheck(MyVendorClient vendor) {
 ```
 
 `HumanCheckRequest` holds the `Who-Human-Check` header (empty when the page sent none), the client's address and the action. who reads the request itself, so a check never sees the body. A check that throws refuses the request. In tests, `WhoHumanCheck.ALLOW_ALL` turns the check on and lets everyone through.
+
+### Your own endpoints
+
+who checks only its own endpoints. To guard one of yours, such as a contact form, inject the `WhoHumanCheck` bean and ask it, with an action of your own:
+
+```java
+@RestController
+class ContactController {
+
+  private final ObjectProvider<WhoHumanCheck> humanCheck;
+
+  ContactController(ObjectProvider<WhoHumanCheck> humanCheck) {
+    this.humanCheck = humanCheck;
+  }
+
+  @PostMapping("/contact")
+  void contact(
+      @RequestBody ContactMessage message,
+      @RequestHeader(name = WhoHumanCheck.HEADER, required = false) String token,
+      HttpServletRequest request) {
+    WhoHumanCheck check = humanCheck.getIfAvailable();
+    if (check != null
+        && !check.passes(
+            new HumanCheckRequest(
+                Optional.ofNullable(token).filter(t -> !t.isBlank()),
+                request.getRemoteAddr(),
+                "contact"))) {
+      throw new HumanCheckFailedException();
+    }
+    // handle the message
+  }
+
+  @ExceptionHandler
+  ResponseEntity<Void> refused(HumanCheckFailedException e) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .header(WhoExceptionHandoff.HEADER, e.errorCode())
+        .build();
+  }
+}
+```
+
+- **The action is yours to name.** Give the widget the same one (`turnstile.render(..., { action: 'contact' })`): Turnstile's check refuses a token made for another action. Actions are up to 32 characters of letters, digits, `-` and `_`.
+- **No check bean, no check.** `ObjectProvider` lets the endpoint work when no check is configured, as who's do. Make the bean required instead if the endpoint must never go unchecked.
+- **The handler is optional.** Without it, Spring answers `403` from the exception's `@ResponseStatus`; with it, the answer also carries `Who-Error: human-check-failed`, which the TypeScript client reads.
+- **CSRF still comes first:** the controller runs after the security chain.
+- **Checks you call yourself publish no event and count in no meter.** `HumanCheckPerformed` and `who.human-checks` cover who's endpoints.
 
 ## Rate limiting at the ingress
 

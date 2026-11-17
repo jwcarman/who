@@ -25,6 +25,7 @@ import org.jwcarman.who.core.event.SignInFailed;
 import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.SignedOut;
 import org.jwcarman.who.core.event.WhoEvent;
+import org.jwcarman.who.spring.security.HumanCheckPerformed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -34,9 +35,10 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Counts who's events as Micrometer meters: {@value #SIGN_INS}, {@value #SIGN_OUTS}, {@value
- * #SESSIONS_ENDED}, {@value #CREDENTIALS_ADDED} and {@value #CREDENTIALS_REVOKED}. Every tag value
- * comes from one of who's enums; no address or id is ever a tag. Other events are ignored. A
- * registry that fails is logged and never keeps the event from other listeners.
+ * #SESSIONS_ENDED}, {@value #CREDENTIALS_ADDED}, {@value #CREDENTIALS_REVOKED} and {@value
+ * #HUMAN_CHECKS}. Every tag value comes from one of who's enums or from code (a human check's name
+ * and action); no address or id is ever a tag. Other events are ignored. A registry that fails is
+ * logged and never keeps the event from other listeners.
  */
 public final class WhoMetrics {
 
@@ -45,6 +47,11 @@ public final class WhoMetrics {
 
   /** Sign-outs of who sessions. */
   public static final String SIGN_OUTS = "who.sign-outs";
+
+  /**
+   * Requests to human-checked endpoints, tagged {@code check}, {@code action} and {@code outcome}.
+   */
+  public static final String HUMAN_CHECKS = "who.human-checks";
 
   /** Sessions who ended, tagged {@code reason}. */
   public static final String SESSIONS_ENDED = "who.sessions.ended";
@@ -120,6 +127,14 @@ public final class WhoMetrics {
           Counter.builder(CREDENTIALS_REVOKED)
               .description("Credentials revoked, by kind")
               .tag(KIND, tagValue(revoked.kind()))
+              .register(registry)
+              .increment();
+      case HumanCheckPerformed checked ->
+          Counter.builder(HUMAN_CHECKS)
+              .description("Human checks by check, action and outcome")
+              .tag("check", checked.check())
+              .tag("action", checked.action())
+              .tag("outcome", tagValue(checked.outcome()))
               .register(registry)
               .increment();
       default -> {
