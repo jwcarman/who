@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -78,6 +79,7 @@ class MailWhoEmailSenderTest {
             "Your sign-in link",
             "Confirm your address",
             "Your address changed",
+            "You are invited",
             clock)
         .send(email);
     ArgumentCaptor<SimpleMailMessage> message = ArgumentCaptor.forClass(SimpleMailMessage.class);
@@ -138,5 +140,33 @@ class MailWhoEmailSenderTest {
     SimpleMailMessage message = sendWithTimeLeft(Duration.ofSeconds(30));
 
     assertThat(message.getText()).contains("expire in 1 minute and work once.");
+  }
+
+  @Test
+  void anInvitationInvitesAndCarriesTheLinkAndTheCode() {
+    SimpleMailMessage message =
+        send(
+            new InvitationMessage("new@example.com", LINK, "K7F2QM", EXPIRES_AT, Set.of("editor")));
+
+    assertThat(message.getTo()).containsExactly("new@example.com");
+    assertThat(message.getSubject()).isEqualTo("You are invited");
+    assertThat(message.getText())
+        .isEqualTo(
+            "You have been invited. Accept by signing in: "
+                + LINK
+                + "\n\nOr enter this code: K7F-2QM\n\nThe link and the code expire in 5 minutes"
+                + " and work once.\n\nIf you weren't expecting this invitation, ignore this"
+                + " email. Never share this code with anyone.");
+  }
+
+  @Test
+  void theDefaultInvitationSubjectIsSetWithoutTheOthers() {
+    Clock clock = Clock.fixed(EXPIRES_AT.minus(Duration.ofMinutes(5)), ZoneOffset.UTC);
+    new MailWhoEmailSender(mailSender, "noreply@app.test", "Your sign-in link", clock)
+        .send(new InvitationMessage("new@example.com", LINK, "K7F2QM", EXPIRES_AT, Set.of()));
+    ArgumentCaptor<SimpleMailMessage> message = ArgumentCaptor.forClass(SimpleMailMessage.class);
+    verify(mailSender).send(message.capture());
+
+    assertThat(message.getValue().getSubject()).isEqualTo("You have been invited");
   }
 }

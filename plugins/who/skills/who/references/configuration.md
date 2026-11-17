@@ -29,6 +29,7 @@
 | `who.email-link.resend-interval` | `60s` | Minimum time between two links for the same address. Startup fails if it is longer than `token-ttl` |
 | `who.email-link.from` | none | Sender address of sign-in emails. Required when links go out through Spring Boot's `JavaMailSender` |
 | `who.email-link.subject` | `Your sign-in link and code` | Subject of sign-in emails |
+| `who.email-link.invitation-subject` | `You have been invited` | Subject of invitation emails |
 | `who.email-link.address-confirmation-url` | `link-base-url` | Page of your app that receives the link confirming an address being added or changed. The token is appended as `#confirm-address=...`. The person must be signed in there |
 | `who.email-link.address-confirmation-subject` | `Confirm your email address` | Subject of the email confirming an address being added or changed |
 | `who.email-link.address-changed-subject` | `Your email address was changed` | Subject of the email telling an address it was replaced |

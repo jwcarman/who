@@ -598,6 +598,7 @@ public class WhoEmailLinkAutoConfiguration {
           emailLink.getSubject(),
           emailLink.getAddressConfirmationSubject(),
           emailLink.getAddressChangedSubject(),
+          emailLink.getInvitationSubject(),
           clock);
     }
   }

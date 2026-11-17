@@ -41,6 +41,7 @@ class WhoPropertiesTest {
                         Map.entry("who.email-link.enabled", "false"),
                         Map.entry("who.email-link.address-confirmation-subject", "Confirm it"),
                         Map.entry("who.email-link.address-changed-subject", "It changed"),
+                        Map.entry("who.email-link.invitation-subject", "Join us"),
                         Map.entry("who.enrollment.enabled", "false"),
                         Map.entry("who.api-key.enabled", "false"),
                         Map.entry("who.jwt.enabled", "false"),
@@ -56,6 +57,7 @@ class WhoPropertiesTest {
     assertThat(props.getEmailLink().isEnabled()).isFalse();
     assertThat(props.getEmailLink().getAddressConfirmationSubject()).isEqualTo("Confirm it");
     assertThat(props.getEmailLink().getAddressChangedSubject()).isEqualTo("It changed");
+    assertThat(props.getEmailLink().getInvitationSubject()).isEqualTo("Join us");
     assertThat(props.getEnrollment().isEnabled()).isFalse();
     assertThat(props.getApiKey().isEnabled()).isFalse();
     assertThat(props.getJwt().isEnabled()).isFalse();

@@ -36,8 +36,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Invites a person by email address: creates an identity for them, signs it in with that address,
- * gives it roles, and sends it a sign-in link. Accepting the invitation is signing in. Behind
- * {@code POST /who/invitations}, and usable from application code as it is.
+ * gives it roles, and sends it a sign-in link in an {@link InvitationMessage}. Accepting the
+ * invitation is signing in. Behind {@code POST /who/invitations}, and usable from application code
+ * as it is.
  *
  * <p>The order is guaranteed:
  *
@@ -77,7 +78,7 @@ public class InvitationService {
    * @param emailCredentials registers its address
    * @param roles assigns its roles; null without {@code who-rbac}, when an invitation may carry no
    *     roles
-   * @param linkIssuer sends the sign-in link
+   * @param linkIssuer sends the sign-in link, as an {@link InvitationMessage}
    * @param events where {@link IdentityInvited} is published, synchronously
    * @param transactionManager runs the invitation's transaction
    * @param clock stamps the event
@@ -132,7 +133,7 @@ public class InvitationService {
     }
     Set<String> names = Set.copyOf(roleNames);
     Invited invited = requireNonNull(invitation.execute(_ -> register(email, names)), "invited");
-    return new Invitation(invited.identityId(), sendLink(invited));
+    return new Invitation(invited.identityId(), sendLink(invited, names));
   }
 
   private Invited register(String email, Set<String> names) {
@@ -153,12 +154,17 @@ public class InvitationService {
     return new Invited(identity.id(), credential.address());
   }
 
-  private EmailLinkOutcome sendLink(Invited invited) {
+  private EmailLinkOutcome sendLink(Invited invited, Set<String> names) {
     EmailLinkOutcome outcome;
     try {
       outcome =
           Objects.requireNonNullElse(
-              linkIssuer.issue(invited.address(), Secrets.token()), EmailLinkOutcome.SEND_FAILED);
+              linkIssuer.issue(
+                  invited.address(),
+                  Secrets.token(),
+                  (address, link, code, expiresAt) ->
+                      new InvitationMessage(address, link, code, expiresAt, names)),
+              EmailLinkOutcome.SEND_FAILED);
     } catch (RuntimeException e) {
       // class name only: the message could carry the address
       log.warn(

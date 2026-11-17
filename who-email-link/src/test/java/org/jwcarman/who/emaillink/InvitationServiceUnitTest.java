@@ -72,7 +72,7 @@ class InvitationServiceUnitTest {
     when(whoService.createIdentity()).thenReturn(carol);
     when(credentials.register(eq(carol), anyString()))
         .thenAnswer(call -> EmailCredential.create(call.getArgument(1)));
-    when(issuer.issue(anyString(), anyString())).thenReturn(EmailLinkOutcome.SENT);
+    when(issuer.issue(anyString(), anyString(), any())).thenReturn(EmailLinkOutcome.SENT);
   }
 
   private InvitationService service(InvitationRoles withRoles) {
@@ -97,7 +97,7 @@ class InvitationServiceUnitTest {
       assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SENT);
       assertThat(invitation.linkSent()).isTrue();
       verify(roles).assign(carol, Set.of("editor"));
-      verify(issuer).issue(eq("carol@example.com"), anyString());
+      verify(issuer).issue(eq("carol@example.com"), anyString(), any());
       assertThat(published)
           .containsExactly(
               new IdentityInvited(NOW, carol.id(), "carol@example.com", Set.of("editor")));
@@ -183,7 +183,8 @@ class InvitationServiceUnitTest {
 
     @Test
     void a_throwing_issuer_leaves_the_invitation_standing(CapturedOutput output) {
-      when(issuer.issue(anyString(), anyString())).thenThrow(new IllegalStateException(ADDRESS));
+      when(issuer.issue(anyString(), anyString(), any()))
+          .thenThrow(new IllegalStateException(ADDRESS));
 
       Invitation invitation = service(roles).invite(ADDRESS, Set.of());
 
@@ -195,7 +196,8 @@ class InvitationServiceUnitTest {
 
     @Test
     void an_unsent_link_is_not_sent(CapturedOutput output) {
-      when(issuer.issue(anyString(), anyString())).thenReturn(EmailLinkOutcome.RESEND_SUPPRESSED);
+      when(issuer.issue(anyString(), anyString(), any()))
+          .thenReturn(EmailLinkOutcome.RESEND_SUPPRESSED);
 
       Invitation invitation = service(roles).invite(ADDRESS, Set.of());
 
@@ -248,7 +250,7 @@ class InvitationServiceUnitTest {
       assertThatThrownBy(() -> service.invite(ADDRESS, none))
           .isInstanceOf(EmailAddressTakenException.class);
       assertThat(published).isEmpty();
-      verify(issuer, never()).issue(anyString(), anyString());
+      verify(issuer, never()).issue(anyString(), anyString(), any());
     }
 
     @Test

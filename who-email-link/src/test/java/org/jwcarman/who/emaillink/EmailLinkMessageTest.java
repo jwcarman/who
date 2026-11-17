@@ -16,8 +16,11 @@
 package org.jwcarman.who.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -71,5 +74,49 @@ class EmailLinkMessageTest {
 
     assertThat(signIn.address()).isEqualTo("a@b.c");
     assertThat(notice.address()).isEqualTo("old@b.c");
+  }
+
+  @Test
+  void an_invitation_hides_the_link_and_the_code_and_names_its_roles() {
+    InvitationMessage message =
+        new InvitationMessage(
+            "a@b.c",
+            "https://app.test/signin#token=SECRETTOKEN",
+            "K7F2QM",
+            Instant.parse("2026-11-13T10:00:00Z"),
+            Set.of("editor"));
+
+    assertThat(message.toString())
+        .doesNotContain("SECRETTOKEN", "K7F2QM", "https://")
+        .contains("a@b.c", "link=****", "code=****", "editor");
+    assertThat(message.formattedCode()).isEqualTo("K7F-2QM");
+    assertThat(message.address()).isEqualTo("a@b.c");
+  }
+
+  @Test
+  void an_invitation_copies_its_roles() {
+    Set<String> roles = new HashSet<>(Set.of("editor"));
+    InvitationMessage message = new InvitationMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, roles);
+
+    roles.add("admin");
+
+    assertThat(message.roles()).containsExactly("editor");
+    assertThatThrownBy(() -> message.roles().add("admin"))
+        .isInstanceOf(UnsupportedOperationException.class);
+  }
+
+  @Test
+  void an_invitation_needs_every_part() {
+    Set<String> none = Set.of();
+    assertThatThrownBy(() -> new InvitationMessage(null, "l", "c", Instant.EPOCH, none))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new InvitationMessage("a", null, "c", Instant.EPOCH, none))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new InvitationMessage("a", "l", null, Instant.EPOCH, none))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new InvitationMessage("a", "l", "c", null, none))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new InvitationMessage("a", "l", "c", Instant.EPOCH, null))
+        .isInstanceOf(NullPointerException.class);
   }
 }

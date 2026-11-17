@@ -32,6 +32,7 @@ public class MailWhoEmailSender implements WhoEmailSender {
   private final String subject;
   private final String confirmationSubject;
   private final String changedSubject;
+  private final String invitationSubject;
   private final Clock clock;
 
   /**
@@ -49,6 +50,7 @@ public class MailWhoEmailSender implements WhoEmailSender {
         subject,
         "Confirm your email address",
         "Your email address was changed",
+        "You have been invited",
         clock);
   }
 
@@ -60,6 +62,7 @@ public class MailWhoEmailSender implements WhoEmailSender {
    * @param subject the subject line of a sign-in email
    * @param confirmationSubject the subject line of an address confirmation
    * @param changedSubject the subject line of the notice to a replaced address
+   * @param invitationSubject the subject line of an invitation
    * @param clock the clock used to tell how long the link and code remain valid
    */
   public MailWhoEmailSender(
@@ -68,6 +71,7 @@ public class MailWhoEmailSender implements WhoEmailSender {
       String subject,
       String confirmationSubject,
       String changedSubject,
+      String invitationSubject,
       Clock clock) {
     this.mailSender = requireNonNull(mailSender, "mailSender must not be null");
     this.from = requireNonNull(from, "from must not be null");
@@ -75,6 +79,8 @@ public class MailWhoEmailSender implements WhoEmailSender {
     this.confirmationSubject =
         requireNonNull(confirmationSubject, "confirmationSubject must not be null");
     this.changedSubject = requireNonNull(changedSubject, "changedSubject must not be null");
+    this.invitationSubject =
+        requireNonNull(invitationSubject, "invitationSubject must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
   }
 
@@ -87,6 +93,10 @@ public class MailWhoEmailSender implements WhoEmailSender {
       case EmailLinkMessage signIn -> {
         message.setSubject(subject);
         message.setText(signInBody(signIn));
+      }
+      case InvitationMessage invitation -> {
+        message.setSubject(invitationSubject);
+        message.setText(invitationBody(invitation));
       }
       case EmailAddressConfirmationMessage confirmation -> {
         message.setSubject(confirmationSubject);
@@ -109,6 +119,18 @@ public class MailWhoEmailSender implements WhoEmailSender {
         + minutes(message.expiresAt())
         + " and work once."
         + "\n\nIf you didn't ask to sign in, ignore this email. Never share this code with anyone.";
+  }
+
+  private String invitationBody(InvitationMessage message) {
+    return "You have been invited. Accept by signing in: "
+        + message.link()
+        + "\n\nOr enter this code: "
+        + message.formattedCode()
+        + "\n\nThe link and the code expire in "
+        + minutes(message.expiresAt())
+        + " and work once."
+        + "\n\nIf you weren't expecting this invitation, ignore this email."
+        + " Never share this code with anyone.";
   }
 
   private String confirmationBody(EmailAddressConfirmationMessage message) {

@@ -165,16 +165,32 @@ public class EmailLinkIssuer {
    * @return what became of the request
    */
   public EmailLinkOutcome issue(String address, String tokenValue) {
+    return issue(address, tokenValue, EmailLinkMessage::new);
+  }
+
+  /**
+   * {@link #issue(String, String)} with the email built by {@code email}: everything else, the
+   * token's storage, the resend rule, the event, the observation and the never-throws contract, is
+   * the same.
+   */
+  EmailLinkOutcome issue(String address, String tokenValue, LinkEmail email) {
     return WhoObservations.observe(
         observations,
         ISSUE_OBSERVATION,
         "who issue sign-in email",
-        () -> issueUnobserved(address, tokenValue),
+        () -> issueUnobserved(address, tokenValue, email),
         WhoObservations::tagValue);
   }
 
-  private EmailLinkOutcome issueUnobserved(String address, String tokenValue) {
-    Issued issued = issueIfKnown(address, tokenValue);
+  /** How to build the email that carries the link and the code. */
+  @FunctionalInterface
+  interface LinkEmail {
+
+    WhoEmail build(String address, String link, String code, Instant expiresAt);
+  }
+
+  private EmailLinkOutcome issueUnobserved(String address, String tokenValue, LinkEmail email) {
+    Issued issued = issueIfKnown(address, tokenValue, email);
     String reported = looksLikeAnAddress(address) ? EmailCredential.normalize(address) : null;
     try {
       eventPublisher.publish(
@@ -186,7 +202,7 @@ public class EmailLinkIssuer {
     return issued.outcome();
   }
 
-  private Issued issueIfKnown(String address, String tokenValue) {
+  private Issued issueIfKnown(String address, String tokenValue, LinkEmail email) {
     if (!looksLikeAnAddress(address)) {
       return new Issued(EmailLinkOutcome.UNKNOWN_ADDRESS, null);
     }
@@ -201,10 +217,10 @@ public class EmailLinkIssuer {
       log.debug("Sign-in link requested for an unknown address");
       return new Issued(EmailLinkOutcome.UNKNOWN_ADDRESS, null);
     }
-    return issueTo(credential.get(), tokenValue);
+    return issueTo(credential.get(), tokenValue, email);
   }
 
-  private Issued issueTo(EmailCredential credential, String tokenValue) {
+  private Issued issueTo(EmailCredential credential, String tokenValue, LinkEmail email) {
     String tokenHash = MessageDigests.sha256Hex(tokenValue);
     String code = Secrets.code(settings.codeLength());
     Instant now = clock.instant();
@@ -238,7 +254,7 @@ public class EmailLinkIssuer {
           e.getClass().getName());
       return new Issued(EmailLinkOutcome.SEND_FAILED, identityId);
     }
-    return new Issued(send(credential, tokenValue, code, expiresAt, tokenHash), identityId);
+    return new Issued(send(credential, tokenValue, code, expiresAt, tokenHash, email), identityId);
   }
 
   private static UUID unresolvedIdentityId(Resolution resolution) {
@@ -254,10 +270,11 @@ public class EmailLinkIssuer {
       String tokenValue,
       String code,
       Instant expiresAt,
-      String tokenHash) {
+      String tokenHash,
+      LinkEmail email) {
     try {
       sender.send(
-          new EmailLinkMessage(
+          email.build(
               credential.address(),
               settings.linkBaseUrl() + "#token=" + tokenValue,
               code,

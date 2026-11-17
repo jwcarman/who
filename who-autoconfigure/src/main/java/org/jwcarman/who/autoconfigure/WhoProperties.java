@@ -378,6 +378,9 @@ public class WhoProperties {
     /** Subject of the email telling an address it was replaced. */
     private String addressChangedSubject = "Your email address was changed";
 
+    /** Subject of invitation emails. */
+    private String invitationSubject = "You have been invited";
+
     /** Number of characters in the typed sign-in code; at least 6. */
     private int codeLength = 6;
 
@@ -532,6 +535,24 @@ public class WhoProperties {
      */
     public void setAddressChangedSubject(String addressChangedSubject) {
       this.addressChangedSubject = addressChangedSubject;
+    }
+
+    /**
+     * Returns the subject of an invitation.
+     *
+     * @return the subject
+     */
+    public String getInvitationSubject() {
+      return invitationSubject;
+    }
+
+    /**
+     * Sets the subject of an invitation.
+     *
+     * @param invitationSubject the subject
+     */
+    public void setInvitationSubject(String invitationSubject) {
+      this.invitationSubject = invitationSubject;
     }
 
     /**

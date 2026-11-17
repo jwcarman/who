@@ -67,7 +67,7 @@ Startup fails, and the message names the fix, if:
 Each message also says how to turn email links off without removing the jar:
 `who.email-link.enabled=false`.
 
-A custom sender is one method, which takes any of who's three emails. `WhoEmail` is sealed, so a `switch` covers them all and the compiler tells you when who adds one:
+A custom sender is one method, which takes any of who's four emails. `WhoEmail` is sealed, so a `switch` covers them all and the compiler tells you when who adds one:
 
 ```java
 @Bean
@@ -78,6 +78,11 @@ WhoEmailSender whoEmailSender(MyMailer mailer) {
                 "Sign in: " + m.link()
                     + "\n\nOr enter this code: " + m.formattedCode()
                     + "\n\nIf you didn't ask to sign in, ignore this email."
+                    + " Never share this code with anyone.");
+            case InvitationMessage m -> mailer.send(m.address(), "You have been invited",
+                "You have been invited. Accept by signing in: " + m.link()
+                    + "\n\nOr enter this code: " + m.formattedCode()
+                    + "\n\nIf you weren't expecting this, ignore this email."
                     + " Never share this code with anyone.");
             case EmailAddressConfirmationMessage m -> mailer.send(m.address(), "Confirm your email address",
                 "Add this address to your account: " + m.link()
@@ -91,11 +96,11 @@ WhoEmailSender whoEmailSender(MyMailer mailer) {
 }
 ```
 
-`EmailLinkMessage` is the sign-in email. It carries `address`, `link`, `code` and `expiresAt`. `formattedCode()` returns the code in groups, such as `K7F-2QM`, which is easier to read and type. The link is `link-base-url` followed by `#token=` and the token. The other two are for [adding or changing an address](#adding-or-changing-an-address): `EmailAddressConfirmationMessage` has the same fields plus `change`, and `EmailAddressChangedMessage` goes to the replaced address, with the new one in `newAddress` and `maskedNewAddress()`. Do not log a link or a code.
+`EmailLinkMessage` is the sign-in email. It carries `address`, `link`, `code` and `expiresAt`. `formattedCode()` returns the code in groups, such as `K7F-2QM`, which is easier to read and type. The link is `link-base-url` followed by `#token=` and the token. `InvitationMessage` is the email of an [invitation](admin.md#invitations): the same fields, plus `roles`, the names of the roles the invitation gave (empty for none), so a sender can word an invitation differently from a sign-in. Signing in with its link or code is accepting the invitation. The last two are for [adding or changing an address](#adding-or-changing-an-address): `EmailAddressConfirmationMessage` has the same fields plus `change`, and `EmailAddressChangedMessage` goes to the replaced address, with the new one in `newAddress` and `maskedNewAddress()`. Do not log a link or a code.
 
-The default sender (through `JavaMailSender`) sends plain text: the link, the formatted code, and how long both stay valid. Its subjects are `who.email-link.subject`, `address-confirmation-subject` and `address-changed-subject`.
+The default sender (through `JavaMailSender`) sends plain text: the link, the formatted code, and how long both stay valid. Its subjects are `who.email-link.subject`, `invitation-subject`, `address-confirmation-subject` and `address-changed-subject`.
 
-See the [Configuration Reference](configuration.md) for all eight properties.
+See the [Configuration Reference](configuration.md) for all the properties.
 
 ## Code secret
 

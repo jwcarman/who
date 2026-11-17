@@ -20,7 +20,10 @@ package org.jwcarman.who.emaillink;
  * kind and the compiler tells it when who adds one.
  */
 public sealed interface WhoEmail
-    permits EmailLinkMessage, EmailAddressConfirmationMessage, EmailAddressChangedMessage {
+    permits EmailLinkMessage,
+        InvitationMessage,
+        EmailAddressConfirmationMessage,
+        EmailAddressChangedMessage {
 
   /**
    * Returns the recipient.

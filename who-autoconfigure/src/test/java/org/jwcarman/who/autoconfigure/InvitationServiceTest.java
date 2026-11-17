@@ -46,11 +46,11 @@ import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailAddressTakenException;
 import org.jwcarman.who.emaillink.EmailCredentialService;
-import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkOutcome;
 import org.jwcarman.who.emaillink.IdentityInvited;
 import org.jwcarman.who.emaillink.InvalidInvitationException;
 import org.jwcarman.who.emaillink.Invitation;
+import org.jwcarman.who.emaillink.InvitationMessage;
 import org.jwcarman.who.emaillink.InvitationService;
 import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
@@ -130,7 +130,7 @@ class InvitationServiceTest {
     @Serial private static final long serialVersionUID = 1L;
   }
 
-  record Sent(EmailLinkMessage message, boolean identityCommitted, boolean inTransaction) {}
+  record Sent(InvitationMessage message, boolean identityCommitted, boolean inTransaction) {}
 
   record Heard(IdentityInvited event, boolean inTransaction) {}
 
@@ -164,7 +164,7 @@ class InvitationServiceTest {
     @Bean
     WhoEmailSender whoEmailSender(JdbcClient jdbcClient) {
       return email -> {
-        if (email instanceof EmailLinkMessage message) {
+        if (email instanceof InvitationMessage message) {
           // this connection sees only what has committed, as the link must be sent with no
           // transaction open
           long identities =
@@ -312,6 +312,7 @@ class InvitationServiceTest {
           .satisfies(
               sent -> {
                 assertThat(sent.message().address()).isEqualTo(CAROL);
+                assertThat(sent.message().roles()).containsExactly(EDITOR_ROLE);
                 assertThat(sent.identityCommitted()).isTrue();
               });
     }
