@@ -18,16 +18,28 @@
 // who checks nothing and the page sends no token. Each token works once.
 const siteKey = document.body.dataset.turnstileSiteKey;
 
+let shown;
+
 export function humanCheck(action) {
   if (!siteKey) return Promise.resolve(undefined);
+  // one widget at a time: drop the last one, which stays up a moment to show its result
+  if (shown !== undefined) turnstile.remove(shown);
   return new Promise((resolve, reject) => {
     const widget = turnstile.render('#human-check', {
       sitekey: siteKey,
       action,
-      appearance: 'interaction-only',
+      // shown every time so the check is visible in this example; a real app would usually use
+      // 'interaction-only', which shows it only when Cloudflare wants the person to act
+      appearance: 'always',
       callback: token => {
         resolve(token);
-        setTimeout(() => turnstile.remove(widget));
+        shown = widget;
+        setTimeout(() => {
+          if (shown === widget) {
+            turnstile.remove(widget);
+            shown = undefined;
+          }
+        }, 2000);
       },
       'error-callback': () => {
         reject(new Error('Turnstile could not check this browser'));
