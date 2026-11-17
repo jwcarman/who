@@ -121,8 +121,9 @@ public class WhoMeController {
     // only a browser session's sign-in can be recent; a session cookie beside an API key or a
     // bearer token is not one, and that token is what authenticated the request
     Optional<WhoSession> session =
-        repository.caller(request, authentication) instanceof WhoCaller.Session browser
-            ? Optional.of(browser.session())
+        repository.caller(request, authentication)
+                instanceof WhoCaller.Session(_, WhoSession browser)
+            ? Optional.of(browser)
             : Optional.empty();
     String method =
         session

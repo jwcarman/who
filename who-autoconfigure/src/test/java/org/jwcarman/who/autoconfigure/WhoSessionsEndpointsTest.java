@@ -216,8 +216,8 @@ class WhoSessionsEndpointsTest {
         .singleElement()
         .satisfies(
             session ->
-                assertThat(session.get("signInMethod"))
-                    .isEqualTo(me.get("signInMethod").asString()));
+                assertThat(session)
+                    .containsEntry("signInMethod", me.get("signInMethod").asString()));
     assertThat(Instant.parse(me.get("recentSignInUntil").asString())).isAfter(Instant.now());
     assertThat(me.get("credentials").get("email").asLong()).isEqualTo(1);
   }

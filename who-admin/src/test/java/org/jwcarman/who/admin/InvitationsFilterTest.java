@@ -279,8 +279,8 @@ class InvitationsFilterTest {
 
     @Test
     void a_listeners_own_unique_key_violation_is_not_a_taken_address() throws Exception {
-      // InvitationService reports its own address's unique key as EmailAddressTakenException;
-      // any other DuplicateKeyException is the application's, from its IdentityInvited listener
+      // the service reports its own address's unique key as an EmailAddressTakenException, so any
+      // other DuplicateKeyException is the application's, from its IdentityInvited listener
       signIn(MANAGE);
       when(invitations.invite(anyString(), any()))
           .thenThrow(new DuplicateKeyException("app_profile_key"));

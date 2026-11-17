@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmailCredentialService {
 
   private static final String CREDENTIAL_ID_REQUIRED = "credentialId must not be null";
+  private static final String IDENTITY_ID_REQUIRED = "identityId must not be null";
 
   private final EmailCredentialRepository emailCredentialRepository;
   private final CredentialIdentityRepository credentialIdentityRepository;
@@ -178,7 +179,7 @@ public class EmailCredentialService {
    */
   public boolean isOwnedBy(UUID credentialId, UUID identityId) {
     requireNonNull(credentialId, CREDENTIAL_ID_REQUIRED);
-    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(identityId, IDENTITY_ID_REQUIRED);
     return emailCredentialRepository.findById(credentialId).isPresent()
         && credentialIdentityRepository
             .findIdentityIdByCredentialId(credentialId)
@@ -215,7 +216,7 @@ public class EmailCredentialService {
    * @return the oldest credential, or empty if the identity has no email credential
    */
   public Optional<EmailCredential> findOldestFor(UUID identityId) {
-    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(identityId, IDENTITY_ID_REQUIRED);
     return emailCredentialRepository.findOldestByIdentityId(identityId);
   }
 
@@ -227,7 +228,7 @@ public class EmailCredentialService {
    * @return its email credentials, possibly none
    */
   public List<EmailCredential> findAllFor(UUID identityId) {
-    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(identityId, IDENTITY_ID_REQUIRED);
     return emailCredentialRepository.findAllByIdentityId(identityId);
   }
 

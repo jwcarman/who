@@ -94,19 +94,20 @@ class WhoPublicPathsTest {
 
     @Test
     void a_blank_contributed_pattern_is_refused() {
-      assertThatThrownBy(
-              () ->
-                  new WhoPublicPaths(WhoPaths.defaults(), List.of(), List.of(), List.of("/a", " ")))
+      WhoPaths paths = WhoPaths.defaults();
+      List<String> contributed = List.of("/a", " ");
+
+      assertThatThrownBy(() -> new WhoPublicPaths(paths, List.of(), List.of(), contributed))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("contributed");
     }
 
     @Test
     void a_null_configured_pattern_is_refused() {
-      assertThatThrownBy(
-              () ->
-                  new WhoPublicPaths(
-                      WhoPaths.defaults(), List.of(), Arrays.asList("/a", null), List.of()))
+      WhoPaths paths = WhoPaths.defaults();
+      List<String> configured = Arrays.asList("/a", null);
+
+      assertThatThrownBy(() -> new WhoPublicPaths(paths, List.of(), configured, List.of()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("configured");
     }

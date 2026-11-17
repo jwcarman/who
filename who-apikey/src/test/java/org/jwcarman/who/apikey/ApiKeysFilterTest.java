@@ -411,7 +411,7 @@ class ApiKeysFilterTest {
       assertThat(signsIn(rawKey)).isTrue();
       assertThat(service.findByIdentity(alice.id()))
           .singleElement()
-          .satisfies(k -> assertThat(k.id().toString()).isEqualTo(body.get("id").asString()));
+          .satisfies(k -> assertThat(k.id()).hasToString(body.get("id").asString()));
     }
 
     @Test

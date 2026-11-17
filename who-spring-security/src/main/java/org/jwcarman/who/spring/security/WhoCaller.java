@@ -29,6 +29,11 @@ import org.jwcarman.who.core.event.SignInMethod;
  */
 public sealed interface WhoCaller {
 
+  /** The check every caller's constructor makes of its authentication. */
+  private static void requireToken(WhoAuthenticationToken token) {
+    requireNonNull(token, "token must not be null");
+  }
+
   /** No who sign-in: the request is anonymous, or signed in by something that is not who's. */
   record SignedOut() implements WhoCaller {}
 
@@ -48,7 +53,7 @@ public sealed interface WhoCaller {
      * @param session the session
      */
     public Session {
-      requireNonNull(token, "token must not be null");
+      requireToken(token);
       requireNonNull(session, "session must not be null");
     }
 
@@ -80,7 +85,7 @@ public sealed interface WhoCaller {
      * @param token the authentication the session loaded
      */
     public SessionWithForeignCredential {
-      requireNonNull(token, "token must not be null");
+      requireToken(token);
     }
   }
 
@@ -99,7 +104,7 @@ public sealed interface WhoCaller {
      * @param method {@link SignInMethod#JWT} or {@link SignInMethod#API_KEY}
      */
     public Stateless {
-      requireNonNull(token, "token must not be null");
+      requireToken(token);
       requireNonNull(method, "method must not be null");
     }
   }
@@ -119,7 +124,7 @@ public sealed interface WhoCaller {
      * @param token the authentication
      */
     public Other {
-      requireNonNull(token, "token must not be null");
+      requireToken(token);
     }
   }
 }

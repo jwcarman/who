@@ -184,7 +184,7 @@ class WhoMeOnEveryChainTest {
   private final HttpClient client = HttpClient.newBuilder().cookieHandler(cookies).build();
   private Identity alice;
   private String apiKey;
-  private EmailCredential email;
+  private EmailCredential emailCredential;
   private FederatedCredential account;
 
   @BeforeEach
@@ -192,7 +192,7 @@ class WhoMeOnEveryChainTest {
     jdbcClient.sql("DELETE FROM who_identity").update();
     jdbcClient.sql("DELETE FROM who_federated_credential").update();
     alice = whoService.createIdentity();
-    email = emailCredentialService.register(alice, ADDRESS);
+    emailCredential = emailCredentialService.register(alice, ADDRESS);
     account = federatedCredentialService.link(alice, ISSUER, SUBJECT);
     TestApiKeys.grant(rbacService, alice);
     apiKey = TestApiKeys.create(apiKeyService, alice, "test");
@@ -201,7 +201,7 @@ class WhoMeOnEveryChainTest {
 
   private String path(String template) {
     return template
-        .replace("{email}", email.id().toString())
+        .replace("{email}", emailCredential.id().toString())
         .replace("{account}", account.id().toString());
   }
 

@@ -72,6 +72,8 @@ import tools.jackson.databind.json.JsonMapper;
 final class EmailAddressFilter extends OncePerRequestFilter {
 
   /** The body field naming the address a request replaces. */
+  private static final String ADDRESS = "address";
+
   private static final String REPLACES = "replaces";
 
   private final RequestMatcher addresses;
@@ -166,7 +168,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
   private static Map<String, Object> view(EmailCredential credential) {
     Map<String, Object> view = new LinkedHashMap<>();
     view.put("id", credential.id().toString());
-    view.put("address", credential.address());
+    view.put(ADDRESS, credential.address());
     view.put("createdAt", credential.created().toString());
     return view;
   }
@@ -202,7 +204,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
 
   private void request(HttpServletRequest request, HttpServletResponse response, Identity identity)
       throws IOException {
-    Map<String, String> body = JsonBodies.readStrings(jsonMapper, request, "address", REPLACES);
+    Map<String, String> body = JsonBodies.readStrings(jsonMapper, request, ADDRESS, REPLACES);
     UUID replaces = null;
     if (body.containsKey(REPLACES)) {
       replaces = parse(body.get(REPLACES)).orElse(null);
@@ -214,7 +216,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
     }
     // answered at once, the same whatever becomes of it, so a taken address does not show
     response.setStatus(HttpServletResponse.SC_ACCEPTED);
-    String address = body.get("address");
+    String address = body.get(ADDRESS);
     UUID replacing = replaces;
     executor.execute(() -> changes.request(identity.id(), address, replacing));
   }

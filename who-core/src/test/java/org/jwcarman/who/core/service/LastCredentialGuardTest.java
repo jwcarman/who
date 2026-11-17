@@ -71,16 +71,16 @@ class LastCredentialGuardTest {
     @Test
     void throws_when_one_credential_remains() {
       AtomicBoolean ran = new AtomicBoolean();
+      LastCredentialGuard guard = guard(1, 0, 0);
 
       assertThatThrownBy(
               () ->
-                  guard(1, 0, 0)
-                      .removeIfNotLast(
-                          identityId,
-                          () -> {
-                            ran.set(true);
-                            return "removed";
-                          }))
+                  guard.removeIfNotLast(
+                      identityId,
+                      () -> {
+                        ran.set(true);
+                        return "removed";
+                      }))
           .isInstanceOf(LastCredentialException.class);
 
       assertThat(ran).isFalse();

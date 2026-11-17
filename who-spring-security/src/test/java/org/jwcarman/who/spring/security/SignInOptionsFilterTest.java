@@ -44,7 +44,9 @@ class SignInOptionsFilterTest {
   private static PasswordlessLoginMethod method(Map<String, Object> options) {
     return new PasswordlessLoginMethod() {
       @Override
-      public void configure(HttpSecurity http) {}
+      public void configure(HttpSecurity http) {
+        // these tests exercise only the sign-in options, so the method adds no security config
+      }
 
       @Override
       public Map<String, Object> signInOptions() {

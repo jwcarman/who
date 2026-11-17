@@ -143,7 +143,7 @@ class LastCredentialGuardIT {
       go.await();
       try {
         return guard.removeIfNotLast(identityId, removal);
-      } catch (LastCredentialException e) {
+      } catch (LastCredentialException _) {
         return false;
       }
     };
@@ -153,7 +153,7 @@ class LastCredentialGuardIT {
     bothCounted.countDown();
     try {
       bothCounted.await(500, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
   }

@@ -60,8 +60,8 @@ class IdentifiersTest {
 
   private static int unsignedCompare(UUID a, UUID b) {
     int high = Long.compareUnsigned(a.getMostSignificantBits(), b.getMostSignificantBits());
-    return high != 0
-        ? high
-        : Long.compareUnsigned(a.getLeastSignificantBits(), b.getLeastSignificantBits());
+    return high == 0
+        ? Long.compareUnsigned(a.getLeastSignificantBits(), b.getLeastSignificantBits())
+        : high;
   }
 }

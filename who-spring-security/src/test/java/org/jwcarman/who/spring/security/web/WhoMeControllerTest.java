@@ -47,6 +47,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -164,18 +165,18 @@ class WhoMeControllerTest {
 
     @Test
     void signed_out_throws_not_signed_in() {
-      assertThatThrownBy(() -> controller(null).resolve(request, null))
+      WhoMeController controller = controller(null);
+
+      assertThatThrownBy(() -> controller.resolve(request, null))
           .isInstanceOf(NotSignedInException.class);
     }
 
     @Test
     void another_kind_of_authentication_is_not_a_who_sign_in() {
-      assertThatThrownBy(
-              () ->
-                  controller(null)
-                      .resolve(
-                          request,
-                          UsernamePasswordAuthenticationToken.authenticated("x", "y", List.of())))
+      WhoMeController controller = controller(null);
+      Authentication other = UsernamePasswordAuthenticationToken.authenticated("x", "y", List.of());
+
+      assertThatThrownBy(() -> controller.resolve(request, other))
           .isInstanceOf(NotSignedInException.class);
     }
   }

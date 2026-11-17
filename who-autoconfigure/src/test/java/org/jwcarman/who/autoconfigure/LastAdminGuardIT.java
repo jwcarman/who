@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -153,15 +154,19 @@ class LastAdminGuardIT {
 
     @Test
     void cannot_lose_the_role_that_grants_it() {
-      assertThatThrownBy(() -> guard.removeRole(alice.id(), admin.id(), () -> removeAdmin(alice)))
+      UUID aliceId = alice.id();
+      UUID adminId = admin.id();
+
+      assertThatThrownBy(() -> guard.removeRole(aliceId, adminId, () -> removeAdmin(alice)))
           .isInstanceOf(LastAdminException.class);
       assertThat(rbacService.findRolesForIdentity(alice.id())).containsExactly(admin);
     }
 
     @Test
     void cannot_be_deactivated() {
-      assertThatThrownBy(
-              () -> guard.deactivate(alice.id(), () -> whoService.deactivate(alice.id())))
+      UUID aliceId = alice.id();
+
+      assertThatThrownBy(() -> guard.deactivate(aliceId, () -> whoService.deactivate(aliceId)))
           .isInstanceOf(LastAdminException.class);
       assertThat(identityRepository.findById(alice.id()).orElseThrow().status())
           .isEqualTo(IdentityStatus.ACTIVE);
@@ -193,8 +198,10 @@ class LastAdminGuardIT {
     @Test
     void one_may_be_deactivated_but_not_then_the_other() {
       assertThat(guard.deactivate(bob.id(), () -> whoService.deactivate(bob.id()))).isTrue();
+      UUID aliceId = alice.id();
+      UUID adminId = admin.id();
 
-      assertThatThrownBy(() -> guard.removeRole(alice.id(), admin.id(), () -> removeAdmin(alice)))
+      assertThatThrownBy(() -> guard.removeRole(aliceId, adminId, () -> removeAdmin(alice)))
           .isInstanceOf(LastAdminException.class);
     }
 
@@ -228,7 +235,7 @@ class LastAdminGuardIT {
                 meet(bothCounted);
                 return removeAdmin(identity);
               });
-        } catch (LastAdminException e) {
+        } catch (LastAdminException _) {
           return false;
         }
       };
@@ -246,7 +253,7 @@ class LastAdminGuardIT {
     bothCounted.countDown();
     try {
       bothCounted.await(500, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
   }
