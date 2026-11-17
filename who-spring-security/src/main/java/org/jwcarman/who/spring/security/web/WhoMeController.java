@@ -27,6 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.observation.WhoObservations;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
@@ -73,9 +74,10 @@ public class WhoMeController {
    *
    * @param identityId the identity's id
    * @param permissions the identity's current permissions
-   * @param signInMethod the {@link SignInMethod} name of the sign-in that authenticated this
-   *     request, such as {@code PASSKEY} or {@code API_KEY}; for a browser, how the session signed
-   *     in. {@code null} when that is not known, as for a session saved before who stored it
+   * @param signInMethod the {@link SignInMethod} of the sign-in that authenticated this request,
+   *     spelled as {@code /me/sessions} spells it (lowercase, hyphenated): {@code passkey}, {@code
+   *     email-link}, {@code api-key}; for a browser, how the session signed in. {@code null} when
+   *     that is not known, as for a session saved before who stored it
    * @param recentSignInUntil when the browser session's sign-in stops being recent, which may
    *     already have passed; {@code null} unless the request is a browser session's, since an API
    *     key or a bearer token stands for no sign-in
@@ -112,7 +114,7 @@ public class WhoMeController {
         session
             .map(WhoSession::signInMethod)
             .or(() -> tokenMethod(authentication))
-            .map(SignInMethod::name)
+            .map(WhoObservations::tagValue)
             .orElse(null);
     Instant recentUntil = session.map(s -> s.signedInAt().plus(recentSignIn.window())).orElse(null);
     Map<String, Long> credentials =

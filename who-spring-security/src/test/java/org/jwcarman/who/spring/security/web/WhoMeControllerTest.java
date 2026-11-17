@@ -115,7 +115,7 @@ class WhoMeControllerTest {
 
       assertThat(body.identityId()).isEqualTo(identity.id());
       assertThat(body.permissions()).containsExactly("task.read");
-      assertThat(body.signInMethod()).isEqualTo("PASSKEY");
+      assertThat(body.signInMethod()).isEqualTo("passkey");
       assertThat(body.recentSignInUntil()).isEqualTo(SIGNED_IN.plus(WINDOW));
     }
 
@@ -127,7 +127,7 @@ class WhoMeControllerTest {
 
       WhoMeController.WhoMeResponse body = me(controller(null), token);
 
-      assertThat(body.signInMethod()).isEqualTo("API_KEY");
+      assertThat(body.signInMethod()).isEqualTo("api-key");
       assertThat(body.recentSignInUntil()).isNull();
     }
 

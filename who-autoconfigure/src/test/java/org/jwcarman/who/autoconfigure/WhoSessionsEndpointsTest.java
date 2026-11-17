@@ -209,7 +209,15 @@ class WhoSessionsEndpointsTest {
 
     assertThat(response.statusCode()).isEqualTo(200);
     JsonNode me = json.readTree(response.body());
-    assertThat(me.get("signInMethod").asString()).isEqualTo("EMAIL_LINK");
+    assertThat(me.get("signInMethod").asString()).isEqualTo("email-link");
+    // one vocabulary: the sessions view names the same sign-in the same way
+    assertThat(browser.sessions())
+        .filteredOn(session -> Boolean.TRUE.equals(session.get("current")))
+        .singleElement()
+        .satisfies(
+            session ->
+                assertThat(session.get("signInMethod"))
+                    .isEqualTo(me.get("signInMethod").asString()));
     assertThat(Instant.parse(me.get("recentSignInUntil").asString())).isAfter(Instant.now());
     assertThat(me.get("credentials").get("email").asLong()).isEqualTo(1);
   }
