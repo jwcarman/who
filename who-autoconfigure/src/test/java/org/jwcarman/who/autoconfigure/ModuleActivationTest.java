@@ -28,6 +28,7 @@ import org.jwcarman.who.admin.IdentityEmails;
 import org.jwcarman.who.admin.WhoAdminEndpoints;
 import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
@@ -56,6 +57,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
@@ -491,6 +493,53 @@ class ModuleActivationTest {
     }
   }
 
+  @Nested
+  class Last_credential_guard {
+
+    private static final String GITHUB = "spring.security.oauth2.client.registration.github.";
+
+    /** Passkeys, email links and OIDC all on: each one's removal endpoint needs the guard. */
+    private final ApplicationContextRunner everyCredential =
+        configured
+            .withConfiguration(AutoConfigurations.of(OAuth2ClientAutoConfiguration.class))
+            .withPropertyValues(
+                "who.oidc.enabled=true",
+                "who.security.public-paths=/",
+                GITHUB + "client-id=client",
+                GITHUB + "client-secret=secret");
+
+    @Test
+    void two_transaction_managers_and_no_primary_fail_startup_naming_the_guard() {
+      everyCredential
+          .withUserConfiguration(SecondTransactionManager.class)
+          .run(
+              context -> {
+                assertThat(context).hasFailed();
+                assertThat(messages(context.getStartupFailure())).contains("LastCredentialGuard");
+              });
+    }
+
+    @Test
+    void a_primary_transaction_manager_among_two_starts() {
+      everyCredential
+          .withUserConfiguration(PrimaryTransactionManager.class)
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).hasSingleBean(LastCredentialGuard.class);
+              });
+    }
+
+    /** Every message in the failure's cause chain. */
+    private static String messages(Throwable failure) {
+      StringBuilder messages = new StringBuilder();
+      for (Throwable t = failure; t != null; t = t.getCause()) {
+        messages.append(t.getMessage()).append('\n');
+      }
+      return messages.toString();
+    }
+  }
+
   /** The failure names the property and offers the module's off switch. */
   private static void assertMissing(
       AssertableApplicationContext context, String property, String module) {
@@ -520,6 +569,25 @@ class ModuleActivationTest {
     /** What the last-credential guard, which passkeys require, runs its transaction on. */
     @Bean
     PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
+    }
+  }
+
+  /** A second transaction manager beside {@link Database}'s, with neither primary. */
+  @Configuration(proxyBeanMethods = false)
+  static class SecondTransactionManager {
+    @Bean
+    PlatformTransactionManager otherTransactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
+    }
+  }
+
+  /** A second transaction manager beside {@link Database}'s, marked primary. */
+  @Configuration(proxyBeanMethods = false)
+  static class PrimaryTransactionManager {
+    @Bean
+    @Primary
+    PlatformTransactionManager otherTransactionManager(DataSource dataSource) {
       return new DataSourceTransactionManager(dataSource);
     }
   }
