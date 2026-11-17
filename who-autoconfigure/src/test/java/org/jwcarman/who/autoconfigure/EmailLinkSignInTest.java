@@ -71,6 +71,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -83,6 +84,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -675,6 +677,12 @@ class EmailLinkSignInTest {
       return JdbcClient.create(dataSource);
     }
 
+    /** What the last-credential guard, which email addresses require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
+    }
+
     @Bean
     EmailLinkSender emailLinkSender() {
       return message -> {};
@@ -795,6 +803,12 @@ class EmailLinkSignInTest {
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
+    }
+
+    /** What the last-credential guard, which email addresses require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
     }
   }
 

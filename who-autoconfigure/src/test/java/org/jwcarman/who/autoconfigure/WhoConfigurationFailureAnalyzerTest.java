@@ -30,8 +30,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoConfigurationFailureAnalyzerTest {
@@ -153,6 +155,12 @@ class WhoConfigurationFailureAnalyzerTest {
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
+    }
+
+    /** What the last-credential guard, which email addresses require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
     }
   }
 

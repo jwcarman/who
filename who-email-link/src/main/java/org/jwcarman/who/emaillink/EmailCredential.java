@@ -17,6 +17,7 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,6 +60,16 @@ public record EmailCredential(UUID id, String address) implements Credential {
   @Override
   public Optional<String> label() {
     return EmailAddresses.isSafe(address) ? Optional.of(address) : Optional.empty();
+  }
+
+  /**
+   * When the credential was registered, read from its id: a UUIDv7 begins with its creation time in
+   * milliseconds. who does not store it separately.
+   *
+   * @return the instant the id was generated
+   */
+  public Instant created() {
+    return Instant.ofEpochMilli(id.getMostSignificantBits() >>> 16);
   }
 
   /**

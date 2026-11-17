@@ -62,10 +62,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import io.micrometer.observation.ObservationRegistry;
@@ -84,6 +86,12 @@ class WhoAutoConfigurationTest {
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
+    }
+
+    /** What the last-credential guard, which email addresses require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
     }
   }
 
@@ -306,6 +314,12 @@ class WhoAutoConfigurationTest {
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
       return JdbcClient.create(dataSource);
+    }
+
+    /** What the last-credential guard, which email addresses require, runs its transaction on. */
+    @Bean
+    PlatformTransactionManager transactionManager(DataSource dataSource) {
+      return new DataSourceTransactionManager(dataSource);
     }
   }
 

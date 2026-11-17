@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.BrowserEndpoints;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -33,12 +34,16 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Adds the endpoints that let a signed-in person add an email address, or change one, by confirming
  * a link or code sent to it: {@code POST /who/me/email-addresses} and {@code POST
- * /who/me/email-addresses/confirmations}, under {@code who.base-path}, on every browser chain.
+ * /who/me/email-addresses/confirmations}, and list and remove the addresses: {@code GET
+ * /who/me/email-addresses} and {@code DELETE /who/me/email-addresses/{id}}, under {@code
+ * who.base-path}, on every browser chain.
  */
 public class EmailAddressEndpoints implements BrowserEndpoints {
 
   private final WhoPaths paths;
   private final EmailAddressChanges changes;
+  private final EmailCredentialService credentials;
+  private final LastCredentialGuard guard;
   private final WhoSessionSecurityContextRepository sessions;
   private final WhoExceptionHandoff handoff;
   private final Executor executor;
@@ -51,6 +56,8 @@ public class EmailAddressEndpoints implements BrowserEndpoints {
    *
    * @param paths where the endpoints live
    * @param changes requests and confirms the changes
+   * @param credentials lists and revokes the addresses
+   * @param guard keeps an identity from losing its last sign-in credential
    * @param sessions reads the browser's who session and its sign-in time
    * @param handoff answers errors through the application's exception handling
    * @param executor runs a request's lookup and sending off the request thread
@@ -61,6 +68,8 @@ public class EmailAddressEndpoints implements BrowserEndpoints {
   public EmailAddressEndpoints(
       WhoPaths paths,
       EmailAddressChanges changes,
+      EmailCredentialService credentials,
+      LastCredentialGuard guard,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
       Executor executor,
@@ -69,6 +78,8 @@ public class EmailAddressEndpoints implements BrowserEndpoints {
       Duration recentSignIn) {
     this.paths = requireNonNull(paths, "paths must not be null");
     this.changes = requireNonNull(changes, "changes must not be null");
+    this.credentials = requireNonNull(credentials, "credentials must not be null");
+    this.guard = requireNonNull(guard, "guard must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.executor = requireNonNull(executor, "executor must not be null");
@@ -82,7 +93,16 @@ public class EmailAddressEndpoints implements BrowserEndpoints {
     // before authorization, as passkeys' guard filter, so a signed-out caller gets who's answer
     http.addFilterAfter(
         new EmailAddressFilter(
-            paths, changes, sessions, handoff, executor, jsonMapper, clock, recentSignIn),
+            paths,
+            changes,
+            credentials,
+            guard,
+            sessions,
+            handoff,
+            executor,
+            jsonMapper,
+            clock,
+            recentSignIn),
         ExceptionTranslationFilter.class);
   }
 }

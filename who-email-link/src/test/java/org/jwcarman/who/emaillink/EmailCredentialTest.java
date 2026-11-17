@@ -18,6 +18,8 @@ package org.jwcarman.who.emaillink;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.Test;
 
 class EmailCredentialTest {
@@ -34,5 +36,13 @@ class EmailCredentialTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> EmailCredential.normalize(null))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void created_is_read_from_the_time_ordered_id() {
+    Instant before = Instant.now().minusSeconds(1);
+    EmailCredential credential = EmailCredential.create("a@example.com");
+
+    assertThat(credential.created()).isBetween(before, Instant.now().plusSeconds(1));
   }
 }

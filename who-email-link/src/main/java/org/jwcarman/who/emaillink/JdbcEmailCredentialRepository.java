@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.emaillink;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -85,6 +86,18 @@ public class JdbcEmailCredentialRepository implements EmailCredentialRepository,
         .param("identity_id", identityId)
         .query(ROW_MAPPER)
         .optional();
+  }
+
+  @Override
+  public List<EmailCredential> findAllByIdentityId(UUID identityId) {
+    return jdbcClient
+        .sql(
+            "SELECT e.id, e.address FROM who_email_credential e"
+                + " JOIN who_credential_identity ci ON ci.credential_id = e.id"
+                + " WHERE ci.identity_id = :identity_id ORDER BY e.id")
+        .param("identity_id", identityId)
+        .query(ROW_MAPPER)
+        .list();
   }
 
   @Override

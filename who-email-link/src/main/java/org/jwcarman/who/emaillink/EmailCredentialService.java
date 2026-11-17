@@ -18,6 +18,7 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -219,8 +220,24 @@ public class EmailCredentialService {
   }
 
   /**
+   * Lists the identity's email credentials, oldest first: by id, which is UUIDv7, so the earliest
+   * registered comes first.
+   *
+   * @param identityId the identity
+   * @return its email credentials, possibly none
+   */
+  public List<EmailCredential> findAllFor(UUID identityId) {
+    requireNonNull(identityId, "identityId must not be null");
+    return emailCredentialRepository.findAllByIdentityId(identityId);
+  }
+
+  /**
    * Revokes an email credential: deletes it (and its token) and unlinks it from its identity, then
    * publishes {@link CredentialRevoked} if it was linked to one. Does nothing for an unknown id.
+   *
+   * <p>This does not apply the last-credential rule: it will revoke an identity's last sign-in
+   * credential. A caller acting for a person must apply the rule itself, as {@code
+   * LastCredentialGuard#removeIfNotLast} does.
    *
    * @param credentialId the credential id
    */

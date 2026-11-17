@@ -23,6 +23,7 @@ import java.util.concurrent.Executor;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.emaillink.EmailAddressChanges;
@@ -472,6 +473,9 @@ public class WhoEmailLinkAutoConfiguration {
    * {@code /who/me/email-addresses}: a signed-in person asks for and confirms an address change.
    *
    * @param emailAddressChanges makes the changes
+   * @param emailCredentialService lists and revokes the addresses
+   * @param lastCredentialGuard required: addresses are never removed without the last-credential
+   *     rule, so an application without it fails to start
    * @param sessionRepository finds the browser session, for the recent-sign-in check
    * @param handoff hands errors to the application's exception handling, when present
    * @param executor sends the confirmation off the request thread
@@ -485,6 +489,8 @@ public class WhoEmailLinkAutoConfiguration {
   @ConditionalOnMissingBean
   public EmailAddressEndpoints emailAddressEndpoints(
       EmailAddressChanges emailAddressChanges,
+      EmailCredentialService emailCredentialService,
+      LastCredentialGuard lastCredentialGuard,
       WhoSessionSecurityContextRepository sessionRepository,
       ObjectProvider<WhoExceptionHandoff> handoff,
       @Qualifier(EXECUTOR_BEAN_NAME) Executor executor,
@@ -495,6 +501,8 @@ public class WhoEmailLinkAutoConfiguration {
     return new EmailAddressEndpoints(
         paths,
         emailAddressChanges,
+        emailCredentialService,
+        lastCredentialGuard,
         sessionRepository,
         handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
         executor,

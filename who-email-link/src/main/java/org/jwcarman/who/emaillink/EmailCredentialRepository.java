@@ -15,6 +15,7 @@
  */
 package org.jwcarman.who.emaillink;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,6 +55,15 @@ public interface EmailCredentialRepository {
    * @return the oldest credential, or empty if the identity has none
    */
   Optional<EmailCredential> findOldestByIdentityId(UUID identityId);
+
+  /**
+   * Finds every email credential linked to the identity, oldest first: by id, which is UUIDv7, so
+   * the earliest registered comes first.
+   *
+   * @param identityId the identity
+   * @return its email credentials, possibly none
+   */
+  List<EmailCredential> findAllByIdentityId(UUID identityId);
 
   /**
    * Deletes a credential (and, by cascade, its link token).

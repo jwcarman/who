@@ -263,4 +263,16 @@ class EmailCredentialServiceTest extends AbstractEmailLinkTest {
 
     assertThat(service.findById(others.id())).isPresent();
   }
+
+  @Test
+  void finds_all_of_an_identity_s_credentials_oldest_first_and_no_one_else_s() {
+    Identity identity = identityRepository.save(Identity.create());
+    Identity other = identityRepository.save(Identity.create());
+    EmailCredential first = service.register(identity, "first@example.com");
+    service.register(other, "other@example.com");
+    EmailCredential second = service.register(identity, "second@example.com");
+
+    assertThat(service.findAllFor(identity.id())).containsExactly(first, second);
+    assertThat(service.findAllFor(UUID.randomUUID())).isEmpty();
+  }
 }

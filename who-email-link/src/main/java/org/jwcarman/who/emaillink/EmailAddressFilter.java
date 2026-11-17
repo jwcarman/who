@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +34,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.exception.LastCredentialException;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
@@ -43,6 +47,7 @@ import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -56,6 +61,14 @@ import tools.jackson.databind.json.JsonMapper;
  * and {@code POST /who/me/email-addresses/confirmations} confirms it with the link's token or the
  * code. Both need a browser session for the signed-in identity, signed in within the recent sign-in
  * window.
+ *
+ * <p>{@code GET /who/me/email-addresses} lists the caller's addresses, oldest first, for any
+ * signed-in caller. {@code DELETE /who/me/email-addresses/{id}} removes one, by the credential id
+ * the list shows: it is for a browser session only (an API key or bearer token beside the cookie is
+ * {@code 403}), needs a recent sign-in, and runs through the {@link LastCredentialGuard}, so
+ * removing the last sign-in credential is {@code 409}. An address that does not exist and one that
+ * belongs to someone else are both {@code 404}. Removing the address the session signed in with is
+ * allowed; the session stays.
  */
 final class EmailAddressFilter extends OncePerRequestFilter {
 
@@ -64,7 +77,11 @@ final class EmailAddressFilter extends OncePerRequestFilter {
 
   private final RequestMatcher addresses;
   private final RequestMatcher confirm;
+  private final RequestMatcher list;
+  private final PathPatternRequestMatcher remove;
   private final EmailAddressChanges changes;
+  private final EmailCredentialService credentials;
+  private final LastCredentialGuard guard;
   private final WhoSessionSecurityContextRepository sessions;
   private final WhoExceptionHandoff handoff;
   private final Executor executor;
@@ -75,6 +92,8 @@ final class EmailAddressFilter extends OncePerRequestFilter {
   EmailAddressFilter(
       WhoPaths paths,
       EmailAddressChanges changes,
+      EmailCredentialService credentials,
+      LastCredentialGuard guard,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
       Executor executor,
@@ -85,7 +104,12 @@ final class EmailAddressFilter extends OncePerRequestFilter {
     this.addresses = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url);
     this.confirm =
         PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url + "/confirmations");
+    this.list = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, url);
+    this.remove =
+        PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.DELETE, url + "/{id}");
     this.changes = requireNonNull(changes, "changes must not be null");
+    this.credentials = requireNonNull(credentials, "credentials must not be null");
+    this.guard = requireNonNull(guard, "guard must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.executor = requireNonNull(executor, "executor must not be null");
@@ -96,13 +120,24 @@ final class EmailAddressFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !addresses.matches(request) && !confirm.matches(request);
+    return !addresses.matches(request)
+        && !confirm.matches(request)
+        && !list.matches(request)
+        && !remove.matches(request);
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
+    if (list.matches(request)) {
+      list(request, response);
+      return;
+    }
+    if (remove.matches(request)) {
+      remove(request, response);
+      return;
+    }
     Optional<SignedIn> signedIn = browserSignIn(request);
     if (signedIn.isEmpty()) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
@@ -119,6 +154,81 @@ final class EmailAddressFilter extends OncePerRequestFilter {
     } else {
       confirm(request, response, signedIn.get().identity());
     }
+  }
+
+  /** Any signed-in caller may list: it changes nothing. */
+  private void list(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (!(authentication instanceof WhoAuthenticationToken token)) {
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    List<Map<String, Object>> body =
+        credentials.findAllFor(token.getPrincipal().identity().id()).stream()
+            .map(EmailAddressFilter::view)
+            .toList();
+    response.setStatus(HttpServletResponse.SC_OK);
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+    response.getWriter().write(jsonMapper.writeValueAsString(body));
+  }
+
+  private static Map<String, Object> view(EmailCredential credential) {
+    Map<String, Object> view = new LinkedHashMap<>();
+    view.put("id", credential.id().toString());
+    view.put("address", credential.address());
+    view.put("created", credential.created().toString());
+    return view;
+  }
+
+  private void remove(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (!(authentication instanceof WhoAuthenticationToken token)) {
+      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    UUID identityId = token.getPrincipal().identity().id();
+    // only the authentication the browser session loaded, whose record is live and whose
+    // identity matches; an API key or bearer token beside a session cookie does not count
+    Optional<WhoSession> current =
+        sessions.isLoaded(request, token)
+            ? sessions.currentSession(request).filter(s -> s.identityId().equals(identityId))
+            : Optional.empty();
+    if (current.isEmpty()) {
+      handoff.handOff(
+          request,
+          response,
+          new AccessDeniedException("Only a browser session can remove an email address"),
+          HttpStatus.FORBIDDEN);
+      return;
+    }
+    // before looking at the id, so a stale session learns nothing about any address
+    if (!WhoSignInFactors.isRecent(current.get().signedInAt(), recentSignIn, clock.instant())) {
+      handoff.handOff(
+          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    // another identity's address and one that does not exist are the same answer
+    Optional<UUID> credentialId =
+        parse(remove.matcher(request).getVariables().get("id"))
+            .filter(id -> credentials.isOwnedBy(id, identityId));
+    if (credentialId.isEmpty()) {
+      handoff.handOff(
+          request, response, new EmailCredentialNotFoundException(), HttpStatus.NOT_FOUND);
+      return;
+    }
+    try {
+      guard.removeIfNotLast(
+          identityId,
+          () -> {
+            credentials.revoke(credentialId.get());
+            return Boolean.TRUE;
+          });
+    } catch (LastCredentialException e) {
+      handoff.handOff(request, response, e, HttpStatus.CONFLICT);
+      return;
+    }
+    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
   }
 
   private void request(HttpServletRequest request, HttpServletResponse response, Identity identity)
