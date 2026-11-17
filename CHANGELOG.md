@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-17
+
 ### Breaking changes
 
 - `EmailLinkSender` is now `WhoEmailSender`, and the default `MailEmailLinkSender` is `MailWhoEmailSender`: it sends every who email, not only sign-in links. There is no alias; a custom sender implements `WhoEmailSender`, and an application that names the auto-configured bean (`mailEmailLinkSender`) calls it `mailWhoEmailSender`.
@@ -512,7 +514,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.20.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.21.0...HEAD
+[0.21.0]: https://github.com/jwcarman/who/releases/tag/0.21.0
 [0.20.0]: https://github.com/jwcarman/who/releases/tag/0.20.0
 [0.19.0]: https://github.com/jwcarman/who/releases/tag/0.19.0
 [0.18.0]: https://github.com/jwcarman/who/releases/tag/0.18.0
