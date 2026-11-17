@@ -1,6 +1,6 @@
 # Roadmap
 
-Where who is going after 0.21.0. Each release below is a theme, not a promise: order and scope
+Where who is going after 0.22.0. Each release below is a theme, not a promise: order and scope
 change as people use who and tell us what they need. Every feature starts with a design doc in
 `docs/superpowers/specs/` before any code.
 
@@ -74,14 +74,23 @@ to 0.21.
 
 ## 0.21: the HTTP API surface
 
-(Done in 0.21.0.) Planned as "more identity providers"; that moved to 0.23.
+(Done in 0.21.0.) Planned as "more identity providers"; that moved to 0.24.
 
 - **Account management under `/who/me`**: sessions, passkeys, email addresses, linked accounts
   and API keys, with the last-credential rule. (Done; see [Account](docs/guides/account.md).)
 - **`who-admin`**: identities, roles and invitations, guarded by who-owned permissions. (Done;
   see [Admin](docs/guides/admin.md).)
 
-## 0.22: email templates
+## 0.22: invitations carry the app's data
+
+(Done in 0.22.0.)
+
+- **`invite()` takes a callback** that runs inside the invitation's transaction, on the caller's
+  thread, so an application writes its own data for the invitee (a profile, an activity entry)
+  with the invitation, or rolls it all back. (Done; see
+  [Admin](docs/guides/admin.md).)
+
+## 0.23: email templates
 
 - **Email templates.** who renders every email and `WhoEmailSender` only delivers it:
   `send(OutgoingEmail)` with the recipient, subject, text and optional HTML, plus the typed
@@ -91,17 +100,17 @@ to 0.21.
   Thymeleaf when it is on the classpath, simple placeholders otherwise. Breaks custom senders once
   more, so it needs a design doc first.
 
-## 0.23: more identity providers
+## 0.24: more identity providers
 
 - Multi-tenant Microsoft Entra ID (`common` and `organizations`), with a tenant allow-list.
 - Sign-up through `WhoSignUpPolicy` for email links.
 
-## 0.24: organizations
+## 0.25: organizations
 
 - Roles and permissions scoped to an organization ("admin in Acme, member in Globex"),
   invitations to an organization, and permission checks against the current one.
 - This changes the data model more than anything else here, so its design should start early,
-  well before 0.24, even if the code comes last.
+  well before 0.25, even if the code comes last.
 
 ## 1.0: stability
 

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-17
+
 ### Added
 
 - `InvitationService.invite(email, roleNames, callback)`: the callback receives the new identity and runs inside the invitation's transaction, on the caller's thread, after the roles are assigned and before `IdentityInvited` is published. It is the way to write the application's own data (a profile row, an activity-log entry) so it commits or rolls back with the invitation. If it throws, the whole invitation rolls back, nothing is sent, and a `RuntimeException` or `Error` reaches the caller unchanged (a sneaked checked exception arrives wrapped in `UndeclaredThrowableException`).
@@ -518,7 +520,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.21.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.22.0...HEAD
+[0.22.0]: https://github.com/jwcarman/who/releases/tag/0.22.0
 [0.21.0]: https://github.com/jwcarman/who/releases/tag/0.21.0
 [0.20.0]: https://github.com/jwcarman/who/releases/tag/0.20.0
 [0.19.0]: https://github.com/jwcarman/who/releases/tag/0.19.0

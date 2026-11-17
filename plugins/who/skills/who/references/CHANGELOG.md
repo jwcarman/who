@@ -3,6 +3,7 @@
 **Contents**
 
 - [Unreleased]
+- [0.22.0] - 2026-11-17
 - [0.21.0] - 2026-11-17
 - [0.20.0] - 2026-11-17
 - [0.19.0] - 2026-11-16
@@ -21,6 +22,8 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [0.22.0] - 2026-11-17
 
 ### Added
 
@@ -534,7 +537,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.21.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.22.0...HEAD
+[0.22.0]: https://github.com/jwcarman/who/releases/tag/0.22.0
 [0.21.0]: https://github.com/jwcarman/who/releases/tag/0.21.0
 [0.20.0]: https://github.com/jwcarman/who/releases/tag/0.20.0
 [0.19.0]: https://github.com/jwcarman/who/releases/tag/0.19.0
