@@ -59,7 +59,7 @@ final class PasskeyEmulator {
     return new PasskeyEmulator(origin, false);
   }
 
-  /** Answers the options, as {@code POST /who/passkey/register} would carry it. */
+  /** Answers the options, as {@code POST /who/me/passkeys} would carry it. */
   RelyingPartyRegistrationRequest register(
       PublicKeyCredentialCreationOptions options, String label) {
     EmulatedAuthenticator.Attestation attestation =

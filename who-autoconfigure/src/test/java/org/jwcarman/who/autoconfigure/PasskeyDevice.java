@@ -73,8 +73,8 @@ final class PasskeyDevice {
   }
 
   /**
-   * Answers {@code POST /who/passkey/register/options} as {@code navigator.credentials.create()}
-   * would, and returns the body for {@code POST /who/passkey/register}.
+   * Answers {@code POST /who/me/passkeys/options} as {@code navigator.credentials.create()} would,
+   * and returns the body for {@code POST /who/me/passkeys}.
    */
   String register(String creationOptionsJson, String label) {
     JsonNode options = json.readTree(creationOptionsJson);

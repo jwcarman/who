@@ -18,7 +18,6 @@ package org.jwcarman.who.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -47,7 +46,6 @@ import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyService;
-import org.jwcarman.who.passkey.PasskeySummary;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -282,7 +280,7 @@ class PasskeySignInTest {
   }
 
   private static MvcResult creationOptions(Browser browser) throws Exception {
-    return browser.performWithCsrf(post("/who/passkey/register/options"));
+    return browser.performWithCsrf(post("/who/me/passkeys/options"));
   }
 
   private static String creationOptionsJson(Browser browser) throws Exception {
@@ -292,7 +290,7 @@ class PasskeySignInTest {
   }
 
   private static MvcResult register(Browser browser, String body) throws Exception {
-    return browser.performWithCsrf(json(post("/who/passkey/register")).content(body));
+    return browser.performWithCsrf(json(post("/who/me/passkeys")).content(body));
   }
 
   /** Registers a passkey on the device from the signed-in browser. */
@@ -535,12 +533,10 @@ class PasskeySignInTest {
     assertThat(laptopSession.me()).isEqualTo(401);
     assertInvalidCredential(signInWithPasskey(new Browser(mvc), laptop));
 
-    // through Spring's DELETE /who/passkey/register/{id}, from the passkey's own session
+    // the passkey's own session ends with it too
     Browser phoneSession = new Browser(mvc);
     assertSignedInAs(signInWithPasskey(phoneSession, phone), owner);
-    MvcResult deleted =
-        phoneSession.performWithCsrf(delete("/who/passkey/register/" + phone.credentialId()));
-    assertThat(deleted.getResponse().getStatus()).isEqualTo(204);
+    passkeyService.revoke(credentialUuid(phone));
     assertThat(phoneSession.me()).isEqualTo(401);
     assertThat(
             jdbcClient
@@ -558,39 +554,6 @@ class PasskeySignInTest {
     assertInvalidCredential(signInWithPasskey(new Browser(mvc), phone));
     // the email-link session is unaffected
     assertThat(emailSession.me()).isEqualTo(200);
-  }
-
-  @Test
-  void listedCredentialIdDrivesSpringsDelete() throws Exception {
-    Browser browser = signedInByEmail(OWNER);
-    PasskeyDevice device = new PasskeyDevice(ORIGIN);
-    registerPasskey(browser, device, "Laptop");
-    PasskeySummary listed = passkeyService.list(owner.id()).getFirst();
-    assertThat(listed.credentialId()).isEqualTo(device.credentialId());
-
-    MvcResult deleted =
-        browser.performWithCsrf(delete("/who/passkey/register/" + listed.credentialId()));
-
-    assertThat(deleted.getResponse().getStatus()).isEqualTo(204);
-    assertThat(passkeyService.list(owner.id())).isEmpty();
-    assertInvalidCredential(signInWithPasskey(new Browser(mvc), device));
-  }
-
-  @Test
-  void cannotDeleteAnotherIdentitysPasskey() throws Exception {
-    PasskeyDevice ownerDevice = ownerWithPasskey();
-    Browser intruder = signedInByEmail(OTHER);
-    // with and without a passkey user entity of its own
-    MvcResult refused =
-        intruder.performWithCsrf(delete("/who/passkey/register/" + ownerDevice.credentialId()));
-    assertThat(refused.getResponse().getStatus()).isEqualTo(403);
-    registerPasskey(intruder, new PasskeyDevice(ORIGIN), "Intruder");
-
-    MvcResult refusedAgain =
-        intruder.performWithCsrf(delete("/who/passkey/register/" + ownerDevice.credentialId()));
-
-    assertThat(refusedAgain.getResponse().getStatus()).isEqualTo(403);
-    assertSignedInAs(signInWithPasskey(new Browser(mvc), ownerDevice), owner);
   }
 
   @Test

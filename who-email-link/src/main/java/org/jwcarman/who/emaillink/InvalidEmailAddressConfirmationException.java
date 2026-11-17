@@ -22,9 +22,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
- * A confirmation at {@code POST /who/email/addresses/confirm} matched nothing: no request by this
- * identity, an expired or used one, a wrong code, or a code with no attempts left. The message
- * never says which.
+ * A confirmation at {@code POST /who/me/email-addresses/confirmations} matched nothing: no request
+ * by this identity, an expired or used one, a wrong code, or a code with no attempts left. The
+ * message never says which.
  */
 @ResponseStatus(HttpStatus.BAD_REQUEST)
 public class InvalidEmailAddressConfirmationException extends RuntimeException

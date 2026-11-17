@@ -190,8 +190,8 @@ public class WhoSpringSecurityAutoConfiguration {
   }
 
   /**
-   * {@code GET /who/sessions} and {@code DELETE /who/sessions/...}: a signed-in person's browser
-   * sessions, and ending them. Ending another session needs a sign-in within {@code
+   * {@code GET /who/me/sessions} and {@code DELETE /who/me/sessions/...}: a signed-in person's
+   * browser sessions, and ending them. Ending another session needs a sign-in within {@code
    * who.security.recent-sign-in}.
    *
    * @param whoSessions who's record of sessions

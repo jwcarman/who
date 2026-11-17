@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.time.Clock;
@@ -339,23 +338,6 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
               new CredentialAdded(
                   NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
     }
-
-    @Test
-    void deleting_through_springs_endpoint_publishes_credential_revoked() throws Exception {
-      assertThat(signIn().getStatus()).isEqualTo(200);
-      EVENTS.clear();
-
-      MockHttpServletResponse deleted =
-          perform(
-              delete("/who/passkey/register/" + registered.getCredentialId().toBase64UrlString())
-                  .with(csrf()));
-
-      assertThat(deleted.getStatus()).isEqualTo(204);
-      assertThat(publishedEvents())
-          .containsExactly(
-              new CredentialRevoked(
-                  NOW, identity.id(), credentialUuid, CredentialKind.PASSKEY, "Laptop"));
-    }
   }
 
   @Nested
@@ -456,7 +438,7 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
       CLOCK.set(later);
       EVENTS.clear();
 
-      MockHttpServletResponse refused = perform(post("/who/passkey/register/options").with(csrf()));
+      MockHttpServletResponse refused = perform(post("/who/me/passkeys/options").with(csrf()));
 
       assertThat(refused.getStatus()).isEqualTo(401);
       assertThat(publishedEvents())

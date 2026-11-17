@@ -62,10 +62,11 @@ import com.nimbusds.jose.util.JSONObjectUtils;
 
 /**
  * The pending sign-up endpoints: {@code GET /who/oidc/pending} describes it for the confirm page,
- * {@code POST /who/oidc/sign-up} confirms a sign-up (signed out), and {@code POST /who/oidc/link}
- * links it to the identity that started it, within the recent sign-in window. Each POST uses the
- * pending sign-up up. A filter, not a controller, so a sign-up runs the chain's session strategy.
- * The paths shown are under the default root; each follows {@code who.base-path}.
+ * {@code POST /who/oidc/pending/sign-up} confirms a sign-up (signed out), and {@code POST
+ * /who/oidc/pending/link} links it to the identity that started it, within the recent sign-in
+ * window. Each POST uses the pending sign-up up. A filter, not a controller, so a sign-up runs the
+ * chain's session strategy. The paths shown are under the default root; each follows {@code
+ * who.base-path}.
  */
 public final class PendingSignUpFilter extends OncePerRequestFilter {
 
@@ -73,10 +74,10 @@ public final class PendingSignUpFilter extends OncePerRequestFilter {
   static final String PENDING = "/oidc/pending";
 
   /** Confirms a sign-up, below the root. */
-  static final String SIGN_UP = "/oidc/sign-up";
+  static final String SIGN_UP = "/oidc/pending/sign-up";
 
   /** Confirms a link, below the root. */
-  static final String LINK = "/oidc/link";
+  static final String LINK = "/oidc/pending/link";
 
   private final RequestMatcher pendingRequest;
   private final RequestMatcher signUpRequest;

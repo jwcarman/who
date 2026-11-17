@@ -169,7 +169,7 @@ class WhoOwnEndpointsRootTest {
 
   @Test
   void sessions_answer_under_the_root() throws Exception {
-    HttpResponse<String> sessions = get("/auth/sessions");
+    HttpResponse<String> sessions = get("/auth/me/sessions");
 
     assertThat(sessions.statusCode()).isEqualTo(200);
     assertThat(sessions.body()).startsWith("[");
@@ -185,7 +185,7 @@ class WhoOwnEndpointsRootTest {
   @Test
   void the_old_paths_reach_no_who_endpoint() throws Exception {
     assertThat(get("/who/me").statusCode()).isNotEqualTo(200);
-    assertThat(get("/who/sessions").statusCode()).isNotEqualTo(200);
+    assertThat(get("/who/me/sessions").statusCode()).isNotEqualTo(200);
 
     post("/logout", "");
 

@@ -52,9 +52,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * {@code POST /who/email/addresses} asks to add an address, or to change one ({@code replaces}),
- * and {@code POST /who/email/addresses/confirm} confirms it with the link's token or the code. Both
- * need a browser session for the signed-in identity, signed in within the recent sign-in window.
+ * {@code POST /who/me/email-addresses} asks to add an address, or to change one ({@code replaces}),
+ * and {@code POST /who/me/email-addresses/confirmations} confirms it with the link's token or the
+ * code. Both need a browser session for the signed-in identity, signed in within the recent sign-in
+ * window.
  */
 final class EmailAddressFilter extends OncePerRequestFilter {
 
@@ -80,10 +81,10 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       JsonMapper jsonMapper,
       Clock clock,
       Duration recentSignIn) {
-    String url = requireNonNull(paths, "paths must not be null").of("/email/addresses");
+    String url = requireNonNull(paths, "paths must not be null").of("/me/email-addresses");
     this.addresses = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url);
     this.confirm =
-        PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url + "/confirm");
+        PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, url + "/confirmations");
     this.changes = requireNonNull(changes, "changes must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");

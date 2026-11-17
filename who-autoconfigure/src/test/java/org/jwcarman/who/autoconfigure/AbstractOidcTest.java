@@ -307,7 +307,7 @@ abstract class AbstractOidcTest {
 
   /** Starts a link through {@code registrationId}, served by {@code provider}. */
   String startLink(String registrationId, StubOidcProvider provider) throws Exception {
-    MvcResult start = browser.perform(post("/who/oidc/link/" + registrationId)).andReturn();
+    MvcResult start = browser.perform(post("/who/me/accounts/" + registrationId)).andReturn();
     String authorize = start.getResponse().getRedirectedUrl();
     assertThat(authorize).startsWith(provider.issuer() + "/authorize");
     return authorize;

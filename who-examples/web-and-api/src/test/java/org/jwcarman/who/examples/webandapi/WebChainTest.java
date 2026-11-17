@@ -287,7 +287,7 @@ class WebChainTest extends AbstractWebAndApiTest {
         .andExpect(content().string(containsString("id=\"sessions\"")))
         .andExpect(content().string(containsString("/js/sessions.js")));
     mockMvc
-        .perform(get("/who/sessions").session(bob.session()))
+        .perform(get("/who/me/sessions").session(bob.session()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].current").value(true));
     mockMvc.perform(get("/js/sessions.js")).andExpect(status().isOk());
@@ -302,7 +302,7 @@ class WebChainTest extends AbstractWebAndApiTest {
             .id();
 
     mockMvc
-        .perform(delete("/who/sessions/{id}", other).session(bob.session()).with(csrf()))
+        .perform(delete("/who/me/sessions/{id}", other).session(bob.session()).with(csrf()))
         .andExpect(status().isUnauthorized());
     assertThat(whoSessions.findLive(other)).isPresent();
 
@@ -312,7 +312,7 @@ class WebChainTest extends AbstractWebAndApiTest {
             .start(fresh.identity().id(), UUID.randomUUID(), SignInMethod.EMAIL_CODE, "curl/8.0")
             .id();
     mockMvc
-        .perform(delete("/who/sessions/{id}", freshOther).session(fresh.session()).with(csrf()))
+        .perform(delete("/who/me/sessions/{id}", freshOther).session(fresh.session()).with(csrf()))
         .andExpect(status().isNoContent());
     assertThat(whoSessions.findLive(freshOther)).isEmpty();
   }

@@ -93,7 +93,7 @@ class OidcAuthorizationRequestsTest {
 
   private OAuth2AuthorizationRequest link(String registrationId) {
     MockHttpServletRequest request =
-        new MockHttpServletRequest("POST", "/who/oidc/link/" + registrationId);
+        new MockHttpServletRequest("POST", "/who/me/accounts/" + registrationId);
     return requests.link(request, registrationId, IDENTITY, NOW).orElseThrow();
   }
 
@@ -140,7 +140,8 @@ class OidcAuthorizationRequestsTest {
 
     @Test
     void through_a_registration_who_does_not_sign_in_with_is_empty() {
-      MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/link/machine");
+      MockHttpServletRequest request =
+          new MockHttpServletRequest("POST", "/who/me/accounts/machine");
 
       assertThat(requests.link(request, "machine", IDENTITY, NOW)).isEmpty();
       assertThat(requests.link(request, "nope", IDENTITY, NOW)).isEmpty();

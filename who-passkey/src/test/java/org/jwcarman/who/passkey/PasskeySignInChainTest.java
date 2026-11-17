@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -410,19 +409,5 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
 
     assertThat(FAILURES).hasSize(1);
     assertThat(SUCCESSES).isEmpty();
-  }
-
-  @Test
-  void the_owner_can_delete_their_passkey_although_the_app_has_its_own_webauthn_repositories()
-      throws Exception {
-    assertThat(signIn().getStatus()).isEqualTo(200);
-
-    MockHttpServletResponse deleted =
-        perform(
-            delete("/who/passkey/register/" + registered.getCredentialId().toBase64UrlString())
-                .with(csrf()));
-
-    assertThat(deleted.getStatus()).isEqualTo(204);
-    assertThat(credentialRepository.findByCredentialId(registered.getCredentialId())).isNull();
   }
 }

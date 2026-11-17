@@ -53,11 +53,12 @@ import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * {@code GET /who/sessions} lists the caller's live browser sessions; {@code DELETE
- * /who/sessions/{id}} ends one; {@code DELETE /who/sessions?others=true} ends every one but the
- * caller's. Ending the caller's own session signs it out at once; ending any other needs a sign-in
- * within the recent sign-in window. Only a who browser session may call them. Sessions are named by
- * who's record id, never by the servlet session id, which would let a reader take the session over.
+ * {@code GET /who/me/sessions} lists the caller's live browser sessions; {@code DELETE
+ * /who/me/sessions/{id}} ends one; {@code DELETE /who/me/sessions?others=true} ends every one but
+ * the caller's. Ending the caller's own session signs it out at once; ending any other needs a
+ * sign-in within the recent sign-in window. Only a who browser session may call them. Sessions are
+ * named by who's record id, never by the servlet session id, which would let a reader take the
+ * session over.
  */
 final class SessionsFilter extends OncePerRequestFilter {
 
@@ -81,7 +82,7 @@ final class SessionsFilter extends OncePerRequestFilter {
       Clock clock,
       Duration recentSignIn,
       LogoutHandler signOut) {
-    String url = requireNonNull(paths, "paths must not be null").of("/sessions");
+    String url = requireNonNull(paths, "paths must not be null").of("/me/sessions");
     PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
     this.list = matchers.matcher(HttpMethod.GET, url);
     this.endAll = matchers.matcher(HttpMethod.DELETE, url);

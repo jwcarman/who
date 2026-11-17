@@ -55,9 +55,9 @@ import org.springframework.security.web.authentication.session.SessionAuthentica
 
 /**
  * Turns a provider sign-in into a who session, or into a pending sign-up for an account who does
- * not know. A provider sign-in links only when it answers {@code POST /who/oidc/link/{id}}: a plain
- * one by someone already signed in never offers to. Spring Security's own token never reaches the
- * session: the security context is cleared after every outcome.
+ * not know. A provider sign-in links only when it answers {@code POST /who/me/accounts/{id}}: a
+ * plain one by someone already signed in never offers to. Spring Security's own token never reaches
+ * the session: the security context is cleared after every outcome.
  */
 public final class OidcSignInHandler
     implements AuthenticationSuccessHandler, AuthenticationFailureHandler {

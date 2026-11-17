@@ -47,7 +47,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.nimbusds.jose.util.JSONObjectUtils;
 
-/** Linking starts only from {@code POST /who/oidc/link/{registrationId}}. */
+/** Linking starts only from {@code POST /who/me/accounts/{registrationId}}. */
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class OidcLinkTest extends AbstractOidcTest {
 
@@ -70,7 +70,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
       MvcResult start =
           browser
-              .perform(post("/who/oidc/link/test").accept(MediaType.APPLICATION_JSON))
+              .perform(post("/who/me/accounts/test").accept(MediaType.APPLICATION_JSON))
               .andReturn();
 
       assertThat(start.getResponse().getStatus()).isEqualTo(200);
@@ -90,7 +90,7 @@ class OidcLinkTest extends AbstractOidcTest {
           federatedCredentialService.link(bob, "https://other.example.com", "bob");
       browser.signedInAs(bob.id(), bobs.id(), Instant.now().minus(LINK_WINDOW).minusSeconds(60));
 
-      MvcResult result = browser.perform(post("/who/oidc/link/test")).andReturn();
+      MvcResult result = browser.perform(post("/who/me/accounts/test")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(401);
       assertThat(result.getResponse().getRedirectedUrl()).isNull();
@@ -98,7 +98,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
     @Test
     void signed_out_is_401() throws Exception {
-      MvcResult result = browser.perform(post("/who/oidc/link/test")).andReturn();
+      MvcResult result = browser.perform(post("/who/me/accounts/test")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(401);
       assertThat(result.getResponse().getRedirectedUrl()).isNull();
@@ -108,7 +108,7 @@ class OidcLinkTest extends AbstractOidcTest {
     void without_csrf_is_403() throws Exception {
       signedInIdentity("https://other.example.com", "bob");
 
-      MvcResult result = browser.performWithoutCsrf(post("/who/oidc/link/test")).andReturn();
+      MvcResult result = browser.performWithoutCsrf(post("/who/me/accounts/test")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(403);
       assertThat(result.getResponse().getRedirectedUrl()).isNull();
@@ -118,7 +118,7 @@ class OidcLinkTest extends AbstractOidcTest {
     void a_registration_who_does_not_sign_in_with_is_404() throws Exception {
       signedInIdentity("https://other.example.com", "bob");
 
-      MvcResult result = browser.perform(post("/who/oidc/link/unknown")).andReturn();
+      MvcResult result = browser.perform(post("/who/me/accounts/unknown")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(404);
       assertThat(result.getResponse().getRedirectedUrl()).isNull();
@@ -143,7 +143,7 @@ class OidcLinkTest extends AbstractOidcTest {
 
     @Test
     void confirming_signed_out_is_401() throws Exception {
-      MvcResult result = browser.perform(post("/who/oidc/link")).andReturn();
+      MvcResult result = browser.perform(post("/who/oidc/pending/link")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(401);
     }
@@ -153,7 +153,7 @@ class OidcLinkTest extends AbstractOidcTest {
       Identity bob = signedInIdentity("https://other.example.com", "bob");
       linkAtProvider("carol", Map.of());
 
-      MvcResult result = browser.perform(post("/who/oidc/link")).andReturn();
+      MvcResult result = browser.perform(post("/who/oidc/pending/link")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       FederatedCredential carol =
@@ -300,7 +300,7 @@ class OidcLinkTest extends AbstractOidcTest {
       String authorize = startLink("plain", PLAIN);
 
       MvcResult result = finishAtProvider(authorize);
-      browser.perform(post("/who/oidc/link"));
+      browser.perform(post("/who/oidc/pending/link"));
 
       assertThat(result.getResponse().getRedirectedUrl()).isEqualTo(LINK_URL + "?pending=link");
       assertThat(authorize).doesNotContain("prompt=");

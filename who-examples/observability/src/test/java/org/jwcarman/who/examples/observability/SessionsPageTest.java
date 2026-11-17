@@ -36,7 +36,7 @@ class SessionsPageTest extends AbstractObservabilityTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("id=\"sessions\"")));
     mockMvc
-        .perform(get("/who/sessions").session(signedIn()))
+        .perform(get("/who/me/sessions").session(signedIn()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].current").value(true));
     mockMvc.perform(get("/js/sessions.js")).andExpect(status().isOk());

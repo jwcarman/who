@@ -105,7 +105,7 @@ class LinkStartFilterTest {
   }
 
   private static MockHttpServletRequest start(String registrationId) {
-    return new MockHttpServletRequest("POST", "/who/oidc/link/" + registrationId);
+    return new MockHttpServletRequest("POST", "/who/me/accounts/" + registrationId);
   }
 
   private static void withWhoSession(MockHttpServletRequest request, Identity identity) {
@@ -249,9 +249,21 @@ class LinkStartFilterTest {
   }
 
   @Test
+  void old_path_is_not_served() throws Exception {
+    MockFilterChain chain = new MockFilterChain();
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/link/acme");
+    withWhoSession(request, Identity.create(IdentityStatus.ACTIVE));
+
+    filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+    assertThat(chain.getRequest()).isSameAs(request);
+    assertThat(savedRequests(request)).isEmpty();
+  }
+
+  @Test
   void any_other_request_passes_through() throws Exception {
     MockFilterChain chain = new MockFilterChain();
-    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/oidc/link/acme");
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/me/accounts/acme");
 
     filter.doFilter(request, new MockHttpServletResponse(), chain);
 

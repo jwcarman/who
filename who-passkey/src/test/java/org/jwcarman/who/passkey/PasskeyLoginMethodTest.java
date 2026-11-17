@@ -365,6 +365,16 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
   }
 
   @Test
+  void old_path_is_not_served() throws Exception {
+    Filter registrationOptions = filter(PublicKeyCredentialCreationOptionsFilter.class);
+    Filter registration = filter(WebAuthnRegistrationFilter.class);
+
+    assertThat(takes(registrationOptions, "POST", "/who/passkey/register/options")).isFalse();
+    assertThat(takes(registration, "POST", "/who/passkey/register")).isFalse();
+    assertThat(takes(registration, "DELETE", "/who/passkey/register/abc")).isFalse();
+  }
+
+  @Test
   void each_passkey_filter_answers_at_who_s_path_only() throws Exception {
     Filter signIn = filter(WebAuthnAuthenticationFilter.class);
     Filter signInOptions = filter(PublicKeyCredentialRequestOptionsFilter.class);
@@ -373,9 +383,9 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
 
     assertThat(takes(signIn, "POST", "/who/passkey/sign-in")).isTrue();
     assertThat(takes(signInOptions, "POST", "/who/passkey/sign-in/options")).isTrue();
-    assertThat(takes(registrationOptions, "POST", "/who/passkey/register/options")).isTrue();
-    assertThat(takes(registration, "POST", "/who/passkey/register")).isTrue();
-    assertThat(takes(registration, "DELETE", "/who/passkey/register/abc")).isTrue();
+    assertThat(takes(registrationOptions, "POST", "/who/me/passkeys/options")).isTrue();
+    assertThat(takes(registration, "POST", "/who/me/passkeys")).isTrue();
+    assertThat(takes(registration, "DELETE", "/who/me/passkeys/abc")).isFalse();
 
     assertThat(takes(signIn, "POST", "/login/webauthn")).isFalse();
     assertThat(takes(signInOptions, "POST", "/webauthn/authenticate/options")).isFalse();

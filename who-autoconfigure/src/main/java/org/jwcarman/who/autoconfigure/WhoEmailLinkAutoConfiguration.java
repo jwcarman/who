@@ -469,7 +469,7 @@ public class WhoEmailLinkAutoConfiguration {
   }
 
   /**
-   * {@code /who/email/addresses}: a signed-in person asks for and confirms an address change.
+   * {@code /who/me/email-addresses}: a signed-in person asks for and confirms an address change.
    *
    * @param emailAddressChanges makes the changes
    * @param sessionRepository finds the browser session, for the recent-sign-in check

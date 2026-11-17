@@ -76,7 +76,7 @@
     </ul>
     <!-- A form, not a link: who starts a link only from a CSRF-protected POST. -->
     <div class="inline">
-      <form method="post" th:each="p : ${providers}" th:action="@{/who/oidc/link/{id}(id=${p.id})}">
+      <form method="post" th:each="p : ${providers}" th:action="@{/who/me/accounts/{id}(id=${p.id})}">
         <button type="submit" class="secondary" th:text="'Link ' + ${p.name}"
                 th:attr="data-provider=${p.id},data-provider-name=${p.name}">Link Keycloak</button>
       </form>

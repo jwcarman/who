@@ -102,10 +102,10 @@ class PasskeySignInIT {
 
   /** Registers a passkey on the device for the signed-in caller. */
   static void registerPasskey(WhoClient client, PasskeyDevice device) {
-    WhoClient.Response options = client.post("/who/passkey/register/options", null);
+    WhoClient.Response options = client.post("/who/me/passkeys/options", null);
     assertThat(options.status()).isEqualTo(200);
     WhoClient.Response registered =
-        client.post("/who/passkey/register", device.register(options.body(), "test device"));
+        client.post("/who/me/passkeys", device.register(options.body(), "test device"));
     assertThat(registered.status()).as(registered.body()).isEqualTo(200);
   }
 
@@ -174,7 +174,7 @@ class PasskeySignInIT {
     @Test
     void registering_needs_a_signed_in_caller() {
       try (WhoClient client = client()) {
-        assertThat(client.post("/who/passkey/register/options", null).status()).isEqualTo(401);
+        assertThat(client.post("/who/me/passkeys/options", null).status()).isEqualTo(401);
       }
     }
   }

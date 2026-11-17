@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@jwcarman/who-client';
 import { signInAgain, who } from '../who-client';
 
-// how they signed in, as /who/sessions names it
+// how they signed in, as /who/me/sessions names it
 const METHODS: Record<string, string> = {
   'email-link': 'an email link',
   'email-code': 'an email code',

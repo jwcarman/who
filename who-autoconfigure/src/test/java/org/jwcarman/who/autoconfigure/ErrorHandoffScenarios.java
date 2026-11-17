@@ -181,10 +181,7 @@ abstract class ErrorHandoffScenarios {
     PasskeyDevice device = new PasskeyDevice(ORIGIN);
     Browser owner = signedIn();
     device.register(
-        owner
-            .performWithCsrf(post("/who/passkey/register/options"))
-            .getResponse()
-            .getContentAsString(),
+        owner.performWithCsrf(post("/who/me/passkeys/options")).getResponse().getContentAsString(),
         "never sent");
     Browser browser = new Browser(mvc);
     String options =
@@ -213,23 +210,23 @@ abstract class ErrorHandoffScenarios {
   }
 
   MvcResult registrationSignedOut() throws Exception {
-    return new Browser(mvc).performWithCsrf(post("/who/passkey/register/options"));
+    return new Browser(mvc).performWithCsrf(post("/who/me/passkeys/options"));
   }
 
   MvcResult registrationOutsideTheWindow() throws Exception {
     Browser browser = signedIn();
     clock.advance(Duration.ofMinutes(10).plusSeconds(1));
-    return browser.performWithCsrf(post("/who/passkey/register/options"));
+    return browser.performWithCsrf(post("/who/me/passkeys/options"));
   }
 
   MvcResult invalidRegistration() throws Exception {
     Browser browser = signedIn();
     String options =
         browser
-            .performWithCsrf(post("/who/passkey/register/options"))
+            .performWithCsrf(post("/who/me/passkeys/options"))
             .getResponse()
             .getContentAsString();
     String body = new PasskeyDevice("https://evil.example.com").register(options, "x");
-    return browser.performWithCsrf(json(post("/who/passkey/register")).content(body));
+    return browser.performWithCsrf(json(post("/who/me/passkeys")).content(body));
   }
 }

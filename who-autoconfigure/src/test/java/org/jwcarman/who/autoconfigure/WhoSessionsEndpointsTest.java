@@ -54,7 +54,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 import tools.jackson.databind.json.JsonMapper;
 
-/** {@code /who/sessions} over HTTP: two browsers of one person, one ending the other. */
+/** {@code /who/me/sessions} over HTTP: two browsers of one person, one ending the other. */
 @SpringBootTest(
     classes = WhoSessionsEndpointsTest.App.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -174,7 +174,7 @@ class WhoSessionsEndpointsTest {
     }
 
     List<Map<String, Object>> sessions() throws Exception {
-      HttpResponse<String> response = get("/who/sessions");
+      HttpResponse<String> response = get("/who/me/sessions");
       assertThat(response.statusCode()).isEqualTo(200);
       return json.readValue(
           response.body(), json.getTypeFactory().constructCollectionType(List.class, Map.class));
@@ -196,7 +196,7 @@ class WhoSessionsEndpointsTest {
     String laptopId = laptop.currentId();
     assertThat(phone.sessions()).hasSize(2);
 
-    assertThat(phone.delete("/who/sessions/" + laptopId).statusCode()).isEqualTo(204);
+    assertThat(phone.delete("/who/me/sessions/" + laptopId).statusCode()).isEqualTo(204);
 
     assertThat(laptop.get("/who/me").statusCode()).isEqualTo(401);
     assertThat(phone.get("/who/me").statusCode()).isEqualTo(200);
@@ -230,7 +230,7 @@ class WhoSessionsEndpointsTest {
     Browser phone = new Browser().signIn();
     Browser tablet = new Browser().signIn();
 
-    HttpResponse<String> ended = phone.delete("/who/sessions?others=true");
+    HttpResponse<String> ended = phone.delete("/who/me/sessions?others=true");
 
     assertThat(ended.statusCode()).isEqualTo(200);
     assertThat(json.readTree(ended.body()).get("ended").asInt()).isEqualTo(2);

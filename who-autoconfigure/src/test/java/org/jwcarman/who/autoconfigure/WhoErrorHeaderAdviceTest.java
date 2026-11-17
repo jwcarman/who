@@ -98,7 +98,7 @@ class WhoErrorHeaderAdviceTest {
 
     HttpResponse<String> response =
         client.send(
-            HttpRequest.newBuilder(uri("/auth/email/addresses"))
+            HttpRequest.newBuilder(uri("/auth/me/email-addresses"))
                 .header("Content-Type", "application/json")
                 .header("X-XSRF-TOKEN", csrf)
                 .POST(HttpRequest.BodyPublishers.ofString("{\"address\":\"x@example.com\"}"))

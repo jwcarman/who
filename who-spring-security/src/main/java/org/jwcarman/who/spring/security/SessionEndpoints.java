@@ -33,8 +33,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Adds the endpoints that let a signed-in person see their browser sessions and end them: {@code
- * GET /who/sessions}, {@code DELETE /who/sessions/{id}} and {@code DELETE
- * /who/sessions?others=true}. {@code WhoWebSecurity.passwordless()} adds them to every browser
+ * GET /who/me/sessions}, {@code DELETE /who/me/sessions/{id}} and {@code DELETE
+ * /who/me/sessions?others=true}. {@code WhoWebSecurity.passwordless()} adds them to every browser
  * chain when this bean exists. Not a way to sign in, so it does not make a chain a browser chain,
  * and it adds no public path.
  */

@@ -23,7 +23,7 @@ import java.util.UUID;
 import org.jwcarman.who.core.event.WhoEvent;
 
 /**
- * A signed-in identity asked at {@code POST /who/email/addresses} to add an email address, or to
+ * A signed-in identity asked at {@code POST /who/me/email-addresses} to add an email address, or to
  * make one theirs in place of another, published once per request with what became of it. Published
  * on the email thread, after the caller has been answered.
  *

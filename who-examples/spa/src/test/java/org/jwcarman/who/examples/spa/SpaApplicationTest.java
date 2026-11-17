@@ -150,7 +150,7 @@ class SpaApplicationTest {
     MockHttpSession member = signedInAs("sessions@example.com", TeamRole.MEMBER);
 
     mockMvc
-        .perform(get("/who/sessions").session(member))
+        .perform(get("/who/me/sessions").session(member))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].current").value(true))

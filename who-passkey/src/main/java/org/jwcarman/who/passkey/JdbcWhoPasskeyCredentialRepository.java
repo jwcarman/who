@@ -62,8 +62,7 @@ import org.springframework.transaction.annotation.Transactional;
  * always sets both (its builder defaults {@code lastUsed} to {@code created}), but the mapper
  * accepts a missing {@code last_used} rather than failing.
  *
- * <p>Deleting a record publishes {@link CredentialRevoked}, whoever deletes it: Spring's {@code
- * DELETE /who/passkey/register/{id}} calls {@link #delete(Bytes)} directly.
+ * <p>Deleting a record publishes {@link CredentialRevoked}, whoever deletes it.
  */
 public class JdbcWhoPasskeyCredentialRepository implements UserCredentialRepository {
 

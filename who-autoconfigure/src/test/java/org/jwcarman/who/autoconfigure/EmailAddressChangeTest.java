@@ -65,8 +65,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Adding and changing an email address through {@code POST /who/email/addresses} and {@code POST
- * /who/email/addresses/confirm}, on who's autoconfiguration, a browser chain and PostgreSQL.
+ * Adding and changing an email address through {@code POST /who/me/email-addresses} and {@code POST
+ * /who/me/email-addresses/confirmations}, on who's autoconfiguration, a browser chain and
+ * PostgreSQL.
  */
 @SpringBootTest(
     classes = EmailAddressChangeTest.App.class,
@@ -187,11 +188,11 @@ class EmailAddressChangeTest {
   }
 
   private static MvcResult ask(Browser browser, String body) throws Exception {
-    return browser.performWithCsrf(json("/who/email/addresses", body));
+    return browser.performWithCsrf(json("/who/me/email-addresses", body));
   }
 
   private static MvcResult confirm(Browser browser, String body) throws Exception {
-    return browser.performWithCsrf(json("/who/email/addresses/confirm", body));
+    return browser.performWithCsrf(json("/who/me/email-addresses/confirmations", body));
   }
 
   private EmailAddressConfirmationMessage confirmation() {
@@ -209,6 +210,24 @@ class EmailAddressChangeTest {
     int before = outbox.of(EmailLinkMessage.class).size();
     new Browser(mvc).performWithCsrf(json("/who/email/send", "{\"email\":\"" + address + "\"}"));
     return outbox.of(EmailLinkMessage.class).size() > before;
+  }
+
+  @Test
+  void old_path_is_not_served() throws Exception {
+    Browser browser = signedIn(ALICE);
+
+    assertThat(
+            browser
+                .performWithCsrf(json("/who/email/addresses", "{\"address\":\"" + NEW + "\"}"))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(404);
+    assertThat(
+            browser
+                .performWithCsrf(json("/who/email/addresses/confirm", "{\"code\":\"000000\"}"))
+                .getResponse()
+                .getStatus())
+        .isEqualTo(404);
   }
 
   @Nested
@@ -362,7 +381,7 @@ class EmailAddressChangeTest {
 
       assertThat(
               browser
-                  .perform(json("/who/email/addresses", "{\"address\":\"" + NEW + "\"}"))
+                  .perform(json("/who/me/email-addresses", "{\"address\":\"" + NEW + "\"}"))
                   .getResponse()
                   .getStatus())
           .isEqualTo(403);

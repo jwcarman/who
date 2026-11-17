@@ -161,7 +161,7 @@ class OidcSignInIT {
       assertThat(pending.status()).isEqualTo(200);
       assertThat(pending.json().path("canSignUp").asBoolean()).isTrue();
 
-      assertThat(client.post("/who/oidc/sign-up", null).status()).isEqualTo(403);
+      assertThat(client.post("/who/oidc/pending/sign-up", null).status()).isEqualTo(403);
       assertThat(client.get("/who/me").status()).isEqualTo(401);
     }
   }
@@ -174,7 +174,7 @@ class OidcSignInIT {
         assertThat(signInAtProvider(client, "new-" + UUID.randomUUID()))
             .endsWith("/?pending=sign-up");
 
-        WhoClient.Response signedUp = client.post("/who/oidc/sign-up", null);
+        WhoClient.Response signedUp = client.post("/who/oidc/pending/sign-up", null);
 
         assertThat(signedUp.status()).as(signedUp.body()).isEqualTo(200);
         assertThat(client.get("/who/me").status()).isEqualTo(200);
@@ -192,13 +192,13 @@ class OidcSignInIT {
       signInAtProvider(client, linked);
       assertThat(signInAtProvider(client, another)).endsWith("/?error=signed-in");
       provider.nextUser(another, Map.of("email", another + "@example.test"));
-      String authorize = location(client.post("/who/oidc/link/test", null));
+      String authorize = location(client.post("/who/me/accounts/test", null));
       // in Postgres, so the link's intent went through serialization in the native image
       assertThat(storedAuthorizationRequests()).isPositive();
       assertThat(finishAtProvider(client, authorize)).endsWith("/?pending=link");
       assertThat(client.get("/who/oidc/pending").json().path("canLink").asBoolean()).isTrue();
 
-      WhoClient.Response link = client.post("/who/oidc/link", null);
+      WhoClient.Response link = client.post("/who/oidc/pending/link", null);
 
       assertThat(link.status()).as(link.body()).isEqualTo(200);
       TestEndpoints.awaitEvent(client, Map.of("type", "CredentialAdded", "kind", "FEDERATED"));

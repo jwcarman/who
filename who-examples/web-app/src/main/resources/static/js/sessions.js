@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// "Where you're signed in": lists this person's browser sessions from GET /who/sessions and lets
+// "Where you're signed in": lists this person's browser sessions from GET /who/me/sessions and lets
 // them sign out of any of them (Sessions guide, "See and end sessions"). It fills a
 // <section id="sessions"> holding a <ul class="list"> and a [data-end-others] button. Signing out
 // another browser needs a recent sign-in; a section with data-sign-in-again="/signin?again=..."
@@ -25,7 +25,7 @@ const list = section.querySelector('ul');
 const endOthers = section.querySelector('[data-end-others]');
 const message = section.querySelector('[data-sessions-message]');
 
-// how they signed in, as /who/sessions names it
+// how they signed in, as /who/me/sessions names it
 const METHODS = {
   'email-link': 'an email link',
   'email-code': 'an email code',

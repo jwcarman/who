@@ -56,11 +56,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.nimbusds.jose.util.JSONObjectUtils;
 
 /**
- * Starts a link: {@code POST /who/oidc/link/{registrationId}} by someone signed in sends them to
+ * Starts a link: {@code POST /who/me/accounts/{registrationId}} by someone signed in sends them to
  * the provider with a request that remembers, on the server, that it is a link and for whom. A
  * POST, so the chain's CSRF protection means only the application's own pages can start one.
  */
 final class LinkStartFilter extends OncePerRequestFilter {
+
+  /** The signed-in person's linked accounts: {@code POST <root>/me/accounts/{registrationId}}. */
+  static final String ACCOUNTS = "/me/accounts";
 
   private final RequestMatcher linkStart;
   private final OidcAuthorizationRequests authorizationRequests;
@@ -83,8 +86,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
         PathPatternRequestMatcher.withDefaults()
             .matcher(
                 HttpMethod.POST,
-                requireNonNull(paths, "paths must not be null")
-                    .of(PendingSignUpFilter.LINK + "/{registrationId}"));
+                requireNonNull(paths, "paths must not be null").of(ACCOUNTS + "/{registrationId}"));
     this.authorizationRequests =
         requireNonNull(authorizationRequests, "authorizationRequests must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");

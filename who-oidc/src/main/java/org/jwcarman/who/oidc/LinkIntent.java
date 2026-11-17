@@ -27,7 +27,7 @@ import java.util.UUID;
 
 /**
  * A person's request to link a provider account, carried on the authorization request from {@code
- * POST /who/oidc/link/{registrationId}} to the provider's callback. It lives in the request's
+ * POST /who/me/accounts/{registrationId}} to the provider's callback. It lives in the request's
  * attributes, which stay on the server for that one round trip, so neither the provider nor a URL
  * can set it, and it cannot outlive the round trip.
  *

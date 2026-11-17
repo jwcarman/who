@@ -55,8 +55,8 @@ class PasskeyRegistrationGuardFilterTest {
 
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
   private static final Duration WINDOW = Duration.ofMinutes(10);
-  private static final String OPTIONS = "/who/passkey/register/options";
-  private static final String REGISTER = "/who/passkey/register";
+  private static final String OPTIONS = "/who/me/passkeys/options";
+  private static final String REGISTER = "/who/me/passkeys";
 
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
   private final WhoSessionSecurityContextRepository sessions =

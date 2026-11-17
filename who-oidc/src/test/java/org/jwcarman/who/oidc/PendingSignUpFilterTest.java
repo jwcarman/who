@@ -87,13 +87,27 @@ class PendingSignUpFilterTest {
         .setAuthentication(
             new WhoAuthenticationToken(
                 new WhoPrincipal(bob, Set.of()), bob.id(), SignInMethod.API_KEY));
-    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/link");
-    request.setServletPath("/who/oidc/link");
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/pending/link");
+    request.setServletPath("/who/oidc/pending/link");
     MockHttpServletResponse response = new MockHttpServletResponse();
 
     filter.doFilter(request, response, new MockFilterChain());
 
     assertThat(response.getStatus()).isEqualTo(401);
+    verifyNoInteractions(identities, signUpService);
+  }
+
+  @Test
+  void old_path_is_not_served() throws Exception {
+    for (String old : new String[] {"/who/oidc/sign-up", "/who/oidc/link"}) {
+      MockHttpServletRequest request = new MockHttpServletRequest("POST", old);
+      request.setServletPath(old);
+      MockFilterChain chain = new MockFilterChain();
+
+      filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+      assertThat(chain.getRequest()).isSameAs(request);
+    }
     verifyNoInteractions(identities, signUpService);
   }
 
@@ -115,8 +129,9 @@ class PendingSignUpFilterTest {
             null,
             Clock.fixed(now, ZoneOffset.UTC),
             Duration.ofMinutes(10));
-    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/who/oidc/sign-up");
-    request.setServletPath("/who/oidc/sign-up");
+    MockHttpServletRequest request =
+        new MockHttpServletRequest("POST", "/who/oidc/pending/sign-up");
+    request.setServletPath("/who/oidc/pending/sign-up");
     pendingSignUps.save(
         request,
         new PendingSignUp(

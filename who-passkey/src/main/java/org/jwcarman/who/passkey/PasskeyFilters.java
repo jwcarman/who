@@ -40,9 +40,9 @@ import org.springframework.security.web.webauthn.registration.WebAuthnRegistrati
  * {@code webAuthn()}, which fixes three of them at its own:
  *
  * <ul>
- *   <li>{@code POST <root>/passkey/register/options} and {@code POST <root>/passkey/register}
- *       register a passkey, and {@code DELETE <root>/passkey/register/{id}} removes one (Spring's
- *       owner check decides whose);
+ *   <li>{@code POST <root>/me/passkeys/options} and {@code POST <root>/me/passkeys} register a
+ *       passkey. Spring's remove-credential matcher is set to match nothing: who serves {@code
+ *       DELETE <root>/me/passkeys/{credentialId}} itself;
  *   <li>{@code POST <root>/passkey/sign-in/options} and {@code POST <root>/passkey/sign-in} sign
  *       in.
  * </ul>
@@ -59,11 +59,11 @@ final class PasskeyFilters extends AbstractHttpConfigurer<PasskeyFilters, HttpSe
   /** The sign-in options, below the root. */
   static final String SIGN_IN_OPTIONS = "/passkey/sign-in/options";
 
-  /** Registers a passkey, below the root. */
-  static final String REGISTER = "/passkey/register";
+  /** The signed-in person's passkeys: {@code POST} registers one, below the root. */
+  static final String CREDENTIALS = "/me/passkeys";
 
   /** The registration options, below the root. */
-  static final String REGISTER_OPTIONS = "/passkey/register/options";
+  static final String CREDENTIAL_OPTIONS = "/me/passkeys/options";
 
   private final WhoPaths paths;
   private final JdbcWhoPasskeyUserRepository userRepository;
@@ -118,15 +118,14 @@ final class PasskeyFilters extends AbstractHttpConfigurer<PasskeyFilters, HttpSe
     PublicKeyCredentialCreationOptionsFilter registrationOptions =
         new PublicKeyCredentialCreationOptionsFilter(relyingParty);
     registrationOptions.setRequestMatcher(
-        matchers.matcher(HttpMethod.POST, paths.of(REGISTER_OPTIONS)));
+        matchers.matcher(HttpMethod.POST, paths.of(CREDENTIAL_OPTIONS)));
 
     WebAuthnRegistrationFilter registration =
         new WebAuthnRegistrationFilter(credentialRepository, relyingParty);
     registration.setRegisterCredentialMatcher(
-        matchers.matcher(HttpMethod.POST, paths.of(REGISTER)));
-    // Spring reads the passkey's id from the {id} variable
-    registration.setRemoveCredentialMatcher(
-        matchers.matcher(HttpMethod.DELETE, paths.of(REGISTER + "/{id}")));
+        matchers.matcher(HttpMethod.POST, paths.of(CREDENTIALS)));
+    // who serves the delete itself, so Spring's never matches
+    registration.setRemoveCredentialMatcher(request -> false);
     registration.setDeleteCredentialAuthorizationManager(
         new CredentialRecordOwnerAuthorizationManager(credentialRepository, userRepository));
 

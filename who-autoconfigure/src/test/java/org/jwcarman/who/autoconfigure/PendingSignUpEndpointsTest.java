@@ -147,7 +147,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
 
       assertThat(me()).isEqualTo(200);
       assertThat(send("GET", "/who/oidc/pending").getResponse().getStatus()).isEqualTo(404);
-      assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(404);
+      assertThat(send("POST", "/who/oidc/pending/link").getResponse().getStatus()).isEqualTo(404);
     }
   }
 
@@ -159,7 +159,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       signInAtProvider("carol", Map.of());
       long before = identities();
 
-      MvcResult result = send("POST", "/who/oidc/sign-up");
+      MvcResult result = send("POST", "/who/oidc/pending/sign-up");
 
       assertThat(result.getResponse().getStatus()).isEqualTo(403);
       assertThat(identities()).isEqualTo(before);
@@ -178,7 +178,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       policy.set(request -> SignUpDecision.allow());
       signInAtProvider("carol", Map.of());
 
-      MvcResult result = send("POST", "/who/oidc/sign-up");
+      MvcResult result = send("POST", "/who/oidc/pending/sign-up");
 
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       UUID identityId = UUID.fromString(body(result).get("identityId").asString());
@@ -203,7 +203,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       signInAtProvider("carol", Map.of());
       long before = identities();
 
-      assertThatThrownBy(() -> send("POST", "/who/oidc/sign-up"))
+      assertThatThrownBy(() -> send("POST", "/who/oidc/pending/sign-up"))
           .satisfies(
               e ->
                   assertThat(NestedExceptionUtils.getMostSpecificCause(e))
@@ -219,7 +219,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       policy.set(request -> SignUpDecision.allow());
       signInAtProvider("carol", Map.of());
 
-      MvcResult result = browser.performWithoutCsrf(post("/who/oidc/sign-up")).andReturn();
+      MvcResult result = browser.performWithoutCsrf(post("/who/oidc/pending/sign-up")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(403);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
@@ -232,7 +232,8 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       signedInIdentity("https://other.example.com", "bob");
       plant("carol", null);
 
-      assertThat(send("POST", "/who/oidc/sign-up").getResponse().getStatus()).isEqualTo(403);
+      assertThat(send("POST", "/who/oidc/pending/sign-up").getResponse().getStatus())
+          .isEqualTo(403);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
           .isEmpty();
     }
@@ -240,11 +241,13 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
     @Test
     void pending_is_single_use() throws Exception {
       signInAtProvider("carol", Map.of());
-      assertThat(send("POST", "/who/oidc/sign-up").getResponse().getStatus()).isEqualTo(403);
+      assertThat(send("POST", "/who/oidc/pending/sign-up").getResponse().getStatus())
+          .isEqualTo(403);
 
       policy.set(request -> SignUpDecision.allow());
 
-      assertThat(send("POST", "/who/oidc/sign-up").getResponse().getStatus()).isEqualTo(404);
+      assertThat(send("POST", "/who/oidc/pending/sign-up").getResponse().getStatus())
+          .isEqualTo(404);
     }
   }
 
@@ -256,7 +259,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       Identity bob = signedInIdentity("https://other.example.com", "bob");
       linkAtProvider("carol", Map.of());
 
-      MvcResult result = send("POST", "/who/oidc/link");
+      MvcResult result = send("POST", "/who/oidc/pending/link");
 
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       FederatedCredential carol =
@@ -295,7 +298,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
                   live.sessionId()));
       assertThat(me()).isEqualTo(200);
 
-      assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(401);
+      assertThat(send("POST", "/who/oidc/pending/link").getResponse().getStatus()).isEqualTo(401);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
           .isEmpty();
     }
@@ -305,7 +308,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       signedInIdentity("https://other.example.com", "bob");
       linkAtProvider("carol", Map.of());
 
-      MvcResult result = browser.performWithoutCsrf(post("/who/oidc/link")).andReturn();
+      MvcResult result = browser.performWithoutCsrf(post("/who/oidc/pending/link")).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(403);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
@@ -318,7 +321,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       signedInIdentity("https://other.example.com", "dave");
       plant("carol", bob.id());
 
-      assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(404);
+      assertThat(send("POST", "/who/oidc/pending/link").getResponse().getStatus()).isEqualTo(404);
       assertThat(federatedCredentialRepository.findByIssuerAndSubject(PROVIDER.issuer(), "carol"))
           .isEmpty();
     }
@@ -328,7 +331,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
       Identity bob = signedInIdentity("https://other.example.com", "bob");
       plant("alice", bob.id());
 
-      assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(409);
+      assertThat(send("POST", "/who/oidc/pending/link").getResponse().getStatus()).isEqualTo(409);
       assertThat(whoService.resolve(aliceCredential))
           .hasValueSatisfying(p -> assertThat(p.identity().id()).isEqualTo(alice.id()));
     }
@@ -337,7 +340,7 @@ class PendingSignUpEndpointsTest extends AbstractOidcTest {
     void link_signed_out_is_401() throws Exception {
       plant("carol", null);
 
-      assertThat(send("POST", "/who/oidc/link").getResponse().getStatus()).isEqualTo(401);
+      assertThat(send("POST", "/who/oidc/pending/link").getResponse().getStatus()).isEqualTo(401);
     }
   }
 }

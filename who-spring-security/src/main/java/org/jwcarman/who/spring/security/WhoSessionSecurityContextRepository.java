@@ -170,8 +170,8 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   }
 
   /**
-   * Returns the id of who's record of this request's session, the one {@code /who/sessions} marks
-   * as current.
+   * Returns the id of who's record of this request's session, the one {@code /who/me/sessions}
+   * marks as current.
    *
    * @param request the current request
    * @return the session's id, or empty when there is no who session or it has no record

@@ -46,7 +46,7 @@ class OidcWithoutLastSignInCookieTest extends AbstractOidcTest {
     policy.set(request -> SignUpDecision.allow());
     signInAtProvider("carol", Map.of());
 
-    MvcResult result = browser.perform(post("/who/oidc/sign-up")).andReturn();
+    MvcResult result = browser.perform(post("/who/oidc/pending/sign-up")).andReturn();
 
     assertThat(result.getResponse().getStatus()).isEqualTo(200);
     assertThat(result.getResponse().getCookie(LastSignInCookie.NAME)).isNull();

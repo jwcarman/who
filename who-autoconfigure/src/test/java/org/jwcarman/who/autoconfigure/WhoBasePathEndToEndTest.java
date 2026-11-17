@@ -232,19 +232,18 @@ class WhoBasePathEndToEndTest {
           GET    | /auth/oidc/authorize/stub     | false |                             | 302
           GET    | /auth/oidc/callback/stub?error=access_denied&state=x | false |    | 302
           GET    | /auth/oidc/pending            | false |                             | 404
-          POST   | /auth/oidc/sign-up            | false |                             | 404
+          POST   | /auth/oidc/pending/sign-up            | false |                             | 404
           POST   | /auth/passkey/sign-in/options | false |                             | 200
           POST   | /auth/email/sign-in           | true  | {"token":"nope"}            | 401
           POST   | /auth/passkey/sign-in         | true  | {}                          | 401
           GET    | /auth/me                      | true  |                             | 200
-          GET    | /auth/sessions                | true  |                             | 200
-          DELETE | /auth/sessions?others=true    | true  |                             | 200
-          POST   | /auth/email/addresses         | true  | {"email":"new@example.com"} | 202
-          POST   | /auth/passkey/register/options | true |                             | 200
-          POST   | /auth/passkey/register        | true  | {}                          | 400
-          POST   | /auth/email/addresses/confirm | true  | {"token":"nope"}            | 400
-          DELETE | /auth/passkey/register/AAAA   | true  |                             | 403
-          POST   | /auth/oidc/link/stub          | true  |                             | 302
+          GET    | /auth/me/sessions                | true  |                             | 200
+          DELETE | /auth/me/sessions?others=true    | true  |                             | 200
+          POST   | /auth/me/email-addresses         | true  | {"email":"new@example.com"} | 202
+          POST   | /auth/me/passkeys/options | true |                             | 200
+          POST   | /auth/me/passkeys        | true  | {}                          | 400
+          POST   | /auth/me/email-addresses/confirmations | true  | {"token":"nope"}            | 400
+          POST   | /auth/me/accounts/stub          | true  |                             | 302
           POST   | /auth/logout                  | true  |                             | 204
           """)
   void every_endpoint_answers_under_the_root(
@@ -274,10 +273,10 @@ class WhoBasePathEndToEndTest {
           GET  | /login/oauth2/code/stub       |
           DELETE | /webauthn/register/AAAA     |
           GET  | /who/me                       |
-          GET  | /who/sessions                 |
-          POST | /who/email/addresses          | {"email":"bob@example.com"}
+          GET  | /who/me/sessions                 |
+          POST | /who/me/email-addresses          | {"email":"bob@example.com"}
           GET  | /who/oidc/pending             |
-          GET  | /who/oidc/link/stub           |
+          GET  | /who/me/accounts/stub           |
           """)
   void no_old_path_reaches_who(String method, String path, String body) throws Exception {
     signIn();
@@ -297,13 +296,13 @@ class WhoBasePathEndToEndTest {
   @Test
   void a_failure_names_itself_in_the_header() throws Exception {
     HttpResponse<String> signedOut =
-        send("POST", "/auth/email/addresses", "{\"address\":\"x@example.com\"}");
+        send("POST", "/auth/me/email-addresses", "{\"address\":\"x@example.com\"}");
     assertThat(signedOut.statusCode()).isEqualTo(401);
     assertThat(signedOut.headers().firstValue("Who-Error")).contains("not-signed-in");
 
     signIn();
     HttpResponse<String> badCode =
-        send("POST", "/auth/email/addresses/confirm", "{\"code\":\"000000\"}");
+        send("POST", "/auth/me/email-addresses/confirmations", "{\"code\":\"000000\"}");
     assertThat(badCode.statusCode()).isEqualTo(400);
     assertThat(badCode.headers().firstValue("Who-Error")).contains("invalid-confirmation");
   }
@@ -313,10 +312,10 @@ class WhoBasePathEndToEndTest {
     signIn();
     Matcher current =
         Pattern.compile("\"id\":\"([^\"]+)\"[^}]*\"current\":true")
-            .matcher(send("GET", "/auth/sessions", "").body());
+            .matcher(send("GET", "/auth/me/sessions", "").body());
     assertThat(current.find()).isTrue();
 
-    assertThat(send("DELETE", "/auth/sessions/" + current.group(1), "").statusCode())
+    assertThat(send("DELETE", "/auth/me/sessions/" + current.group(1), "").statusCode())
         .isEqualTo(204);
     assertThat(send("GET", "/auth/me", "").statusCode()).isEqualTo(401);
   }

@@ -162,7 +162,7 @@ class SessionsFilterTest {
         browser(alice, NOW.minusSeconds(60), "Mozilla/5.0 (Macintosh) Version/17.0 Safari/605.1");
     browser(bob, NOW.minusSeconds(30), "curl/8.0");
 
-    MockHttpServletResponse response = send("GET", "/who/sessions", older);
+    MockHttpServletResponse response = send("GET", "/who/me/sessions", older);
 
     assertThat(response.getStatus()).isEqualTo(200);
     List<Map<String, Object>> list =
@@ -190,7 +190,7 @@ class SessionsFilterTest {
     repository.saveContext(context(alice), signIn, new MockHttpServletResponse());
     HttpSession session = signIn.getSession(false);
 
-    MockHttpServletResponse response = send("GET", "/who/sessions", session);
+    MockHttpServletResponse response = send("GET", "/who/me/sessions", session);
 
     assertThat(response.getContentAsString()).doesNotContain(session.getId());
   }
@@ -200,7 +200,7 @@ class SessionsFilterTest {
     HttpSession stale = browser(alice, NOW.minus(RECENT).minusSeconds(1), "a");
     HttpSession other = browser(alice, NOW, "b");
 
-    MockHttpServletResponse response = send("DELETE", "/who/sessions/" + idOf(other), stale);
+    MockHttpServletResponse response = send("DELETE", "/who/me/sessions/" + idOf(other), stale);
 
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(sessions.findLive(idOf(other))).isPresent();
@@ -212,7 +212,7 @@ class SessionsFilterTest {
     HttpSession other = browser(alice, NOW, "b");
     events.clear();
 
-    MockHttpServletResponse response = send("DELETE", "/who/sessions/" + idOf(other), mine);
+    MockHttpServletResponse response = send("DELETE", "/who/me/sessions/" + idOf(other), mine);
 
     assertThat(response.getStatus()).isEqualTo(204);
     assertThat(sessions.findLive(idOf(other))).isEmpty();
@@ -226,7 +226,7 @@ class SessionsFilterTest {
     UUID id = idOf(stale);
     events.clear();
 
-    MockHttpServletResponse response = send("DELETE", "/who/sessions/" + id, stale);
+    MockHttpServletResponse response = send("DELETE", "/who/me/sessions/" + id, stale);
 
     assertThat(response.getStatus()).isEqualTo(204);
     assertThat(sessions.findLive(id)).isEmpty();
@@ -241,7 +241,7 @@ class SessionsFilterTest {
     HttpSession bobs = browser(bob, NOW, "b");
     events.clear();
 
-    MockHttpServletResponse response = send("DELETE", "/who/sessions/" + idOf(bobs), mine);
+    MockHttpServletResponse response = send("DELETE", "/who/me/sessions/" + idOf(bobs), mine);
 
     assertThat(response.getStatus()).isEqualTo(404);
     assertThat(sessions.findLive(idOf(bobs))).isPresent();
@@ -252,9 +252,9 @@ class SessionsFilterTest {
   void an_unknown_or_malformed_id_is_404() throws Exception {
     HttpSession mine = browser(alice, NOW, "a");
 
-    assertThat(send("DELETE", "/who/sessions/" + UUID.randomUUID(), mine).getStatus())
+    assertThat(send("DELETE", "/who/me/sessions/" + UUID.randomUUID(), mine).getStatus())
         .isEqualTo(404);
-    assertThat(send("DELETE", "/who/sessions/not-an-id", mine).getStatus()).isEqualTo(404);
+    assertThat(send("DELETE", "/who/me/sessions/not-an-id", mine).getStatus()).isEqualTo(404);
   }
 
   @Test
@@ -264,7 +264,7 @@ class SessionsFilterTest {
     HttpSession third = browser(alice, NOW, "c");
     HttpSession bobs = browser(bob, NOW, "d");
 
-    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
+    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/me/sessions");
     request.setParameter("others", "true");
     MockHttpServletResponse response = send(request, mine);
 
@@ -280,13 +280,23 @@ class SessionsFilterTest {
   void ending_all_without_others_is_400() throws Exception {
     HttpSession mine = browser(alice, NOW, "a");
 
-    assertThat(send("DELETE", "/who/sessions", mine).getStatus()).isEqualTo(400);
+    assertThat(send("DELETE", "/who/me/sessions", mine).getStatus()).isEqualTo(400);
     assertThat(sessions.findLive(idOf(mine))).isPresent();
   }
 
   @Test
+  void old_path_is_not_served() throws Exception {
+    HttpSession mine = browser(alice, NOW, "a");
+
+    MockHttpServletResponse response = send("GET", "/who/sessions", mine);
+
+    assertThat(reachedChain).isTrue();
+    assertThat(response.getContentAsString()).isEmpty();
+  }
+
+  @Test
   void signed_out_is_401() throws Exception {
-    assertThat(send("GET", "/who/sessions", null).getStatus()).isEqualTo(401);
+    assertThat(send("GET", "/who/me/sessions", null).getStatus()).isEqualTo(401);
   }
 
   @Test
@@ -297,7 +307,7 @@ class SessionsFilterTest {
                 new WhoPrincipal(alice, Set.of()), UUID.randomUUID(), SignInMethod.API_KEY));
     MockHttpServletResponse response = new MockHttpServletResponse();
 
-    filter.doFilter(new MockHttpServletRequest("GET", "/who/sessions"), response, chain);
+    filter.doFilter(new MockHttpServletRequest("GET", "/who/me/sessions"), response, chain);
 
     assertThat(response.getStatus()).isEqualTo(403);
   }
@@ -305,7 +315,7 @@ class SessionsFilterTest {
   @Test
   void an_api_key_sent_with_a_browser_session_is_403() throws Exception {
     // on a mixed chain the key's authentication replaces the session's, but the cookie still rides
-    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/sessions");
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/me/sessions");
     request.setSession(browser(alice, NOW, "a"));
     SecurityContextHolder.getContext()
         .setAuthentication(
@@ -332,7 +342,7 @@ class SessionsFilterTest {
     HttpSession stale = browser(alice, NOW.minus(RECENT).minusSeconds(1), "a");
     HttpSession other = browser(alice, NOW, "b");
 
-    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
+    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/me/sessions");
     request.setParameter("others", "true");
 
     assertThat(send(request, stale).getStatus()).isEqualTo(401);
@@ -341,7 +351,7 @@ class SessionsFilterTest {
 
   @Test
   void a_token_not_loaded_from_the_browser_session_is_403() throws Exception {
-    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/sessions");
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/me/sessions");
     request.setSession(browser(alice, NOW, "a"));
     SecurityContextHolder.getContext()
         .setAuthentication(
@@ -358,7 +368,7 @@ class SessionsFilterTest {
   void a_session_that_changed_hands_after_loading_is_403() throws Exception {
     // another request in the same browser signed bob in between loading and answering
     HttpSession shared = browser(alice, NOW, "a");
-    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/sessions");
+    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/me/sessions");
     request.setParameter("others", "true");
     request.setSession(shared);
     SecurityContextHolder.setContext(repository.loadDeferredContext(request).get());
@@ -382,7 +392,7 @@ class SessionsFilterTest {
         WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
         new WhoSession(alice.id(), alice.id(), NOW, SignInMethod.PASSKEY));
 
-    assertThat(send("GET", "/who/sessions", unrecorded).getStatus()).isEqualTo(401);
+    assertThat(send("GET", "/who/me/sessions", unrecorded).getStatus()).isEqualTo(401);
   }
 
   private static final class MutableClock extends Clock {

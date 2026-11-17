@@ -214,10 +214,10 @@ class PasswordlessConfigurerTest {
   void theSessionEndpointsJoinTheBrowserChain() throws Exception {
     resolvesTo(Set.of());
 
-    mvc.perform(get("/who/sessions").session(signedIn()))
+    mvc.perform(get("/who/me/sessions").session(signedIn()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].current").value(true));
-    mvc.perform(get("/who/sessions")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/who/me/sessions")).andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -236,7 +236,7 @@ class PasswordlessConfigurerTest {
 
     // the same handlers as POST /logout: here, the chain's deleteCookies clears the XSRF cookie
     mvc.perform(
-            delete("/who/sessions/" + current)
+            delete("/who/me/sessions/" + current)
                 .session(session)
                 .cookie(xsrf)
                 .header("X-XSRF-TOKEN", xsrf.getValue()))
