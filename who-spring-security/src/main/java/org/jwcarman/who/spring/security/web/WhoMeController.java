@@ -27,6 +27,7 @@ import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.observation.WhoObservations;
@@ -114,10 +115,11 @@ public class WhoMeController {
   /** The answer for this request; signed out is {@link NotSignedInException}. */
   WhoMeResponse resolve(HttpServletRequest request, Authentication authentication) {
     if (authentication == null
-        || !(authentication.getPrincipal() instanceof WhoPrincipal principal)) {
+        || !(authentication.getPrincipal()
+            instanceof WhoPrincipal(Identity identity, Set<String> permissions))) {
       throw new NotSignedInException();
     }
-    UUID identityId = principal.identity().id();
+    UUID identityId = identity.id();
     // only a browser session's sign-in can be recent; a session cookie beside an API key or a
     // bearer token is not one, and that token is what authenticated the request
     Optional<WhoSession> session =
@@ -134,7 +136,7 @@ public class WhoMeController {
     Instant recentUntil = session.map(s -> s.signedInAt().plus(recentSignIn.window())).orElse(null);
     Map<String, Long> credentials =
         Optional.ofNullable(guard.getIfAvailable()).map(g -> g.counts(identityId)).orElse(Map.of());
-    return new WhoMeResponse(identityId, principal.permissions(), method, recentUntil, credentials);
+    return new WhoMeResponse(identityId, permissions, method, recentUntil, credentials);
   }
 
   private static Optional<SignInMethod> tokenMethod(Authentication authentication) {

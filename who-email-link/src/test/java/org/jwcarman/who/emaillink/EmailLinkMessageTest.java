@@ -100,9 +100,9 @@ class EmailLinkMessageTest {
 
     roles.add("admin");
 
-    assertThat(message.roles()).containsExactly("editor");
-    assertThatThrownBy(() -> message.roles().add("admin"))
-        .isInstanceOf(UnsupportedOperationException.class);
+    Set<String> copied = message.roles();
+    assertThat(copied).containsExactly("editor");
+    assertThatThrownBy(() -> copied.add("admin")).isInstanceOf(UnsupportedOperationException.class);
   }
 
   @Test

@@ -27,6 +27,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 /** Sends who's emails as plain text through a {@link JavaMailSender}. */
 public class MailWhoEmailSender implements WhoEmailSender {
 
+  private static final String OR_ENTER_THIS_CODE = "\n\nOr enter this code: ";
+  private static final String EXPIRES_IN = "\n\nThe link and the code expire in ";
+
   private final JavaMailSender mailSender;
   private final String from;
   private final String subject;
@@ -113,9 +116,9 @@ public class MailWhoEmailSender implements WhoEmailSender {
   private String signInBody(EmailLinkMessage message) {
     return "Sign in: "
         + message.link()
-        + "\n\nOr enter this code: "
+        + OR_ENTER_THIS_CODE
         + message.formattedCode()
-        + "\n\nThe link and the code expire in "
+        + EXPIRES_IN
         + minutes(message.expiresAt())
         + " and work once."
         + "\n\nIf you didn't ask to sign in, ignore this email. Never share this code with anyone.";
@@ -124,9 +127,9 @@ public class MailWhoEmailSender implements WhoEmailSender {
   private String invitationBody(InvitationMessage message) {
     return "You have been invited. Accept by signing in: "
         + message.link()
-        + "\n\nOr enter this code: "
+        + OR_ENTER_THIS_CODE
         + message.formattedCode()
-        + "\n\nThe link and the code expire in "
+        + EXPIRES_IN
         + minutes(message.expiresAt())
         + " and work once."
         + "\n\nIf you weren't expecting this invitation, ignore this email."
@@ -138,9 +141,9 @@ public class MailWhoEmailSender implements WhoEmailSender {
             ? "Make this your account's email address, in place of the old one: "
             : "Add this address to your account: ")
         + message.link()
-        + "\n\nOr enter this code: "
+        + OR_ENTER_THIS_CODE
         + message.formattedCode()
-        + "\n\nThe link and the code expire in "
+        + EXPIRES_IN
         + minutes(message.expiresAt())
         + " and work once, while you are signed in."
         + "\n\nIf you didn't ask to add this address, ignore this email and nothing changes."

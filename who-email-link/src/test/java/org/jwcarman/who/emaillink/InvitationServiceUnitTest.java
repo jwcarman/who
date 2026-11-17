@@ -108,8 +108,9 @@ class InvitationServiceUnitTest {
       doThrow(new InvalidInvitationException("No such role")).when(roles).assign(any(), any());
 
       InvitationService service = service(roles);
+      Set<String> nope = Set.of("nope");
 
-      assertThatThrownBy(() -> service.invite(ADDRESS, Set.of("nope")))
+      assertThatThrownBy(() -> service.invite(ADDRESS, nope))
           .isInstanceOf(InvalidInvitationException.class);
       assertThat(published).isEmpty();
       verifyNoInteractions(issuer);
