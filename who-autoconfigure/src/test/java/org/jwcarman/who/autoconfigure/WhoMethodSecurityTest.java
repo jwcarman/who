@@ -70,7 +70,10 @@ class WhoMethodSecurityTest {
       new ApplicationContextRunner()
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(AppConfig.class)
-          .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false");
+          .withPropertyValues(
+              "who.email-link.enabled=false",
+              "who.passkey.enabled=false",
+              "who.admin.enabled=false");
 
   @AfterEach
   void clear() {

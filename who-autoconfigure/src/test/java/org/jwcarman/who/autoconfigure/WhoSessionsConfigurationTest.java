@@ -74,7 +74,10 @@ class WhoSessionsConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class)
-          .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false");
+          .withPropertyValues(
+              "who.email-link.enabled=false",
+              "who.passkey.enabled=false",
+              "who.admin.enabled=false");
 
   @Test
   void the_default_timeout_is_thirty_minutes() {
