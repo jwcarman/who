@@ -22,8 +22,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.exception.LastCredentialException;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -173,5 +177,65 @@ class WhoExceptionHandoffTest {
   private void assertNoBody() throws Exception {
     assertThat(response.getContentAsString()).isEmpty();
     assertThat(response.getContentType()).isNull();
+  }
+
+  @Nested
+  @ExtendWith(OutputCaptureExtension.class)
+  class Logging {
+
+    @Test
+    void an_unresolved_failure_answered_500_is_logged_at_error_with_its_stack_trace(
+        CapturedOutput output) throws Exception {
+      new WhoExceptionHandoff(unresolving())
+          .handOff(
+              request,
+              response,
+              new IllegalStateException("listener exploded"),
+              HttpStatus.INTERNAL_SERVER_ERROR);
+
+      assertThat(response.getStatus()).isEqualTo(500);
+      assertThat(output)
+          .contains("ERROR")
+          .contains("java.lang.IllegalStateException: listener exploded")
+          .contains("at org.jwcarman.who.spring.security.web.WhoExceptionHandoffTest");
+    }
+
+    @Test
+    void a_failure_without_a_resolver_answered_500_is_logged_too(CapturedOutput output)
+        throws Exception {
+      new WhoExceptionHandoff(null)
+          .handOff(
+              request,
+              response,
+              new IllegalStateException("no resolver here"),
+              HttpStatus.INTERNAL_SERVER_ERROR);
+
+      assertThat(output).contains("ERROR").contains("no resolver here");
+    }
+
+    @Test
+    void a_resolved_failure_is_left_to_the_application_to_log(CapturedOutput output)
+        throws Exception {
+      new WhoExceptionHandoff(resolving(500))
+          .handOff(
+              request,
+              response,
+              new IllegalStateException("the app answered"),
+              HttpStatus.INTERNAL_SERVER_ERROR);
+
+      assertThat(output).doesNotContain("the app answered");
+    }
+
+    @Test
+    void an_unresolved_refusal_below_500_is_not_logged(CapturedOutput output) throws Exception {
+      new WhoExceptionHandoff(unresolving())
+          .handOff(
+              request,
+              response,
+              new AccessDeniedException("refused quietly"),
+              HttpStatus.FORBIDDEN);
+
+      assertThat(output).doesNotContain("refused quietly");
+    }
   }
 }

@@ -71,6 +71,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- An exception that nothing in the application answered and that `WhoExceptionHandoff` sent as a `5xx` (such as an `IdentityInvited` listener's at `POST /who/invitations`) was logged nowhere. who now logs it at `ERROR` with its stack trace.
 - Ids that who made in the same millisecond had no order, because each call built a new UUIDv7 generator, so lists that are oldest first could show two credentials made together in either order. who now keeps one generator, whose ids always increase.
 
 ## [0.20.0] - 2026-11-17

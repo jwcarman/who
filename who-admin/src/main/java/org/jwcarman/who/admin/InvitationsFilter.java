@@ -39,6 +39,7 @@ import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -61,8 +62,8 @@ import tools.jackson.databind.json.JsonMapper;
  * concurrent invite of the same address took first. Anything else {@link InvitationService#invite}
  * throws, such as an exception from the application's {@code IdentityInvited} listener, goes to the
  * application's exception handling, so its {@code @RestControllerAdvice} or the exception's own
- * {@code @ResponseStatus} answers it; otherwise it is {@code 500}. Nothing is created in any of
- * these cases.
+ * {@code @ResponseStatus} answers it; otherwise it is {@code 500}, logged at {@code ERROR} by
+ * {@link WhoExceptionHandoff}. Nothing is created in any of these cases.
  */
 final class InvitationsFilter extends OncePerRequestFilter {
 

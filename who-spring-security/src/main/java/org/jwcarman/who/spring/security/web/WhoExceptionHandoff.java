@@ -35,7 +35,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * adapts Spring MVC's {@code handlerExceptionResolver} bean to a {@link Resolver}. who writes no
  * error body: when nothing resolves the exception, it calls {@code response.sendError} with the
  * exception's {@link ResponseStatus} ({@code 409} for a {@link LastCredentialException}), or the
- * fallback, and lets the application's error handling answer.
+ * fallback, and lets the application's error handling answer. An exception sent as a {@code 5xx}
+ * that way is logged at {@code ERROR} with its stack trace first, since nothing else saw it.
  */
 public final class WhoExceptionHandoff {
 
@@ -74,7 +75,9 @@ public final class WhoExceptionHandoff {
   }
 
   /**
-   * Hands {@code exception} to the application. A response already committed is left alone.
+   * Hands {@code exception} to the application. A response already committed is left alone. When
+   * nothing resolves it and its status is a {@code 5xx}, it is logged at {@code ERROR} with its
+   * stack trace before {@code sendError}.
    *
    * @param request the request
    * @param response the response
@@ -100,7 +103,17 @@ public final class WhoExceptionHandoff {
     if (resolver != null && resolved(request, response, exception) || response.isCommitted()) {
       return;
     }
-    response.sendError(statusOf(exception, fallback).value());
+    HttpStatus status = statusOf(exception, fallback);
+    if (status.is5xxServerError()) {
+      // nothing else will: the application's handlers never saw it, and sendError logs nothing
+      log.error(
+          "{} {} failed and no exception handler of the application answered it; sending {}",
+          request.getMethod(),
+          request.getRequestURI(),
+          status.value(),
+          exception);
+    }
+    response.sendError(status.value());
   }
 
   private boolean resolved(

@@ -243,7 +243,8 @@ void on(IdentityInvited event) {
 }
 ```
 
-An exception nothing answers and that carries no status is `500`.
+An exception nothing answers and that carries no status is `500`, and who logs it at `ERROR`
+with its stack trace, since no handler of yours saw it.
 
 ### `InvitationService`
 
