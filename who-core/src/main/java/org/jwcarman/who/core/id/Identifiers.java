@@ -19,12 +19,16 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 
 /**
  * Utility methods for generating identifiers. Identifiers are time-ordered and not secret; never
  * use them as tokens (see {@link org.jwcarman.who.core.crypto.Secrets}).
  */
 public final class Identifiers {
+
+  /** One generator, so ids made in the same millisecond keep their order. It is thread-safe. */
+  private static final TimeBasedEpochGenerator GENERATOR = Generators.timeBasedEpochGenerator();
 
   private Identifiers() {}
 
@@ -34,7 +38,7 @@ public final class Identifiers {
    * @return a new unique UUID
    */
   public static UUID uuid() {
-    return Generators.timeBasedEpochGenerator().generate();
+    return GENERATOR.generate();
   }
 
   /**

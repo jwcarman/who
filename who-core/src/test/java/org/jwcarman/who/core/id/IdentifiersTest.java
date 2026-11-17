@@ -46,4 +46,22 @@ class IdentifiersTest {
 
     assertThat(Identifiers.createdAt(id)).isBetween(before, Instant.now().plusSeconds(1));
   }
+
+  @Test
+  void idsMadeBackToBackStrictlyIncrease() {
+    UUID previous = Identifiers.uuid();
+    for (int i = 0; i < 5000; i++) {
+      UUID next = Identifiers.uuid();
+      // unsigned, as a database orders a uuid; UUID.compareTo is signed
+      assertThat(unsignedCompare(previous, next)).isNegative();
+      previous = next;
+    }
+  }
+
+  private static int unsignedCompare(UUID a, UUID b) {
+    int high = Long.compareUnsigned(a.getMostSignificantBits(), b.getMostSignificantBits());
+    return high != 0
+        ? high
+        : Long.compareUnsigned(a.getLeastSignificantBits(), b.getLeastSignificantBits());
+  }
 }

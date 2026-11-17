@@ -139,7 +139,6 @@ class JdbcFederatedCredentialRepositoryTest extends AbstractFederatedTest {
   void findsAnIdentitysCredentialsOldestFirstAndNoOneElses() {
     Identity alice = identityRepository.save(Identity.create());
     Identity bob = identityRepository.save(Identity.create());
-    // time-ordered ids a millisecond apart: ids made back to back may share a millisecond
     FederatedCredential first =
         repository.save(
             new FederatedCredential(

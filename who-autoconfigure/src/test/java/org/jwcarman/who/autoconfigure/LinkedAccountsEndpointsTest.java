@@ -44,18 +44,6 @@ class LinkedAccountsEndpointsTest extends AbstractOidcTest {
   private static final JsonMapper JSON = JsonMapper.builder().build();
   private static final String ACCOUNTS = "/who/me/accounts";
 
-  /**
-   * An account linked after alice's own, whose id sorts after it: ids made back to back may share a
-   * millisecond, so their order would be luck.
-   */
-  private FederatedCredential laterAccount(String issuer, String subject) {
-    FederatedCredential credential =
-        federatedCredentialRepository.save(
-            new FederatedCredential(
-                UUID.fromString("7fffffff-ffff-7000-8000-000000000001"), issuer, subject));
-    return federatedCredentialService.linkExisting(alice, credential);
-  }
-
   private JsonNode list() throws Exception {
     MvcResult listed = browser.perform(get(ACCOUNTS)).andReturn();
     assertThat(listed.getResponse().getStatus()).isEqualTo(200);
@@ -71,7 +59,8 @@ class LinkedAccountsEndpointsTest extends AbstractOidcTest {
 
     @Test
     void lists_the_callers_accounts_by_the_registration_that_signs_them_in() throws Exception {
-      FederatedCredential second = laterAccount("https://gone.example.com", "alice-too");
+      FederatedCredential second =
+          federatedCredentialService.link(alice, "https://gone.example.com", "alice-too");
       federatedCredentialService.link(
           identityRepository.save(Identity.create(IdentityStatus.ACTIVE)),
           PROVIDER.issuer(),
@@ -101,7 +90,8 @@ class LinkedAccountsEndpointsTest extends AbstractOidcTest {
 
     @Test
     void the_listed_id_is_the_one_delete_accepts() throws Exception {
-      FederatedCredential second = laterAccount("https://other.example.com", "alice-too");
+      FederatedCredential second =
+          federatedCredentialService.link(alice, "https://other.example.com", "alice-too");
       browser.signedInAs(alice.id(), aliceCredential.id());
       String listed = list().get(1).path("id").asString();
 
