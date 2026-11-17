@@ -18,7 +18,10 @@ package org.jwcarman.who.jdbc;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
@@ -71,6 +74,56 @@ public class JdbcIdentityRepository implements IdentityRepository {
         .param(COL_ID, id)
         .query(IDENTITY_ROW_MAPPER)
         .optional();
+  }
+
+  @Override
+  public List<Identity> findPage(
+      Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size) {
+    if (page < 0) {
+      throw new IllegalArgumentException("page must not be negative, got " + page);
+    }
+    if (size < 1) {
+      throw new IllegalArgumentException("size must be positive, got " + size);
+    }
+    if (ids.filter(Set::isEmpty).isPresent()) {
+      return List.of();
+    }
+    return filtered(
+            "SELECT id, status, created_at, updated_at FROM who_identity",
+            status,
+            ids,
+            " ORDER BY created_at, id LIMIT :size OFFSET :offset")
+        .param("size", size)
+        .param("offset", (long) page * size)
+        .query(IDENTITY_ROW_MAPPER)
+        .list();
+  }
+
+  @Override
+  public long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
+    if (ids.filter(Set::isEmpty).isPresent()) {
+      return 0;
+    }
+    return filtered("SELECT COUNT(*) FROM who_identity", status, ids, "")
+        .query(Long.class)
+        .single();
+  }
+
+  /** The query with a {@code WHERE} for whichever filters are present, and their parameters. */
+  private JdbcClient.StatementSpec filtered(
+      String select, Optional<IdentityStatus> status, Optional<Set<UUID>> ids, String suffix) {
+    List<String> conditions = new ArrayList<>();
+    status.ifPresent(s -> conditions.add("status = :status"));
+    ids.ifPresent(i -> conditions.add("id IN (:ids)"));
+    String where = conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
+    JdbcClient.StatementSpec statement = jdbcClient.sql(select + where + suffix);
+    if (status.isPresent()) {
+      statement = statement.param(COL_STATUS, status.get().name());
+    }
+    if (ids.isPresent()) {
+      statement = statement.param("ids", List.copyOf(ids.get()));
+    }
+    return statement;
   }
 
   @Override

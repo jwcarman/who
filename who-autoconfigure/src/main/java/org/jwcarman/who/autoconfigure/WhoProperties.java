@@ -59,6 +59,7 @@ public class WhoProperties {
   private Security security = new Security();
   private Oidc oidc = new Oidc();
   private Sessions sessions = new Sessions();
+  private Admin admin = new Admin();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -1006,6 +1007,56 @@ public class WhoProperties {
    */
   public void setSessions(Sessions sessions) {
     this.sessions = sessions;
+  }
+
+  /**
+   * Returns the admin endpoints' properties.
+   *
+   * @return admin properties
+   */
+  public Admin getAdmin() {
+    return admin;
+  }
+
+  /**
+   * Sets the admin endpoints' properties.
+   *
+   * @param admin admin properties
+   */
+  public void setAdmin(Admin admin) {
+    this.admin = admin;
+  }
+
+  /** Properties for the {@code who-admin} module. */
+  public static class Admin {
+
+    /** Creates the settings with their defaults. */
+    public Admin() {
+      // defaults are set on the fields
+    }
+
+    /**
+     * Whether the admin endpoints are on. They are on whenever their module is on the classpath.
+     */
+    private boolean enabled = true;
+
+    /**
+     * Returns whether the admin endpoints are on.
+     *
+     * @return true unless turned off
+     */
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    /**
+     * Turns the admin endpoints off with {@code false}.
+     *
+     * @param enabled false to turn them off
+     */
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
   }
 
   /**

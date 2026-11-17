@@ -96,6 +96,30 @@ class RbacServiceLookupTest extends AbstractRbacTest {
   }
 
   @Test
+  void find_roles_for_identity_sorted_by_name() {
+    Role zeta = rbacService.createRole("HELD_ZETA");
+    Role alpha = rbacService.createRole("HELD_ALPHA");
+    rbacService.createRole("HELD_BY_NOBODY");
+    Identity identity = identityRepository.save(Identity.create());
+    rbacService.assignRoleToIdentity(identity, zeta);
+    rbacService.assignRoleToIdentity(identity, alpha);
+
+    assertThat(rbacService.findRolesForIdentity(identity.id())).containsExactly(alpha, zeta);
+    assertThat(rbacService.findRolesForIdentity(UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
+  void find_permissions_of_a_role() {
+    Role role = rbacService.createRole("GRANTS");
+    rbacService.addPermissionToRole(role, "task.read");
+    rbacService.addPermissionToRole(role, "task.write");
+
+    assertThat(rbacService.findPermissions(role))
+        .containsExactlyInAnyOrder("task.read", "task.write");
+    assertThat(rbacService.findPermissions(Role.create("UNSAVED"))).isEmpty();
+  }
+
+  @Test
   void duplicateRoleThrowsRoleAlreadyExists() {
     rbacService.createRole("DUPLICATE");
 

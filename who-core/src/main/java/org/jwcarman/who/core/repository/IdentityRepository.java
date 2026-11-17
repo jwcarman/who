@@ -15,7 +15,9 @@
  */
 package org.jwcarman.who.core.repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
@@ -40,6 +42,27 @@ public interface IdentityRepository {
    * @return the identity, or empty if not found
    */
   Optional<Identity> lockById(UUID id);
+
+  /**
+   * Returns one page of identities, oldest first: ordered by creation time, then by id.
+   *
+   * @param status only identities with this status; empty for any status
+   * @param ids only identities among these ids; empty for any id. An empty set matches none
+   * @param page the zero-based page number; must not be negative
+   * @param size the most identities on a page; must be positive
+   * @return the identities on that page (never null; empty past the last page)
+   */
+  List<Identity> findPage(
+      Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size);
+
+  /**
+   * Counts the identities {@link #findPage} pages through for the same filters.
+   *
+   * @param status only identities with this status; empty for any status
+   * @param ids only identities among these ids; empty for any id. An empty set matches none
+   * @return how many identities match
+   */
+  long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids);
 
   /**
    * Persists the given identity, inserting or updating as necessary.

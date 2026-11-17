@@ -34,6 +34,7 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.CredentialKind;
 import org.jwcarman.who.core.event.CredentialRevoked;
@@ -244,6 +245,17 @@ class WhoServiceEventsTest {
   }
 
   private final class InMemoryIdentities implements IdentityRepository {
+    @Override
+    public List<Identity> findPage(
+        Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size) {
+      throw new UnsupportedOperationException("not paged in these tests");
+    }
+
+    @Override
+    public long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
+      throw new UnsupportedOperationException("not counted in these tests");
+    }
+
     @Override
     public Optional<Identity> findById(UUID id) {
       return Optional.ofNullable(identities.get(id));

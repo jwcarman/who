@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -97,6 +98,17 @@ class WhoServiceStatusTest {
   }
 
   private final class InMemoryIdentities implements IdentityRepository {
+    @Override
+    public List<Identity> findPage(
+        Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size) {
+      throw new UnsupportedOperationException("not paged in these tests");
+    }
+
+    @Override
+    public long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
+      throw new UnsupportedOperationException("not counted in these tests");
+    }
+
     @Override
     public Optional<Identity> findById(UUID id) {
       return Optional.ofNullable(identities.get(id));

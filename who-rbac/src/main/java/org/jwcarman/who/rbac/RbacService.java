@@ -18,6 +18,7 @@ package org.jwcarman.who.rbac;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
@@ -133,6 +134,30 @@ public class RbacService {
    */
   public List<UUID> findIdentityIdsWithRole(Role role) {
     return identityRoleRepository.findIdentityIdsByRoleId(role.id());
+  }
+
+  /**
+   * Returns the roles the given identity holds, sorted by name.
+   *
+   * @param identityId the identity whose roles are wanted
+   * @return the roles (never null; empty if none, or if there is no such identity)
+   */
+  public List<Role> findRolesForIdentity(UUID identityId) {
+    Set<UUID> held = Set.copyOf(identityRoleRepository.findRoleIdsByIdentityId(identityId));
+    if (held.isEmpty()) {
+      return List.of();
+    }
+    return roleRepository.findAll().stream().filter(role -> held.contains(role.id())).toList();
+  }
+
+  /**
+   * Returns the permissions granted to the given role.
+   *
+   * @param role the role whose permissions are wanted
+   * @return the permissions (never null; empty if none, or if there is no such role)
+   */
+  public Set<String> findPermissions(Role role) {
+    return Set.copyOf(rolePermissionRepository.findPermissionsByRoleId(role.id()));
   }
 
   /**

@@ -256,6 +256,12 @@ class WhoBasePathEndToEndTest {
           GET    | /auth/me/api-keys/current | true |                             | 404
           POST   | /auth/me/api-keys/00000000-0000-0000-0000-000000000000/rotations | true | {"overlap":"PT0S"} | 404
           DELETE | /auth/me/api-keys/00000000-0000-0000-0000-000000000000 | true |  | 404
+          GET    | /auth/identities              | true  |                             | 403
+          GET    | /auth/identities/00000000-0000-0000-0000-000000000000 | true |  | 403
+          PATCH  | /auth/identities/00000000-0000-0000-0000-000000000000 | true | {"status":"ACTIVE"} | 403
+          PUT    | /auth/identities/00000000-0000-0000-0000-000000000000/roles/r | true | | 403
+          DELETE | /auth/identities/00000000-0000-0000-0000-000000000000/roles/r | true | | 403
+          GET    | /auth/roles                   | true  |                             | 403
           POST   | /auth/logout                  | true  |                             | 204
           """)
   void every_endpoint_answers_under_the_root(
@@ -300,6 +306,11 @@ class WhoBasePathEndToEndTest {
           POST | /who/me/api-keys                | {"name":"k","lifetime":"P1D","scopes":["not.held"]}
           GET  | /who/me/api-keys/current        |
           DELETE | /who/me/api-keys/00000000-0000-0000-0000-000000000000 |
+          GET  | /who/identities                 |
+          GET  | /who/identities/00000000-0000-0000-0000-000000000000 |
+          PATCH | /who/identities/00000000-0000-0000-0000-000000000000 | {"status":"ACTIVE"}
+          PUT  | /who/identities/00000000-0000-0000-0000-000000000000/roles/r |
+          GET  | /who/roles                      |
           """)
   void no_old_path_reaches_who(String method, String path, String body) throws Exception {
     signIn();

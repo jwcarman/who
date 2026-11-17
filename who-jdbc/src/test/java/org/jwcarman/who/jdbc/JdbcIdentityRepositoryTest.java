@@ -16,11 +16,13 @@
 package org.jwcarman.who.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -30,6 +32,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
@@ -38,6 +43,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
 
   @Autowired private JdbcIdentityRepository repository;
@@ -148,6 +154,78 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
     } finally {
       executor.shutdownNow();
       repository.deleteById(identity.id());
+    }
+  }
+
+  @Nested
+  class Paging {
+
+    private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
+
+    private Identity saved(IdentityStatus status, Instant createdAt, UUID id) {
+      return repository.save(new Identity(id, status, createdAt, createdAt));
+    }
+
+    private Identity saved(IdentityStatus status, Instant createdAt) {
+      return saved(status, createdAt, UUID.randomUUID());
+    }
+
+    @Test
+    void pages_oldest_first_then_by_id() {
+      Identity third = saved(IdentityStatus.ACTIVE, T0.plusSeconds(2));
+      Identity tiedHigh =
+          saved(IdentityStatus.ACTIVE, T0, UUID.fromString("ffffffff-0000-0000-0000-000000000000"));
+      Identity tiedLow =
+          saved(IdentityStatus.ACTIVE, T0, UUID.fromString("00000000-0000-0000-0000-00000000000f"));
+      Optional<Set<UUID>> ids = Optional.of(Set.of(third.id(), tiedHigh.id(), tiedLow.id()));
+
+      assertThat(repository.findPage(Optional.empty(), ids, 0, 2))
+          .extracting(Identity::id)
+          .containsExactly(tiedLow.id(), tiedHigh.id());
+      assertThat(repository.findPage(Optional.empty(), ids, 1, 2))
+          .extracting(Identity::id)
+          .containsExactly(third.id());
+      assertThat(repository.findPage(Optional.empty(), ids, 2, 2)).isEmpty();
+      assertThat(repository.count(Optional.empty(), ids)).isEqualTo(3);
+    }
+
+    @Test
+    void filters_by_status() {
+      Identity active = saved(IdentityStatus.ACTIVE, T0);
+      Identity disabled = saved(IdentityStatus.DISABLED, T0.plusSeconds(1));
+      Optional<Set<UUID>> ids = Optional.of(Set.of(active.id(), disabled.id()));
+
+      assertThat(repository.findPage(Optional.of(IdentityStatus.DISABLED), ids, 0, 10))
+          .extracting(Identity::id)
+          .containsExactly(disabled.id());
+      assertThat(repository.count(Optional.of(IdentityStatus.DISABLED), ids)).isEqualTo(1);
+    }
+
+    @Test
+    void an_empty_id_set_matches_none() {
+      saved(IdentityStatus.ACTIVE, T0);
+
+      assertThat(repository.findPage(Optional.empty(), Optional.of(Set.of()), 0, 10)).isEmpty();
+      assertThat(repository.count(Optional.empty(), Optional.of(Set.of()))).isZero();
+    }
+
+    @Test
+    void a_negative_page_or_a_size_below_one_is_refused() {
+      assertThatThrownBy(() -> repository.findPage(Optional.empty(), Optional.empty(), -1, 10))
+          .isInstanceOf(IllegalArgumentException.class);
+      assertThatThrownBy(() -> repository.findPage(Optional.empty(), Optional.empty(), 0, 0))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void without_filters_every_identity_counts() {
+      long before = repository.count(Optional.empty(), Optional.empty());
+      Identity identity = saved(IdentityStatus.SUSPENDED, T0);
+
+      assertThat(repository.count(Optional.empty(), Optional.empty())).isEqualTo(before + 1);
+      assertThat(repository.findPage(Optional.empty(), Optional.empty(), 0, (int) before + 1))
+          .extracting(Identity::id)
+          .contains(identity.id());
     }
   }
 }

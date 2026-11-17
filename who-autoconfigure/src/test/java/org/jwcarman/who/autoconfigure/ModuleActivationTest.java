@@ -24,6 +24,8 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.admin.IdentityEmails;
+import org.jwcarman.who.admin.WhoAdminEndpoints;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
@@ -211,6 +213,44 @@ class ModuleActivationTest {
               context -> {
                 assertThat(context).hasNotFailed();
                 assertThat(context).doesNotHaveBean(ApiKeyAuthenticationFilter.class);
+              });
+    }
+  }
+
+  @Nested
+  class Admin {
+
+    @Test
+    void is_on_with_the_jar_alone() {
+      configured.run(
+          context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(WhoAdminEndpoints.class);
+            assertThat(context).hasSingleBean(IdentityEmails.class);
+          });
+    }
+
+    @Test
+    void without_email_sign_in_it_finds_no_addresses() {
+      configured
+          .withPropertyValues("who.email-link.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).hasSingleBean(WhoAdminEndpoints.class);
+                assertThat(context).doesNotHaveBean(IdentityEmails.class);
+              });
+    }
+
+    @Test
+    void is_off_with_enabled_false() {
+      configured
+          .withPropertyValues("who.admin.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).doesNotHaveBean(WhoAdminEndpoints.class);
+                assertThat(context).doesNotHaveBean(IdentityEmails.class);
               });
     }
   }

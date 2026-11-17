@@ -8,5 +8,6 @@ org.jwcarman.who.autoconfigure.WhoEmailLinkAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoTurnstileAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoOidcAutoConfiguration
+org.jwcarman.who.autoconfigure.WhoAdminAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoWebSecurityAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoMetricsAutoConfiguration
