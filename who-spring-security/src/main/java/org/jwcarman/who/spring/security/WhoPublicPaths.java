@@ -17,13 +17,15 @@ package org.jwcarman.who.spring.security;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
  * The paths a signed-out request may reach: Spring Boot's error page, {@code GET /who/sign-in},
- * every sign-in method's own endpoints, and the application's {@code who.security.public-paths}.
- * who's default security chain permits them; an application that writes its own chain can do the
- * same with {@code requestMatchers(whoPublicPaths.patterns()).permitAll()}.
+ * every sign-in method's own endpoints, the application's {@code who.security.public-paths} and
+ * what {@link WhoPublicPathContributor} beans add. who's default security chain permits them; an
+ * application that writes its own chain can do the same with {@code
+ * requestMatchers(whoPublicPaths.patterns()).permitAll()}.
  */
 public final class WhoPublicPaths {
 
@@ -36,7 +38,7 @@ public final class WhoPublicPaths {
   private final Set<String> patterns = new LinkedHashSet<>();
 
   /**
-   * Collects the paths.
+   * Collects the paths, with none contributed by libraries.
    *
    * @param paths where who's endpoints live, for {@code GET /who/sign-in}
    * @param methods the browser sign-in methods, whose {@link PasswordlessLoginMethod#publicPaths()}
@@ -47,15 +49,34 @@ public final class WhoPublicPaths {
       WhoPaths paths,
       Collection<? extends PasswordlessLoginMethod> methods,
       Collection<String> configured) {
+    this(paths, methods, configured, List.of());
+  }
+
+  /**
+   * Collects the paths.
+   *
+   * @param paths where who's endpoints live, for {@code GET /who/sign-in}
+   * @param methods the browser sign-in methods, whose {@link PasswordlessLoginMethod#publicPaths()}
+   *     are added
+   * @param configured the application's own public paths
+   * @param contributed the paths {@link WhoPublicPathContributor} beans added, app-root patterns
+   *     like the configured ones
+   */
+  public WhoPublicPaths(
+      WhoPaths paths,
+      Collection<? extends PasswordlessLoginMethod> methods,
+      Collection<String> configured,
+      Collection<String> contributed) {
     patterns.add(ERROR_PAGE);
     patterns.add(paths.of(SIGN_IN_OPTIONS));
     methods.forEach(method -> patterns.addAll(method.publicPaths()));
     patterns.addAll(configured);
+    patterns.addAll(contributed);
   }
 
   /**
    * Returns the path patterns, the error page first, then the sign-in options, then each method's,
-   * then the application's.
+   * then the application's, then those contributed; a repeated pattern keeps its first place.
    *
    * @return the patterns, for {@code requestMatchers(...)}
    */

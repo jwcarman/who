@@ -19,7 +19,10 @@ package org.jwcarman.who.autoconfigure;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.SessionRecordRepository;
@@ -32,13 +35,17 @@ import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
 import org.jwcarman.who.spring.security.SessionEndpoints;
 import org.jwcarman.who.spring.security.StatelessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPaths;
+import org.jwcarman.who.spring.security.WhoPublicPathContributor;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.Advisor;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -71,6 +78,9 @@ import tools.jackson.databind.json.JsonMapper;
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository")
 public class WhoSpringSecurityAutoConfiguration {
+
+  private static final Logger log =
+      LoggerFactory.getLogger(WhoSpringSecurityAutoConfiguration.class);
 
   /** Spring Boot's own default for {@code server.servlet.session.timeout}. */
   private static final Duration DEFAULT_SESSION_TIMEOUT = Duration.ofMinutes(30);
@@ -265,20 +275,76 @@ public class WhoSpringSecurityAutoConfiguration {
   }
 
   /**
-   * The paths a signed-out request may reach: the error page, each sign-in method's endpoints and
-   * {@code who.security.public-paths}.
+   * The paths a signed-out request may reach: the error page, each sign-in method's endpoints,
+   * {@code who.security.public-paths} and what {@link WhoPublicPathContributor} beans add.
    *
    * @param paths where who's endpoints live
    * @param methods the browser sign-in methods
+   * @param contributors libraries' and the application's additions
+   * @param beans names the contributors in failures and in the startup log
    * @param properties the application's own public paths
    * @return the paths
+   * @throws WhoConfigurationException when a contributor returns {@code null} or a blank pattern
    */
   @Bean
   @ConditionalOnMissingBean
   public WhoPublicPaths whoPublicPaths(
-      WhoPaths paths, ObjectProvider<PasswordlessLoginMethod> methods, WhoProperties properties) {
+      WhoPaths paths,
+      ObjectProvider<PasswordlessLoginMethod> methods,
+      ObjectProvider<WhoPublicPathContributor> contributors,
+      ListableBeanFactory beans,
+      WhoProperties properties) {
     return new WhoPublicPaths(
-        paths, methods.orderedStream().toList(), properties.getSecurity().getPublicPaths());
+        paths,
+        methods.orderedStream().toList(),
+        properties.getSecurity().getPublicPaths(),
+        contributedPaths(contributors, beans));
+  }
+
+  private static List<String> contributedPaths(
+      ObjectProvider<WhoPublicPathContributor> contributors, ListableBeanFactory beans) {
+    Map<String, WhoPublicPathContributor> named =
+        beans.getBeansOfType(WhoPublicPathContributor.class);
+    List<String> contributed = new ArrayList<>();
+    contributors
+        .orderedStream()
+        .forEach(
+            contributor -> {
+              String name = beanName(named, contributor);
+              for (String pattern : validPatterns(name, contributor)) {
+                log.info("who: public path {} contributed by bean '{}'", pattern, name);
+                contributed.add(pattern);
+              }
+            });
+    return contributed;
+  }
+
+  private static String beanName(
+      Map<String, WhoPublicPathContributor> named, WhoPublicPathContributor contributor) {
+    return named.entrySet().stream()
+        .filter(entry -> entry.getValue() == contributor)
+        .map(Map.Entry::getKey)
+        .findFirst()
+        .orElse(contributor.getClass().getName());
+  }
+
+  private static Collection<String> validPatterns(
+      String name, WhoPublicPathContributor contributor) {
+    String subject = "public-path contributor '" + name + "'";
+    Collection<String> patterns = contributor.publicPaths();
+    if (patterns == null) {
+      throw new WhoConfigurationException(
+          subject, "returned null from publicPaths()", "return the patterns, or an empty list");
+    }
+    for (String pattern : patterns) {
+      if (pattern == null || pattern.isBlank()) {
+        throw new WhoConfigurationException(
+            subject,
+            "returned a " + (pattern == null ? "null" : "blank") + " path pattern",
+            "return path patterns such as /index.html or /assets/**");
+      }
+    }
+    return patterns;
   }
 
   /** Registers {@code GET /who/me} in servlet web applications that have Spring MVC. */

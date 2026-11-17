@@ -19,9 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -80,5 +82,52 @@ class WhoPublicPathsTest {
   void a_login_method_has_no_public_paths_unless_it_says_so() {
     PasswordlessLoginMethod method = http -> {};
     assertThat(method.publicPaths()).isEmpty();
+  }
+
+  @Nested
+  class Contributed {
+
+    @Test
+    void contributed_paths_join_the_property_and_the_sign_in_paths() {
+      assertThat(
+              new WhoPublicPaths(
+                      WhoPaths.defaults(),
+                      List.of(method("/who/email/sign-in")),
+                      List.of("/signin"),
+                      List.of("/index.html", "/assets/**"))
+                  .patterns())
+          .containsExactly(
+              "/error",
+              "/who/sign-in",
+              "/who/email/sign-in",
+              "/signin",
+              "/index.html",
+              "/assets/**");
+    }
+
+    @Test
+    void two_contributors_compose() {
+      WhoPublicPathContributor first = () -> List.of("/index.html");
+      WhoPublicPathContributor second = () -> List.of("/assets/**", "/index.html");
+      assertThat(
+              new WhoPublicPaths(
+                      WhoPaths.defaults(),
+                      List.of(),
+                      List.of(),
+                      Stream.of(first, second)
+                          .flatMap(contributor -> contributor.publicPaths().stream())
+                          .toList())
+                  .patterns())
+          .containsExactly("/error", "/who/sign-in", "/index.html", "/assets/**");
+    }
+
+    @Test
+    void a_contributed_path_never_displaces_an_earlier_one() {
+      assertThat(
+              new WhoPublicPaths(
+                      WhoPaths.defaults(), List.of(), List.of("/b", "/a"), List.of("/a", "/c"))
+                  .patterns())
+          .containsExactly("/error", "/who/sign-in", "/b", "/a", "/c");
+    }
   }
 }
