@@ -48,6 +48,9 @@ import org.springframework.security.web.session.DisableEncodeUrlFilter;
  *       {@code 403}, both handed to the application's exception handling.
  * </ul>
  *
+ * <p>After the sign-in methods it applies every {@link StatelessEndpoints} bean, such as the
+ * caller's API keys under {@code /who/me/api-keys}.
+ *
  * <p>It mounts no browser sign-in method, even when one is on the classpath, so an application can
  * give its API a chain of its own beside a browser chain. With no stateless method in the
  * application, building the chain fails; so does a chain whose sessions are turned back on after
@@ -101,6 +104,7 @@ public final class WhoStatelessConfigurer
     for (StatelessLoginMethod method : methods) {
       method.configure(http);
     }
+    applyEndpoints(http, context);
     logMethods(log, methods);
     // The one place who turns CSRF off: every credential this chain accepts travels in a header a
     // browser never adds by itself, and the chain ignores the session cookie that it would add.
@@ -120,6 +124,14 @@ public final class WhoStatelessConfigurer
         instanceof RequestAttributeSecurityContextRepository)) {
       throw new IllegalStateException(STATELESS_REQUIRED);
     }
+  }
+
+  /** Applies every {@link StatelessEndpoints} bean, after the chain's sign-in methods. */
+  static void applyEndpoints(HttpSecurity http, ApplicationContext context) {
+    context
+        .getBeanProvider(StatelessEndpoints.class)
+        .orderedStream()
+        .forEach(e -> e.configure(http));
   }
 
   /** Logs {@link #METHODS_LINE} for the methods, when there are any. */

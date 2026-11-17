@@ -250,6 +250,11 @@ class WhoBasePathEndToEndTest {
           GET    | /auth/me/accounts        | true  |                             | 200
           DELETE | /auth/me/accounts/00000000-0000-0000-0000-000000000000 | true |  | 404
           POST   | /auth/me/accounts/stub          | true  |                             | 302
+          GET    | /auth/me/api-keys        | true  |                             | 200
+          POST   | /auth/me/api-keys        | true  | {"name":"k","lifetime":"P1D","scopes":["not.held"]} | 400
+          GET    | /auth/me/api-keys/current | true |                             | 404
+          POST   | /auth/me/api-keys/00000000-0000-0000-0000-000000000000/rotations | true | {"overlap":"PT0S"} | 404
+          DELETE | /auth/me/api-keys/00000000-0000-0000-0000-000000000000 | true |  | 404
           POST   | /auth/logout                  | true  |                             | 204
           """)
   void every_endpoint_answers_under_the_root(
@@ -289,6 +294,10 @@ class WhoBasePathEndToEndTest {
           GET  | /who/me/accounts                |
           DELETE | /who/me/accounts/00000000-0000-0000-0000-000000000000 |
           GET  | /who/me/accounts/stub           |
+          GET  | /who/me/api-keys                |
+          POST | /who/me/api-keys                | {"name":"k","lifetime":"P1D","scopes":["not.held"]}
+          GET  | /who/me/api-keys/current        |
+          DELETE | /who/me/api-keys/00000000-0000-0000-0000-000000000000 |
           """)
   void no_old_path_reaches_who(String method, String path, String body) throws Exception {
     signIn();

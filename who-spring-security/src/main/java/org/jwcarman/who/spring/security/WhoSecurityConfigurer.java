@@ -34,6 +34,8 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
  *       WhoWebSecurity#passwordless()} does for browser sessions;
  *   <li>every {@link StatelessLoginMethod} bean, and, when the chain has CSRF protection, an
  *       exemption for the requests that one of their credentials signs in;
+ *   <li>the {@link BrowserEndpoints} beans when there is a browser method, else the {@link
+ *       StatelessEndpoints} beans;
  *   <li>a {@code 401} for a signed-out request and a {@code 403} for a denied one, handed to the
  *       application's exception handling. Without a browser method, the {@code 401} also names each
  *       stateless method's scheme in {@code WWW-Authenticate}, as {@link WhoSecurity#stateless()}
@@ -74,6 +76,10 @@ public class WhoSecurityConfigurer
 
     for (StatelessLoginMethod method : stateless) {
       method.configure(http);
+    }
+    if (!browser) {
+      // a browser chain applies the BrowserEndpoints, which serve its stateless callers too
+      WhoStatelessConfigurer.applyEndpoints(http, context);
     }
     WhoStatelessConfigurer.logMethods(log, stateless);
     // Only adjust CSRF the chain already has: http.csrf(...) would turn it back on in a chain that

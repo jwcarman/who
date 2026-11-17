@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
@@ -258,6 +259,77 @@ class WhoSecurityChainsTest {
     assertThat(infoLines(Magic.class, Endpoints.class, PasswordlessChain.class))
         .containsExactly("who: this chain signs browsers in with magic under /who");
     assertThat(ENDPOINTS_APPLIED).isTrue();
+  }
+
+  /** What each chain applied, in order: sign-in methods and endpoints. */
+  static final List<String> APPLIED = new CopyOnWriteArrayList<>();
+
+  @Configuration
+  @EnableWebSecurity
+  static class RecordingBearer {
+    @Bean
+    StatelessLoginMethod recordingBearer() {
+      return new StatelessLoginMethod() {
+        @Override
+        public void configure(HttpSecurity http) {
+          APPLIED.add("bearer");
+        }
+
+        @Override
+        public RequestMatcher carriesCredential() {
+          return AnyRequestMatcher.INSTANCE;
+        }
+
+        @Override
+        public String name() {
+          return "bearer";
+        }
+      };
+    }
+  }
+
+  @Configuration
+  static class RecordingEndpoints {
+    @Bean
+    StatelessEndpoints someStatelessEndpoints() {
+      return http -> APPLIED.add("stateless endpoints");
+    }
+
+    @Bean
+    BrowserEndpoints someBrowserEndpoints() {
+      return http -> APPLIED.add("browser endpoints");
+    }
+  }
+
+  @Nested
+  class Stateless_endpoints {
+
+    @Test
+    void are_applied_on_a_stateless_chain_after_its_sign_in_methods_and_not_named() {
+      APPLIED.clear();
+
+      assertThat(infoLines(RecordingBearer.class, RecordingEndpoints.class, StatelessChain.class))
+          .containsExactly("who: this chain accepts bearer");
+      assertThat(APPLIED).containsExactly("bearer", "stateless endpoints");
+    }
+
+    @Test
+    void are_applied_by_all_when_it_has_no_browser_method() {
+      APPLIED.clear();
+
+      infoLines(RecordingBearer.class, RecordingEndpoints.class, AllWithoutCsrf.class);
+
+      assertThat(APPLIED).containsExactly("bearer", "stateless endpoints");
+    }
+
+    @Test
+    void are_not_applied_by_all_beside_a_browser_method_whose_endpoints_are() {
+      APPLIED.clear();
+
+      infoLines(Magic.class, RecordingBearer.class, RecordingEndpoints.class, AllChain.class);
+
+      assertThat(APPLIED).containsExactlyInAnyOrder("bearer", "browser endpoints");
+    }
   }
 
   @Test

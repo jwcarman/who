@@ -22,6 +22,7 @@ import java.time.Duration;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationProvider;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
+import org.jwcarman.who.apikey.ApiKeyEndpoints;
 import org.jwcarman.who.apikey.ApiKeyFormat;
 import org.jwcarman.who.apikey.ApiKeyLoginMethod;
 import org.jwcarman.who.apikey.ApiKeyService;
@@ -31,6 +32,10 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.jwcarman.who.spring.security.WhoPaths;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -39,6 +44,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.simple.JdbcClient;
+
+import tools.jackson.databind.json.JsonMapper;
 
 /** Registers API key beans when {@code who-apikey} is on the classpath. */
 @AutoConfiguration(after = WhoAutoConfiguration.class)
@@ -172,6 +179,39 @@ public class WhoApiKeyAutoConfiguration {
   public ApiKeyLoginMethod apiKeyLoginMethod(
       ApiKeyAuthenticationFilter filter, WhoProperties properties) {
     return new ApiKeyLoginMethod(filter, properties.getApiKey().getHeaderName());
+  }
+
+  /**
+   * The caller's API keys at {@code /me/api-keys} under {@code who.base-path}, on every browser
+   * chain and every stateless chain.
+   *
+   * @param apiKeyService makes, lists, rotates and revokes the keys
+   * @param sessionRepository reads the browser's who session and its sign-in time
+   * @param handoff the application's exception handling, if it has who's handoff
+   * @param jsonMapper the application's JSON mapper, if it has one
+   * @param clock the current time
+   * @param properties {@code who.security.recent-sign-in}
+   * @param paths where the endpoints live
+   * @return the endpoints
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public ApiKeyEndpoints apiKeyEndpoints(
+      ApiKeyService apiKeyService,
+      WhoSessionSecurityContextRepository sessionRepository,
+      ObjectProvider<WhoExceptionHandoff> handoff,
+      ObjectProvider<JsonMapper> jsonMapper,
+      Clock clock,
+      WhoProperties properties,
+      WhoPaths paths) {
+    return new ApiKeyEndpoints(
+        paths,
+        apiKeyService,
+        sessionRepository,
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        jsonMapper.getIfAvailable(JsonMapper::new),
+        clock,
+        properties.getSecurity().getRecentSignIn());
   }
 
   /**

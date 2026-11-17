@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -268,5 +269,57 @@ class ApiKeyServiceUnitTest {
     assertThatIllegalArgumentException()
         .isThrownBy(() -> service.rotate(id, Duration.ZERO))
         .withMessage("No API key " + id);
+  }
+
+  @Nested
+  class Finding_one_owned_key {
+
+    private final UUID id = UUID.randomUUID();
+
+    private void stored(UUID ownerId) {
+      when(keys.findById(id))
+          .thenReturn(
+              Optional.of(
+                  new ApiKeyCredential(
+                      id, "CI", "hash", Set.of("task.read"), NOW, NOW.plusSeconds(60), null)));
+      when(links.findIdentityIdByCredentialId(id)).thenReturn(Optional.ofNullable(ownerId));
+    }
+
+    @Test
+    void finds_the_owners_key_without_its_secret() {
+      stored(owner.id());
+
+      assertThat(service.findOwnedBy(owner.id(), id))
+          .hasValueSatisfying(
+              key -> {
+                assertThat(key.id()).isEqualTo(id);
+                assertThat(key.name()).isEqualTo("CI");
+                assertThat(key.scopes()).containsExactly("task.read");
+                assertThat(key.createdAt()).isEqualTo(NOW);
+                assertThat(key.expired()).isFalse();
+              });
+    }
+
+    @Test
+    void finds_nothing_for_another_identity() {
+      stored(UUID.randomUUID());
+
+      assertThat(service.findOwnedBy(owner.id(), id)).isEmpty();
+    }
+
+    @Test
+    void finds_nothing_for_a_key_linked_to_no_one() {
+      stored(null);
+
+      assertThat(service.findOwnedBy(owner.id(), id)).isEmpty();
+    }
+
+    @Test
+    void finds_nothing_for_another_kind_of_credential_the_owner_holds() {
+      when(keys.findById(id)).thenReturn(Optional.empty());
+      when(links.findIdentityIdByCredentialId(id)).thenReturn(Optional.of(owner.id()));
+
+      assertThat(service.findOwnedBy(owner.id(), id)).isEmpty();
+    }
   }
 }

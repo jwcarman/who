@@ -168,24 +168,51 @@ public class ApiKeyService {
     return credentialIdentityRepository.findCredentialIdsByIdentityId(identityId).stream()
         .map(apiKeyCredentialRepository::findById)
         .flatMap(Optional::stream)
-        .map(
-            key ->
-                new ApiKey(
-                    key.id(),
-                    key.name(),
-                    key.scopes(),
-                    key.createdAt(),
-                    key.expiresAt(),
-                    key.lastUsedAt(),
-                    key.expiredAt(now)))
+        .map(key -> listed(key, now))
         .sorted(BY_NAME)
         .toList();
+  }
+
+  /**
+   * Finds one of an identity's keys, as {@link #findByIdentity} lists it. A key that belongs to
+   * another identity, or to none, and a credential that is not an API key are all not found, so
+   * this is the ownership check to make before {@link #rotate} or {@link #revoke}.
+   *
+   * @param identityId the owner
+   * @param keyId the key's credential id
+   * @return the key, with no secret in it, or empty unless {@code identityId} owns it
+   */
+  public Optional<ApiKey> findOwnedBy(UUID identityId, UUID keyId) {
+    requireNonNull(identityId, "identityId must not be null");
+    requireNonNull(keyId, "keyId must not be null");
+    if (credentialIdentityRepository
+        .findIdentityIdByCredentialId(keyId)
+        .filter(identityId::equals)
+        .isEmpty()) {
+      return Optional.empty();
+    }
+    Instant now = clock.instant();
+    return apiKeyCredentialRepository.findById(keyId).map(key -> listed(key, now));
+  }
+
+  private static ApiKey listed(ApiKeyCredential key, Instant now) {
+    return new ApiKey(
+        key.id(),
+        key.name(),
+        key.scopes(),
+        key.createdAt(),
+        key.expiresAt(),
+        key.lastUsedAt(),
+        key.expiredAt(now));
   }
 
   /**
    * Replaces a key without a hard cutover: the new key has the old one's name, scopes and lifetime
    * (at most the maximum), and the old key keeps working for the overlap, or until its own expiry
    * if that is sooner.
+   *
+   * <p>It does not check who owns the key: a caller acting for an identity must check that the
+   * identity owns it first, with {@link #findOwnedBy}.
    *
    * @param keyId the key to replace
    * @param overlap how long the old key keeps working; zero to at most {@link #MAX_OVERLAP}
@@ -242,6 +269,9 @@ public class ApiKeyService {
    * Revokes an API key: deletes the credential and its identity link, so the key stops resolving,
    * then publishes {@link CredentialRevoked} if it was linked to an identity. Does nothing for an
    * unknown id.
+   *
+   * <p>It does not check who owns the key: a caller acting for an identity must check that the
+   * identity owns it first, with {@link #findOwnedBy}.
    *
    * @param credentialId the id of the API key credential
    */
