@@ -18,9 +18,6 @@ package org.jwcarman.who.admin;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +33,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
@@ -43,20 +41,10 @@ import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
-import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.WhoSignInFactors;
-import org.jwcarman.who.spring.security.web.NotSignedInException;
-import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -76,7 +64,9 @@ import tools.jackson.databind.json.JsonMapper;
  *       answers its {@link IdentityView}; any other status, {@code SUSPENDED} included, is {@code
  *       400}. The caller cannot deactivate itself: {@code 409};
  *   <li>{@code PUT} and {@code DELETE /identities/{id}/roles/{role}} assign and remove a role,
- *       {@code 204} whether or not anything changed;
+ *       {@code 204} whether or not anything changed. The caller may assign only a role whose every
+ *       permission it holds itself, or it is {@code 403} (see {@link RoleGrants}); removing is not
+ *       restricted;
  *   <li>{@code GET /roles} lists every role as {@code [{name, permissions}]}, by name.
  * </ul>
  *
@@ -86,14 +76,11 @@ import tools.jackson.databind.json.JsonMapper;
  * its scopes keep); without it, {@code 403}. A browser session (a who session cookie with no API
  * key or bearer token beside it) that changes anything must have signed in recently, or it is
  * {@code 401} and must sign in again; a bearer token or an API key need not. These are checked in
- * that order, signed out ({@code 401}) first, before any identity, role or body is looked at. Then
- * an unknown identity, an id that is not a UUID and an unknown role are {@code 404}, and a query or
- * body who refuses is {@code 400}.
+ * that order, signed out ({@code 401}) first, by {@link AdminGate}, before any identity, role or
+ * body is looked at. Then an unknown identity, an id that is not a UUID and an unknown role are
+ * {@code 404}, and a query or body who refuses is {@code 400}.
  */
 final class IdentitiesFilter extends OncePerRequestFilter {
-
-  /** The largest body read, in bytes. */
-  static final int MAX_BODY_BYTES = 8192;
 
   /** The page size when the request names none. */
   static final int DEFAULT_SIZE = 20;
@@ -114,11 +101,8 @@ final class IdentitiesFilter extends OncePerRequestFilter {
   private final RbacService rbac;
   private final @Nullable IdentityEmails emails;
   private final @Nullable LastCredentialGuard guard;
-  private final WhoSessionSecurityContextRepository sessions;
-  private final WhoExceptionHandoff handoff;
+  private final AdminGate gate;
   private final JsonMapper jsonMapper;
-  private final Clock clock;
-  private final Duration recentSignIn;
 
   IdentitiesFilter(
       WhoPaths paths,
@@ -127,11 +111,8 @@ final class IdentitiesFilter extends OncePerRequestFilter {
       RbacService rbac,
       @Nullable IdentityEmails emails,
       @Nullable LastCredentialGuard guard,
-      WhoSessionSecurityContextRepository sessions,
-      WhoExceptionHandoff handoff,
-      JsonMapper jsonMapper,
-      Clock clock,
-      Duration recentSignIn) {
+      AdminGate gate,
+      JsonMapper jsonMapper) {
     requireNonNull(paths, "paths must not be null");
     PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
     this.list = matchers.matcher(HttpMethod.GET, paths.of("/identities"));
@@ -145,11 +126,8 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     this.rbac = requireNonNull(rbac, "rbac must not be null");
     this.emails = emails;
     this.guard = guard;
-    this.sessions = requireNonNull(sessions, "sessions must not be null");
-    this.handoff = requireNonNull(handoff, "handoff must not be null");
+    this.gate = requireNonNull(gate, "gate must not be null");
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
-    this.clock = requireNonNull(clock, "clock must not be null");
-    this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
   }
 
   @Override
@@ -169,46 +147,27 @@ final class IdentitiesFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken token)) {
-      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-      return;
-    }
     boolean changes = changes(request);
     String needed =
         changes ? WhoAdminPermissions.IDENTITIES_MANAGE : WhoAdminPermissions.IDENTITIES_READ;
-    if (!token.getPrincipal().permissions().contains(needed)) {
-      handoff.handOff(
-          request, response, new PermissionRequiredException(needed), HttpStatus.FORBIDDEN);
-      return;
-    }
-    if (changes && staleBrowser(request, token)) {
-      handoff.handOff(
-          request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
+    Optional<WhoPrincipal> caller =
+        gate.admit(request, response, needed, changes).map(WhoAuthenticationToken::getPrincipal);
+    if (caller.isEmpty()) {
       return;
     }
     try {
-      answer(request, response, token.getPrincipal().identity().id());
+      answer(request, response, caller.get());
     } catch (IdentityNotFoundException
         | UnknownRoleException
         | SelfDeactivationException
+        | RoleGrantForbiddenException
         | InvalidAdminRequestException e) {
-      // each carries its own status; the fallback is never used
-      handoff.handOff(request, response, e, HttpStatus.BAD_REQUEST);
+      // each carries its own status
+      gate.refuse(request, response, e);
     }
   }
 
-  /** A browser session whose sign-in is no longer recent; a bearer token or an API key is not. */
-  private boolean staleBrowser(HttpServletRequest request, WhoAuthenticationToken token) {
-    return sessions
-        .browserSession(request, token)
-        .filter(
-            session ->
-                !WhoSignInFactors.isRecent(session.signedInAt(), recentSignIn, clock.instant()))
-        .isPresent();
-  }
-
-  private void answer(HttpServletRequest request, HttpServletResponse response, UUID callerId)
+  private void answer(HttpServletRequest request, HttpServletResponse response, WhoPrincipal caller)
       throws IOException {
     if (list.matches(request)) {
       writeJson(response, HttpServletResponse.SC_OK, page(request));
@@ -217,11 +176,13 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     } else if (roles.matches(request)) {
       writeJson(response, HttpServletResponse.SC_OK, roles());
     } else if (patch.matches(request)) {
-      writeJson(response, HttpServletResponse.SC_OK, changeStatus(request, callerId));
+      writeJson(response, HttpServletResponse.SC_OK, changeStatus(request, caller.identity().id()));
     } else if (assign.matches(request)) {
       Identity identity = identity(assign, request);
+      Role role = role(assign, request);
+      RoleGrants.requireMayGrant(rbac, caller.permissions(), List.of(role));
       try {
-        rbac.assignRoleToIdentity(identity, role(assign, request));
+        rbac.assignRoleToIdentity(identity, role);
       } catch (IllegalArgumentException _) {
         // the role was deleted after it was found
         throw new UnknownRoleException();
@@ -362,31 +323,11 @@ final class IdentitiesFilter extends OncePerRequestFilter {
   }
 
   private JsonNode readBody(HttpServletRequest request) throws IOException {
-    // The servlet container owns the request stream and closes it; who must not.
-    if (request.getContentLengthLong() > MAX_BODY_BYTES) {
-      throw new InvalidAdminRequestException("The body is too large");
-    }
-    byte[] bytes = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
-    if (bytes.length > MAX_BODY_BYTES) {
-      throw new InvalidAdminRequestException("The body is too large");
-    }
-    JsonNode node;
-    try {
-      node = jsonMapper.readTree(bytes);
-    } catch (JacksonException _) {
-      throw new InvalidAdminRequestException("The body must be a JSON object");
-    }
-    if (node == null || !node.isObject()) {
-      throw new InvalidAdminRequestException("The body must be a JSON object");
-    }
-    return node;
+    return AdminJson.readObject(jsonMapper, request);
   }
 
   private void writeJson(HttpServletResponse response, int status, Object body) throws IOException {
-    response.setStatus(status);
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.getWriter().write(jsonMapper.writeValueAsString(body));
+    AdminJson.write(jsonMapper, response, status, body);
   }
 
   /**

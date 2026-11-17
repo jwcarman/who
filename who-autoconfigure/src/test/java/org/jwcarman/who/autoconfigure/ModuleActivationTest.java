@@ -26,12 +26,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.admin.IdentityEmails;
 import org.jwcarman.who.admin.WhoAdminEndpoints;
+import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
+import org.jwcarman.who.emaillink.InvitationRoles;
+import org.jwcarman.who.emaillink.InvitationService;
+import org.jwcarman.who.emaillink.RbacInvitationRoles;
 import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.oidc.OidcLoginMethod;
@@ -39,6 +43,8 @@ import org.jwcarman.who.oidc.OidcSignUpService;
 import org.jwcarman.who.oidc.SignInRegistrations;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyService;
+import org.jwcarman.who.rbac.RbacPermissionsResolver;
+import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
@@ -218,6 +224,46 @@ class ModuleActivationTest {
   }
 
   @Nested
+  class Invitations {
+
+    @Test
+    void are_on_with_email_sign_in_and_give_roles_with_rbac() {
+      configured.run(
+          context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(InvitationService.class);
+            assertThat(context).hasSingleBean(RbacInvitationRoles.class);
+          });
+    }
+
+    @Test
+    void without_rbac_invite_with_no_roles() {
+      configured
+          .withClassLoader(
+              new FilteredClassLoader(RbacPermissionsResolver.class, RbacService.class))
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).hasSingleBean(InvitationService.class);
+                assertThat(context).doesNotHaveBean(InvitationRoles.class);
+                assertThat(context).doesNotHaveBean(WhoInvitationEndpoints.class);
+              });
+    }
+
+    @Test
+    void are_off_without_email_sign_in() {
+      configured
+          .withPropertyValues("who.email-link.enabled=false")
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context).doesNotHaveBean(InvitationService.class);
+                assertThat(context).doesNotHaveBean(InvitationRoles.class);
+              });
+    }
+  }
+
+  @Nested
   class Admin {
 
     @Test
@@ -227,6 +273,7 @@ class ModuleActivationTest {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(WhoAdminEndpoints.class);
             assertThat(context).hasSingleBean(IdentityEmails.class);
+            assertThat(context).hasSingleBean(WhoInvitationEndpoints.class);
           });
     }
 
@@ -239,6 +286,7 @@ class ModuleActivationTest {
                 assertThat(context).hasNotFailed();
                 assertThat(context).hasSingleBean(WhoAdminEndpoints.class);
                 assertThat(context).doesNotHaveBean(IdentityEmails.class);
+                assertThat(context).doesNotHaveBean(WhoInvitationEndpoints.class);
               });
     }
 
@@ -251,6 +299,8 @@ class ModuleActivationTest {
                 assertThat(context).hasNotFailed();
                 assertThat(context).doesNotHaveBean(WhoAdminEndpoints.class);
                 assertThat(context).doesNotHaveBean(IdentityEmails.class);
+                assertThat(context).doesNotHaveBean(WhoInvitationEndpoints.class);
+                assertThat(context).hasSingleBean(InvitationService.class);
               });
     }
   }

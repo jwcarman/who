@@ -1,0 +1,239 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.emaillink;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.service.WhoService;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+/** {@link InvitationService} without a database: its checks, its event and the link's fate. */
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+@ExtendWith(OutputCaptureExtension.class)
+class InvitationServiceUnitTest {
+
+  private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
+  private static final String ADDRESS = "Carol@Example.com";
+
+  private final WhoService whoService = mock(WhoService.class);
+  private final EmailCredentialService credentials = mock(EmailCredentialService.class);
+  private final EmailLinkIssuer issuer = mock(EmailLinkIssuer.class);
+  private final InvitationRoles roles = mock(InvitationRoles.class);
+  private final List<Object> published = new ArrayList<>();
+  private final Identity carol = Identity.create();
+
+  @BeforeEach
+  void setUp() {
+    when(whoService.createIdentity()).thenReturn(carol);
+    when(credentials.register(eq(carol), anyString()))
+        .thenAnswer(call -> EmailCredential.create(call.getArgument(1)));
+    when(issuer.issue(anyString(), anyString())).thenReturn(EmailLinkOutcome.SENT);
+  }
+
+  private InvitationService service(InvitationRoles withRoles) {
+    return new InvitationService(
+        whoService,
+        credentials,
+        withRoles,
+        issuer,
+        published::add,
+        mock(PlatformTransactionManager.class),
+        Clock.fixed(NOW, ZoneOffset.UTC));
+  }
+
+  @Nested
+  class With_roles {
+
+    @Test
+    void creates_registers_assigns_publishes_then_sends() {
+      Invitation invitation = service(roles).invite(ADDRESS, Set.of("editor"));
+
+      assertThat(invitation.identityId()).isEqualTo(carol.id());
+      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SENT);
+      assertThat(invitation.linkSent()).isTrue();
+      verify(roles).assign(carol, Set.of("editor"));
+      verify(issuer).issue(eq("carol@example.com"), anyString());
+      assertThat(published)
+          .containsExactly(
+              new IdentityInvited(NOW, carol.id(), "carol@example.com", Set.of("editor")));
+    }
+
+    @Test
+    void an_unknown_role_sends_nothing() {
+      doThrow(new InvalidInvitationException("No such role")).when(roles).assign(any(), any());
+
+      assertThatThrownBy(() -> service(roles).invite(ADDRESS, Set.of("nope")))
+          .isInstanceOf(InvalidInvitationException.class);
+      assertThat(published).isEmpty();
+      verifyNoInteractions(issuer);
+    }
+  }
+
+  @Nested
+  class Without_rbac {
+
+    @Test
+    void invites_with_no_roles() {
+      Invitation invitation = service(null).invite(ADDRESS, Set.of());
+
+      assertThat(invitation.identityId()).isEqualTo(carol.id());
+      assertThat(invitation.linkSent()).isTrue();
+      assertThat(published)
+          .containsExactly(new IdentityInvited(NOW, carol.id(), "carol@example.com", Set.of()));
+    }
+
+    @Test
+    void refuses_roles_before_creating_anything() {
+      InvitationService service = service(null);
+      Set<String> editor = Set.of("editor");
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, editor))
+          .isInstanceOf(InvalidInvitationException.class)
+          .extracting(e -> ((InvalidInvitationException) e).errorCode())
+          .isEqualTo("invalid-invitation");
+      verifyNoInteractions(whoService, credentials, issuer);
+      assertThat(published).isEmpty();
+    }
+  }
+
+  @Nested
+  class The_link {
+
+    @Test
+    void a_throwing_issuer_leaves_the_invitation_standing(CapturedOutput output) {
+      when(issuer.issue(anyString(), anyString())).thenThrow(new IllegalStateException(ADDRESS));
+
+      Invitation invitation = service(roles).invite(ADDRESS, Set.of());
+
+      assertThat(invitation.identityId()).isEqualTo(carol.id());
+      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.SEND_FAILED);
+      assertThat(invitation.linkSent()).isFalse();
+      assertThat(output).contains("WARN").doesNotContainIgnoringCase(ADDRESS);
+    }
+
+    @Test
+    void an_unsent_link_is_not_sent(CapturedOutput output) {
+      when(issuer.issue(anyString(), anyString())).thenReturn(EmailLinkOutcome.RESEND_SUPPRESSED);
+
+      Invitation invitation = service(roles).invite(ADDRESS, Set.of());
+
+      assertThat(invitation.linkOutcome()).isEqualTo(EmailLinkOutcome.RESEND_SUPPRESSED);
+      assertThat(invitation.linkSent()).isFalse();
+      assertThat(output).contains("WARN").doesNotContainIgnoringCase(ADDRESS);
+    }
+  }
+
+  @Nested
+  class Refusals {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "  ", "not-an-address", "a@b\u0000c"})
+    void a_malformed_address_creates_nothing(String address) {
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(address, none))
+          .isInstanceOf(InvalidInvitationException.class);
+      verifyNoInteractions(whoService, credentials, issuer);
+    }
+
+    @Test
+    void a_missing_address_creates_nothing() {
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(null, none))
+          .isInstanceOf(InvalidInvitationException.class);
+      verifyNoInteractions(whoService);
+    }
+
+    @Test
+    void a_blank_role_name_creates_nothing() {
+      InvitationService service = service(roles);
+      Set<String> blank = Set.of(" ");
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, blank))
+          .isInstanceOf(InvalidInvitationException.class);
+      verifyNoInteractions(whoService);
+    }
+
+    @Test
+    void a_taken_address_sends_nothing() {
+      when(credentials.register(any(), anyString())).thenThrow(new EmailAddressTakenException());
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+
+      assertThatThrownBy(() -> service.invite(ADDRESS, none))
+          .isInstanceOf(EmailAddressTakenException.class);
+      assertThat(published).isEmpty();
+      verify(issuer, never()).issue(anyString(), anyString());
+    }
+
+    @Test
+    void refuses_to_run_inside_a_transaction() {
+      InvitationService service = service(roles);
+      Set<String> none = Set.of();
+      TransactionSynchronizationManager.setActualTransactionActive(true);
+      try {
+        assertThatThrownBy(() -> service.invite(ADDRESS, none))
+            .isInstanceOf(IllegalStateException.class);
+      } finally {
+        TransactionSynchronizationManager.setActualTransactionActive(false);
+      }
+      verifyNoInteractions(whoService, issuer);
+    }
+  }
+
+  @Test
+  void the_event_copies_its_roles() {
+    Set<String> held = new HashSet<>(Set.of("editor"));
+    IdentityInvited event = new IdentityInvited(NOW, UUID.randomUUID(), ADDRESS, held);
+    held.add("admin");
+
+    assertThat(event.roles()).containsExactly("editor");
+  }
+}

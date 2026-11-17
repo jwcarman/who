@@ -91,6 +91,11 @@ class IdentitiesFilterTest {
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
 
+  /** The permissions the admin and editor roles carry. */
+  private static final String TASK_READ = "task.read";
+
+  private static final String TASK_WRITE = "task.write";
+
   /** A clock a test can move. */
   private static final class MutableClock extends Clock {
 
@@ -213,7 +218,7 @@ class IdentitiesFilterTest {
     caller = identity(IdentityStatus.ACTIVE, T0);
     for (Role role : List.of(admin, editor)) {
       when(rbac.findRole(role.name())).thenReturn(Optional.of(role));
-      when(rbac.findPermissions(role)).thenReturn(Set.of("task.write", "task.read"));
+      when(rbac.findPermissions(role)).thenReturn(Set.of(TASK_WRITE, TASK_READ));
     }
     when(rbac.listRoles()).thenReturn(List.of(admin, editor));
     when(rbac.findRolesForIdentity(any()))
@@ -278,11 +283,8 @@ class IdentitiesFilterTest {
         rbac,
         withEmails,
         withGuard,
-        sessions,
-        new WhoExceptionHandoff(null),
-        JSON,
-        clock,
-        RECENT);
+        new AdminGate(sessions, new WhoExceptionHandoff(null), clock, RECENT),
+        JSON);
   }
 
   @AfterEach
@@ -730,7 +732,7 @@ class IdentitiesFilterTest {
 
     @BeforeEach
     void signedIn() {
-      signIn(READ, MANAGE);
+      signIn(READ, MANAGE, TASK_READ, TASK_WRITE);
       other = identity(IdentityStatus.ACTIVE, T0.plusSeconds(1));
     }
 
@@ -791,6 +793,85 @@ class IdentitiesFilterTest {
           .containsExactly("admin", "editor");
       assertThat(roles.get(0).get("permissions").valueStream().map(JsonNode::asString))
           .containsExactly("task.read", "task.write");
+    }
+  }
+
+  @Nested
+  class Role_grants {
+
+    private Identity other;
+
+    @BeforeEach
+    void another() {
+      other = identity(IdentityStatus.ACTIVE, T0.plusSeconds(1));
+    }
+
+    private MockHttpServletResponse grant(String role) throws Exception {
+      return send("PUT", "/who/identities/" + other.id() + "/roles/" + role, null);
+    }
+
+    @Test
+    void a_role_beyond_the_callers_permissions_is_forbidden() throws Exception {
+      signIn(MANAGE, TASK_READ);
+
+      MockHttpServletResponse response = grant("editor");
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader(HEADER)).isEqualTo("role-grant-forbidden");
+      assertThat(held.get(other.id())).isNull();
+      verify(rbac, never()).assignRoleToIdentity(any(), any());
+    }
+
+    @Test
+    void a_role_within_the_callers_permissions_is_granted() throws Exception {
+      signIn(MANAGE, TASK_READ, TASK_WRITE);
+
+      assertThat(grant("editor").getStatus()).isEqualTo(204);
+      assertThat(held.get(other.id())).containsExactly(editor);
+    }
+
+    @Test
+    void an_api_key_grants_only_within_its_scopes() throws Exception {
+      // the key's owner holds every permission; the key is scoped to manage alone
+      granted.addAll(Set.of(READ, MANAGE, TASK_READ, TASK_WRITE));
+      signIn(SignInMethod.API_KEY, MANAGE);
+
+      MockHttpServletResponse response = grant("editor");
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader(HEADER)).isEqualTo("role-grant-forbidden");
+      verify(rbac, never()).assignRoleToIdentity(any(), any());
+    }
+
+    @Test
+    void a_role_with_no_permissions_may_be_granted() throws Exception {
+      Role member = new Role(UUID.randomUUID(), "member");
+      when(rbac.findRole("member")).thenReturn(Optional.of(member));
+      when(rbac.findPermissions(member)).thenReturn(Set.of());
+      signIn(MANAGE);
+
+      assertThat(grant("member").getStatus()).isEqualTo(204);
+      assertThat(held.get(other.id())).containsExactly(member);
+    }
+
+    @Test
+    void an_unknown_role_is_still_not_found() throws Exception {
+      when(rbac.findRole("ghost")).thenReturn(Optional.empty());
+      signIn(MANAGE);
+
+      assertThat(grant("ghost").getStatus()).isEqualTo(404);
+    }
+
+    @Test
+    void removing_a_role_is_not_restricted() throws Exception {
+      held.computeIfAbsent(other.id(), id -> new HashSet<>()).add(editor);
+      signIn(MANAGE);
+
+      MockHttpServletResponse response =
+          send("DELETE", "/who/identities/" + other.id() + "/roles/editor", null);
+
+      assertThat(response.getStatus()).isEqualTo(204);
+      assertThat(held.get(other.id())).isEmpty();
     }
   }
 
@@ -862,7 +943,7 @@ class IdentitiesFilterTest {
 
     @Test
     void a_fresh_browser_may_change_an_identity() throws Exception {
-      browserSignIn(NOW.minusSeconds(60), READ, MANAGE);
+      browserSignIn(NOW.minusSeconds(60), READ, MANAGE, TASK_READ, TASK_WRITE);
 
       assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)
@@ -873,7 +954,7 @@ class IdentitiesFilterTest {
 
     @Test
     void an_api_key_needs_no_recent_sign_in() throws Exception {
-      signIn(SignInMethod.API_KEY, MANAGE);
+      signIn(SignInMethod.API_KEY, MANAGE, TASK_READ, TASK_WRITE);
 
       assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
           .extracting(MockHttpServletResponse::getStatus)

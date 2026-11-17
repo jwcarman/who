@@ -39,13 +39,17 @@ import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.emaillink.EmailLinkTokenRepository;
 import org.jwcarman.who.emaillink.EmailSignInCredentialCounter;
+import org.jwcarman.who.emaillink.InvitationRoles;
+import org.jwcarman.who.emaillink.InvitationService;
 import org.jwcarman.who.emaillink.JdbcEmailAddressRequestRepository;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
 import org.jwcarman.who.emaillink.JdbcEmailLinkTokenRepository;
 import org.jwcarman.who.emaillink.JsonGenerateOneTimeTokenRequestResolver;
 import org.jwcarman.who.emaillink.JsonOneTimeTokenAuthenticationConverter;
 import org.jwcarman.who.emaillink.MailEmailLinkSender;
+import org.jwcarman.who.emaillink.RbacInvitationRoles;
 import org.jwcarman.who.emaillink.WhoOneTimeTokenService;
+import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.JsonAuthenticationHandlers;
@@ -58,7 +62,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;
@@ -67,6 +73,7 @@ import org.springframework.core.task.TaskDecorator;
 import org.springframework.core.task.support.CompositeTaskDecorator;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
@@ -511,8 +518,56 @@ public class WhoEmailLinkAutoConfiguration {
         properties.getSecurity().getRecentSignIn());
   }
 
+  /**
+   * Invites people by email address: creates the identity, registers the address, assigns the roles
+   * and publishes {@code IdentityInvited} in one transaction, then sends the sign-in link. Needs a
+   * single transaction manager.
+   *
+   * @param whoService creates the identity
+   * @param emailCredentialService registers the address
+   * @param roles assigns the roles, when {@code who-rbac} is on the classpath
+   * @param emailLinkIssuer sends the sign-in link
+   * @param applicationEventPublisher publishes {@code IdentityInvited} inside the transaction
+   * @param transactionManager runs the invitation's transaction and the link's
+   * @param clock stamps the event
+   * @return the service
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnSingleCandidate(PlatformTransactionManager.class)
+  public InvitationService invitationService(
+      WhoService whoService,
+      EmailCredentialService emailCredentialService,
+      ObjectProvider<InvitationRoles> roles,
+      EmailLinkIssuer emailLinkIssuer,
+      ApplicationEventPublisher applicationEventPublisher,
+      PlatformTransactionManager transactionManager,
+      Clock clock) {
+    return new InvitationService(
+        whoService,
+        emailCredentialService,
+        roles.getIfAvailable(),
+        emailLinkIssuer,
+        applicationEventPublisher,
+        transactionManager,
+        clock);
+  }
+
   private static JsonMapper jsonMapper(ObjectProvider<JsonMapper> jsonMapper) {
     return jsonMapper.getIfAvailable(JsonMapper::new);
+  }
+
+  /** Gives invited identities their roles when {@code who-rbac} is on the classpath. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.rbac.RbacService")
+  static class InvitationRolesConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(InvitationRoles.class)
+    @ConditionalOnBean(RbacService.class)
+    public RbacInvitationRoles rbacInvitationRoles(RbacService rbacService) {
+      return new RbacInvitationRoles(rbacService);
+    }
   }
 
   /** Sends sign-in links by email when Spring Boot has configured a {@code JavaMailSender}. */

@@ -262,6 +262,7 @@ class WhoBasePathEndToEndTest {
           PUT    | /auth/identities/00000000-0000-0000-0000-000000000000/roles/r | true | | 403
           DELETE | /auth/identities/00000000-0000-0000-0000-000000000000/roles/r | true | | 403
           GET    | /auth/roles                   | true  |                             | 403
+          POST   | /auth/invitations             | true  | {"email":"x@example.com"}   | 403
           POST   | /auth/logout                  | true  |                             | 204
           """)
   void every_endpoint_answers_under_the_root(
@@ -311,6 +312,7 @@ class WhoBasePathEndToEndTest {
           PATCH | /who/identities/00000000-0000-0000-0000-000000000000 | {"status":"ACTIVE"}
           PUT  | /who/identities/00000000-0000-0000-0000-000000000000/roles/r |
           GET  | /who/roles                      |
+          POST | /who/invitations                | {"email":"x@example.com"}
           """)
   void no_old_path_reaches_who(String method, String path, String body) throws Exception {
     signIn();

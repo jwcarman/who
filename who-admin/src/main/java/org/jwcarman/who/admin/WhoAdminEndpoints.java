@@ -42,7 +42,8 @@ import tools.jackson.databind.json.JsonMapper;
  * who sign-in may carry: a browser session, a bearer token, or an API key scoped to it. So the
  * endpoints go on every browser chain and every stateless chain: this is both {@link
  * BrowserEndpoints} and {@link StatelessEndpoints}. A browser session that changes an identity or
- * its roles must have signed in recently; a bearer token or an API key need not.
+ * its roles must have signed in recently; a bearer token or an API key need not. A caller may
+ * assign only roles within its own permissions.
  */
 public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
 
@@ -117,11 +118,8 @@ public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
             rbac,
             emails,
             guard,
-            sessions,
-            handoff,
-            jsonMapper,
-            clock,
-            recentSignIn),
+            new AdminGate(sessions, handoff, clock, recentSignIn),
+            jsonMapper),
         ExceptionTranslationFilter.class);
   }
 }

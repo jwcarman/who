@@ -492,6 +492,8 @@ class WhoAdminEndpointsTest {
 
     @Test
     void assigns_and_removes_roles_idempotently() throws Exception {
+      // alice may grant the editor role only once she holds its permission herself
+      rbacService.assignRoleToIdentity(alice, role("who-admin-test-writer", "task.write"));
       String path = "/who/identities/" + bob.id() + "/roles/" + EDITOR_ROLE;
 
       assertThat(asAlice("PUT", path, null).statusCode()).isEqualTo(204);
@@ -500,6 +502,42 @@ class WhoAdminEndpointsTest {
 
       assertThat(asAlice("DELETE", path, null).statusCode()).isEqualTo(204);
       assertThat(asAlice("DELETE", path, null).statusCode()).isEqualTo(204);
+      assertThat(rbacService.findRolesForIdentity(bob.id())).isEmpty();
+    }
+
+    @Test
+    void a_role_beyond_the_callers_permissions_is_forbidden() throws Exception {
+      HttpResponse<String> response =
+          asAlice("PUT", "/who/identities/" + bob.id() + "/roles/" + EDITOR_ROLE, null);
+
+      assertThat(response.statusCode()).isEqualTo(403);
+      assertThat(response.headers().firstValue("Who-Error")).contains("role-grant-forbidden");
+      assertThat(rbacService.findRolesForIdentity(bob.id())).isEmpty();
+    }
+
+    @Test
+    void an_api_key_grants_only_within_its_scopes() throws Exception {
+      // alice holds the editor role's permission; her key is scoped to manage alone
+      rbacService.assignRoleToIdentity(alice, editorRole);
+      String key =
+          apiKeyService
+              .create(
+                  alice,
+                  "manager",
+                  Duration.ofDays(1),
+                  Set.of(WhoAdminPermissions.IDENTITIES_MANAGE))
+              .key();
+
+      HttpResponse<String> response =
+          carrying(
+              "X-API-Key",
+              key,
+              "PUT",
+              "/who/identities/" + bob.id() + "/roles/" + EDITOR_ROLE,
+              null);
+
+      assertThat(response.statusCode()).isEqualTo(403);
+      assertThat(response.headers().firstValue("Who-Error")).contains("role-grant-forbidden");
       assertThat(rbacService.findRolesForIdentity(bob.id())).isEmpty();
     }
 

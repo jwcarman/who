@@ -20,11 +20,13 @@ import java.time.Clock;
 import org.jwcarman.who.admin.EmailLinkIdentityEmails;
 import org.jwcarman.who.admin.IdentityEmails;
 import org.jwcarman.who.admin.WhoAdminEndpoints;
+import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.InvitationService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -43,7 +45,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Registers who's admin endpoints when {@code who-admin} is on the classpath, unless {@code
- * who.admin.enabled=false}. With email sign-in on, they also find identities by address.
+ * who.admin.enabled=false}. With email sign-in on, they also find identities by address, and {@code
+ * POST /invitations} invites people through its {@link InvitationService}.
  */
 @AutoConfiguration(
     after = {
@@ -123,6 +126,43 @@ public class WhoAdminAutoConfiguration {
         EmailCredentialService emailCredentialService,
         CredentialIdentityRepository credentialIdentityRepository) {
       return new EmailLinkIdentityEmails(emailCredentialService, credentialIdentityRepository);
+    }
+
+    /**
+     * {@code POST /invitations} under {@code who.base-path}, on every browser chain and every
+     * stateless chain, when email sign-in's {@link InvitationService} is there.
+     *
+     * @param paths where the endpoint lives
+     * @param invitationService invites the address
+     * @param rbacService finds the roles named and reads their permissions
+     * @param sessionRepository tells a browser session from a key or a token
+     * @param handoff the application's exception handling, if it has who's handoff
+     * @param jsonMapper the application's JSON mapper, if it has one
+     * @param clock the current time
+     * @param properties {@code who.security.recent-sign-in}
+     * @return the endpoint
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(InvitationService.class)
+    public WhoInvitationEndpoints whoInvitationEndpoints(
+        WhoPaths paths,
+        InvitationService invitationService,
+        RbacService rbacService,
+        WhoSessionSecurityContextRepository sessionRepository,
+        ObjectProvider<WhoExceptionHandoff> handoff,
+        ObjectProvider<JsonMapper> jsonMapper,
+        Clock clock,
+        WhoProperties properties) {
+      return new WhoInvitationEndpoints(
+          paths,
+          invitationService,
+          rbacService,
+          sessionRepository,
+          handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+          jsonMapper.getIfAvailable(JsonMapper::new),
+          clock,
+          properties.getSecurity().getRecentSignIn());
     }
   }
 }
