@@ -78,7 +78,11 @@ public class JdbcIdentityRepository implements IdentityRepository {
 
   @Override
   public List<Identity> findPage(
-      Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size) {
+      Optional<IdentityStatus> status,
+      Optional<UUID> roleId,
+      Optional<Set<UUID>> ids,
+      int page,
+      int size) {
     if (page < 0) {
       throw new IllegalArgumentException("page must not be negative, got " + page);
     }
@@ -91,6 +95,7 @@ public class JdbcIdentityRepository implements IdentityRepository {
     return filtered(
             "SELECT id, status, created_at, updated_at FROM who_identity",
             status,
+            roleId,
             ids,
             " ORDER BY created_at, id LIMIT :size OFFSET :offset")
         .param("size", size)
@@ -100,25 +105,39 @@ public class JdbcIdentityRepository implements IdentityRepository {
   }
 
   @Override
-  public long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
+  public long count(
+      Optional<IdentityStatus> status, Optional<UUID> roleId, Optional<Set<UUID>> ids) {
     if (ids.filter(Set::isEmpty).isPresent()) {
       return 0;
     }
-    return filtered("SELECT COUNT(*) FROM who_identity", status, ids, "")
+    return filtered("SELECT COUNT(*) FROM who_identity", status, roleId, ids, "")
         .query(Long.class)
         .single();
   }
 
   /** The query with a {@code WHERE} for whichever filters are present, and their parameters. */
   private JdbcClient.StatementSpec filtered(
-      String select, Optional<IdentityStatus> status, Optional<Set<UUID>> ids, String suffix) {
+      String select,
+      Optional<IdentityStatus> status,
+      Optional<UUID> roleId,
+      Optional<Set<UUID>> ids,
+      String suffix) {
     List<String> conditions = new ArrayList<>();
     status.ifPresent(s -> conditions.add("status = :status"));
+    // a join in the query, so a role with many holders is never a long list of ids
+    roleId.ifPresent(
+        r ->
+            conditions.add(
+                "EXISTS (SELECT 1 FROM who_identity_role ir"
+                    + " WHERE ir.identity_id = who_identity.id AND ir.role_id = :roleId)"));
     ids.ifPresent(i -> conditions.add("id IN (:ids)"));
     String where = conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions);
     JdbcClient.StatementSpec statement = jdbcClient.sql(select + where + suffix);
     if (status.isPresent()) {
       statement = statement.param(COL_STATUS, status.get().name());
+    }
+    if (roleId.isPresent()) {
+      statement = statement.param("roleId", roleId.get());
     }
     if (ids.isPresent()) {
       statement = statement.param("ids", List.copyOf(ids.get()));

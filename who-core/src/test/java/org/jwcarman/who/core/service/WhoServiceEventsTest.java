@@ -247,12 +247,17 @@ class WhoServiceEventsTest {
   private final class InMemoryIdentities implements IdentityRepository {
     @Override
     public List<Identity> findPage(
-        Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size) {
+        Optional<IdentityStatus> status,
+        Optional<UUID> roleId,
+        Optional<Set<UUID>> ids,
+        int page,
+        int size) {
       throw new UnsupportedOperationException("not paged in these tests");
     }
 
     @Override
-    public long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
+    public long count(
+        Optional<IdentityStatus> status, Optional<UUID> roleId, Optional<Set<UUID>> ids) {
       throw new UnsupportedOperationException("not counted in these tests");
     }
 

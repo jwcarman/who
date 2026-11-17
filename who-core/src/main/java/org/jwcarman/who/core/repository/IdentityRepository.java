@@ -44,25 +44,34 @@ public interface IdentityRepository {
   Optional<Identity> lockById(UUID id);
 
   /**
-   * Returns one page of identities, oldest first: ordered by creation time, then by id.
+   * Returns one page of identities, oldest first: ordered by creation time, then by id. Every
+   * filter given must match.
    *
    * @param status only identities with this status; empty for any status
+   * @param roleId only identities assigned this who-rbac role, matched in the query against
+   *     who-rbac's role assignments, so a role's holders are never listed first; empty for any
+   *     role. Give one only where who-rbac's schema is installed
    * @param ids only identities among these ids; empty for any id. An empty set matches none
    * @param page the zero-based page number; must not be negative
    * @param size the most identities on a page; must be positive
    * @return the identities on that page (never null; empty past the last page)
    */
   List<Identity> findPage(
-      Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size);
+      Optional<IdentityStatus> status,
+      Optional<UUID> roleId,
+      Optional<Set<UUID>> ids,
+      int page,
+      int size);
 
   /**
    * Counts the identities {@link #findPage} pages through for the same filters.
    *
    * @param status only identities with this status; empty for any status
+   * @param roleId only identities assigned this who-rbac role; empty for any role
    * @param ids only identities among these ids; empty for any id. An empty set matches none
    * @return how many identities match
    */
-  long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids);
+  long count(Optional<IdentityStatus> status, Optional<UUID> roleId, Optional<Set<UUID>> ids);
 
   /**
    * Persists the given identity, inserting or updating as necessary.

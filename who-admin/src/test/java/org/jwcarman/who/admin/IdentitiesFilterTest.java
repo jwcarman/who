@@ -120,13 +120,22 @@ class IdentitiesFilterTest {
   }
 
   /** Identities, in memory, paged as the JDBC repository pages them. */
-  private static final class Identities implements IdentityRepository {
+  private final class Identities implements IdentityRepository {
 
     private final Map<UUID, Identity> byId = new LinkedHashMap<>();
 
-    private List<Identity> matching(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
+    private List<Identity> matching(
+        Optional<IdentityStatus> status, Optional<UUID> roleId, Optional<Set<UUID>> ids) {
       return byId.values().stream()
           .filter(i -> status.map(s -> s == i.status()).orElse(true))
+          .filter(
+              i ->
+                  roleId
+                      .map(
+                          r ->
+                              held.getOrDefault(i.id(), Set.of()).stream()
+                                  .anyMatch(role -> role.id().equals(r)))
+                      .orElse(true))
           .filter(i -> ids.map(set -> set.contains(i.id())).orElse(true))
           .sorted(Comparator.comparing(Identity::createdAt).thenComparing(Identity::id))
           .toList();
@@ -144,13 +153,18 @@ class IdentitiesFilterTest {
 
     @Override
     public List<Identity> findPage(
-        Optional<IdentityStatus> status, Optional<Set<UUID>> ids, int page, int size) {
-      return matching(status, ids).stream().skip((long) page * size).limit(size).toList();
+        Optional<IdentityStatus> status,
+        Optional<UUID> roleId,
+        Optional<Set<UUID>> ids,
+        int page,
+        int size) {
+      return matching(status, roleId, ids).stream().skip((long) page * size).limit(size).toList();
     }
 
     @Override
-    public long count(Optional<IdentityStatus> status, Optional<Set<UUID>> ids) {
-      return matching(status, ids).size();
+    public long count(
+        Optional<IdentityStatus> status, Optional<UUID> roleId, Optional<Set<UUID>> ids) {
+      return matching(status, roleId, ids).size();
     }
 
     @Override
@@ -243,13 +257,6 @@ class IdentitiesFilterTest {
             call ->
                 held.getOrDefault(call.<UUID>getArgument(0), Set.of()).stream()
                     .sorted(Comparator.comparing(Role::name))
-                    .toList());
-    when(rbac.findIdentityIdsWithRole(any()))
-        .thenAnswer(
-            call ->
-                held.entrySet().stream()
-                    .filter(e -> e.getValue().contains(call.<Role>getArgument(0)))
-                    .map(Map.Entry::getKey)
                     .toList());
     doAnswer(
             call -> {

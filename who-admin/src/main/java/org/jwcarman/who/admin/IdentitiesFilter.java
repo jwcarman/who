@@ -18,7 +18,6 @@ package org.jwcarman.who.admin;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -243,16 +242,17 @@ final class IdentitiesFilter extends OncePerRequestFilter {
       throw new InvalidAdminRequestException("size must be from 1 to " + MAX_SIZE);
     }
     Optional<IdentityStatus> status = parameter(request, "status").map(IdentitiesFilter::status);
-    Optional<Set<UUID>> ids = Optional.empty();
+    Optional<UUID> roleId = Optional.empty();
     Optional<String> roleName = parameter(request, "role");
     if (roleName.isPresent()) {
-      // a role that does not exist has no holders
-      ids =
-          Optional.of(
-              rbac.findRole(roleName.get())
-                  .map(role -> Set.copyOf(rbac.findIdentityIdsWithRole(role)))
-                  .orElse(Set.of()));
+      Optional<Role> role = rbac.findRole(roleName.get());
+      if (role.isEmpty()) {
+        // a role that does not exist has no holders
+        return new Page(List.of(), page, size, 0);
+      }
+      roleId = Optional.of(role.get().id());
     }
+    Optional<Set<UUID>> ids = Optional.empty();
     Optional<String> address = parameter(request, "email");
     if (address.isPresent()) {
       if (emails == null) {
@@ -260,17 +260,11 @@ final class IdentitiesFilter extends OncePerRequestFilter {
             "email needs email sign-in, which this application does not have");
       }
       Set<UUID> owner = emails.findIdentityId(address.get()).map(Set::of).orElse(Set.of());
-      ids = Optional.of(ids.map(known -> intersection(known, owner)).orElse(owner));
+      ids = Optional.of(owner);
     }
     List<IdentityView> items =
-        identities.findPage(status, ids, page, size).stream().map(this::view).toList();
-    return new Page(items, page, size, identities.count(status, ids));
-  }
-
-  private static Set<UUID> intersection(Set<UUID> a, Set<UUID> b) {
-    Set<UUID> both = new HashSet<>(a);
-    both.retainAll(b);
-    return both;
+        identities.findPage(status, roleId, ids, page, size).stream().map(this::view).toList();
+    return new Page(items, page, size, identities.count(status, roleId, ids));
   }
 
   /**

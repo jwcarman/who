@@ -171,6 +171,56 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
     }
 
     @Test
+    void filters_by_role_without_listing_its_holders() {
+      // who-rbac's table, which only a role filter reads; rolled back with the test
+      jdbcClient
+          .sql(
+              "CREATE TABLE IF NOT EXISTS who_identity_role"
+                  + " (identity_id UUID NOT NULL, role_id UUID NOT NULL,"
+                  + " PRIMARY KEY (identity_id, role_id))")
+          .update();
+      UUID editor = UUID.randomUUID();
+      UUID other = UUID.randomUUID();
+      Identity first = saved(IdentityStatus.ACTIVE, T0);
+      Identity second = saved(IdentityStatus.DISABLED, T0.plusSeconds(1));
+      Identity neither = saved(IdentityStatus.ACTIVE, T0.plusSeconds(2));
+      for (UUID[] row :
+          List.of(
+              new UUID[] {first.id(), editor},
+              new UUID[] {second.id(), editor},
+              new UUID[] {neither.id(), other})) {
+        jdbcClient
+            .sql("INSERT INTO who_identity_role (identity_id, role_id) VALUES (:i, :r)")
+            .param("i", row[0])
+            .param("r", row[1])
+            .update();
+      }
+
+      assertThat(
+              repository.findPage(Optional.empty(), Optional.of(editor), Optional.empty(), 0, 10))
+          .extracting(Identity::id)
+          .containsExactly(first.id(), second.id());
+      assertThat(repository.count(Optional.empty(), Optional.of(editor), Optional.empty()))
+          .isEqualTo(2);
+      assertThat(
+              repository.findPage(
+                  Optional.of(IdentityStatus.DISABLED),
+                  Optional.of(editor),
+                  Optional.empty(),
+                  0,
+                  10))
+          .extracting(Identity::id)
+          .containsExactly(second.id());
+      assertThat(
+              repository.count(
+                  Optional.empty(), Optional.of(editor), Optional.of(Set.of(neither.id()))))
+          .isZero();
+      assertThat(
+              repository.count(Optional.empty(), Optional.of(UUID.randomUUID()), Optional.empty()))
+          .isZero();
+    }
+
+    @Test
     void pages_oldest_first_then_by_id() {
       Identity third = saved(IdentityStatus.ACTIVE, T0.plusSeconds(2));
       Identity tiedHigh =
@@ -179,14 +229,14 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
           saved(IdentityStatus.ACTIVE, T0, UUID.fromString("00000000-0000-0000-0000-00000000000f"));
       Optional<Set<UUID>> ids = Optional.of(Set.of(third.id(), tiedHigh.id(), tiedLow.id()));
 
-      assertThat(repository.findPage(Optional.empty(), ids, 0, 2))
+      assertThat(repository.findPage(Optional.empty(), Optional.empty(), ids, 0, 2))
           .extracting(Identity::id)
           .containsExactly(tiedLow.id(), tiedHigh.id());
-      assertThat(repository.findPage(Optional.empty(), ids, 1, 2))
+      assertThat(repository.findPage(Optional.empty(), Optional.empty(), ids, 1, 2))
           .extracting(Identity::id)
           .containsExactly(third.id());
-      assertThat(repository.findPage(Optional.empty(), ids, 2, 2)).isEmpty();
-      assertThat(repository.count(Optional.empty(), ids)).isEqualTo(3);
+      assertThat(repository.findPage(Optional.empty(), Optional.empty(), ids, 2, 2)).isEmpty();
+      assertThat(repository.count(Optional.empty(), Optional.empty(), ids)).isEqualTo(3);
     }
 
     @Test
@@ -195,35 +245,47 @@ class JdbcIdentityRepositoryTest extends AbstractJdbcTest {
       Identity disabled = saved(IdentityStatus.DISABLED, T0.plusSeconds(1));
       Optional<Set<UUID>> ids = Optional.of(Set.of(active.id(), disabled.id()));
 
-      assertThat(repository.findPage(Optional.of(IdentityStatus.DISABLED), ids, 0, 10))
+      assertThat(
+              repository.findPage(
+                  Optional.of(IdentityStatus.DISABLED), Optional.empty(), ids, 0, 10))
           .extracting(Identity::id)
           .containsExactly(disabled.id());
-      assertThat(repository.count(Optional.of(IdentityStatus.DISABLED), ids)).isEqualTo(1);
+      assertThat(repository.count(Optional.of(IdentityStatus.DISABLED), Optional.empty(), ids))
+          .isEqualTo(1);
     }
 
     @Test
     void an_empty_id_set_matches_none() {
       saved(IdentityStatus.ACTIVE, T0);
 
-      assertThat(repository.findPage(Optional.empty(), Optional.of(Set.of()), 0, 10)).isEmpty();
-      assertThat(repository.count(Optional.empty(), Optional.of(Set.of()))).isZero();
+      assertThat(
+              repository.findPage(Optional.empty(), Optional.empty(), Optional.of(Set.of()), 0, 10))
+          .isEmpty();
+      assertThat(repository.count(Optional.empty(), Optional.empty(), Optional.of(Set.of())))
+          .isZero();
     }
 
     @Test
     void a_negative_page_or_a_size_below_one_is_refused() {
-      assertThatThrownBy(() -> repository.findPage(Optional.empty(), Optional.empty(), -1, 10))
+      assertThatThrownBy(
+              () ->
+                  repository.findPage(Optional.empty(), Optional.empty(), Optional.empty(), -1, 10))
           .isInstanceOf(IllegalArgumentException.class);
-      assertThatThrownBy(() -> repository.findPage(Optional.empty(), Optional.empty(), 0, 0))
+      assertThatThrownBy(
+              () -> repository.findPage(Optional.empty(), Optional.empty(), Optional.empty(), 0, 0))
           .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void without_filters_every_identity_counts() {
-      long before = repository.count(Optional.empty(), Optional.empty());
+      long before = repository.count(Optional.empty(), Optional.empty(), Optional.empty());
       Identity identity = saved(IdentityStatus.SUSPENDED, T0);
 
-      assertThat(repository.count(Optional.empty(), Optional.empty())).isEqualTo(before + 1);
-      assertThat(repository.findPage(Optional.empty(), Optional.empty(), 0, (int) before + 1))
+      assertThat(repository.count(Optional.empty(), Optional.empty(), Optional.empty()))
+          .isEqualTo(before + 1);
+      assertThat(
+              repository.findPage(
+                  Optional.empty(), Optional.empty(), Optional.empty(), 0, (int) before + 1))
           .extracting(Identity::id)
           .contains(identity.id());
     }
