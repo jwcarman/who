@@ -58,6 +58,19 @@ public interface PasswordlessLoginMethod {
   }
 
   /**
+   * Returns what {@code GET /who/sign-in} says about this method, for a sign-in page to draw its
+   * choices from: a method that is on says so with a key such as {@code "email": true}. It is
+   * public, so it must reveal nothing about any identity. {@link SignInOptionsFilter} merges every
+   * method's answer and fills in {@code email} and {@code passkey} as {@code false} and {@code
+   * providers} as an empty list when no method says otherwise.
+   *
+   * @return the options, empty by default
+   */
+  default Map<String, Object> signInOptions() {
+    return Map.of();
+  }
+
+  /**
    * Returns this method's name, for the line who logs at startup naming the sign-in methods a chain
    * accepts. who's own methods return a short name such as {@code passkey}.
    *

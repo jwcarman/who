@@ -46,9 +46,12 @@ public final class SignInRegistrations {
   private static final String[] ENTRA_SHARED_TENANTS = {"common", "organizations", "consumers"};
 
   private final Map<String, SignInRegistration> registrations;
+  private final Map<String, String> names;
 
-  private SignInRegistrations(Map<String, SignInRegistration> registrations) {
+  private SignInRegistrations(
+      Map<String, SignInRegistration> registrations, Map<String, String> names) {
     this.registrations = Collections.unmodifiableMap(registrations);
+    this.names = Collections.unmodifiableMap(names);
   }
 
   /**
@@ -63,6 +66,7 @@ public final class SignInRegistrations {
       Iterable<ClientRegistration> clientRegistrations, Map<String, ProviderSettings> settings) {
     Map<String, SignInRegistration> byId = new LinkedHashMap<>();
     Map<String, String> idByIssuer = new LinkedHashMap<>();
+    Map<String, String> names = new LinkedHashMap<>();
     for (ClientRegistration client : clientRegistrations) {
       ProviderSettings provider =
           settings.getOrDefault(client.getRegistrationId(), ProviderSettings.DEFAULTS);
@@ -83,8 +87,9 @@ public final class SignInRegistrations {
                 + "'; two registrations would sign the same accounts in");
       }
       byId.put(registration.registrationId(), registration);
+      names.put(registration.registrationId(), client.getClientName());
     }
-    return new SignInRegistrations(byId);
+    return new SignInRegistrations(byId, names);
   }
 
   /**
@@ -95,6 +100,17 @@ public final class SignInRegistrations {
    */
   public Optional<SignInRegistration> find(String registrationId) {
     return Optional.ofNullable(registrations.get(registrationId));
+  }
+
+  /**
+   * The name a person knows a registration by, its client name, such as {@code GitHub}. Spring
+   * Security makes it the registration id when the application sets none.
+   *
+   * @param registrationId the client registration id
+   * @return the client name, or the id when who does not sign in with the registration
+   */
+  public String name(String registrationId) {
+    return names.getOrDefault(registrationId, registrationId);
   }
 
   /**

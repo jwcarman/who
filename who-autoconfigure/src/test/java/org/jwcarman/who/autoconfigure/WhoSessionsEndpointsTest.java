@@ -24,6 +24,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -52,6 +53,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** {@code /who/me/sessions} over HTTP: two browsers of one person, one ending the other. */
@@ -187,6 +189,29 @@ class WhoSessionsEndpointsTest {
           .findFirst()
           .orElseThrow();
     }
+  }
+
+  @Test
+  void a_signed_out_caller_learns_which_methods_are_on() throws Exception {
+    HttpResponse<String> response = new Browser().get("/who/sign-in");
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    // passkeys are switched off, so nothing offers them; no provider is configured
+    assertThat(json.readTree(response.body()))
+        .isEqualTo(json.readTree("{\"email\":true,\"passkey\":false,\"providers\":[]}"));
+  }
+
+  @Test
+  void me_reports_how_the_browser_signed_in_and_until_when_that_is_recent() throws Exception {
+    Browser browser = new Browser().signIn();
+
+    HttpResponse<String> response = browser.get("/who/me");
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    JsonNode me = json.readTree(response.body());
+    assertThat(me.get("signInMethod").asString()).isEqualTo("EMAIL_LINK");
+    assertThat(Instant.parse(me.get("recentSignInUntil").asString())).isAfter(Instant.now());
+    assertThat(me.get("credentials").get("email").asLong()).isEqualTo(1);
   }
 
   @Test

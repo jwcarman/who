@@ -13,38 +13,172 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.jwcarman.who.spring.security.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.repository.IdentityRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
+import org.jwcarman.who.core.service.SignInCredentialCounter;
+import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoSession;
+import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.transaction.support.TransactionTemplate;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoMeControllerTest {
 
-  private final WhoMeController controller = new WhoMeController();
+  private static final Instant SIGNED_IN = Instant.parse("2026-11-17T10:00:00Z");
+  private static final Duration WINDOW = Duration.ofMinutes(10);
 
-  @Test
-  void aSignedInPrincipalIsDescribed() {
-    Identity identity = Identity.create();
+  private final Identity identity = Identity.create();
+  private final WhoPrincipal principal = new WhoPrincipal(identity, Set.of("task.read"));
+  private final MockHttpServletRequest request = new MockHttpServletRequest();
+  private final WhoSessionSecurityContextRepository repository =
+      mock(WhoSessionSecurityContextRepository.class);
+  private final RecentSignInAuthorizationManager recentSignIn =
+      new RecentSignInAuthorizationManager(WINDOW, Clock.systemUTC());
 
-    ResponseEntity<WhoMeController.WhoMeResponse> response =
-        controller.me(new WhoPrincipal(identity, Set.of("task.read")));
+  private static SignInCredentialCounter counter(String kind, long count) {
+    return new SignInCredentialCounter() {
+      @Override
+      public String kind() {
+        return kind;
+      }
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody())
-        .isEqualTo(new WhoMeController.WhoMeResponse(identity.id(), Set.of("task.read")));
+      @Override
+      public long count(UUID identityId) {
+        return count;
+      }
+    };
   }
 
-  @Test
-  void signedOutThrowsNotSignedIn() {
-    assertThatThrownBy(() -> controller.me(null)).isInstanceOf(NotSignedInException.class);
+  private WhoMeController controller(LastCredentialGuard guard) {
+    StaticListableBeanFactory beans = new StaticListableBeanFactory();
+    if (guard != null) {
+      beans.addBean("guard", guard);
+    }
+    ObjectProvider<LastCredentialGuard> provider = beans.getBeanProvider(LastCredentialGuard.class);
+    return new WhoMeController(repository, recentSignIn, provider);
+  }
+
+  private WhoMeController.WhoMeResponse me(
+      WhoMeController controller, WhoAuthenticationToken token) {
+    ResponseEntity<WhoMeController.WhoMeResponse> response = controller.me(request, token);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    return response.getBody();
+  }
+
+  @Nested
+  class Me {
+
+    @Test
+    void me_reports_the_sign_in_method_and_recent_window() {
+      WhoAuthenticationToken token = new WhoAuthenticationToken(principal, UUID.randomUUID());
+      when(repository.browserSession(request, token))
+          .thenReturn(
+              Optional.of(
+                  new WhoSession(
+                      identity.id(),
+                      UUID.randomUUID(),
+                      SIGNED_IN,
+                      SignInMethod.PASSKEY,
+                      UUID.randomUUID())));
+
+      WhoMeController.WhoMeResponse body = me(controller(null), token);
+
+      assertThat(body.identityId()).isEqualTo(identity.id());
+      assertThat(body.permissions()).containsExactly("task.read");
+      assertThat(body.signInMethod()).isEqualTo("PASSKEY");
+      assertThat(body.recentSignInUntil()).isEqualTo(SIGNED_IN.plus(WINDOW));
+    }
+
+    @Test
+    void me_reports_the_method_of_a_stateless_request_and_no_recent_window() {
+      WhoAuthenticationToken token =
+          new WhoAuthenticationToken(principal, UUID.randomUUID(), SignInMethod.API_KEY);
+      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+
+      WhoMeController.WhoMeResponse body = me(controller(null), token);
+
+      assertThat(body.signInMethod()).isEqualTo("API_KEY");
+      assertThat(body.recentSignInUntil()).isNull();
+    }
+
+    @Test
+    void me_reports_no_method_when_nothing_says_how_the_caller_signed_in() {
+      WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+
+      WhoMeController.WhoMeResponse body = me(controller(null), token);
+
+      assertThat(body.signInMethod()).isNull();
+      assertThat(body.recentSignInUntil()).isNull();
+    }
+
+    @Test
+    void me_reports_credential_counts() {
+      LastCredentialGuard guard =
+          new LastCredentialGuard(
+              mock(IdentityRepository.class),
+              List.of(counter("email", 2), counter("passkey", 1), counter("account", 0)),
+              mock(TransactionTemplate.class));
+      Map<String, Long> counts = Map.of("email", 2L, "passkey", 1L, "account", 0L);
+      WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+
+      assertThat(me(controller(guard), token).credentials()).isEqualTo(counts);
+    }
+
+    @Test
+    void me_reports_no_credential_counts_without_a_guard() {
+      WhoAuthenticationToken token = new WhoAuthenticationToken(principal);
+      when(repository.browserSession(request, token)).thenReturn(Optional.empty());
+
+      assertThat(me(controller(null), token).credentials()).isEmpty();
+    }
+
+    @Test
+    void signed_out_throws_not_signed_in() {
+      assertThatThrownBy(() -> controller(null).me(request, null))
+          .isInstanceOf(NotSignedInException.class);
+    }
+
+    @Test
+    void another_kind_of_authentication_is_not_a_who_sign_in() {
+      assertThatThrownBy(
+              () ->
+                  controller(null)
+                      .me(
+                          request,
+                          UsernamePasswordAuthenticationToken.authenticated("x", "y", List.of())))
+          .isInstanceOf(NotSignedInException.class);
+    }
   }
 }

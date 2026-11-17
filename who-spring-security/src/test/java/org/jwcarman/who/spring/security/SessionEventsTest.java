@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -95,6 +96,11 @@ class SessionEventsTest {
     @Bean
     Clock clock() {
       return Clock.fixed(NOW, ZoneOffset.UTC);
+    }
+
+    @Bean
+    RecentSignInAuthorizationManager recentSignInAuthorizationManager(Clock clock) {
+      return new RecentSignInAuthorizationManager(Duration.ofMinutes(10), clock);
     }
 
     @Bean

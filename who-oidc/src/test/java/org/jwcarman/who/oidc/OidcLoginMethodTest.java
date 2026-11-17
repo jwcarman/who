@@ -120,6 +120,29 @@ class OidcLoginMethodTest {
   }
 
   @Test
+  void sign_in_options_list_providers_by_registration_in_declared_order() {
+    ClientRegistration okta =
+        ClientRegistration.withClientRegistration(provider("okta")).clientName("Acme SSO").build();
+    ClientRegistration github =
+        ClientRegistration.withClientRegistration(provider("github")).clientName("GitHub").build();
+    SignInRegistrations registrations = SignInRegistrations.of(List.of(okta, github), Map.of());
+
+    assertThat(method(registrations).signInOptions())
+        .isEqualTo(
+            Map.of(
+                "providers",
+                List.of(
+                    Map.of("id", "okta", "name", "Acme SSO"),
+                    Map.of("id", "github", "name", "GitHub"))));
+  }
+
+  @Test
+  void without_providers_the_sign_in_options_list_none() {
+    assertThat(method(SignInRegistrations.of(List.of(), Map.of())).signInOptions())
+        .isEqualTo(Map.of("providers", List.of()));
+  }
+
+  @Test
   void without_providers_is_named_oidc() {
     assertThat(method(SignInRegistrations.of(List.of(), Map.of())).name()).isEqualTo("oidc");
   }

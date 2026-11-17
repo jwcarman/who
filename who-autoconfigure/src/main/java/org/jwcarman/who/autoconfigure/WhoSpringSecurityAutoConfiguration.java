@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.SessionRecordRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
@@ -267,6 +268,7 @@ public class WhoSpringSecurityAutoConfiguration {
    * The paths a signed-out request may reach: the error page, each sign-in method's endpoints and
    * {@code who.security.public-paths}.
    *
+   * @param paths where who's endpoints live
    * @param methods the browser sign-in methods
    * @param properties the application's own public paths
    * @return the paths
@@ -274,9 +276,9 @@ public class WhoSpringSecurityAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public WhoPublicPaths whoPublicPaths(
-      ObjectProvider<PasswordlessLoginMethod> methods, WhoProperties properties) {
+      WhoPaths paths, ObjectProvider<PasswordlessLoginMethod> methods, WhoProperties properties) {
     return new WhoPublicPaths(
-        methods.orderedStream().toList(), properties.getSecurity().getPublicPaths());
+        paths, methods.orderedStream().toList(), properties.getSecurity().getPublicPaths());
   }
 
   /** Registers {@code GET /who/me} in servlet web applications that have Spring MVC. */
@@ -291,8 +293,11 @@ public class WhoSpringSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public WhoMeController whoMeController() {
-      return new WhoMeController();
+    public WhoMeController whoMeController(
+        WhoSessionSecurityContextRepository repository,
+        RecentSignInAuthorizationManager recentSignIn,
+        ObjectProvider<LastCredentialGuard> guard) {
+      return new WhoMeController(repository, recentSignIn, guard);
     }
   }
 

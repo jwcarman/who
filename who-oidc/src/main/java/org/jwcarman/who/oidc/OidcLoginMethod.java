@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
@@ -125,6 +126,26 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
     this.clock = requireNonNull(clock, "clock must not be null");
     this.signUpWindow = requireNonNull(signUpWindow, "signUpWindow must not be null");
     this.linkWindow = requireNonNull(linkWindow, "linkWindow must not be null");
+  }
+
+  /**
+   * The providers a sign-in page draws buttons for, one per registration who signs in with, in the
+   * order the application declared them: {@code {"providers": [{"id": registrationId, "name":
+   * clientName}]}}.
+   */
+  @Override
+  public Map<String, Object> signInOptions() {
+    List<Map<String, String>> providers =
+        registrations.all().stream()
+            .map(
+                registration ->
+                    Map.of(
+                        "id",
+                        registration.registrationId(),
+                        "name",
+                        registrations.name(registration.registrationId())))
+            .toList();
+    return Map.of("providers", providers);
   }
 
   @Override

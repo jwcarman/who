@@ -53,6 +53,7 @@ import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
+import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -144,6 +145,11 @@ class PasskeyEventsTest extends AbstractPasskeyTest {
     @Bean
     Clock clock() {
       return CLOCK;
+    }
+
+    @Bean
+    RecentSignInAuthorizationManager recentSignInAuthorizationManager(Clock clock) {
+      return new RecentSignInAuthorizationManager(Duration.ofMinutes(10), clock);
     }
 
     @Bean

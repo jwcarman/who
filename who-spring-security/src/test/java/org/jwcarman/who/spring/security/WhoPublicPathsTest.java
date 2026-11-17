@@ -44,24 +44,36 @@ class WhoPublicPathsTest {
 
   @Test
   void always_includes_the_error_page() {
-    assertThat(new WhoPublicPaths(List.of(), List.of()).patterns()).containsExactly("/error");
+    assertThat(new WhoPublicPaths(WhoPaths.defaults(), List.of(), List.of()).patterns())
+        .startsWith("/error");
   }
 
   @Test
   void adds_each_methods_paths_then_the_configured_ones() {
     assertThat(
             new WhoPublicPaths(
-                    List.of(method("/who/email/sign-in")), List.of("/signin", "/assets/**"))
+                    WhoPaths.defaults(),
+                    List.of(method("/who/email/sign-in")),
+                    List.of("/signin", "/assets/**"))
                 .patterns())
-        .containsExactly("/error", "/who/email/sign-in", "/signin", "/assets/**");
+        .containsExactly("/error", "/who/sign-in", "/who/email/sign-in", "/signin", "/assets/**");
   }
 
   @Test
   void drops_duplicates() {
     assertThat(
-            new WhoPublicPaths(List.of(method("/error"), method("/a")), List.of("/a", "/b"))
+            new WhoPublicPaths(
+                    WhoPaths.defaults(),
+                    List.of(method("/error"), method("/a")),
+                    List.of("/a", "/b"))
                 .patterns())
-        .containsExactly("/error", "/a", "/b");
+        .containsExactly("/error", "/who/sign-in", "/a", "/b");
+  }
+
+  @Test
+  void the_sign_in_options_follow_the_root() {
+    assertThat(new WhoPublicPaths(new WhoPaths("/auth"), List.of(), List.of()).patterns())
+        .containsExactly("/error", "/auth/sign-in");
   }
 
   @Test

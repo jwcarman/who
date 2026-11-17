@@ -106,6 +106,11 @@ class PasswordlessConfigurerTest {
     }
 
     @Bean
+    RecentSignInAuthorizationManager recentSignInAuthorizationManager(Clock clock) {
+      return new RecentSignInAuthorizationManager(Duration.ofMinutes(10), clock);
+    }
+
+    @Bean
     WhoSessions whoSessions(Clock clock) {
       return InMemorySessionRecords.sessions(clock, WhoEventPublisher.NOOP);
     }

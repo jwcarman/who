@@ -94,6 +94,12 @@ public class EmailLinkLoginMethod implements PasswordlessLoginMethod {
     return Set.of(paths.of(SEND), paths.of(SIGN_IN));
   }
 
+  /** Email sign-in is on: this method exists only when the module is. */
+  @Override
+  public Map<String, Object> signInOptions() {
+    return Map.of("email", true);
+  }
+
   /**
    * Both endpoints, when the application has a human check: sending makes the application email
    * someone, and signing in with a code is a guess at it.

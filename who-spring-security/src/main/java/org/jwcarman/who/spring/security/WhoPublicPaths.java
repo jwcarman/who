@@ -20,34 +20,42 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * The paths a signed-out request may reach: Spring Boot's error page, every sign-in method's own
- * endpoints, and the application's {@code who.security.public-paths}. who's default security chain
- * permits them; an application that writes its own chain can do the same with {@code
- * requestMatchers(whoPublicPaths.patterns()).permitAll()}.
+ * The paths a signed-out request may reach: Spring Boot's error page, {@code GET /who/sign-in},
+ * every sign-in method's own endpoints, and the application's {@code who.security.public-paths}.
+ * who's default security chain permits them; an application that writes its own chain can do the
+ * same with {@code requestMatchers(whoPublicPaths.patterns()).permitAll()}.
  */
 public final class WhoPublicPaths {
 
   /** Spring Boot's error page, so an error answer is never hidden behind a {@code 401}. */
   public static final String ERROR_PAGE = "/error";
 
+  /** Where a sign-in page learns which methods are on, below the root. */
+  static final String SIGN_IN_OPTIONS = "/sign-in";
+
   private final Set<String> patterns = new LinkedHashSet<>();
 
   /**
    * Collects the paths.
    *
+   * @param paths where who's endpoints live, for {@code GET /who/sign-in}
    * @param methods the browser sign-in methods, whose {@link PasswordlessLoginMethod#publicPaths()}
    *     are added
    * @param configured the application's own public paths
    */
   public WhoPublicPaths(
-      Collection<? extends PasswordlessLoginMethod> methods, Collection<String> configured) {
+      WhoPaths paths,
+      Collection<? extends PasswordlessLoginMethod> methods,
+      Collection<String> configured) {
     patterns.add(ERROR_PAGE);
+    patterns.add(paths.of(SIGN_IN_OPTIONS));
     methods.forEach(method -> patterns.addAll(method.publicPaths()));
     patterns.addAll(configured);
   }
 
   /**
-   * Returns the path patterns, the error page first, then each method's, then the application's.
+   * Returns the path patterns, the error page first, then the sign-in options, then each method's,
+   * then the application's.
    *
    * @return the patterns, for {@code requestMatchers(...)}
    */

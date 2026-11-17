@@ -228,6 +228,7 @@ class WhoBasePathEndToEndTest {
       delimiter = '|',
       textBlock =
           """
+          GET    | /auth/sign-in                 | false |                             | 200
           POST   | /auth/email/send              | false | {"email":"bob@example.com"} | 202
           GET    | /auth/oidc/authorize/stub     | false |                             | 302
           GET    | /auth/oidc/callback/stub?error=access_denied&state=x | false |    | 302
@@ -284,6 +285,7 @@ class WhoBasePathEndToEndTest {
           GET  | /login/oauth2/code/stub       |
           DELETE | /webauthn/register/AAAA     |
           GET  | /who/me                       |
+          GET  | /who/sign-in                  |
           GET  | /who/me/sessions                 |
           GET  | /who/me/passkeys                |
           DELETE | /who/me/passkeys/AAAA         |

@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Set;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
@@ -129,6 +130,12 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   @Override
   public Set<String> publicPaths() {
     return Set.of(paths.of(PasskeyFilters.SIGN_IN_OPTIONS), paths.of(PasskeyFilters.SIGN_IN));
+  }
+
+  /** Passkey sign-in is on: this method exists only when the module is. */
+  @Override
+  public Map<String, Object> signInOptions() {
+    return Map.of("passkey", true);
   }
 
   @Override
