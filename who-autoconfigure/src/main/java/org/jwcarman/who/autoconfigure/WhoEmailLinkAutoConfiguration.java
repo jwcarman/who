@@ -37,6 +37,7 @@ import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.emaillink.EmailLinkTokenRepository;
+import org.jwcarman.who.emaillink.EmailSignInCredentialCounter;
 import org.jwcarman.who.emaillink.JdbcEmailAddressRequestRepository;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
 import org.jwcarman.who.emaillink.JdbcEmailLinkTokenRepository;
@@ -172,6 +173,18 @@ public class WhoEmailLinkAutoConfiguration {
   @ConditionalOnMissingBean(EmailCredentialRepository.class)
   public JdbcEmailCredentialRepository emailCredentialRepository(JdbcClient jdbcClient) {
     return new JdbcEmailCredentialRepository(jdbcClient);
+  }
+
+  /**
+   * Counts email addresses for the last-credential rule.
+   *
+   * @param jdbcClient the database
+   * @return the counter
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public EmailSignInCredentialCounter emailSignInCredentialCounter(JdbcClient jdbcClient) {
+    return new EmailSignInCredentialCounter(jdbcClient);
   }
 
   /**

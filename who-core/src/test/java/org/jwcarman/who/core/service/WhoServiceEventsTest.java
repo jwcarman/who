@@ -250,6 +250,11 @@ class WhoServiceEventsTest {
     }
 
     @Override
+    public Optional<Identity> lockById(UUID id) {
+      return findById(id);
+    }
+
+    @Override
     public Identity save(Identity identity) {
       identities.put(identity.id(), identity);
       return identity;

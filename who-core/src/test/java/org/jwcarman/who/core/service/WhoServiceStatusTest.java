@@ -103,6 +103,11 @@ class WhoServiceStatusTest {
     }
 
     @Override
+    public Optional<Identity> lockById(UUID id) {
+      return findById(id);
+    }
+
+    @Override
     public Identity save(Identity saved) {
       identities.put(saved.id(), saved);
       return saved;

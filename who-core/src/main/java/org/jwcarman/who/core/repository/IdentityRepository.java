@@ -33,6 +33,15 @@ public interface IdentityRepository {
   Optional<Identity> findById(UUID id);
 
   /**
+   * Finds an identity and locks its row until the surrounding transaction ends, so that concurrent
+   * callers serialize on it. Call it inside a transaction.
+   *
+   * @param id the identity UUID
+   * @return the identity, or empty if not found
+   */
+  Optional<Identity> lockById(UUID id);
+
+  /**
    * Persists the given identity, inserting or updating as necessary.
    *
    * @param identity the identity to save

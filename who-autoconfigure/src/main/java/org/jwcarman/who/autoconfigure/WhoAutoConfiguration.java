@@ -24,6 +24,8 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.repository.SessionRecordRepository;
+import org.jwcarman.who.core.service.LastCredentialGuard;
+import org.jwcarman.who.core.service.SignInCredentialCounter;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
@@ -48,6 +50,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import io.micrometer.observation.ObservationRegistry;
 
@@ -62,6 +66,7 @@ import io.micrometer.observation.ObservationRegistry;
 @AutoConfiguration(
     afterName = {
       "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
+      "org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration",
       "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration",
       "org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration"
     })
@@ -167,6 +172,19 @@ public class WhoAutoConfiguration {
     @ConditionalOnMissingBean
     public IdentityRepository identityRepository(JdbcClient jdbcClient) {
       return new JdbcIdentityRepository(jdbcClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnSingleCandidate(PlatformTransactionManager.class)
+    public LastCredentialGuard lastCredentialGuard(
+        IdentityRepository identityRepository,
+        ObjectProvider<SignInCredentialCounter> counters,
+        PlatformTransactionManager transactionManager) {
+      return new LastCredentialGuard(
+          identityRepository,
+          counters.orderedStream().toList(),
+          new TransactionTemplate(transactionManager));
     }
 
     @Bean

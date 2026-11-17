@@ -33,6 +33,7 @@ import org.jwcarman.who.passkey.PasskeyLoginMethod;
 import org.jwcarman.who.passkey.PasskeyNameResolver;
 import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.passkey.PasskeySettings;
+import org.jwcarman.who.passkey.PasskeySignInCredentialCounter;
 import org.jwcarman.who.passkey.WhoPasskeyAuthenticationProvider;
 import org.jwcarman.who.passkey.WhoRelyingPartyOperations;
 import org.jwcarman.who.spring.security.WhoPaths;
@@ -130,6 +131,18 @@ public class WhoPasskeyAutoConfiguration {
       Clock clock) {
     return new JdbcWhoPasskeyUserRepository(
         jdbcClient, credentialIdentityRepository, whoEventPublisher, clock);
+  }
+
+  /**
+   * Counts passkeys for the last-credential rule.
+   *
+   * @param jdbcClient the database
+   * @return the counter
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public PasskeySignInCredentialCounter passkeySignInCredentialCounter(JdbcClient jdbcClient) {
+    return new PasskeySignInCredentialCounter(jdbcClient);
   }
 
   /**

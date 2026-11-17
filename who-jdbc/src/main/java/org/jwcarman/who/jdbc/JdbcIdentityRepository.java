@@ -64,6 +64,16 @@ public class JdbcIdentityRepository implements IdentityRepository {
   }
 
   @Override
+  public Optional<Identity> lockById(UUID id) {
+    return jdbcClient
+        .sql(
+            "SELECT id, status, created_at, updated_at FROM who_identity WHERE id = :id FOR UPDATE")
+        .param(COL_ID, id)
+        .query(IDENTITY_ROW_MAPPER)
+        .optional();
+  }
+
+  @Override
   public Identity save(Identity identity) {
     jdbcClient
         .sql(

@@ -24,6 +24,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
+import org.jwcarman.who.federated.FederatedSignInCredentialCounter;
 import org.jwcarman.who.federated.JdbcFederatedCredentialRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -56,6 +57,18 @@ public class WhoFederatedAutoConfiguration {
   @ConditionalOnMissingBean(FederatedCredentialRepository.class)
   public JdbcFederatedCredentialRepository federatedCredentialRepository(JdbcClient jdbcClient) {
     return new JdbcFederatedCredentialRepository(jdbcClient);
+  }
+
+  /**
+   * Counts linked provider accounts for the last-credential rule.
+   *
+   * @param jdbcClient the database
+   * @return the counter
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public FederatedSignInCredentialCounter federatedSignInCredentialCounter(JdbcClient jdbcClient) {
+    return new FederatedSignInCredentialCounter(jdbcClient);
   }
 
   /**
