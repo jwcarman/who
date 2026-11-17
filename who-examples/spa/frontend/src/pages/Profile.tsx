@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import type {
+  BrowserSessionRequired,
   ConfirmAddressFailure,
   ConfirmedAddress,
   EmailAddress,
@@ -33,7 +34,7 @@ import { Sessions } from './Sessions';
 const TOO_LONG = 'You signed in too long ago. Sign out, sign in again, then try again.';
 
 // Why removing a way in failed: who keeps the last one, so the person can always sign in.
-function notRemoved(reason: SignInRequired | 'not-found' | LastCredential): string {
+function notRemoved(reason: SignInRequired | BrowserSessionRequired | 'not-found' | LastCredential): string {
   if (reason === 'last-credential') return 'That is your last way in: add another before removing it.';
   if (reason === 'not-found') return 'That is already gone.';
   return signInAgain(reason, TOO_LONG);

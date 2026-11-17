@@ -15,11 +15,14 @@
  */
 // The calls to who, through @jwcarman/who-client: it handles CSRF, the passkey encoding and the
 // fragment tokens, and answers results the components switch on. who is at /who, the default.
-import { createWhoClient, type SignInRequired } from '@jwcarman/who-client';
+import { type BrowserSessionRequired, createWhoClient, type SignInRequired } from '@jwcarman/who-client';
 
 export const who = createWhoClient();
 
-// A call that needs a recent sign-in failed with a 401: say which kind.
-export function signInAgain(reason: SignInRequired, tooLong: string): string {
+// A call that needs a recent sign-in from this browser failed: say which kind. A browser session
+// is refused only when the request carried another credential beside its cookie, which this page
+// never sends.
+export function signInAgain(reason: SignInRequired | BrowserSessionRequired, tooLong: string): string {
+  if (reason === 'browser-session-required') return 'Only this browser on its own can do that.';
   return reason === 'signed-out' ? 'You are signed out. Sign in again.' : tooLong;
 }
