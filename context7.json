@@ -1,9 +1,17 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
+  "url": "https://context7.com/jwcarman/who",
+  "public_key": "pk_teuqTJ1f9Z3tSlPtgF1K9",
   "projectTitle": "who (Spring Boot identity and sign-in)",
   "description": "who (org.jwcarman.who) is a Spring Boot 4 / Spring Security 7 library for identity, sign-in and permissions: passwordless email links and codes, passkeys, Google, GitHub and OpenID Connect sign-in, API keys, JWTs, roles and @RequiresPermission, sessions, a Cloudflare Turnstile human check, and a TypeScript client.",
-  "folders": ["docs"],
-  "excludeFolders": ["docs/superpowers", "docs/assets", "docs/stylesheets"],
+  "folders": [
+    "docs"
+  ],
+  "excludeFolders": [
+    "docs/superpowers",
+    "docs/assets",
+    "docs/stylesheets"
+  ],
   "rules": [
     "Import org.jwcarman.who:who-bom and add who modules without versions, rather than pinning each module's version.",
     "Add who-spring-boot-starter plus one module per sign-in method; a module is on when its jar is on the classpath.",
