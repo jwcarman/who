@@ -23,6 +23,7 @@ import java.util.concurrent.Executor;
 
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.BrowserEndpoints;
+import org.jwcarman.who.spring.security.StatelessEndpoints;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -36,9 +37,10 @@ import tools.jackson.databind.json.JsonMapper;
  * a link or code sent to it: {@code POST /who/me/email-addresses} and {@code POST
  * /who/me/email-addresses/confirmations}, and list and remove the addresses: {@code GET
  * /who/me/email-addresses} and {@code DELETE /who/me/email-addresses/{id}}, under {@code
- * who.base-path}, on every browser chain.
+ * who.base-path}, on every browser chain and every stateless chain. On a stateless chain an API key
+ * or bearer token may list the addresses; what only a browser may do answers {@code 403}.
  */
-public class EmailAddressEndpoints implements BrowserEndpoints {
+public class EmailAddressEndpoints implements BrowserEndpoints, StatelessEndpoints {
 
   private final WhoPaths paths;
   private final EmailAddressChanges changes;

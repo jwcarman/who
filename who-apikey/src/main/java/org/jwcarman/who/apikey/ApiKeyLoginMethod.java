@@ -35,6 +35,7 @@ public final class ApiKeyLoginMethod implements StatelessLoginMethod {
 
   private final ApiKeyAuthenticationFilter filter;
   private final ApiKeyAuthenticationConverter converter;
+  private final String headerName;
 
   /**
    * Creates the login method.
@@ -44,9 +45,8 @@ public final class ApiKeyLoginMethod implements StatelessLoginMethod {
    */
   public ApiKeyLoginMethod(ApiKeyAuthenticationFilter filter, String headerName) {
     this.filter = requireNonNull(filter, "filter must not be null");
-    this.converter =
-        new ApiKeyAuthenticationConverter(
-            requireNonNull(headerName, "headerName must not be null"));
+    this.headerName = requireNonNull(headerName, "headerName must not be null");
+    this.converter = new ApiKeyAuthenticationConverter(headerName);
   }
 
   @Override
@@ -57,6 +57,20 @@ public final class ApiKeyLoginMethod implements StatelessLoginMethod {
   @Override
   public RequestMatcher carriesCredential() {
     return request -> converter.convert(request) != null;
+  }
+
+  /**
+   * Matches a request whose header is present and not blank, even one already signed in from a
+   * session, which ignores the key: a session cookie with a key beside it is not a browser.
+   *
+   * @return the matcher
+   */
+  @Override
+  public RequestMatcher presentsCredential() {
+    return request -> {
+      String key = request.getHeader(headerName);
+      return key != null && !key.isBlank();
+    };
   }
 
   @Override

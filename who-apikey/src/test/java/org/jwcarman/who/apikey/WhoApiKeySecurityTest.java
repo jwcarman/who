@@ -26,7 +26,7 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoApiKeySecurityTest {
@@ -40,7 +40,7 @@ class WhoApiKeySecurityTest {
 
     WhoApiKeySecurity.apiKey(filter).configure(http);
 
-    verify(http).addFilterBefore(filter, AuthorizationFilter.class);
+    verify(http).addFilterBefore(filter, ExceptionTranslationFilter.class);
     verify(filter, never()).applyApplicationContext(any());
   }
 
@@ -52,6 +52,6 @@ class WhoApiKeySecurityTest {
     WhoApiKeySecurity.apiKey(filter).configure(http);
 
     verify(filter).applyApplicationContext(context);
-    verify(http).addFilterBefore(filter, AuthorizationFilter.class);
+    verify(http).addFilterBefore(filter, ExceptionTranslationFilter.class);
   }
 }

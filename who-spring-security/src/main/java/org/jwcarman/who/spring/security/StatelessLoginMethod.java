@@ -47,6 +47,19 @@ public interface StatelessLoginMethod {
   RequestMatcher carriesCredential();
 
   /**
+   * Matches the requests that present this method's credential at all, whether or not it signs them
+   * in: such a request is never treated as a browser session, even when a session cookie comes with
+   * it, so it may not do what only a browser may. By default the same as {@link
+   * #carriesCredential()}; a method that ignores its credential on a request already signed in
+   * matches here regardless.
+   *
+   * @return the matcher
+   */
+  default RequestMatcher presentsCredential() {
+    return carriesCredential();
+  }
+
+  /**
    * The authentication scheme a signed-out {@code 401} names in its {@code WWW-Authenticate}
    * header, so a client learns how to sign in (RFC 9110, section 11.6.1), such as {@code Bearer}
    * (RFC 6750). The value is written as the header's value, verbatim, once even when several

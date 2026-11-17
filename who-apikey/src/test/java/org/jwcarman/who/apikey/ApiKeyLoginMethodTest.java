@@ -18,9 +18,14 @@ package org.jwcarman.who.apikey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ApiKeyLoginMethodTest {
@@ -31,5 +36,36 @@ class ApiKeyLoginMethodTest {
         new ApiKeyLoginMethod(mock(ApiKeyAuthenticationFilter.class), "X-API-Key");
 
     assertThat(method.name()).isEqualTo("api-key");
+  }
+
+  @Nested
+  class Presenting_a_key {
+
+    private final ApiKeyLoginMethod method =
+        new ApiKeyLoginMethod(mock(ApiKeyAuthenticationFilter.class), "X-API-Key");
+
+    @AfterEach
+    void clear() {
+      SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void a_request_already_signed_in_still_presents_its_key_but_is_not_carried_by_it() {
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken("session", null, "ROLE_X"));
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.addHeader("X-API-Key", "who_anything");
+
+      assertThat(method.presentsCredential().matches(request)).isTrue();
+      assertThat(method.carriesCredential().matches(request)).isFalse();
+    }
+
+    @Test
+    void a_blank_header_presents_nothing() {
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      request.addHeader("X-API-Key", " ");
+
+      assertThat(method.presentsCredential().matches(request)).isFalse();
+    }
   }
 }

@@ -36,6 +36,9 @@ import java.util.UUID;
 
 import jakarta.servlet.http.HttpSession;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.SessionRecord;
@@ -55,6 +58,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoSessionSecurityContextRepositoryTest {
 
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
@@ -91,6 +95,61 @@ class WhoSessionSecurityContextRepositoryTest {
   private static WhoSession withoutRow(WhoSession session) {
     return new WhoSession(
         session.identityId(), session.credentialId(), session.signedInAt(), session.signInMethod());
+  }
+
+  @Nested
+  class Browser_session {
+
+    private final WhoSessionSecurityContextRepository withApiKeys =
+        new WhoSessionSecurityContextRepository(
+            whoService, sessions, clock, events::add, r -> r.getHeader("X-API-Key") != null);
+
+    private WhoAuthenticationToken loaded() {
+      request.setSession(sessionWith(live(NOW)));
+      when(whoService.resolveDetailed(any(Credential.class)))
+          .thenReturn(new Resolution.Resolved(new WhoPrincipal(identity, Set.of())));
+      return (WhoAuthenticationToken)
+          withApiKeys.loadDeferredContext(request).get().getAuthentication();
+    }
+
+    @Test
+    void is_the_session_that_signed_the_request_in() {
+      WhoAuthenticationToken token = loaded();
+
+      assertThat(withApiKeys.browserSession(request, token))
+          .hasValueSatisfying(s -> assertThat(s.identityId()).isEqualTo(identity.id()));
+    }
+
+    @Test
+    void is_none_when_the_request_presents_a_stateless_credential_too() {
+      WhoAuthenticationToken token = loaded();
+      request.addHeader("X-API-Key", "anything");
+
+      assertThat(withApiKeys.presentsStatelessCredential(request)).isTrue();
+      assertThat(withApiKeys.browserSession(request, token)).isEmpty();
+    }
+
+    @Test
+    void is_none_for_an_authentication_the_session_did_not_load() {
+      loaded();
+      WhoAuthenticationToken other =
+          new WhoAuthenticationToken(
+              new WhoPrincipal(identity, Set.of()), credId, SignInMethod.API_KEY);
+
+      assertThat(withApiKeys.browserSession(request, other)).isEmpty();
+    }
+
+    @Test
+    void is_none_when_signed_out() {
+      assertThat(withApiKeys.browserSession(request, null)).isEmpty();
+    }
+
+    @Test
+    void without_stateless_methods_no_request_presents_a_credential() {
+      request.addHeader("X-API-Key", "anything");
+
+      assertThat(repository.presentsStatelessCredential(request)).isFalse();
+    }
   }
 
   @Test

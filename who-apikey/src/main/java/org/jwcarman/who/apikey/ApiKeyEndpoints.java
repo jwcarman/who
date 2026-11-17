@@ -26,7 +26,7 @@ import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -75,8 +75,8 @@ public class ApiKeyEndpoints implements BrowserEndpoints, StatelessEndpoints {
   }
 
   /**
-   * Adds the endpoints' filter after authorization: an API key signs in just before authorization,
-   * and the endpoints must see whatever signed the request in.
+   * Adds the endpoints' filter before authorization, as who's other {@code /who/me} endpoints, so a
+   * signed-out caller gets who's answer; an API key has signed in by then.
    *
    * @param http the chain being built
    */
@@ -84,6 +84,6 @@ public class ApiKeyEndpoints implements BrowserEndpoints, StatelessEndpoints {
   public void configure(HttpSecurity http) {
     http.addFilterAfter(
         new ApiKeysFilter(paths, keys, sessions, handoff, jsonMapper, clock, recentSignIn),
-        AuthorizationFilter.class);
+        ExceptionTranslationFilter.class);
   }
 }

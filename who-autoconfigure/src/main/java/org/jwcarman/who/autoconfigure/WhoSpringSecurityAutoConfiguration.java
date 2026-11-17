@@ -29,6 +29,7 @@ import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
 import org.jwcarman.who.spring.security.SessionEndpoints;
+import org.jwcarman.who.spring.security.StatelessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
@@ -91,6 +92,8 @@ public class WhoSpringSecurityAutoConfiguration {
    * @param whoSessions records each sign-in and says whether its session is live
    * @param clock stamps the sign-in time
    * @param whoEventPublisher publishes session events
+   * @param statelessMethods the API-key and bearer-token methods, read on each request: a request
+   *     that presents one's credential is never a browser session
    * @return the repository
    */
   @Bean
@@ -99,9 +102,16 @@ public class WhoSpringSecurityAutoConfiguration {
       WhoService whoService,
       WhoSessions whoSessions,
       Clock clock,
-      WhoEventPublisher whoEventPublisher) {
+      WhoEventPublisher whoEventPublisher,
+      ObjectProvider<StatelessLoginMethod> statelessMethods) {
     return new WhoSessionSecurityContextRepository(
-        whoService, whoSessions, clock, whoEventPublisher);
+        whoService,
+        whoSessions,
+        clock,
+        whoEventPublisher,
+        request ->
+            statelessMethods.stream()
+                .anyMatch(method -> method.presentsCredential().matches(request)));
   }
 
   /**

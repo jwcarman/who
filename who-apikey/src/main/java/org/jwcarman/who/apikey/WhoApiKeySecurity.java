@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 
 /**
  * Adds the API key filter to a Spring Security chain. The filter is deliberately not registered
@@ -41,7 +41,7 @@ public final class WhoApiKeySecurity {
 
   /**
    * A configurer that adds the {@link ApiKeyAuthenticationFilter} bean from the application context
-   * to the chain, before the authorization filter.
+   * to the chain, before the exception translation filter.
    *
    * @return a configurer for {@code HttpSecurity.with(...)}
    */
@@ -50,7 +50,7 @@ public final class WhoApiKeySecurity {
   }
 
   /**
-   * A configurer that adds the given filter to the chain, before the authorization filter.
+   * A configurer that adds the given filter to the chain, before the exception translation filter.
    *
    * @param filter the API key filter
    * @return a configurer for {@code HttpSecurity.with(...)}
@@ -77,7 +77,8 @@ public final class WhoApiKeySecurity {
       if (context != null) {
         toAdd.applyApplicationContext(context);
       }
-      http.addFilterBefore(toAdd, AuthorizationFilter.class);
+      // before exception translation, so who's own endpoints after it see the key's sign-in
+      http.addFilterBefore(toAdd, ExceptionTranslationFilter.class);
     }
   }
 }

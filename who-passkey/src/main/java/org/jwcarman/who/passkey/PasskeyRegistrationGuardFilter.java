@@ -53,6 +53,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <root>/me/passkeys/options} and {@code POST <root>/me/passkeys}:
  *
  * <ul>
+ *   <li>an API key or bearer token on the request, even beside a session cookie: {@code 403};
  *   <li>signed out: {@link NotSignedInException} (Spring alone answers {@code 400});
  *   <li>signed in longer ago than the registration window: {@link
  *       ReauthenticationRequiredException}, after publishing {@link PasskeyRegistrationRefused};
@@ -135,6 +136,15 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
+    if (sessionRepository.presentsStatelessCredential(request)) {
+      // an API key or bearer token beside the session cookie: not a browser session
+      handoff.handOff(
+          request,
+          response,
+          new AccessDeniedException("Only a browser session can register a passkey"),
+          HttpStatus.FORBIDDEN);
+      return;
+    }
     Optional<WhoSession> session = sessionRepository.currentSession(request);
     if (session.isEmpty()) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);

@@ -45,6 +45,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
@@ -105,6 +106,15 @@ final class LinkStartFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
+    if (sessions.presentsStatelessCredential(request)) {
+      // an API key or bearer token beside the session cookie: not a browser session
+      handoff.handOff(
+          request,
+          response,
+          new AccessDeniedException("Only a browser session can link an account"),
+          HttpStatus.FORBIDDEN);
+      return;
+    }
     Optional<WhoSession> session = browserSignIn(request);
     if (session.isEmpty()) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);

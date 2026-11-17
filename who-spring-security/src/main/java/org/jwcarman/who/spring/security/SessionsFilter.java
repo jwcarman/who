@@ -111,12 +111,9 @@ final class SessionsFilter extends OncePerRequestFilter {
       return;
     }
     UUID identityId = token.getPrincipal().identity().id();
-    // only the authentication the browser session loaded, whose record is live and whose
-    // identity matches; an API key or bearer token beside a session cookie does not count
-    Optional<WhoSession> current =
-        repository.isLoaded(request, token)
-            ? repository.currentSession(request).filter(s -> s.identityId().equals(identityId))
-            : Optional.empty();
+    // the browser session that signed this request in; an API key or bearer token beside the
+    // session cookie, even one ignored, does not count
+    Optional<WhoSession> current = repository.browserSession(request, token);
     if (current.isEmpty()) {
       // an API key or a bearer token has no browser session to list or keep
       handoff.handOff(

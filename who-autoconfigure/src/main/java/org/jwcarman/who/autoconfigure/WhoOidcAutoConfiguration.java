@@ -34,6 +34,7 @@ import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.oidc.CallbackRegistrations;
 import org.jwcarman.who.oidc.InvalidRegistrationException;
+import org.jwcarman.who.oidc.LinkedAccountsEndpoints;
 import org.jwcarman.who.oidc.OidcLoginMethod;
 import org.jwcarman.who.oidc.OidcRedirects;
 import org.jwcarman.who.oidc.OidcSignUpService;
@@ -41,6 +42,7 @@ import org.jwcarman.who.oidc.ProviderSettings;
 import org.jwcarman.who.oidc.SignInRegistrations;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -248,6 +250,42 @@ public class WhoOidcAutoConfiguration {
         new OidcRedirects(successUrl, failureUrl, linkUrl),
         clock,
         oidc.getSignUpWindow(),
+        properties.getSecurity().getRecentSignIn());
+  }
+
+  /**
+   * The caller's linked accounts on every stateless chain; a browser chain gets them from the login
+   * method.
+   *
+   * @param paths where the endpoints live
+   * @param registrations names each account's provider
+   * @param accounts lists and unlinks the caller's accounts
+   * @param lastCredentialGuard keeps an identity from losing its last sign-in credential
+   * @param sessions tells a browser session from a key or token
+   * @param handoff the application's exception handling, if it has who's handoff
+   * @param clock the current time
+   * @param properties {@code who.security.recent-sign-in}
+   * @return the endpoints
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public LinkedAccountsEndpoints linkedAccountsEndpoints(
+      WhoPaths paths,
+      SignInRegistrations registrations,
+      FederatedCredentialService accounts,
+      LastCredentialGuard lastCredentialGuard,
+      WhoSessionSecurityContextRepository sessions,
+      ObjectProvider<WhoExceptionHandoff> handoff,
+      Clock clock,
+      WhoProperties properties) {
+    return new LinkedAccountsEndpoints(
+        paths,
+        registrations,
+        accounts,
+        lastCredentialGuard,
+        sessions,
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        clock,
         properties.getSecurity().getRecentSignIn());
   }
 

@@ -45,6 +45,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.web.context.HttpRequestResponseHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * Keeps only a {@link WhoSession} (ids) in the HTTP session and re-resolves the principal from
@@ -71,9 +72,11 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
   private final WhoSessions sessions;
   private final Clock clock;
   private final WhoEventPublisher eventPublisher;
+  private final RequestMatcher statelessCredentials;
 
   /**
-   * Creates the repository.
+   * Creates the repository for an application with no stateless sign-in methods: no request
+   * presents a stateless credential.
    *
    * @param whoService used to re-resolve the principal on every request
    * @param sessions records each sign-in, and says on every request whether its session is live
@@ -82,10 +85,32 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    */
   public WhoSessionSecurityContextRepository(
       WhoService whoService, WhoSessions sessions, Clock clock, WhoEventPublisher eventPublisher) {
+    this(whoService, sessions, clock, eventPublisher, request -> false);
+  }
+
+  /**
+   * Creates the repository for an application with stateless sign-in methods.
+   *
+   * @param whoService resolves the principal
+   * @param sessions records each sign-in and says whether its session is live
+   * @param clock stamps the sign-in time
+   * @param eventPublisher publishes session events
+   * @param statelessCredentials matches a request that presents a stateless method's credential,
+   *     such as an API key or a bearer token; such a request is never a {@link #browserSession
+   *     browser session}
+   */
+  public WhoSessionSecurityContextRepository(
+      WhoService whoService,
+      WhoSessions sessions,
+      Clock clock,
+      WhoEventPublisher eventPublisher,
+      RequestMatcher statelessCredentials) {
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
+    this.statelessCredentials =
+        requireNonNull(statelessCredentials, "statelessCredentials must not be null");
   }
 
   @Override
@@ -191,6 +216,38 @@ public class WhoSessionSecurityContextRepository implements SecurityContextRepos
    */
   public boolean isLoaded(HttpServletRequest request, Authentication authentication) {
     return authentication != null && authentication == request.getAttribute(LOADED_ATTRIBUTE);
+  }
+
+  /**
+   * Whether the request presents a stateless method's credential, such as an API key or a bearer
+   * token, whether or not it signed the request in.
+   *
+   * @param request the current request
+   * @return whether it presents one
+   */
+  public boolean presentsStatelessCredential(HttpServletRequest request) {
+    return statelessCredentials.matches(request);
+  }
+
+  /**
+   * The browser session this request acts as, for endpoints only a browser may call: the session
+   * whose record is live, whose identity is the authentication's, and which {@link #isLoaded
+   * loaded} that authentication, on a request that presents no {@link #presentsStatelessCredential
+   * stateless credential} beside its cookie.
+   *
+   * @param request the current request
+   * @param authentication the request's authentication, or {@code null}
+   * @return the session, or empty when the request is not a browser session's
+   */
+  public Optional<WhoSession> browserSession(
+      HttpServletRequest request, Authentication authentication) {
+    if (!(authentication instanceof WhoAuthenticationToken token)
+        || !isLoaded(request, token)
+        || presentsStatelessCredential(request)) {
+      return Optional.empty();
+    }
+    UUID identityId = token.getPrincipal().identity().id();
+    return currentSession(request).filter(s -> s.identityId().equals(identityId));
   }
 
   private SecurityContext load(HttpServletRequest request) {

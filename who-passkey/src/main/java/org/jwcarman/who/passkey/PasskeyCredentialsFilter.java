@@ -133,14 +133,9 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
       return;
     }
     UUID identityId = token.getPrincipal().identity().id();
-    // only the authentication the browser session loaded, whose record is live and whose
-    // identity matches; an API key or bearer token beside a session cookie does not count
-    Optional<WhoSession> current =
-        sessionRepository.isLoaded(request, token)
-            ? sessionRepository
-                .currentSession(request)
-                .filter(s -> s.identityId().equals(identityId))
-            : Optional.empty();
+    // the browser session that signed this request in; an API key or bearer token beside the
+    // session cookie, even one ignored, does not count
+    Optional<WhoSession> current = sessionRepository.browserSession(request, token);
     if (current.isEmpty()) {
       handoff.handOff(
           request,

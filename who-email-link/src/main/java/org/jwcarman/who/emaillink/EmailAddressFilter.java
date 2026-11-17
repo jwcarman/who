@@ -60,7 +60,8 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code POST /who/me/email-addresses} asks to add an address, or to change one ({@code replaces}),
  * and {@code POST /who/me/email-addresses/confirmations} confirms it with the link's token or the
  * code. Both need a browser session for the signed-in identity, signed in within the recent sign-in
- * window.
+ * window: signed out is {@code 401}, and an API key or bearer token, even beside the cookie, is
+ * {@code 403}.
  *
  * <p>{@code GET /who/me/email-addresses} lists the caller's addresses, oldest first, for any
  * signed-in caller. {@code DELETE /who/me/email-addresses/{id}} removes one, by the credential id
@@ -68,7 +69,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code 403}), needs a recent sign-in, and runs through the {@link LastCredentialGuard}, so
  * removing the last sign-in credential is {@code 409}. An address that does not exist and one that
  * belongs to someone else are both {@code 404}. Removing the address the session signed in with is
- * allowed; the session stays.
+ * allowed and ends that session, which who re-resolves on every request.
  */
 final class EmailAddressFilter extends OncePerRequestFilter {
 
@@ -138,9 +139,19 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       remove(request, response);
       return;
     }
-    Optional<SignedIn> signedIn = browserSignIn(request);
-    if (signedIn.isEmpty()) {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (!(authentication instanceof WhoAuthenticationToken)) {
       handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
+      return;
+    }
+    Optional<SignedIn> signedIn = browserSignIn(request, authentication);
+    if (signedIn.isEmpty()) {
+      // signed in, but by an API key or a bearer token, or with one beside the session cookie
+      handoff.handOff(
+          request,
+          response,
+          new AccessDeniedException("Only a browser session can add or change an email address"),
+          HttpStatus.FORBIDDEN);
       return;
     }
     if (!WhoSignInFactors.isRecent(
@@ -188,12 +199,9 @@ final class EmailAddressFilter extends OncePerRequestFilter {
       return;
     }
     UUID identityId = token.getPrincipal().identity().id();
-    // only the authentication the browser session loaded, whose record is live and whose
-    // identity matches; an API key or bearer token beside a session cookie does not count
-    Optional<WhoSession> current =
-        sessions.isLoaded(request, token)
-            ? sessions.currentSession(request).filter(s -> s.identityId().equals(identityId))
-            : Optional.empty();
+    // the browser session that signed this request in; an API key or bearer token beside the
+    // session cookie, even one ignored, does not count
+    Optional<WhoSession> current = sessions.browserSession(request, token);
     if (current.isEmpty()) {
       handoff.handOff(
           request,
@@ -288,16 +296,14 @@ final class EmailAddressFilter extends OncePerRequestFilter {
    * The identity signed in to this browser's who session. A caller signed in some other way, an API
    * key or a bearer token, has no sign-in time to check.
    */
-  private Optional<SignedIn> browserSignIn(HttpServletRequest request) {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (!(authentication instanceof WhoAuthenticationToken token)) {
-      return Optional.empty();
-    }
-    Identity identity = token.getPrincipal().identity();
+  private Optional<SignedIn> browserSignIn(
+      HttpServletRequest request, Authentication authentication) {
     return sessions
-        .currentSession(request)
-        .filter(session -> session.identityId().equals(identity.id()))
-        .map(session -> new SignedIn(identity, session));
+        .browserSession(request, authentication)
+        .map(
+            session ->
+                new SignedIn(
+                    ((WhoAuthenticationToken) authentication).getPrincipal().identity(), session));
   }
 
   private static Optional<UUID> parse(String id) {

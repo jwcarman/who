@@ -189,10 +189,9 @@ final class ApiKeysFilter extends OncePerRequestFilter {
    */
   private Optional<Caller> caller(HttpServletRequest request, WhoAuthenticationToken token) {
     Identity identity = token.getPrincipal().identity();
-    Optional<WhoSession> session =
-        sessions.isLoaded(request, token)
-            ? sessions.currentSession(request).filter(s -> s.identityId().equals(identity.id()))
-            : Optional.empty();
+    // the browser session that signed this request in; an API key or bearer token beside the
+    // session cookie, even one ignored, does not count
+    Optional<WhoSession> session = sessions.browserSession(request, token);
     if (session.isPresent()) {
       return Optional.of(new Caller(identity, session.get().signedInAt()));
     }
