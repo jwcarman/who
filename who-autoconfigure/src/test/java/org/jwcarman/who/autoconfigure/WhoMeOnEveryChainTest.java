@@ -302,6 +302,18 @@ class WhoMeOnEveryChainTest {
       // still signed in: the forged sign-out did nothing
       assertThat(send("GET", "/who/me", null, false).statusCode()).isEqualTo(200);
     }
+
+    @Test
+    void a_bogus_bearer_header_does_not_spare_a_cookie_its_csrf_token() throws Exception {
+      signIn();
+
+      HttpResponse<String> response =
+          send("POST", "/who/logout", null, false, "Authorization", "Bearer junk");
+
+      assertThat(response.statusCode()).isEqualTo(403);
+      // still signed in: the forged sign-out did nothing
+      assertThat(send("GET", "/who/me", null, false).statusCode()).isEqualTo(200);
+    }
   }
 
   @Nested

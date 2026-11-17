@@ -17,7 +17,10 @@ package org.jwcarman.who.spring.security;
 
 import java.util.Optional;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
@@ -40,7 +43,9 @@ public interface StatelessLoginMethod {
   /**
    * Matches the requests that carry this method's credential. Such requests are exempt from CSRF
    * protection, so the matcher must match only when the credential is really there: a blank header
-   * must not match.
+   * must not match. Nor may a request already {@link #alreadySignedIn() signed in}, such as by a
+   * session cookie: its credential would not be what signs it in, so the cookie would ride along
+   * without a CSRF token.
    *
    * @return the matcher
    */
@@ -57,6 +62,18 @@ public interface StatelessLoginMethod {
    */
   default RequestMatcher presentsCredential() {
     return carriesCredential();
+  }
+
+  /**
+   * Whether the current request is already signed in, by a session or anything else, before a
+   * stateless method looks at its credential: the security context holds an authentication that is
+   * not anonymous. A {@link #carriesCredential()} matcher answers {@code false} then.
+   *
+   * @return whether the request is signed in already
+   */
+  static boolean alreadySignedIn() {
+    Authentication existing = SecurityContextHolder.getContext().getAuthentication();
+    return existing != null && !(existing instanceof AnonymousAuthenticationToken);
   }
 
   /**

@@ -413,9 +413,9 @@ class WhoSecurityAllTest {
     }
 
     @Test
-    void a_bogus_bearer_token_is_unauthorized() throws Exception {
+    void a_bogus_bearer_token_does_not_skip_csrf() throws Exception {
       assertThat(send(post("/secure/ping").header("Authorization", "Bearer bogus")).statusCode())
-          .isEqualTo(401);
+          .isEqualTo(403);
     }
   }
 

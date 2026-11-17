@@ -24,8 +24,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import jakarta.servlet.Filter;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -35,8 +37,12 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -125,5 +131,40 @@ class JwtLoginMethodTest {
             });
 
     verify(FIXED).decode("abc");
+  }
+
+  @Nested
+  class Beside_a_session {
+
+    private final MockHttpServletRequest request = new MockHttpServletRequest();
+
+    {
+      request.addHeader("Authorization", "Bearer junk");
+    }
+
+    @AfterEach
+    void clear() {
+      SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void a_request_already_signed_in_presents_its_token_but_is_not_carried_by_it() {
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken("session", null, "ROLE_X"));
+      JwtLoginMethod method = method(mock(JwtDecoder.class));
+
+      assertThat(method.presentsCredential().matches(request)).isTrue();
+      assertThat(method.carriesCredential().matches(request)).isFalse();
+    }
+
+    @Test
+    void an_anonymous_request_is_carried_by_its_token() {
+      SecurityContextHolder.getContext()
+          .setAuthentication(
+              new AnonymousAuthenticationToken(
+                  "key", "anonymous", AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
+
+      assertThat(method(mock(JwtDecoder.class)).carriesCredential().matches(request)).isTrue();
+    }
   }
 }

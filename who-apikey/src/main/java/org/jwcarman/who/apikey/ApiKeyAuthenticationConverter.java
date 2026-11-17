@@ -19,9 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.jwcarman.who.spring.security.StatelessLoginMethod;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 
 /**
@@ -47,14 +45,9 @@ public class ApiKeyAuthenticationConverter implements AuthenticationConverter {
   @Override
   public ApiKeyAuthenticationToken convert(HttpServletRequest request) {
     String key = request.getHeader(headerName);
-    if (key == null || key.isBlank() || alreadyAuthenticated()) {
+    if (key == null || key.isBlank() || StatelessLoginMethod.alreadySignedIn()) {
       return null;
     }
     return new ApiKeyAuthenticationToken(key);
-  }
-
-  private static boolean alreadyAuthenticated() {
-    Authentication existing = SecurityContextHolder.getContext().getAuthentication();
-    return existing != null && !(existing instanceof AnonymousAuthenticationToken);
   }
 }
