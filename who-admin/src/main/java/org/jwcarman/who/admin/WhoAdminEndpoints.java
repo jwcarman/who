@@ -43,7 +43,8 @@ import tools.jackson.databind.json.JsonMapper;
  * endpoints go on every browser chain and every stateless chain: this is both {@link
  * BrowserEndpoints} and {@link StatelessEndpoints}. A browser session that changes an identity or
  * its roles must have signed in recently; a bearer token or an API key need not. A caller may
- * assign only roles within its own permissions.
+ * assign only roles within its own permissions, may change only identities that do not outrank it,
+ * and may not leave no active identity able to manage identities.
  */
 public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
 
@@ -53,6 +54,7 @@ public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
   private final RbacService rbac;
   private final @Nullable IdentityEmails emails;
   private final @Nullable LastCredentialGuard guard;
+  private final LastAdminGuard lastAdmin;
   private final WhoSessionSecurityContextRepository sessions;
   private final WhoExceptionHandoff handoff;
   private final JsonMapper jsonMapper;
@@ -70,6 +72,8 @@ public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
    *     show no addresses and refuse a search by address
    * @param guard counts each identity's sign-in credentials; null when there is none, when the
    *     counts are empty
+   * @param lastAdmin keeps deactivations and role removals from leaving no one who may manage
+   *     identities
    * @param sessions tells a browser session from a bearer token or an API key, and reads its
    *     sign-in time
    * @param handoff answers errors through the application's exception handling
@@ -84,6 +88,7 @@ public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
       RbacService rbac,
       @Nullable IdentityEmails emails,
       @Nullable LastCredentialGuard guard,
+      LastAdminGuard lastAdmin,
       WhoSessionSecurityContextRepository sessions,
       WhoExceptionHandoff handoff,
       JsonMapper jsonMapper,
@@ -95,6 +100,7 @@ public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
     this.rbac = requireNonNull(rbac, "rbac must not be null");
     this.emails = emails;
     this.guard = guard;
+    this.lastAdmin = requireNonNull(lastAdmin, "lastAdmin must not be null");
     this.sessions = requireNonNull(sessions, "sessions must not be null");
     this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
@@ -118,6 +124,7 @@ public class WhoAdminEndpoints implements BrowserEndpoints, StatelessEndpoints {
             rbac,
             emails,
             guard,
+            lastAdmin,
             new AdminGate(sessions, handoff, clock, recentSignIn),
             jsonMapper),
         ExceptionTranslationFilter.class);

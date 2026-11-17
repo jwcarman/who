@@ -80,8 +80,10 @@ import tools.jackson.databind.json.JsonMapper;
  * body is looked at. Then an unknown identity, an id that is not a UUID and an unknown role are
  * {@code 404}. A change to an identity other than the caller's own that holds a permission the
  * caller does not, as who resolves its permissions whatever its status, is {@code 403} {@link
- * IdentityOutranksCallerException}, checked before the role-grant rule and before the body. A query
- * or body who refuses is {@code 400}.
+ * IdentityOutranksCallerException}, checked before the role-grant rule and before the body. A
+ * deactivation or role removal that would leave no active identity holding {@link
+ * WhoAdminPermissions#IDENTITIES_MANAGE} is {@code 409} {@link LastAdminException} (see {@link
+ * LastAdminGuard}). A query or body who refuses is {@code 400}.
  */
 final class IdentitiesFilter extends OncePerRequestFilter {
 
@@ -104,6 +106,7 @@ final class IdentitiesFilter extends OncePerRequestFilter {
   private final RbacService rbac;
   private final @Nullable IdentityEmails emails;
   private final @Nullable LastCredentialGuard guard;
+  private final LastAdminGuard lastAdmin;
   private final AdminGate gate;
   private final JsonMapper jsonMapper;
 
@@ -114,6 +117,7 @@ final class IdentitiesFilter extends OncePerRequestFilter {
       RbacService rbac,
       @Nullable IdentityEmails emails,
       @Nullable LastCredentialGuard guard,
+      LastAdminGuard lastAdmin,
       AdminGate gate,
       JsonMapper jsonMapper) {
     requireNonNull(paths, "paths must not be null");
@@ -129,6 +133,7 @@ final class IdentitiesFilter extends OncePerRequestFilter {
     this.rbac = requireNonNull(rbac, "rbac must not be null");
     this.emails = emails;
     this.guard = guard;
+    this.lastAdmin = requireNonNull(lastAdmin, "lastAdmin must not be null");
     this.gate = requireNonNull(gate, "gate must not be null");
     this.jsonMapper = requireNonNull(jsonMapper, "jsonMapper must not be null");
   }
@@ -165,6 +170,7 @@ final class IdentitiesFilter extends OncePerRequestFilter {
         | SelfDeactivationException
         | RoleGrantForbiddenException
         | IdentityOutranksCallerException
+        | LastAdminException
         | InvalidAdminRequestException e) {
       // each carries its own status
       gate.refuse(request, response, e);
@@ -197,12 +203,33 @@ final class IdentitiesFilter extends OncePerRequestFilter {
       Identity identity = identity(unassign, request);
       Role role = role(unassign, request);
       requireNotOutranked(caller, identity);
-      try {
-        rbac.removeRoleFromIdentity(identity, role);
-      } catch (IllegalArgumentException _) {
-        // not assigned, or no longer: removing it is done either way
-      }
+      removeRole(identity, role);
       response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+    }
+  }
+
+  /**
+   * Removes the role; not assigned is done. A role that carries the manage permission is removed
+   * through {@link LastAdminGuard}, whose lock on that role also serializes two removals of it, so
+   * the check that it is still assigned holds until the removal.
+   */
+  private void removeRole(Identity identity, Role role) {
+    if (rbac.findPermissions(role).contains(WhoAdminPermissions.IDENTITIES_MANAGE)) {
+      lastAdmin.removeRole(
+          identity.id(),
+          role.id(),
+          () -> {
+            if (rbac.findRolesForIdentity(identity.id()).contains(role)) {
+              rbac.removeRoleFromIdentity(identity, role);
+            }
+            return Boolean.TRUE;
+          });
+      return;
+    }
+    try {
+      rbac.removeRoleFromIdentity(identity, role);
+    } catch (IllegalArgumentException _) {
+      // not assigned, or no longer: removing it is done either way
     }
   }
 
@@ -276,7 +303,7 @@ final class IdentitiesFilter extends OncePerRequestFilter {
             if (id.equals(callerId)) {
               throw new SelfDeactivationException();
             }
-            yield whoService.deactivate(id);
+            yield lastAdmin.deactivate(id, () -> whoService.deactivate(id));
           }
           default -> throw new InvalidAdminRequestException("status must be ACTIVE or DISABLED");
         };

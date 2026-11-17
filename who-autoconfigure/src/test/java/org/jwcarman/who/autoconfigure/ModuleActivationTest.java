@@ -17,6 +17,8 @@ package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Set;
+
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -25,12 +27,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.admin.IdentityEmails;
+import org.jwcarman.who.admin.LastAdminGuard;
 import org.jwcarman.who.admin.WhoAdminEndpoints;
 import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
+import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkSender;
@@ -305,6 +309,40 @@ class ModuleActivationTest {
                 assertThat(context).hasSingleBean(InvitationService.class);
               });
     }
+
+    @Test
+    void the_last_admin_rule_enforces_with_who_rbac_permissions() {
+      configured.run(
+          context -> assertThat(context.getBean(LastAdminGuard.class).isEnforcing()).isTrue());
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void the_last_admin_rule_is_off_and_says_so_with_permissions_of_the_apps_own(
+        CapturedOutput output) {
+      configured
+          .withUserConfiguration(AppPermissions.class)
+          .run(
+              context -> {
+                assertThat(context).hasNotFailed();
+                assertThat(context.getBean(LastAdminGuard.class).isEnforcing()).isFalse();
+              });
+      assertThat(output).contains("who: the last-admin rule is off");
+    }
+
+    @Test
+    void two_transaction_managers_and_no_primary_fail_startup_naming_the_last_admin_guard() {
+      configured
+          // nothing else here needs the last-credential guard
+          .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
+          .withUserConfiguration(SecondTransactionManager.class)
+          .run(
+              context -> {
+                assertThat(context).hasFailed();
+                assertThat(Last_credential_guard.messages(context.getStartupFailure()))
+                    .contains("LastAdminGuard");
+              });
+    }
   }
 
   @Nested
@@ -531,7 +569,7 @@ class ModuleActivationTest {
     }
 
     /** Every message in the failure's cause chain. */
-    private static String messages(Throwable failure) {
+    static String messages(Throwable failure) {
       StringBuilder messages = new StringBuilder();
       for (Throwable t = failure; t != null; t = t.getCause()) {
         messages.append(t.getMessage()).append('\n');
@@ -570,6 +608,16 @@ class ModuleActivationTest {
     @Bean
     PlatformTransactionManager transactionManager(DataSource dataSource) {
       return new DataSourceTransactionManager(dataSource);
+    }
+  }
+
+  /** The application's own permissions, in place of who-rbac's. */
+  @Configuration(proxyBeanMethods = false)
+  static class AppPermissions {
+    @Bean
+    @Primary
+    PermissionsResolver appPermissions() {
+      return identity -> Set.of();
     }
   }
 

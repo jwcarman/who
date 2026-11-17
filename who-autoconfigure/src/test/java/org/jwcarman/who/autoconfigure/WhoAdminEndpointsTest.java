@@ -567,4 +567,36 @@ class WhoAdminEndpointsTest {
           .isEqualTo(IdentityStatus.ACTIVE);
     }
   }
+
+  @Nested
+  class Last_admin {
+
+    private String adminRole(Identity identity) {
+      return "/who/identities/" + identity.id() + "/roles/" + ADMIN_ROLE;
+    }
+
+    @Test
+    void the_last_admin_cannot_remove_their_own_admin_role() throws Exception {
+      HttpResponse<String> response = asAlice("DELETE", adminRole(alice), null);
+
+      assertThat(response.statusCode()).isEqualTo(409);
+      assertThat(response.headers().firstValue("Who-Error")).contains("last-admin");
+      assertThat(rbacService.findRolesForIdentity(alice.id())).contains(adminRole);
+    }
+
+    @Test
+    void with_another_admin_one_may_step_down_or_be_deactivated() throws Exception {
+      rbacService.assignRoleToIdentity(bob, adminRole);
+
+      assertThat(asAlice("PATCH", "/who/identities/" + bob.id(), status("DISABLED")).statusCode())
+          .isEqualTo(200);
+      // bob no longer counts: alice is the last again
+      assertThat(asAlice("DELETE", adminRole(alice), null).statusCode()).isEqualTo(409);
+
+      assertThat(asAlice("PATCH", "/who/identities/" + bob.id(), status("ACTIVE")).statusCode())
+          .isEqualTo(200);
+      assertThat(asAlice("DELETE", adminRole(alice), null).statusCode()).isEqualTo(204);
+      assertThat(rbacService.findRolesForIdentity(alice.id())).doesNotContain(adminRole);
+    }
+  }
 }

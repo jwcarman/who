@@ -97,6 +97,7 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `unknown-role` | `UnknownRoleException` |
 | `invalid-admin-request` | `InvalidAdminRequestException` |
 | `self-deactivation` | `SelfDeactivationException` |
+| `last-admin` | `LastAdminException` |
 | `invalid-invitation` | `InvalidInvitationException` |
 
 The codes are a public contract and do not change between releases. Each exception returns its code from `errorCode()`: the `WhoErrorCode` interface, or, for `LastCredentialException`, which lives in `who-core` without Spring, a method of its own.

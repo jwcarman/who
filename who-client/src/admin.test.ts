@@ -125,6 +125,7 @@ describe("admin.identities.setStatus", () => {
     [404, "identity-not-found", "identity-not-found"],
     [400, "invalid-admin-request", "invalid-admin-request"],
     [409, "self-deactivation", "self-deactivation"],
+    [409, "last-admin", "last-admin"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.patch(at("/who/identities/i1"), () => refused(status, code)));
 
@@ -189,6 +190,7 @@ describe("admin.identities.removeRole", () => {
     [403, "identity-outranks-caller", "identity-outranks-caller"],
     [404, "identity-not-found", "identity-not-found"],
     [404, "unknown-role", "unknown-role"],
+    [409, "last-admin", "last-admin"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.delete(at("/who/identities/i1/roles/admin"), () => refused(status, code)));
 

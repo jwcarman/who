@@ -19,27 +19,37 @@ import java.time.Clock;
 
 import org.jwcarman.who.admin.EmailLinkIdentityEmails;
 import org.jwcarman.who.admin.IdentityEmails;
+import org.jwcarman.who.admin.LastAdminGuard;
 import org.jwcarman.who.admin.WhoAdminEndpoints;
+import org.jwcarman.who.admin.WhoAdminPermissions;
 import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.InvitationService;
+import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -64,9 +74,42 @@ import tools.jackson.databind.json.JsonMapper;
 @ConditionalOnBooleanProperty(name = "who.admin.enabled", matchIfMissing = true)
 public class WhoAdminAutoConfiguration {
 
+  private static final Logger log = LoggerFactory.getLogger(WhoAdminAutoConfiguration.class);
+
   /** Creates the autoconfiguration; Spring Boot calls it. */
   public WhoAdminAutoConfiguration() {
     // nothing to set up: every bean is built by a method below
+  }
+
+  /**
+   * Keeps the admin endpoints from leaving no active identity that may manage identities. It counts
+   * who-rbac's role holders, so it enforces the rule only when the application's permissions come
+   * from who-rbac; with a {@link PermissionsResolver} of the application's own it refuses nothing,
+   * and says so at startup. It needs a single {@link PlatformTransactionManager}: without one the
+   * admin endpoints, which require it, fail startup rather than run without the rule.
+   *
+   * @param jdbcClient reads who-rbac's tables and takes the locks
+   * @param transactionManager runs each count and change in one transaction
+   * @param permissionsResolver the application's resolver, which says whether holders can be
+   *     counted
+   * @return the guard
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnSingleCandidate(PlatformTransactionManager.class)
+  public LastAdminGuard whoLastAdminGuard(
+      JdbcClient jdbcClient,
+      PlatformTransactionManager transactionManager,
+      PermissionsResolver permissionsResolver) {
+    boolean enforcing = permissionsResolver instanceof RbacPermissionsResolver;
+    if (!enforcing) {
+      log.warn(
+          "who: the last-admin rule is off: permissions come from {}, not who-rbac, so who cannot"
+              + " tell who holds {}",
+          permissionsResolver.getClass().getName(),
+          WhoAdminPermissions.IDENTITIES_MANAGE);
+    }
+    return new LastAdminGuard(jdbcClient, new TransactionTemplate(transactionManager), enforcing);
   }
 
   /**
@@ -79,6 +122,7 @@ public class WhoAdminAutoConfiguration {
    * @param rbacService reads, assigns and removes roles
    * @param emails the identities' addresses, when email sign-in is on
    * @param guard counts each identity's sign-in credentials, if there is one
+   * @param lastAdmin keeps the last identity that may manage identities
    * @param sessionRepository tells a browser session from a key or a token
    * @param handoff the application's exception handling, if it has who's handoff
    * @param jsonMapper the application's JSON mapper, if it has one
@@ -95,6 +139,7 @@ public class WhoAdminAutoConfiguration {
       RbacService rbacService,
       ObjectProvider<IdentityEmails> emails,
       ObjectProvider<LastCredentialGuard> guard,
+      LastAdminGuard lastAdmin,
       WhoSessionSecurityContextRepository sessionRepository,
       ObjectProvider<WhoExceptionHandoff> handoff,
       ObjectProvider<JsonMapper> jsonMapper,
@@ -107,6 +152,7 @@ public class WhoAdminAutoConfiguration {
         rbacService,
         emails.getIfAvailable(),
         guard.getIfAvailable(),
+        lastAdmin,
         sessionRepository,
         handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
         jsonMapper.getIfAvailable(JsonMapper::new),

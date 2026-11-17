@@ -72,6 +72,30 @@ checked, in this order, before anything changes:
 2. Assigning a role the caller could not hold: `403` `role-grant-forbidden` (see
    [Roles](#roles)).
 3. Deactivating yourself: `409` `self-deactivation`.
+4. Leaving no admin: `409` `LastAdminException` (`last-admin`), described next.
+
+### The last admin
+
+Deactivating an identity, or removing a role from one, is refused with `409`
+`LastAdminException` (`last-admin`) when it would leave no `ACTIVE` identity holding
+`who.identities.manage`. That covers removing your own admin role when no one else holds it, and
+deactivating the only other holder. It applies only to a change from one or more holders to none:
+when no one holds the permission, nothing is refused.
+
+The count and the change run in one transaction that first locks the `who_role` rows of every role
+carrying `who.identities.manage` (`SELECT ... FOR UPDATE`), so two changes cannot both count before
+either commits: two admins demoting each other at the same moment leave one admin, not none. A
+concurrent assignment of one of those roles waits for the lock. `LastAdminGuard` is the bean that
+does this; it needs exactly one `PlatformTransactionManager`, and without one the admin endpoints
+fail startup rather than run without the rule.
+
+who counts holders from who-rbac's tables, the active identities assigned a role that carries the
+permission, because that is who holds it when who-rbac resolves permissions. With a
+`PermissionsResolver` of your own (marked `@Primary` over who-rbac's), who cannot tell who holds
+the permission, so the rule refuses nothing rather than refuse on a count it cannot trust, and who
+logs a warning at startup: `who: the last-admin rule is off`. Keep an admin of your own in that
+case. Changes made in your own code through `RbacService` or `WhoService.deactivate` are not
+checked.
 
 | Endpoint | Permission | Success |
 |---|---|---|

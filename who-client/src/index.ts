@@ -28,6 +28,7 @@ export type {
   IdentityStatus,
   InvalidAdminRequest,
   Invitation,
+  LastAdmin,
   PermissionRequired,
   RoleGrantForbidden,
 } from "./admin.js";

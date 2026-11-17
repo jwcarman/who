@@ -83,6 +83,9 @@ export type RoleGrantForbidden = "role-grant-forbidden";
 /** The identity holds a permission the caller does not, so the caller may not change it (`403`). */
 export type IdentityOutranksCaller = "identity-outranks-caller";
 
+/** The change would leave no active identity that may manage identities (`409`). */
+export type LastAdmin = "last-admin";
+
 /** A query or body who refuses (`400`). */
 export type InvalidAdminRequest = "invalid-admin-request";
 
@@ -101,7 +104,8 @@ export interface AdminIdentities<D> {
   /**
    * Reactivates (`ACTIVE`) or deactivates (`DISABLED`) an identity, answering it. Needs
    * `who.identities.manage` and every permission the identity holds (`"identity-outranks-caller"`);
-   * you cannot deactivate yourself (`"self-deactivation"`).
+   * you cannot deactivate yourself (`"self-deactivation"`), nor the last identity that may manage
+   * identities (`"last-admin"`).
    */
   setStatus(
     id: string,
@@ -109,7 +113,12 @@ export interface AdminIdentities<D> {
   ): Promise<
     WhoResult<
       AdminIdentity,
-      AdminChangeFailure | IdentityOutranksCaller | "identity-not-found" | InvalidAdminRequest | "self-deactivation",
+      | AdminChangeFailure
+      | IdentityOutranksCaller
+      | "identity-not-found"
+      | InvalidAdminRequest
+      | "self-deactivation"
+      | LastAdmin,
       D
     >
   >;
@@ -129,12 +138,15 @@ export interface AdminIdentities<D> {
   >;
   /**
    * Removes a role; not held is done. Needs `who.identities.manage` and every permission the
-   * identity holds.
+   * identity holds; the last identity that may manage identities keeps the role that lets it
+   * (`"last-admin"`).
    */
   removeRole(
     id: string,
     role: string,
-  ): Promise<WhoResult<void, AdminChangeFailure | IdentityOutranksCaller | "identity-not-found" | "unknown-role", D>>;
+  ): Promise<
+    WhoResult<void, AdminChangeFailure | IdentityOutranksCaller | "identity-not-found" | "unknown-role" | LastAdmin, D>
+  >;
 }
 
 /** The roles that exist (`client.admin.roles`). */
@@ -245,13 +257,14 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
             | "identity-not-found"
             | InvalidAdminRequest
             | "self-deactivation"
+            | LastAdmin
             | undefined => {
             if (answered === 404) {
               return "identity-not-found";
             }
             if (answered === 409) {
-              // who's only conflict here; one it does not name is unexpected
-              return code === "self-deactivation" ? code : undefined;
+              // who's only conflicts here; one it does not name is unexpected
+              return code === "self-deactivation" || code === "last-admin" ? code : undefined;
             }
             return outranked(answered, code) ?? change(answered, code) ?? invalid(answered);
           },
@@ -271,7 +284,11 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
           method: "DELETE",
           path: rolePath(id, role),
           read: nothing,
-          reason: (status, code) => outranked(status, code) ?? change(status, code) ?? roleNotFound(status, code),
+          reason: (status, code) =>
+            outranked(status, code) ??
+            change(status, code) ??
+            roleNotFound(status, code) ??
+            (status === 409 && code === "last-admin" ? code : undefined),
         }),
     },
     roles: {

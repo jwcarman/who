@@ -70,6 +70,7 @@ import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContext;
@@ -299,6 +300,10 @@ class IdentitiesFilterTest {
         rbac,
         withEmails,
         withGuard,
+        new LastAdminGuard(
+            mock(JdbcClient.class),
+            new TransactionTemplate(mock(PlatformTransactionManager.class)),
+            false),
         new AdminGate(sessions, new WhoExceptionHandoff(null), clock, RECENT),
         JSON);
   }
