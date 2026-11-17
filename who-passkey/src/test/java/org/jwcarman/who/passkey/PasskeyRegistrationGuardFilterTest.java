@@ -49,6 +49,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.service.WhoSessions;
+import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
@@ -163,6 +164,23 @@ class PasskeyRegistrationGuardFilterTest {
     assertThat(reachedChain).isTrue();
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.getContentAsString()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {OPTIONS, REGISTER})
+  void an_api_key_is_not_a_browser_session(String path) throws ServletException, IOException {
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new WhoAuthenticationToken(
+                new WhoPrincipal(Identity.create(IdentityStatus.ACTIVE), Set.of()),
+                UUID.randomUUID(),
+                SignInMethod.API_KEY));
+
+    guard.doFilter(post(path), response, passing);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
+    assertThat(reachedChain).isFalse();
   }
 
   @Test

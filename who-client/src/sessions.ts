@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { SignInRequired, WhoResult } from "./result.js";
+import { browserSessionRequired, json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { BrowserSessionRequired, SignInRequired, WhoResult } from "./result.js";
 
 /**
  * One browser this person is signed in on. The id is who's own, never the session cookie, so the
@@ -31,32 +31,45 @@ export interface Session {
   current: boolean;
 }
 
-/** Where you are signed in, and signing browsers out (`client.me.sessions`). */
+/**
+ * Where you are signed in, and signing browsers out (`client.me.sessions`). Only a browser session
+ * on its own may call them (`"browser-session-required"` otherwise).
+ */
 export interface Sessions<D> {
   /** Where this person is signed in, newest first. */
-  list(): Promise<WhoResult<Session[], "signed-out", D>>;
+  list(): Promise<WhoResult<Session[], "signed-out" | BrowserSessionRequired, D>>;
   /** Signs one browser out. This browser's own session ends at once; another needs a recent sign-in. */
-  end(id: string): Promise<WhoResult<void, SignInRequired | "not-found", D>>;
+  end(id: string): Promise<WhoResult<void, SignInRequired | BrowserSessionRequired | "not-found", D>>;
   /** Signs out every browser but this one; needs a recent sign-in. */
-  endOthers(): Promise<WhoResult<{ ended: number }, SignInRequired, D>>;
+  endOthers(): Promise<WhoResult<{ ended: number }, SignInRequired | BrowserSessionRequired, D>>;
+}
+
+function browserOnly(status: number, code: string | null): SignInRequired | BrowserSessionRequired | undefined {
+  return signInRequired(status, code) ?? browserSessionRequired(status, code);
 }
 
 export function sessions<D>(http: WhoHttp<D>): Sessions<D> {
   return {
-    list: () => http.call({ method: "GET", path: "/me/sessions", read: json<Session[]>(), reason: signedOut }),
+    list: () =>
+      http.call({
+        method: "GET",
+        path: "/me/sessions",
+        read: json<Session[]>(),
+        reason: (status, code) => signedOut(status) ?? browserSessionRequired(status, code),
+      }),
     end: (id) =>
       http.call({
         method: "DELETE",
         path: `/me/sessions/${encodeURIComponent(id)}`,
         read: nothing,
-        reason: (status, code) => signInRequired(status, code) ?? (status === 404 ? "not-found" : undefined),
+        reason: (status, code) => browserOnly(status, code) ?? (status === 404 ? "not-found" : undefined),
       }),
     endOthers: () =>
       http.call({
         method: "DELETE",
         path: "/me/sessions?others=true",
         read: json<{ ended: number }>(),
-        reason: signInRequired,
+        reason: browserOnly,
       }),
   };
 }

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { SignInRequired, WhoResult } from "./result.js";
+import { browserSessionRequired, json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { BrowserSessionRequired, SignInRequired, WhoResult } from "./result.js";
 
 /** One of your API keys, as lists show it: never its secret. */
 export interface ApiKey {
@@ -50,15 +50,26 @@ export interface ApiKeyRequest {
 /** A body, lifetime, overlap, name or scope who refuses (`400`). */
 export type InvalidApiKeyRequest = "invalid-api-key-request";
 
+/** A request an API key signed in may not manage keys, so a key never mints keys (`403`). */
+export type ApiKeyCannotManageKeys = "api-key-cannot-manage-keys";
+
+/**
+ * Who may not manage keys: a request an API key signed in (`"api-key-cannot-manage-keys"`), and a
+ * session cookie sent with an API key or a bearer token beside it (`"browser-session-required"`).
+ */
+export type ApiKeyCallerRefused = ApiKeyCannotManageKeys | BrowserSessionRequired;
+
 /**
  * Your API keys (`client.me.apiKeys`). A browser session or a bearer token may manage them; a
  * request an API key signed in may not, so a key never mints keys.
  */
 export interface ApiKeys<D> {
   /** Your keys, by name. */
-  list(): Promise<WhoResult<ApiKey[], "signed-out", D>>;
+  list(): Promise<WhoResult<ApiKey[], "signed-out" | ApiKeyCallerRefused, D>>;
   /** Makes a key, answering its secret once. A browser needs a recent sign-in. */
-  create(request: ApiKeyRequest): Promise<WhoResult<NewApiKey, SignInRequired | InvalidApiKeyRequest, D>>;
+  create(
+    request: ApiKeyRequest,
+  ): Promise<WhoResult<NewApiKey, SignInRequired | ApiKeyCallerRefused | InvalidApiKeyRequest, D>>;
   /**
    * Replaces one of your keys with a new one, answering its secret once; the old key keeps working
    * for `overlap` (an ISO-8601 duration such as `PT1H`). A browser needs a recent sign-in.
@@ -66,9 +77,9 @@ export interface ApiKeys<D> {
   rotate(
     id: string,
     overlap: string,
-  ): Promise<WhoResult<NewApiKey, SignInRequired | "not-found" | InvalidApiKeyRequest, D>>;
+  ): Promise<WhoResult<NewApiKey, SignInRequired | ApiKeyCallerRefused | "not-found" | InvalidApiKeyRequest, D>>;
   /** Revokes one of your keys; another identity's is `"not-found"`. */
-  revoke(id: string): Promise<WhoResult<void, "signed-out" | "not-found", D>>;
+  revoke(id: string): Promise<WhoResult<void, "signed-out" | ApiKeyCallerRefused | "not-found", D>>;
   /** The key that signed this request in; `"not-found"` when no API key did. */
   current(): Promise<WhoResult<ApiKey, "signed-out" | "not-found", D>>;
 }
@@ -81,16 +92,26 @@ function signedOutOrNotFound(status: number): "signed-out" | "not-found" | undef
   return signedOut(status) ?? (status === 404 ? "not-found" : undefined);
 }
 
+function callerRefused(status: number, code: string | null): ApiKeyCallerRefused | undefined {
+  return status === 403 && code === "api-key-cannot-manage-keys" ? code : browserSessionRequired(status, code);
+}
+
 export function apiKeys<D>(http: WhoHttp<D>): ApiKeys<D> {
   return {
-    list: () => http.call({ method: "GET", path: "/me/api-keys", read: json<ApiKey[]>(), reason: signedOut }),
+    list: () =>
+      http.call({
+        method: "GET",
+        path: "/me/api-keys",
+        read: json<ApiKey[]>(),
+        reason: (status, code) => signedOut(status) ?? callerRefused(status, code),
+      }),
     create: (request) =>
       http.call({
         method: "POST",
         path: "/me/api-keys",
         body: { name: request.name, lifetime: request.lifetime, scopes: request.scopes },
         read: json<NewApiKey>(),
-        reason: (status, code) => signInRequired(status, code) ?? invalidRequest(status),
+        reason: (status, code) => signInRequired(status, code) ?? callerRefused(status, code) ?? invalidRequest(status),
       }),
     rotate: (id, overlap) =>
       http.call({
@@ -98,15 +119,17 @@ export function apiKeys<D>(http: WhoHttp<D>): ApiKeys<D> {
         path: `/me/api-keys/${encodeURIComponent(id)}/rotations`,
         body: { overlap },
         read: json<NewApiKey>(),
-        reason: (status, code): SignInRequired | "not-found" | InvalidApiKeyRequest | undefined =>
-          signInRequired(status, code) ?? (status === 404 ? "not-found" : invalidRequest(status)),
+        reason: (status, code): SignInRequired | ApiKeyCallerRefused | "not-found" | InvalidApiKeyRequest | undefined =>
+          signInRequired(status, code) ??
+          callerRefused(status, code) ??
+          (status === 404 ? "not-found" : invalidRequest(status)),
       }),
     revoke: (id) =>
       http.call({
         method: "DELETE",
         path: `/me/api-keys/${encodeURIComponent(id)}`,
         read: nothing,
-        reason: signedOutOrNotFound,
+        reason: (status, code) => signedOutOrNotFound(status) ?? callerRefused(status, code),
       }),
     current: () =>
       http.call({ method: "GET", path: "/me/api-keys/current", read: json<ApiKey>(), reason: signedOutOrNotFound }),

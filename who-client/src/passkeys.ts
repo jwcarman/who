@@ -15,9 +15,18 @@
  */
 import { decode, encode } from "./base64url.js";
 import type { SignedIn } from "./email.js";
-import { json, nothing, removeCredential, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import {
+  browserSessionRequired,
+  json,
+  nothing,
+  removeCredential,
+  signedOut,
+  signInRequired,
+  type WhoHttp,
+} from "./http.js";
 import type {
   AlreadyRegistered,
+  BrowserSessionRequired,
   Cancelled,
   LastCredential,
   PromptFailure,
@@ -42,20 +51,27 @@ export interface Passkey {
   lastUsedAt: string | null;
 }
 
-/** Your passkeys: listing, registering and removing them (`client.me.passkeys`). */
+/**
+ * Your passkeys: listing, registering and removing them (`client.me.passkeys`). Only a browser
+ * session on its own may call them (`"browser-session-required"` otherwise).
+ */
 export interface MyPasskeys<D> {
   /** Your passkeys, oldest first. */
-  list(): Promise<WhoResult<Passkey[], "signed-out", D>>;
+  list(): Promise<WhoResult<Passkey[], "signed-out" | BrowserSessionRequired, D>>;
   /**
    * Registers a new passkey under `label`. Needs a recent sign-in; who answers that before the
    * browser is asked anything.
    */
-  register(label: string): Promise<WhoResult<void, SignInRequired | "rejected", D> | Cancelled | AlreadyRegistered>;
+  register(
+    label: string,
+  ): Promise<WhoResult<void, SignInRequired | BrowserSessionRequired | "rejected", D> | Cancelled | AlreadyRegistered>;
   /**
    * Removes one of your passkeys by its credential id. Needs a recent sign-in; another identity's
    * passkey is `"not-found"`, and your last sign-in credential is `"last-credential"`.
    */
-  remove(credentialId: string): Promise<WhoResult<void, SignInRequired | "not-found" | LastCredential, D>>;
+  remove(
+    credentialId: string,
+  ): Promise<WhoResult<void, SignInRequired | BrowserSessionRequired | "not-found" | LastCredential, D>>;
 }
 
 /** A credential id as WebAuthn's JSON carries it. */
@@ -165,14 +181,21 @@ export function passkeys<D>(http: WhoHttp<D>): Passkeys<D> {
 
 export function myPasskeys<D>(http: WhoHttp<D>): MyPasskeys<D> {
   return {
-    list: () => http.call({ method: "GET", path: "/me/passkeys", read: json<Passkey[]>(), reason: signedOut }),
+    list: () =>
+      http.call({
+        method: "GET",
+        path: "/me/passkeys",
+        read: json<Passkey[]>(),
+        reason: (status, code) => signedOut(status) ?? browserSessionRequired(status, code),
+      }),
 
     register: async (label) => {
       const options = await http.call({
         method: "POST",
         path: "/me/passkeys/options",
         read: json<CreationOptionsJson>(),
-        reason: signInRequired,
+        reason: (status, code): SignInRequired | BrowserSessionRequired | undefined =>
+          signInRequired(status, code) ?? browserSessionRequired(status, code),
       });
       if (!options.ok) {
         return options;
@@ -215,8 +238,10 @@ export function myPasskeys<D>(http: WhoHttp<D>): MyPasskeys<D> {
           },
         },
         read: nothing,
-        reason: (status, code): SignInRequired | "rejected" | undefined =>
-          signInRequired(status, code) ?? (status === 400 ? "rejected" : undefined),
+        reason: (status, code): SignInRequired | BrowserSessionRequired | "rejected" | undefined =>
+          signInRequired(status, code) ??
+          browserSessionRequired(status, code) ??
+          (status === 400 ? "rejected" : undefined),
       });
     },
 

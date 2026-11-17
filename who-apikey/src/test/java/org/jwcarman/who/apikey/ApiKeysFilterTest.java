@@ -714,6 +714,9 @@ class ApiKeysFilterTest {
         MockHttpServletResponse response =
             sendAs(SignInMethod.API_KEY, own.id(), alice, r[0], r[1], r[2]);
         assertThat(response.getStatus()).as(r[0] + " " + r[1]).isEqualTo(403);
+        assertThat(response.getHeader("Who-Error"))
+            .as(r[0] + " " + r[1])
+            .isEqualTo("api-key-cannot-manage-keys");
       }
       assertThat(service.findByIdentity(alice.id())).hasSize(2);
       assertThat(signsIn(other.key())).isTrue();
@@ -730,7 +733,10 @@ class ApiKeysFilterTest {
               new WhoPrincipal(alice, Set.of()), own.id(), SignInMethod.API_KEY));
       SecurityContextHolder.setContext(context);
 
-      assertThat(filter(request).getStatus()).isEqualTo(403);
+      MockHttpServletResponse response = filter(request);
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("api-key-cannot-manage-keys");
     }
 
     @Test

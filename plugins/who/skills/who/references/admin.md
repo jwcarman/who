@@ -76,7 +76,8 @@ Every admin endpoint checks, in this order, before it looks at anything the requ
 Then an unknown identity or role is `404`, and a query or body who refuses is `400`
 (`InvalidAdminRequestException`, which names the rule broken). A session cookie with an `X-API-Key`
 or `Authorization: Bearer` header beside it is neither a browser session nor a stateless caller:
-it may read, but a change from it is `403`, even when the header is ignored.
+it may read, but a change from it is `403` `BrowserSessionRequiredException`
+(`Who-Error: browser-session-required`), even when the header is ignored: send the cookie alone.
 
 ### Changing an identity
 

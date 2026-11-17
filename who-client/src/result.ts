@@ -47,6 +47,13 @@ export type AlreadyRegistered = PromptFailure<"already-registered">;
 export type SignInRequired = "signed-out" | "reauthentication-required" | "sign-in-required";
 
 /**
+ * The call needs a browser session on its own (`403`, `Who-Error: browser-session-required`): who
+ * refused a bearer token or an API key, or a session cookie sent with one beside it. Send the
+ * cookie alone.
+ */
+export type BrowserSessionRequired = "browser-session-required";
+
+/**
  * Removing the credential would leave the identity no way to sign in: who keeps an identity's last
  * email address, passkey or linked account (`409`, `Who-Error: last-credential`).
  */

@@ -13,7 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { type LastCredential, type SignInRequired, WhoError, type WhoResult } from "./result.js";
+import {
+  type BrowserSessionRequired,
+  type LastCredential,
+  type SignInRequired,
+  WhoError,
+  type WhoResult,
+} from "./result.js";
 
 /** How a client is made. */
 export interface WhoClientOptions<D> {
@@ -79,22 +85,28 @@ export function signedOut(status: number): "signed-out" | undefined {
   return status === 401 ? "signed-out" : undefined;
 }
 
+/** A 403 who names `browser-session-required`: the call needs a browser session on its own. */
+export function browserSessionRequired(status: number, code: string | null): BrowserSessionRequired | undefined {
+  return status === 403 && code === "browser-session-required" ? code : undefined;
+}
+
 /**
  * The reasons removing one of your sign-in credentials (a passkey, an email address, a linked
- * account) can fail: it needs a recent sign-in, the id is not one of yours, or it is your last,
- * which who names `last-credential` in `Who-Error`. A 409 that does not say so is unexpected.
+ * account) can fail: it needs a recent sign-in from a browser session on its own, the id is not one
+ * of yours, or it is your last, which who names `last-credential` in `Who-Error`. A 409 that does
+ * not say so is unexpected.
  */
 export function removeCredential(
   status: number,
   code: string | null,
-): SignInRequired | "not-found" | LastCredential | undefined {
+): SignInRequired | BrowserSessionRequired | "not-found" | LastCredential | undefined {
   if (status === 404) {
     return "not-found";
   }
   if (status === 409) {
     return code === "last-credential" ? code : undefined;
   }
-  return signInRequired(status, code);
+  return signInRequired(status, code) ?? browserSessionRequired(status, code);
 }
 
 /** The default `decodeError`: a JSON body, or undefined. */

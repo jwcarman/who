@@ -32,7 +32,15 @@ export type {
   PermissionRequired,
   RoleGrantForbidden,
 } from "./admin.js";
-export type { ApiKey, ApiKeyRequest, ApiKeys, InvalidApiKeyRequest, NewApiKey } from "./apiKeys.js";
+export type {
+  ApiKey,
+  ApiKeyCallerRefused,
+  ApiKeyCannotManageKeys,
+  ApiKeyRequest,
+  ApiKeys,
+  InvalidApiKeyRequest,
+  NewApiKey,
+} from "./apiKeys.js";
 export { createWhoClient, type SignInOptions, type SignInProvider, type WhoClient } from "./client.js";
 export type {
   ConfirmAddressFailure,
@@ -51,6 +59,7 @@ export type { Accounts, LinkedAccount, Oidc, PendingSignUp } from "./oidc.js";
 export type { MyPasskeys, Passkey, Passkeys } from "./passkeys.js";
 export {
   type AlreadyRegistered,
+  type BrowserSessionRequired,
   type Cancelled,
   type LastCredential,
   type PromptFailure,

@@ -38,6 +38,7 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.BrowserSessionRequiredException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -74,11 +75,12 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>A browser session (a who session cookie with no API key or bearer token beside it) or a bearer
  * token may manage keys. A browser needs a recent sign-in to make or rotate one; a bearer token
- * does not. A request an API key signed in is {@code 403} everywhere but {@code /current}, so a key
- * never mints, lists or revokes keys; {@code /current} without an API key is {@code 404}. A
- * signed-out request is {@code 401}. A key that does not exist and one that belongs to someone else
- * are both {@code 404}, the same answer. A body, lifetime, overlap, name or scope who refuses is
- * {@code 400}.
+ * does not. A request an API key signed in is {@code 403} {@link ApiKeyCannotManageKeysException}
+ * everywhere but {@code /current}, so a key never mints, lists or revokes keys; a session cookie
+ * with an API key or bearer token beside it is {@code 403} {@link BrowserSessionRequiredException};
+ * {@code /current} without an API key is {@code 404}. A signed-out request is {@code 401}. A key
+ * that does not exist and one that belongs to someone else are both {@code 404}, the same answer. A
+ * body, lifetime, overlap, name or scope who refuses is {@code 400}.
  */
 final class ApiKeysFilter extends OncePerRequestFilter {
 
@@ -147,13 +149,10 @@ final class ApiKeysFilter extends OncePerRequestFilter {
       current(request, response, token);
       return;
     }
-    Optional<Caller> caller = caller(request, token);
+    WhoCaller who = sessions.caller(request, token);
+    Optional<Caller> caller = caller(token, who);
     if (caller.isEmpty()) {
-      handoff.handOff(
-          request,
-          response,
-          new AccessDeniedException("Only a browser session or a bearer token can manage API keys"),
-          HttpStatus.FORBIDDEN);
+      handoff.handOff(request, response, refusal(who), HttpStatus.FORBIDDEN);
       return;
     }
     UUID identityId = caller.get().identity().id();
@@ -180,9 +179,9 @@ final class ApiKeysFilter extends OncePerRequestFilter {
    * anything else, such as an API key, or a session cookie with an API key or bearer token beside
    * it, even one ignored.
    */
-  private Optional<Caller> caller(HttpServletRequest request, WhoAuthenticationToken token) {
+  private static Optional<Caller> caller(WhoAuthenticationToken token, WhoCaller who) {
     Identity identity = token.getPrincipal().identity();
-    return switch (sessions.caller(request, token)) {
+    return switch (who) {
       case WhoCaller.Session session -> Optional.of(new Caller(identity, session));
       case WhoCaller.Stateless stateless when stateless.method() == SignInMethod.JWT ->
           Optional.of(new Caller(identity, null));
@@ -192,6 +191,18 @@ final class ApiKeysFilter extends OncePerRequestFilter {
           WhoCaller.SignedOut _ ->
           Optional.empty();
     };
+  }
+
+  /**
+   * Why a caller may not manage keys: an API key never does ({@code api-key-cannot-manage-keys});
+   * anything else that is neither a browser session nor a bearer token on its own is {@code
+   * browser-session-required}.
+   */
+  private static AccessDeniedException refusal(WhoCaller who) {
+    return who instanceof WhoCaller.Stateless
+        ? new ApiKeyCannotManageKeysException()
+        : new BrowserSessionRequiredException(
+            "Only a browser session or a bearer token on its own can manage API keys");
   }
 
   /** A browser that signed in too long ago; a bearer token is never stale here. */

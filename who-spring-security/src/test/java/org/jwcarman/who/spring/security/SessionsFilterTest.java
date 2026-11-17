@@ -312,6 +312,7 @@ class SessionsFilterTest {
     filter.doFilter(new MockHttpServletRequest("GET", "/who/me/sessions"), response, chain);
 
     assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
   }
 
   @Test
@@ -328,6 +329,7 @@ class SessionsFilterTest {
     filter.doFilter(request, response, chain);
 
     assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
   }
 
   @Test
@@ -364,6 +366,7 @@ class SessionsFilterTest {
     filter.doFilter(request, response, chain);
 
     assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
   }
 
   @Test

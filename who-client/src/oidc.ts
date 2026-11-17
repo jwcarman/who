@@ -14,8 +14,16 @@
  * limitations under the License.
  */
 import type { SignedIn } from "./email.js";
-import { json, nothing, removeCredential, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { LastCredential, SignInRequired, WhoResult } from "./result.js";
+import {
+  browserSessionRequired,
+  json,
+  nothing,
+  removeCredential,
+  signedOut,
+  signInRequired,
+  type WhoHttp,
+} from "./http.js";
+import type { BrowserSessionRequired, LastCredential, SignInRequired, WhoResult } from "./result.js";
 
 /**
  * The provider account who holds in the session after a provider sign-in it could not finish
@@ -68,14 +76,16 @@ export interface Accounts<D> {
   /**
    * Starts linking a provider account: sends the page to the provider, so on success the promise
    * never settles. who sends the browser back with `?pending=link`, and `client.oidc.link()`
-   * finishes it. Needs a recent sign-in.
+   * finishes it. Needs a recent sign-in from a browser session on its own.
    */
-  link(registrationId: string): Promise<WhoResult<never, SignInRequired | "not-found", D>>;
+  link(registrationId: string): Promise<WhoResult<never, SignInRequired | BrowserSessionRequired | "not-found", D>>;
   /**
    * Unlinks one of your accounts by its id. Needs a recent sign-in; another identity's account is
    * `"not-found"`, and your last sign-in credential is `"last-credential"`.
    */
-  unlink(id: string): Promise<WhoResult<void, SignInRequired | "not-found" | LastCredential, D>>;
+  unlink(
+    id: string,
+  ): Promise<WhoResult<void, SignInRequired | BrowserSessionRequired | "not-found" | LastCredential, D>>;
 }
 
 export function oidc<D>(http: WhoHttp<D>): Oidc<D> {
@@ -116,8 +126,10 @@ export function accounts<D>(http: WhoHttp<D>): Accounts<D> {
         path: `/me/accounts/${encodeURIComponent(registrationId)}`,
         accept: "application/json",
         read: json<{ redirectUrl: string }>(),
-        reason: (status, code): SignInRequired | "not-found" | undefined =>
-          signInRequired(status, code) ?? (status === 404 ? "not-found" : undefined),
+        reason: (status, code): SignInRequired | BrowserSessionRequired | "not-found" | undefined =>
+          signInRequired(status, code) ??
+          browserSessionRequired(status, code) ??
+          (status === 404 ? "not-found" : undefined),
       });
       if (!started.ok) {
         return started;

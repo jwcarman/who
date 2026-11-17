@@ -28,11 +28,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.BrowserSessionRequiredException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -107,7 +107,7 @@ final class AdminGate {
           handoff.handOff(
               request,
               response,
-              new AccessDeniedException(
+              new BrowserSessionRequiredException(
                   "Only a browser session or a bearer token or API key on its own can change this"),
               HttpStatus.FORBIDDEN);
           return Optional.empty();

@@ -36,13 +36,13 @@ import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.BrowserSessionRequiredException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -128,7 +128,7 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
       handoff.handOff(
           request,
           response,
-          new AccessDeniedException("Only a browser session can manage passkeys"),
+          new BrowserSessionRequiredException("Only a browser session can manage passkeys"),
           HttpStatus.FORBIDDEN);
       return;
     }

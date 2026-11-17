@@ -112,11 +112,11 @@ A `401` from a call that needs a recent sign-in means either "signed out" or "si
 
 If your error handling clears the header (an advice that calls `response.reset()`), or a page on another origin cannot read it because your CORS configuration does not expose it, such a `401` answers `'sign-in-required'`. `me.get()` then tells the two apart: it answers `'signed-out'` when no one is signed in.
 
-Where one status has two meanings, such as a `403` for a missing permission or a role the caller may not grant, the header decides too; without it the client takes the more common one (`'permission-required'`, `'identity-not-found'`, `'invalid-admin-request'`). A `409` on removing a credential is `'last-credential'` only when the header says so; any other `409` there is thrown as `'unexpected'`.
+Where one status has two meanings, such as a `403` for a missing permission or a role the caller may not grant, the header decides too; without it the client takes the more common one (`'permission-required'`, `'identity-not-found'`, `'invalid-admin-request'`). A `409` on removing a credential is `'last-credential'` only when the header says so; any other `409` there is thrown as `'unexpected'`. A `403` is `'browser-session-required'` (or, at the API-key calls, `'api-key-cannot-manage-keys'`) only when the header says so: elsewhere in your account it is thrown as `'unexpected'`, and at an admin change it is `'permission-required'`.
 
 ## Calls
 
-Paths are below `baseUrl`. A call that needs a recent sign-in lists `'signed-out'`, `'reauthentication-required'` and `'sign-in-required'`, shortened here to *sign-in*.
+Paths are below `baseUrl`. A call that needs a recent sign-in lists `'signed-out'`, `'reauthentication-required'` and `'sign-in-required'`, shortened here to *sign-in*. `'browser-session-required'` is shortened to *browser*.
 
 ### Signing in and out
 
@@ -139,24 +139,24 @@ Paths are below `baseUrl`. A call that needs a recent sign-in lists `'signed-out
 | Call | Endpoint | Value | Reasons |
 |---|---|---|---|
 | `me.get()` | `GET /me` | `Me` | `'signed-out'` |
-| `me.sessions.list()` | `GET /me/sessions` | `Session[]` | `'signed-out'` |
-| `me.sessions.end(id)` | `DELETE /me/sessions/{id}` | none | *sign-in*, `'not-found'` |
-| `me.sessions.endOthers()` | `DELETE /me/sessions?others=true` | `{ ended }` | *sign-in* |
-| `me.passkeys.list()` | `GET /me/passkeys` | `Passkey[]` | `'signed-out'` |
-| `me.passkeys.register(label)` | `POST /me/passkeys/options`, `POST /me/passkeys` | none | *sign-in*, `'rejected'`, `'cancelled'`, `'already-registered'` |
-| `me.passkeys.remove(credentialId)` | `DELETE /me/passkeys/{credentialId}` | none | *sign-in*, `'not-found'`, `'last-credential'` |
+| `me.sessions.list()` | `GET /me/sessions` | `Session[]` | `'signed-out'`, *browser* |
+| `me.sessions.end(id)` | `DELETE /me/sessions/{id}` | none | *sign-in*, *browser*, `'not-found'` |
+| `me.sessions.endOthers()` | `DELETE /me/sessions?others=true` | `{ ended }` | *sign-in*, *browser* |
+| `me.passkeys.list()` | `GET /me/passkeys` | `Passkey[]` | `'signed-out'`, *browser* |
+| `me.passkeys.register(label)` | `POST /me/passkeys/options`, `POST /me/passkeys` | none | *sign-in*, *browser*, `'rejected'`, `'cancelled'`, `'already-registered'` |
+| `me.passkeys.remove(credentialId)` | `DELETE /me/passkeys/{credentialId}` | none | *sign-in*, *browser*, `'not-found'`, `'last-credential'` |
 | `me.emailAddresses.list()` | `GET /me/email-addresses` | `EmailAddress[]` | `'signed-out'` |
-| `me.emailAddresses.add(address, replaces?)` | `POST /me/email-addresses` | none | *sign-in*, `'not-found'` |
-| `me.emailAddresses.confirm({ token } \| { code })` | `POST /me/email-addresses/confirmations` | `{ credentialId }` | *sign-in*, `'rejected'`, `'conflict'` |
+| `me.emailAddresses.add(address, replaces?)` | `POST /me/email-addresses` | none | *sign-in*, *browser*, `'not-found'` |
+| `me.emailAddresses.confirm({ token } \| { code })` | `POST /me/email-addresses/confirmations` | `{ credentialId }` | *sign-in*, *browser*, `'rejected'`, `'conflict'` |
 | `me.emailAddresses.confirmFromLocation()` | the same | a result, or `null` with no `#confirm-address=` | the same |
-| `me.emailAddresses.remove(id)` | `DELETE /me/email-addresses/{id}` | none | *sign-in*, `'not-found'`, `'last-credential'` |
+| `me.emailAddresses.remove(id)` | `DELETE /me/email-addresses/{id}` | none | *sign-in*, *browser*, `'not-found'`, `'last-credential'` |
 | `me.accounts.list()` | `GET /me/accounts` | `LinkedAccount[]` | `'signed-out'` |
-| `me.accounts.link(registrationId)` | `POST /me/accounts/{registrationId}` | (leaves the page) | *sign-in*, `'not-found'` |
-| `me.accounts.unlink(id)` | `DELETE /me/accounts/{id}` | none | *sign-in*, `'not-found'`, `'last-credential'` |
-| `me.apiKeys.list()` | `GET /me/api-keys` | `ApiKey[]` | `'signed-out'` |
-| `me.apiKeys.create({ name, lifetime, scopes })` | `POST /me/api-keys` | `NewApiKey` | *sign-in*, `'invalid-api-key-request'` |
-| `me.apiKeys.rotate(id, overlap)` | `POST /me/api-keys/{id}/rotations` | `NewApiKey` | *sign-in*, `'not-found'`, `'invalid-api-key-request'` |
-| `me.apiKeys.revoke(id)` | `DELETE /me/api-keys/{id}` | none | `'signed-out'`, `'not-found'` |
+| `me.accounts.link(registrationId)` | `POST /me/accounts/{registrationId}` | (leaves the page) | *sign-in*, *browser*, `'not-found'` |
+| `me.accounts.unlink(id)` | `DELETE /me/accounts/{id}` | none | *sign-in*, *browser*, `'not-found'`, `'last-credential'` |
+| `me.apiKeys.list()` | `GET /me/api-keys` | `ApiKey[]` | `'signed-out'`, *browser*, `'api-key-cannot-manage-keys'` |
+| `me.apiKeys.create({ name, lifetime, scopes })` | `POST /me/api-keys` | `NewApiKey` | *sign-in*, *browser*, `'api-key-cannot-manage-keys'`, `'invalid-api-key-request'` |
+| `me.apiKeys.rotate(id, overlap)` | `POST /me/api-keys/{id}/rotations` | `NewApiKey` | *sign-in*, *browser*, `'api-key-cannot-manage-keys'`, `'not-found'`, `'invalid-api-key-request'` |
+| `me.apiKeys.revoke(id)` | `DELETE /me/api-keys/{id}` | none | `'signed-out'`, *browser*, `'api-key-cannot-manage-keys'`, `'not-found'` |
 | `me.apiKeys.current()` | `GET /me/api-keys/current` | `ApiKey` | `'signed-out'`, `'not-found'` |
 
 ### Admin
@@ -168,11 +168,11 @@ Each needs a [permission](admin.md#permissions): `who.identities.read` for the r
 |---|---|---|---|
 | `admin.identities.list(query?)` | `GET /identities` | `IdentityPage` | `'signed-out'`, `'permission-required'`, `'invalid-admin-request'` |
 | `admin.identities.get(id)` | `GET /identities/{id}` | `AdminIdentity` | `'signed-out'`, `'permission-required'`, `'identity-not-found'` |
-| `admin.identities.setStatus(id, 'ACTIVE' \| 'DISABLED')` | `PATCH /identities/{id}` | `AdminIdentity` | *sign-in*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'invalid-admin-request'`, `'self-deactivation'`, `'last-admin'` |
-| `admin.identities.addRole(id, role)` | `PUT /identities/{id}/roles/{role}` | none | *sign-in*, `'permission-required'`, `'identity-outranks-caller'`, `'role-grant-forbidden'`, `'identity-not-found'`, `'unknown-role'` |
-| `admin.identities.removeRole(id, role)` | `DELETE /identities/{id}/roles/{role}` | none | *sign-in*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'unknown-role'`, `'last-admin'` |
+| `admin.identities.setStatus(id, 'ACTIVE' \| 'DISABLED')` | `PATCH /identities/{id}` | `AdminIdentity` | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'invalid-admin-request'`, `'self-deactivation'`, `'last-admin'` |
+| `admin.identities.addRole(id, role)` | `PUT /identities/{id}/roles/{role}` | none | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'role-grant-forbidden'`, `'identity-not-found'`, `'unknown-role'` |
+| `admin.identities.removeRole(id, role)` | `DELETE /identities/{id}/roles/{role}` | none | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'unknown-role'`, `'last-admin'` |
 | `admin.roles.list()` | `GET /roles` | `AdminRole[]` | `'signed-out'`, `'permission-required'` |
-| `admin.invite(email, roles?)` | `POST /invitations` | `{ identityId, linkSent }` | *sign-in*, `'permission-required'`, `'role-grant-forbidden'`, `'invalid-invitation'`, `'invalid-admin-request'`, `'email-address-taken'` |
+| `admin.invite(email, roles?)` | `POST /invitations` | `{ identityId, linkSent }` | *sign-in*, *browser*, `'permission-required'`, `'role-grant-forbidden'`, `'invalid-invitation'`, `'invalid-admin-request'`, `'email-address-taken'` |
 
 `list`'s `query` takes `status`, `role`, `email`, `page` and `size`; only those given are sent.
 
@@ -186,6 +186,8 @@ What the reasons mean:
 | `'refused'` | Your sign-up policy said no. |
 | `'none-pending'` | No provider account is waiting: it expired, or there never was one. |
 | `'last-credential'` | Removing it would leave you no way to sign in. |
+| `'browser-session-required'` | Only a browser session on its own may do this: the request carried an API key or a bearer token, perhaps beside the session cookie. |
+| `'api-key-cannot-manage-keys'` | A request an API key signed in may not manage keys. |
 | `'invalid-api-key-request'` | who refused the key's name, lifetime, overlap or scopes; `detail` says why. |
 | the admin codes | The [`Who-Error` codes](errors.md#the-who-error-header) of the same names. |
 

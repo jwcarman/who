@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { SignInRequired, WhoResult } from "./result.js";
+import { browserSessionRequired, json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
+import type { BrowserSessionRequired, SignInRequired, WhoResult } from "./result.js";
 
 /** Whether an identity may sign in. */
 export type IdentityStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
@@ -92,8 +92,12 @@ export type InvalidAdminRequest = "invalid-admin-request";
 /** The reasons reading as an admin can fail. */
 export type AdminReadFailure = "signed-out" | PermissionRequired;
 
-/** The reasons changing something as an admin can fail; a browser session needs a recent sign-in. */
-export type AdminChangeFailure = SignInRequired | PermissionRequired;
+/**
+ * The reasons changing something as an admin can fail; a browser session needs a recent sign-in,
+ * and a session cookie sent with an API key or a bearer token beside it is
+ * `"browser-session-required"`.
+ */
+export type AdminChangeFailure = SignInRequired | BrowserSessionRequired | PermissionRequired;
 
 /** Identities: listing, reading, (de)activating them and assigning roles (`client.admin.identities`). */
 export interface AdminIdentities<D> {
@@ -191,7 +195,11 @@ function read(status: number): AdminReadFailure | undefined {
 }
 
 function change(status: number, code: string | null): AdminChangeFailure | undefined {
-  return signInRequired(status, code) ?? (status === 403 ? "permission-required" : undefined);
+  return (
+    signInRequired(status, code) ??
+    browserSessionRequired(status, code) ??
+    (status === 403 ? "permission-required" : undefined)
+  );
 }
 
 /** A 404 on a role call: the unknown role when who says so, else the identity. */
@@ -276,6 +284,7 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
           read: nothing,
           reason: (status, code) =>
             signInRequired(status, code) ??
+            browserSessionRequired(status, code) ??
             outranked(status, code) ??
             (status === 403 ? forbidden(code) : roleNotFound(status, code)),
         }),
@@ -307,7 +316,11 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
           if (status === 409) {
             return "email-address-taken";
           }
-          return signInRequired(status, code) ?? (status === 403 ? forbidden(code) : undefined);
+          return (
+            signInRequired(status, code) ??
+            browserSessionRequired(status, code) ??
+            (status === 403 ? forbidden(code) : undefined)
+          );
         },
       }),
   };

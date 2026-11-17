@@ -13,8 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { json, nothing, removeCredential, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { LastCredential, SignInRequired, WhoResult } from "./result.js";
+import {
+  browserSessionRequired,
+  json,
+  nothing,
+  removeCredential,
+  signedOut,
+  signInRequired,
+  type WhoHttp,
+} from "./http.js";
+import type { BrowserSessionRequired, LastCredential, SignInRequired, WhoResult } from "./result.js";
 
 /** Who signed in. */
 export interface SignedIn {
@@ -34,7 +42,7 @@ export interface HumanCheckOptions {
 export type EmailSignInFailure = "rejected" | HumanCheckFailed;
 
 /** The reasons confirming a new address can fail. */
-export type ConfirmAddressFailure = SignInRequired | "rejected" | "conflict";
+export type ConfirmAddressFailure = SignInRequired | BrowserSessionRequired | "rejected" | "conflict";
 
 /** Signing in by email link or code. Your own addresses are under `client.me.emailAddresses`. */
 export interface Email<D> {
@@ -74,9 +82,12 @@ export interface EmailAddresses<D> {
   list(): Promise<WhoResult<EmailAddress[], "signed-out", D>>;
   /**
    * Emails a confirmation to a new address, or one replacing `replaces` (the id of one of your
-   * addresses). Needs a recent sign-in.
+   * addresses). Needs a recent sign-in from a browser session on its own.
    */
-  add(address: string, replaces?: string): Promise<WhoResult<void, SignInRequired | "not-found", D>>;
+  add(
+    address: string,
+    replaces?: string,
+  ): Promise<WhoResult<void, SignInRequired | BrowserSessionRequired | "not-found", D>>;
   /** Confirms a new address with the emailed link's token or code. */
   confirm(proof: { token: string } | { code: string }): Promise<WhoResult<ConfirmedAddress, ConfirmAddressFailure, D>>;
   /**
@@ -88,7 +99,9 @@ export interface EmailAddresses<D> {
    * Removes one of your addresses by its id. Needs a recent sign-in; another identity's address is
    * `"not-found"`, and your last sign-in credential is `"last-credential"`.
    */
-  remove(id: string): Promise<WhoResult<void, SignInRequired | "not-found" | LastCredential, D>>;
+  remove(
+    id: string,
+  ): Promise<WhoResult<void, SignInRequired | BrowserSessionRequired | "not-found" | LastCredential, D>>;
 }
 
 /**
@@ -149,7 +162,9 @@ export function emailAddresses<D>(http: WhoHttp<D>): EmailAddresses<D> {
       body: proof,
       read: json<ConfirmedAddress>(),
       reason: (status, code): ConfirmAddressFailure | undefined =>
-        signInRequired(status, code) ?? (status === 400 ? "rejected" : status === 409 ? "conflict" : undefined),
+        signInRequired(status, code) ??
+        browserSessionRequired(status, code) ??
+        (status === 400 ? "rejected" : status === 409 ? "conflict" : undefined),
     });
   return {
     list: () =>
@@ -160,7 +175,10 @@ export function emailAddresses<D>(http: WhoHttp<D>): EmailAddresses<D> {
         path: "/me/email-addresses",
         body: replaces === undefined ? { address } : { address, replaces },
         read: nothing,
-        reason: (status, code) => signInRequired(status, code) ?? (status === 404 ? "not-found" : undefined),
+        reason: (status, code) =>
+          signInRequired(status, code) ??
+          browserSessionRequired(status, code) ??
+          (status === 404 ? "not-found" : undefined),
       }),
     confirm,
     confirmFromLocation: async () => {

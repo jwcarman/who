@@ -247,6 +247,7 @@ class LinkStartFilterTest {
     MockHttpServletResponse response = filter(request);
 
     assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
     assertThat(response.getRedirectedUrl()).isNull();
     assertThat(request.getSession(false)).isNull();
   }

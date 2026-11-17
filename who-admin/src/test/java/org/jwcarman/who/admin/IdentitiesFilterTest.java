@@ -1131,6 +1131,7 @@ class IdentitiesFilterTest {
               Map.of(nameAndValue[0], nameAndValue[1]));
 
       assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
       assertThat(identities.findById(other.id()).orElseThrow().status())
           .isEqualTo(IdentityStatus.ACTIVE);
     }
@@ -1139,9 +1140,11 @@ class IdentitiesFilterTest {
     void a_sign_in_no_session_loaded_and_not_stateless_is_not_exempt() throws Exception {
       signIn(SignInMethod.EMAIL_LINK, MANAGE);
 
-      assertThat(send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}"))
-          .extracting(MockHttpServletResponse::getStatus)
-          .isEqualTo(403);
+      MockHttpServletResponse response =
+          send("PATCH", "/who/identities/" + other.id(), "{\"status\":\"DISABLED\"}");
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
       assertThat(identities.findById(other.id()).orElseThrow().status())
           .isEqualTo(IdentityStatus.ACTIVE);
     }

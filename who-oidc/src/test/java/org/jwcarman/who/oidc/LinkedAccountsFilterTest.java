@@ -459,7 +459,10 @@ class LinkedAccountsFilterTest {
       request.setSession(browser(alice, laptop.id(), NOW));
       authenticateWithApiKey(alice);
 
-      assertThat(filter(request).getStatus()).isEqualTo(403);
+      MockHttpServletResponse response = filter(request);
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
       assertThat(accounts.findById(phone.id())).isPresent();
     }
 

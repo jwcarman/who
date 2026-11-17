@@ -29,7 +29,8 @@ Three kinds of caller:
 
 - **Browser**: a who browser session, with no API key or bearer token on the request. A session
   cookie with an `X-API-Key` or `Authorization: Bearer` header beside it is not a browser, even
-  when the header is ignored, so it is answered `403` wherever only a browser may act.
+  when the header is ignored, so it is answered `403` `BrowserSessionRequiredException`
+  (`Who-Error: browser-session-required`) wherever only a browser may act. Send the cookie alone.
 - **Recent**: a browser session signed in within `who.security.recent-sign-in` (10 minutes by
   default). An older one gets `401` `ReauthenticationRequiredException`: sign the person in again
   and retry. who checks this before it looks at any id in the path, so a stale session learns
@@ -62,8 +63,11 @@ With the default `who.base-path`:
 | `GET /who/me/api-keys/current` | API key | no | `200` |
 
 Every `/who/me` endpoint answers a signed-out request with `401` `NotSignedInException`. A
-signed-in caller that is not one the table allows gets `403`, except at
-`GET /who/me/api-keys/current`, which answers `404` to a request no API key signed in. Like every who failure, these go
+signed-in caller that is not one the table allows gets `403` `BrowserSessionRequiredException`
+(`browser-session-required`), except that a request an API key signed in gets `403`
+`ApiKeyCannotManageKeysException` (`api-key-cannot-manage-keys`) at the API-key endpoints, since
+a bearer token may manage keys too, and `GET /who/me/api-keys/current` answers `404` to a request
+no API key signed in. Like every who failure, these go
 through your exception handling (see [Errors](errors.md)), and every POST and DELETE from a browser
 needs the CSRF header.
 
@@ -76,7 +80,7 @@ Which chains serve them:
   yours.
 - The email-address, linked-account and API-key endpoints are on both kinds of chain, so a bearer
   token or an API key on a stateless chain can list addresses and accounts, and a bearer token can
-  manage keys. What only a browser may do answers `403` there.
+  manage keys. What only a browser may do answers `403` (`browser-session-required`) there.
 
 ## Who is signed in
 
@@ -180,7 +184,7 @@ that session.
 ## API keys
 
 A browser session or a bearer token may manage the caller's keys. A request an API key signed in
-gets `403` on all of them but `/current`: a key never lists, makes, rotates or revokes keys, so a
+gets `403` `api-key-cannot-manage-keys` on all of them but `/current`: a key never lists, makes, rotates or revokes keys, so a
 leaked key cannot make itself permanent.
 
 | Request | Body | Answer |

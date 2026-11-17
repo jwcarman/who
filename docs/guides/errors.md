@@ -12,7 +12,8 @@ who formats no error responses. When something goes wrong it throws an exception
 | `InsufficientUserAuthenticationException` | 401 | A JWT whose `auth_time` is too old called an action marked `@RequiresRecentSignIn`. A `401` answer carries `WWW-Authenticate: Bearer error="insufficient_user_authentication", …, max_age=<seconds>` (RFC 9470), whether who, your advice or Spring MVC writes it; any other answer carries none. An answer that sets its own `Bearer` challenge (a realm, a scope) keeps it; one challenging with another scheme gets who's beside it. The client signs the person in again and retries. The challenge is also on the exception, `challenge()`. |
 | `RecentSignInUnavailableException` | 403 | An API key, or a JWT without an `auth_time` claim, called an action marked `@RequiresRecentSignIn`. Neither can ever be recent, so it is a `403`, not a challenge. It is an `AccessDeniedException`. |
 | `InvalidPasskeyRegistrationException` | 400 | A passkey registration failed verification. It carries no cause, because WebAuthn details must not travel. |
-| `AccessDeniedException` (Spring Security's own) | 403 | A signed-in caller lacks a permission. Spring Security 7 raises its subclass `AuthorizationDeniedException`. who's [account endpoints](account.md) also raise it for a caller that is not a browser session where only a browser may act, such as an API key or a bearer token beside a session cookie. |
+| `BrowserSessionRequiredException` | 403 | An endpoint that needs a browser session on its own was called by something else: a bearer token or an API key at a [`/who/me`](account.md) endpoint only a browser may call, a session cookie with an API key or a bearer token beside it at any endpoint that tells the two apart (the `/who/me` endpoints, `POST /who/me/api-keys` and its kin, and an [admin](admin.md) change), or a sign-in no browser session loaded. Send the cookie alone. It is an `AccessDeniedException`. |
+| `AccessDeniedException` (Spring Security's own) | 403 | A signed-in caller lacks a permission. Spring Security 7 raises its subclass `AuthorizationDeniedException`. |
 
 Removing a passkey, an email address or a linked account through [`/who/me`](account.md#the-last-credential-rule) adds one, from `who-core`:
 
@@ -41,11 +42,12 @@ Managing [email addresses](account.md#email-addresses) adds three, besides `NotS
 | `InvalidEmailAddressConfirmationException` | 400 | `POST /who/me/email-addresses/confirmations` matched nothing: no request by this identity, an expired or used one, a wrong code, a code with no attempts left, or neither or both of `token` and `code`. |
 | `EmailAddressTakenException` | 409 | The confirmed address was registered to someone in the meantime, or `POST /who/invitations` named an address that is already an identity's. `EmailCredentialService.register` and `InvitationService.invite` throw it too. |
 
-Managing [API keys](account.md#api-keys) adds two:
+Managing [API keys](account.md#api-keys) adds three:
 
 | Exception | Status if unmapped | When |
 |---|---|---|
 | `ApiKeyNotFoundException` | 404 | `POST /who/me/api-keys/{id}/rotations` or `DELETE /who/me/api-keys/{id}` named a key that is not one of the caller's (unknown, malformed or another identity's), or `GET /who/me/api-keys/current` came from a request no API key signed in. |
+| `ApiKeyCannotManageKeysException` | 403 | A request an API key signed in called an API-key endpoint other than `GET /who/me/api-keys/current`: a key never lists, makes, rotates or revokes keys. It is an `AccessDeniedException`, and its own code rather than `browser-session-required`, because a bearer token may manage keys too. |
 | `InvalidApiKeyRequestException` | 400 | `POST /who/me/api-keys` or a rotation that who refuses as it stands: a body that is not the expected JSON, a `lifetime` or `overlap` that is not an ISO-8601 duration or is out of range, a blank name, no scopes or a scope the owner does not hold, or a key that expired or was revoked before its rotation. |
 
 The [admin endpoints](admin.md) add six, and invitations one more:
@@ -87,6 +89,8 @@ Every failure in the tables above, except Spring's own `AccessDeniedException`, 
 | `unknown-provider` | `UnknownProviderException` |
 | `already-linked` | `AlreadyLinkedException` |
 | `linked-account-not-found` | `LinkedAccountNotFoundException` |
+| `browser-session-required` | `BrowserSessionRequiredException` |
+| `api-key-cannot-manage-keys` | `ApiKeyCannotManageKeysException` |
 | `last-credential` | `LastCredentialException` |
 | `api-key-not-found` | `ApiKeyNotFoundException` |
 | `invalid-api-key-request` | `InvalidApiKeyRequestException` |

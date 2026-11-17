@@ -32,6 +32,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.BrowserSessionRequiredException;
 import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
@@ -147,7 +148,7 @@ public class PasskeyRegistrationGuardFilter extends OncePerRequestFilter {
       handoff.handOff(
           request,
           response,
-          new AccessDeniedException("Only a browser session can register a passkey"),
+          new BrowserSessionRequiredException("Only a browser session can register a passkey"),
           HttpStatus.FORBIDDEN);
       return;
     }

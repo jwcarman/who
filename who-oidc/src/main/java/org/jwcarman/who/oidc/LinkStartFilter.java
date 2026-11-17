@@ -34,6 +34,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
+import org.jwcarman.who.spring.security.web.BrowserSessionRequiredException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
@@ -42,7 +43,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -113,7 +113,7 @@ final class LinkStartFilter extends OncePerRequestFilter {
       handoff.handOff(
           request,
           response,
-          new AccessDeniedException("Only a browser session can link an account"),
+          new BrowserSessionRequiredException("Only a browser session can link an account"),
           HttpStatus.FORBIDDEN);
       return;
     }
