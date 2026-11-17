@@ -263,7 +263,7 @@ describe("me.emailAddresses.confirmFromLocation", () => {
 
 describe("me.emailAddresses.list", () => {
   it("answers the addresses", async () => {
-    const address = { id: "e1", address: "bob@example.com", created: "2026-11-16T10:00:00Z" };
+    const address = { id: "e1", address: "bob@example.com", createdAt: "2026-11-16T10:00:00Z" };
     server.use(http.get(at("/who/me/email-addresses"), () => HttpResponse.json([address])));
 
     await expect(createWhoClient().me.emailAddresses.list()).resolves.toEqual({ ok: true, value: [address] });

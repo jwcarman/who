@@ -215,7 +215,7 @@ export function Profile() {
             <li key={p.credentialId}>
               <span className="grow">
                 {p.label}<br />
-                <span className="muted">Added {new Date(p.created).toLocaleDateString()}</span>
+                <span className="muted">Added {new Date(p.createdAt).toLocaleDateString()}</span>
               </span>
               <button type="button" className="secondary" onClick={() => removePasskey(p.credentialId)}>Remove</button>
             </li>

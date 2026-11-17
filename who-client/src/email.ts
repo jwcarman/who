@@ -60,7 +60,7 @@ export interface EmailAddress {
   /** who's id for it, which `remove` and `add`'s `replaces` take. */
   id: string;
   address: string;
-  created: string;
+  createdAt: string;
 }
 
 /** The address a confirmation added. */

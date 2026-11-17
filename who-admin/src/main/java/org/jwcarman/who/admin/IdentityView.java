@@ -29,7 +29,7 @@ import org.jwcarman.who.core.domain.IdentityStatus;
  *
  * @param id the identity's id
  * @param status whether it may sign in
- * @param created when it was created
+ * @param createdAt when it was created
  * @param roles the names of the roles it holds, sorted
  * @param emailAddresses its email addresses, sorted; empty without email sign-in
  * @param credentials how many sign-in credentials it holds, by kind ({@code email}, {@code
@@ -38,7 +38,7 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 public record IdentityView(
     UUID id,
     IdentityStatus status,
-    Instant created,
+    Instant createdAt,
     List<String> roles,
     List<String> emailAddresses,
     Map<String, Long> credentials) {

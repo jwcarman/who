@@ -22,9 +22,9 @@ const LISTED = {
   id: "k1",
   name: "CI",
   scopes: ["read"],
-  created: "2026-11-16T10:00:00Z",
+  createdAt: "2026-11-16T10:00:00Z",
   expiresAt: "2026-12-16T10:00:00Z",
-  lastUsed: null,
+  lastUsedAt: null,
 };
 
 const CREATED = { id: "k1", name: "CI", scopes: ["read"], expiresAt: "2026-12-16T10:00:00Z", key: "who_secret" };

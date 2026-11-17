@@ -214,9 +214,9 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
           .extracting(m -> m.get("credentialId"))
           .containsExactly(older.credentialId(), newer.credentialId());
       assertThat(body.getFirst())
-          .containsOnlyKeys("credentialId", "label", "created", "lastUsed")
+          .containsOnlyKeys("credentialId", "label", "createdAt", "lastUsedAt")
           .containsEntry("label", "Laptop")
-          .containsEntry("created", created.toString());
+          .containsEntry("createdAt", created.toString());
       assertThat(response.getContentAsString()).doesNotContain("\"id\"");
       assertThat(response.getContentAsString()).doesNotContain(older.id().toString());
       assertThat(reachedChain.get()).isFalse();

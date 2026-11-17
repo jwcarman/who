@@ -22,11 +22,11 @@ export interface ApiKey {
   name: string;
   /** Its scopes, sorted. */
   scopes: string[];
-  created: string;
+  createdAt: string;
   /** When it stops, or stopped, signing in. */
   expiresAt: string;
   /** When it last signed in, to within who's last-used interval; null if never. */
-  lastUsed: string | null;
+  lastUsedAt: string | null;
 }
 
 /** A key just made or rotated: the only answer that holds the raw `key`, so show it once. */

@@ -23,7 +23,7 @@ export type IdentityStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
 export interface AdminIdentity {
   id: string;
   status: IdentityStatus;
-  created: string;
+  createdAt: string;
   /** The names of its roles, sorted. */
   roles: string[];
   /** Its email addresses, sorted; empty without email sign-in. */

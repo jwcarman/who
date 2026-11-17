@@ -171,7 +171,7 @@ final class EmailAddressFilter extends OncePerRequestFilter {
     Map<String, Object> view = new LinkedHashMap<>();
     view.put("id", credential.id().toString());
     view.put("address", credential.address());
-    view.put("created", credential.created().toString());
+    view.put("createdAt", credential.created().toString());
     return view;
   }
 

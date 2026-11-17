@@ -160,8 +160,8 @@ public class PasskeyCredentialsFilter extends OncePerRequestFilter {
     Map<String, Object> view = new LinkedHashMap<>();
     view.put("credentialId", passkey.credentialId());
     view.put("label", passkey.label());
-    view.put("created", passkey.created().toString());
-    view.put("lastUsed", passkey.lastUsed() == null ? null : passkey.lastUsed().toString());
+    view.put("createdAt", passkey.created().toString());
+    view.put("lastUsedAt", passkey.lastUsed() == null ? null : passkey.lastUsed().toString());
     return view;
   }
 

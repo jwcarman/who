@@ -256,7 +256,7 @@ describe("passkeys.signIn", () => {
 
 describe("me.passkeys.list", () => {
   it("answers the passkeys", async () => {
-    const passkey = { credentialId: "cred-1", label: "Laptop", created: "2026-11-16T10:00:00Z", lastUsed: null };
+    const passkey = { credentialId: "cred-1", label: "Laptop", createdAt: "2026-11-16T10:00:00Z", lastUsedAt: null };
     server.use(http.get(at("/who/me/passkeys"), () => HttpResponse.json([passkey])));
 
     await expect(createWhoClient().me.passkeys.list()).resolves.toEqual({ ok: true, value: [passkey] });

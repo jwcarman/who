@@ -344,13 +344,13 @@ class ApiKeysFilterTest {
       JsonNode item = body.get(0);
       assertThat(item.properties())
           .extracting(Map.Entry::getKey)
-          .containsExactly("id", "name", "scopes", "created", "expiresAt", "lastUsed");
+          .containsExactly("id", "name", "scopes", "createdAt", "expiresAt", "lastUsedAt");
       assertThat(item.get("id").asString()).isEqualTo(ci.id().toString());
       assertThat(item.get("name").asString()).isEqualTo("CI");
       assertThat(item.get("scopes").get(0).asString()).isEqualTo(READ);
-      assertThat(item.get("created").asString()).isEqualTo(NOW.toString());
+      assertThat(item.get("createdAt").asString()).isEqualTo(NOW.toString());
       assertThat(item.get("expiresAt").asString()).isEqualTo(ci.expiresAt().toString());
-      assertThat(item.get("lastUsed").isNull()).isTrue();
+      assertThat(item.get("lastUsedAt").isNull()).isTrue();
       assertThat(response.getContentAsString()).doesNotContain(ci.key());
     }
 
@@ -361,7 +361,7 @@ class ApiKeysFilterTest {
 
       MockHttpServletResponse response = send("GET", KEYS, null, staleBrowser(alice));
 
-      assertThat(json(response).get(0).get("lastUsed").asString())
+      assertThat(json(response).get(0).get("lastUsedAt").asString())
           .isEqualTo(NOW.plusSeconds(5).toString());
     }
 
@@ -745,7 +745,7 @@ class ApiKeysFilterTest {
       JsonNode body = json(response);
       assertThat(body.properties())
           .extracting(Map.Entry::getKey)
-          .containsExactly("id", "name", "scopes", "created", "expiresAt", "lastUsed");
+          .containsExactly("id", "name", "scopes", "createdAt", "expiresAt", "lastUsedAt");
       assertThat(body.get("id").asString()).isEqualTo(own.id().toString());
       assertThat(body.get("name").asString()).isEqualTo("Own");
       assertThat(response.getContentAsString()).doesNotContain(own.key());

@@ -117,7 +117,7 @@ An identity looks like this:
 {
   "id": "0f8e5c1a-6d1b-4e55-9a49-4c9f3a0a7d2e",
   "status": "ACTIVE",
-  "created": "2026-11-16T09:12:44Z",
+  "createdAt": "2026-11-16T09:12:44Z",
   "roles": ["admin", "editor"],
   "emailAddresses": ["alice@example.com"],
   "credentials": { "email": 1, "passkey": 2, "account": 0 }

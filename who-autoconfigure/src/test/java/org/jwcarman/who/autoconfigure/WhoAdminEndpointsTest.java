@@ -315,7 +315,7 @@ class WhoAdminEndpointsTest {
       assertThat(view.get("emailAddresses").get(0).asString()).isEqualTo(ADDRESS);
       assertThat(view.get("credentials").get("email").asLong()).isEqualTo(1);
       assertThat(view.get("credentials").get("account").asLong()).isEqualTo(1);
-      assertThat(Instant.parse(view.get("created").asString()).truncatedTo(ChronoUnit.MILLIS))
+      assertThat(Instant.parse(view.get("createdAt").asString()).truncatedTo(ChronoUnit.MILLIS))
           .isEqualTo(
               identityRepository
                   .findById(alice.id())

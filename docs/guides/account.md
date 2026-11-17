@@ -118,11 +118,11 @@ see [Sessions](sessions.md#see-and-end-sessions).
 `GET /who/me/passkeys` lists the caller's passkeys, oldest first:
 
 ```json
-[{ "credentialId": "q3JzT1...", "label": "Laptop", "created": "2026-11-16T09:12:44Z", "lastUsed": "2026-11-17T08:00:01Z" }]
+[{ "credentialId": "q3JzT1...", "label": "Laptop", "createdAt": "2026-11-16T09:12:44Z", "lastUsedAt": "2026-11-17T08:00:01Z" }]
 ```
 
 `credentialId` is the WebAuthn credential id in base64url, which names the passkey in
-`DELETE /who/me/passkeys/{credentialId}`. who's internal id is not shown. `lastUsed` is `null` for
+`DELETE /who/me/passkeys/{credentialId}`. who's internal id is not shown. `lastUsedAt` is `null` for
 a passkey that has never signed in.
 
 Registering one is `POST /who/me/passkeys/options` and then `POST /who/me/passkeys`; see
@@ -134,11 +134,11 @@ session.
 `GET /who/me/email-addresses` lists the caller's addresses, oldest first:
 
 ```json
-[{ "id": "0193f2a4-...", "address": "alice@example.com", "created": "2026-11-16T09:12:44Z" }]
+[{ "id": "0193f2a4-...", "address": "alice@example.com", "createdAt": "2026-11-16T09:12:44Z" }]
 ```
 
 `id` is the email credential's id: `DELETE /who/me/email-addresses/{id}` takes it, and so does
-`replaces` when changing an address. `created` is read from the id, which records when it was made.
+`replaces` when changing an address. `createdAt` is read from the id, which records when it was made.
 
 Adding or changing an address (`POST /who/me/email-addresses`, then
 `POST /who/me/email-addresses/confirmations`) is in
@@ -172,18 +172,18 @@ leaked key cannot make itself permanent.
 
 | Request | Body | Answer |
 |---|---|---|
-| `GET /who/me/api-keys` | | `200` `[{id, name, scopes, created, expiresAt, lastUsed}]`, by name |
+| `GET /who/me/api-keys` | | `200` `[{id, name, scopes, createdAt, expiresAt, lastUsedAt}]`, by name |
 | `POST /who/me/api-keys` | `{"name": "CI", "lifetime": "P90D", "scopes": ["report.read"]}` | `201` `{id, name, scopes, expiresAt, key}` |
 | `POST /who/me/api-keys/{id}/rotations` | `{"overlap": "PT1H"}` | `201` `{id, name, scopes, expiresAt, key}`, the new key |
 | `DELETE /who/me/api-keys/{id}` | | `204` |
-| `GET /who/me/api-keys/current` | | `200` `{id, name, scopes, created, expiresAt, lastUsed}`, the key that signed this request in |
+| `GET /who/me/api-keys/current` | | `200` `{id, name, scopes, createdAt, expiresAt, lastUsedAt}`, the key that signed this request in |
 
 - `key`, the secret, is in the two `201` answers and nowhere else: not in the list, not in
   `/current`, not in a log line. Show it to the person once.
 - `lifetime` and `overlap` are ISO-8601 durations. `overlap` is required; the old key keeps
   working for that long. The limits are those of [`ApiKeyService`](api-keys.md): the lifetime at
   most `who.api-key.max-lifetime`, the overlap at most 7 days, and only scopes the owner holds.
-- `lastUsed` is `null` for a key never used, and lags by up to `who.api-key.last-used-interval`.
+- `lastUsedAt` is `null` for a key never used, and lags by up to `who.api-key.last-used-interval`.
 - A browser needs a recent sign-in to make or rotate a key. A bearer token does not: its own
   lifetime bounds it.
 - `/current` takes the key from the sign-in, never from the request, so a machine can read its own

@@ -621,7 +621,7 @@ class IdentitiesFilterTest {
       JsonNode view = json(response);
       assertThat(view.get("id").asString()).isEqualTo(caller.id().toString());
       assertThat(view.get("status").asString()).isEqualTo("ACTIVE");
-      assertThat(Instant.parse(view.get("created").asString())).isEqualTo(T0);
+      assertThat(Instant.parse(view.get("createdAt").asString())).isEqualTo(T0);
       assertThat(view.get("roles").valueStream().map(JsonNode::asString))
           .containsExactly("admin", "editor");
       assertThat(view.get("emailAddresses").valueStream().map(JsonNode::asString))

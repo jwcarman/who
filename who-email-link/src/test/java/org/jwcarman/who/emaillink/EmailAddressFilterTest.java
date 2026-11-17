@@ -225,9 +225,9 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
           .extracting(m -> m.get("id"))
           .containsExactly(first.id().toString(), second.id().toString());
       assertThat(body.getFirst())
-          .containsOnlyKeys("id", "address", "created")
+          .containsOnlyKeys("id", "address", "createdAt")
           .containsEntry("address", "first@example.com");
-      assertThat(Instant.parse((String) body.getFirst().get("created")))
+      assertThat(Instant.parse((String) body.getFirst().get("createdAt")))
           .isCloseTo(Instant.now(), within(Duration.ofMinutes(1)));
       assertThat(reachedChain.get()).isFalse();
     }

@@ -37,9 +37,9 @@ export interface Passkeys<D> {
 export interface Passkey {
   credentialId: string;
   label: string;
-  created: string;
+  createdAt: string;
   /** When it last signed in, or null if never. */
-  lastUsed: string | null;
+  lastUsedAt: string | null;
 }
 
 /** Your passkeys: listing, registering and removing them (`client.me.passkeys`). */

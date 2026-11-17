@@ -21,7 +21,7 @@ import { at, server, setCsrfCookie } from "./testing/server.js";
 const IDENTITY = {
   id: "i1",
   status: "ACTIVE",
-  created: "2026-11-16T10:00:00Z",
+  createdAt: "2026-11-16T10:00:00Z",
   roles: ["admin"],
   emailAddresses: ["alice@example.com"],
   credentials: { email: 1, passkey: 0, account: 0 },

@@ -229,7 +229,7 @@ A person lists and removes their own passkeys through who's endpoints, on every 
 
 | Request | Answer |
 |---|---|
-| `GET /who/me/passkeys` | `200`, `[{credentialId, label, created, lastUsed}]`, oldest first |
+| `GET /who/me/passkeys` | `200`, `[{credentialId, label, createdAt, lastUsedAt}]`, oldest first |
 | `DELETE /who/me/passkeys/{credentialId}` | `204`. The passkey is deleted, with who's identity link, so it cannot sign in again |
 
 Both are for a browser session only (`403` otherwise), and removing needs a recent sign-in (`401`
