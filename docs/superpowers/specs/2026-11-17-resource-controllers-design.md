@@ -31,12 +31,13 @@ Nothing requires them to be filters (owner and builder checked):
   directly** (owner's rule): a record, a `List` of records, or `void` with
   `@ResponseStatus(NO_CONTENT)`. A `201` is `@ResponseStatus(CREATED)`. No `ResponseEntity`, no
   `void` method that writes the body itself.
-- **Request bodies are typed** (`@RequestBody` records), so they are registered too.
+- **Request bodies are read as today**, through each module's size-capped tree read (8192 bytes),
+  because the cap and the `400` answers for a malformed body are part of the contract. A tree needs
+  no native registration.
 - **The wire shape is pinned on the types** against the application's `spring.jackson` settings:
-  `@JsonNaming(LowerCamelCaseStrategy.class)` and `@JsonInclude(ALWAYS)` on every request and
-  answer record, `@JsonFormat(shape = STRING)` on every `Instant`. The JSON is unchanged from
+  `@JsonNaming(LowerCamelCaseStrategy.class)` and `@JsonInclude(ALWAYS)` on every answer record, `@JsonFormat(shape = STRING)` on every `Instant`. The JSON is unchanged from
   0.22.
-- **`WhoJson` and `AdminJson` are deleted.**
+- **`WhoJson` is deleted**, and `AdminJson` keeps only its body reading.
 - **Native images work**: the native tests pass on Oracle GraalVM (CI) and Liberica NIK.
 
 ## Non-goals
@@ -111,9 +112,10 @@ session may call.
 
 ### JSON
 
-Records gain the annotations above. Request records replace the tree reads; a field the filter
-treated as optional stays nullable, and a body the filter refused stays `400` with the same
-`Who-Error`, through Bean Validation or the controller's own check, whichever matches the filter.
+Answer records gain the annotations above. An answer built today as a `Map` becomes a record with
+the same keys, and a value written today as a string (such as an `Instant`'s `toString()`) stays a
+string, so nothing on the wire changes. Request bodies are read as today: the controller takes the
+`HttpServletRequest` and calls the module's size-capped reader, so the cap and every `400` stay.
 
 ## Constraints
 
@@ -128,7 +130,7 @@ treated as optional stays nullable, and a body the filter refused stays `400` wi
 
 ## Breaking changes (CHANGELOG and upgrading.md)
 
-- `WhoJson`, `AdminJson` and the resource `*Endpoints` beans are removed.
+- `WhoJson` and the resource `*Endpoints` beans are removed.
 - The application's authorization rules apply to who's resource endpoints.
 - An application that applied a `*Endpoints` bean to a chain of its own (if that was public API)
   drops that call; the controllers are on with their module.
