@@ -26,9 +26,9 @@ import org.jwcarman.who.core.email.WhoEmailRenderer;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.email.MustacheWhoEmailRenderer;
-import org.jwcarman.who.email.WhoEmailMessages;
+import org.jwcarman.who.email.WhoEmailMessagesContributor;
 import org.jwcarman.who.email.WhoEmailModelContributor;
-import org.jwcarman.who.email.WhoEmailTemplates;
+import org.jwcarman.who.email.WhoEmailTemplatesContributor;
 import org.jwcarman.who.email.smtp.SmtpWhoEmailSender;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -96,26 +96,27 @@ public class WhoEmailAutoConfiguration {
     public MustacheWhoEmailRenderer mustacheWhoEmailRenderer(
         ResourcePatternResolver resources,
         ObjectProvider<MessageSource> messageSource,
-        ObjectProvider<WhoEmailMessages> bundles,
+        ObjectProvider<WhoEmailMessagesContributor> bundles,
         ObjectProvider<WhoEmailModelContributor> contributors,
-        ObjectProvider<WhoEmailTemplates> libraries,
+        ObjectProvider<WhoEmailTemplatesContributor> libraries,
         WhoProperties properties) {
-      List<WhoEmailTemplates> ordered = libraries.orderedStream().toList();
+      List<WhoEmailTemplatesContributor> ordered = libraries.orderedStream().toList();
       ResourceBundleMessageSource who = new ResourceBundleMessageSource();
       who.setDefaultEncoding("UTF-8");
       who.setFallbackToSystemLocale(false);
       // a library's subjects win over who's own; the application's win over both
       ordered.stream()
-          .map(WhoEmailTemplates::messages)
+          .map(WhoEmailTemplatesContributor::messages)
           .filter(Objects::nonNull)
           .forEach(who::addBasenames);
-      bundles.orderedStream().map(WhoEmailMessages::basename).forEach(who::addBasenames);
+      bundles.orderedStream().map(WhoEmailMessagesContributor::basename).forEach(who::addBasenames);
       MessageSource app = messageSource.getIfAvailable(StaticMessageSource::new);
       WhoProperties.Email email = properties.getEmail();
       return new MustacheWhoEmailRenderer(
           resources,
           Stream.concat(
-                  email.getTemplates().stream(), ordered.stream().map(WhoEmailTemplates::location))
+                  email.getTemplates().stream(),
+                  ordered.stream().map(WhoEmailTemplatesContributor::location))
               .toList(),
           new AppFirstMessageSource(app, who),
           email.getModel(),

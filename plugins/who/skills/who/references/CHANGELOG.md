@@ -25,6 +25,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **Beans that contribute to who's configuration end in `Contributor`.** `WhoEmailTemplates` is
+  now `WhoEmailTemplatesContributor`, and `WhoEmailMessages` is now `WhoEmailMessagesContributor`,
+  matching `WhoPublicPathContributor` and `WhoEmailModelContributor`. Their components are
+  unchanged.
+
 ## [0.24.0] - 2026-11-18
 
 ### Breaking changes

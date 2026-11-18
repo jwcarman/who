@@ -15,19 +15,20 @@
  */
 package org.jwcarman.who.email;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static java.util.Objects.requireNonNull;
 
-import org.junit.jupiter.api.DisplayNameGeneration;
-import org.junit.jupiter.api.DisplayNameGenerator;
-import org.junit.jupiter.api.Test;
+/**
+ * A feature's bundle of default email messages, such as its subjects under {@code
+ * who.email.<template>.subject}. Each feature that sends email registers one as a bean; the
+ * application's own messages win over every bundle.
+ *
+ * @param basename the bundle's basename, as {@code ResourceBundle} spells it, such as {@code
+ *     org/jwcarman/who/emaillink/email-messages}
+ */
+public record WhoEmailMessagesContributor(String basename) {
 
-@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class WhoEmailTemplatesTest {
-
-  @Test
-  void a_location_is_required() {
-    assertThatThrownBy(() -> new WhoEmailTemplates(null, null))
-        .isInstanceOf(NullPointerException.class)
-        .hasMessage("location must not be null");
+  /** Checks the basename. */
+  public WhoEmailMessagesContributor {
+    requireNonNull(basename, "basename must not be null");
   }
 }

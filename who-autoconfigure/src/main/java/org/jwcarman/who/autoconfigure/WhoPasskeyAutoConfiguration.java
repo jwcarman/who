@@ -24,7 +24,7 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
-import org.jwcarman.who.email.WhoEmailMessages;
+import org.jwcarman.who.email.WhoEmailMessagesContributor;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.passkey.EmailPasskeyAddedNotifier;
@@ -384,12 +384,12 @@ public class WhoPasskeyAutoConfiguration {
 
   /** The subject of the passkey-added email, when who-email renders it. */
   @Configuration(proxyBeanMethods = false)
-  @ConditionalOnClass(name = "org.jwcarman.who.email.WhoEmailMessages")
+  @ConditionalOnClass(name = "org.jwcarman.who.email.WhoEmailMessagesContributor")
   static class EmailMessagesConfiguration {
 
     @Bean
-    public WhoEmailMessages whoPasskeyMessages() {
-      return new WhoEmailMessages("org/jwcarman/who/passkey/email-messages");
+    public WhoEmailMessagesContributor whoPasskeyMessages() {
+      return new WhoEmailMessagesContributor("org/jwcarman/who/passkey/email-messages");
     }
   }
 }

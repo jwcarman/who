@@ -158,13 +158,13 @@ key wins. Since a missing variable fails the render, give every email the keys y
 ### Templates from a library
 
 A library built on who can ship its own versions of who's emails, and its own subjects, by
-registering a `WhoEmailTemplates` bean, typically from its auto-configuration:
+registering a `WhoEmailTemplatesContributor` bean, typically from its auto-configuration:
 
 ```java
 @Bean
 @Order(100)
-WhoEmailTemplates acmeEmailTemplates() {
-    return new WhoEmailTemplates("classpath:/com/acme/email/", "com/acme/email-messages");
+WhoEmailTemplatesContributor acmeEmailTemplates() {
+    return new WhoEmailTemplatesContributor("classpath:/com/acme/email/", "com/acme/email-messages");
 }
 ```
 

@@ -30,8 +30,8 @@ import org.jwcarman.who.core.email.WhoEmailRenderer;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.email.MustacheWhoEmailRenderer;
-import org.jwcarman.who.email.WhoEmailMessages;
-import org.jwcarman.who.email.WhoEmailTemplates;
+import org.jwcarman.who.email.WhoEmailMessagesContributor;
+import org.jwcarman.who.email.WhoEmailTemplatesContributor;
 import org.jwcarman.who.email.smtp.SmtpWhoEmailSender;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
@@ -56,16 +56,16 @@ class WhoEmailAutoConfigurationTest {
   @Configuration(proxyBeanMethods = false)
   static class OneLibrary {
     @Bean
-    WhoEmailTemplates library() {
-      return new WhoEmailTemplates("classpath:/lib-email/", "lib-email/lib-messages");
+    WhoEmailTemplatesContributor library() {
+      return new WhoEmailTemplatesContributor("classpath:/lib-email/", "lib-email/lib-messages");
     }
   }
 
   @Configuration(proxyBeanMethods = false)
   static class ValuedLibrary {
     @Bean
-    WhoEmailTemplates library() {
-      return new WhoEmailTemplates("classpath:/lib-email/", "lib-email/valued-messages");
+    WhoEmailTemplatesContributor library() {
+      return new WhoEmailTemplatesContributor("classpath:/lib-email/", "lib-email/valued-messages");
     }
   }
 
@@ -73,14 +73,14 @@ class WhoEmailAutoConfigurationTest {
   static class TwoLibraries {
     @Bean
     @Order(2)
-    WhoEmailTemplates second() {
-      return new WhoEmailTemplates("classpath:/lib-email/", "lib-email/lib-messages");
+    WhoEmailTemplatesContributor second() {
+      return new WhoEmailTemplatesContributor("classpath:/lib-email/", "lib-email/lib-messages");
     }
 
     @Bean
     @Order(1)
-    WhoEmailTemplates first() {
-      return new WhoEmailTemplates("classpath:/app-email/", null);
+    WhoEmailTemplatesContributor first() {
+      return new WhoEmailTemplatesContributor("classpath:/app-email/", null);
     }
   }
 
@@ -190,7 +190,8 @@ class WhoEmailAutoConfigurationTest {
           .withUserConfiguration(OneLibrary.class)
           .withBean(WhoEmailSender.class, () -> email -> {})
           .withBean(
-              WhoEmailMessages.class, () -> new WhoEmailMessages("who-email-test/who-messages"))
+              WhoEmailMessagesContributor.class,
+              () -> new WhoEmailMessagesContributor("who-email-test/who-messages"))
           .run(
               context -> assertThat(renderLibTest(context).subject()).isEqualTo("Library subject"));
     }
@@ -200,7 +201,8 @@ class WhoEmailAutoConfigurationTest {
       runner
           .withBean(WhoEmailSender.class, () -> email -> {})
           .withBean(
-              WhoEmailMessages.class, () -> new WhoEmailMessages("who-email-test/who-messages"))
+              WhoEmailMessagesContributor.class,
+              () -> new WhoEmailMessagesContributor("who-email-test/who-messages"))
           .withPropertyValues("who.email.templates=classpath:/lib-email/")
           .run(context -> assertThat(renderLibTest(context).subject()).isEqualTo("Who subject"));
     }

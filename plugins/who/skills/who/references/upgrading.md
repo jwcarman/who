@@ -2,6 +2,7 @@
 
 **Contents**
 
+- Upgrading to 0.25.0
 - Upgrading to 0.24.0
 - Upgrading to 0.23.0
 - Upgrading to 0.21.0
@@ -16,6 +17,23 @@
 - Upgrading to 0.12.0
 - Upgrading to 0.11.0
 - Upgrading to 0.10.0
+
+## Upgrading to 0.25.0
+
+### Contributed beans end in Contributor
+
+A bean that adds to who's configuration is named `*Contributor`. Two records are renamed; their
+components are unchanged:
+
+- `WhoEmailTemplates` is now `WhoEmailTemplatesContributor`.
+- `WhoEmailMessages` is now `WhoEmailMessagesContributor`.
+
+```java
+@Bean
+WhoEmailTemplatesContributor acmeEmailTemplates() {
+    return new WhoEmailTemplatesContributor("classpath:/com/acme/email/", "com/acme/email-messages");
+}
+```
 
 ## Upgrading to 0.24.0
 

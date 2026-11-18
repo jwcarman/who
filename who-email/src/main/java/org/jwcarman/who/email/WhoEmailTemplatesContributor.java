@@ -31,10 +31,10 @@ import org.jspecify.annotations.Nullable;
  * @param messages the basename of the library's message bundle, as {@code ResourceBundle} spells
  *     it, such as {@code com/acme/email-messages}, or {@code null} for none
  */
-public record WhoEmailTemplates(String location, @Nullable String messages) {
+public record WhoEmailTemplatesContributor(String location, @Nullable String messages) {
 
   /** Checks the location. */
-  public WhoEmailTemplates {
+  public WhoEmailTemplatesContributor {
     requireNonNull(location, "location must not be null");
   }
 }

@@ -28,7 +28,7 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
-import org.jwcarman.who.email.WhoEmailMessages;
+import org.jwcarman.who.email.WhoEmailMessagesContributor;
 import org.jwcarman.who.emaillink.EmailAddressChanges;
 import org.jwcarman.who.emaillink.EmailAddressRequestRepository;
 import org.jwcarman.who.emaillink.EmailAddressesController;
@@ -559,12 +559,12 @@ public class WhoEmailLinkAutoConfiguration {
 
   /** The subjects of email-link's emails, when who-email renders them. */
   @Configuration(proxyBeanMethods = false)
-  @ConditionalOnClass(name = "org.jwcarman.who.email.WhoEmailMessages")
+  @ConditionalOnClass(name = "org.jwcarman.who.email.WhoEmailMessagesContributor")
   static class EmailMessagesConfiguration {
 
     @Bean
-    public WhoEmailMessages whoEmailLinkMessages() {
-      return new WhoEmailMessages("org/jwcarman/who/emaillink/email-messages");
+    public WhoEmailMessagesContributor whoEmailLinkMessages() {
+      return new WhoEmailMessagesContributor("org/jwcarman/who/emaillink/email-messages");
     }
   }
 }
