@@ -6,9 +6,8 @@ name: Native
 # this runs nightly and by hand (before a release), not on every push: running on each push to main
 # ran into 429s.
 
+# Run by hand when wanted; the build host is the usual native gate (scripts/native-remote.sh).
 on:
-  schedule:
-    - cron: '0 7 * * *'
   workflow_dispatch:
 
 # A newer run replaces one still going.
