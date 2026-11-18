@@ -41,9 +41,9 @@ public class InvalidApiKeyRequestException extends RuntimeException implements W
     super(message);
   }
 
-  /** {@return {@code invalid-api-key-request}} */
+  /** {@return {@code invalid-request}} */
   @Override
   public String errorCode() {
-    return "invalid-api-key-request";
+    return "invalid-request";
   }
 }

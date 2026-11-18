@@ -180,7 +180,7 @@ class InvitationServiceUnitTest {
       assertThatThrownBy(() -> service.invite(ADDRESS, editor))
           .isInstanceOf(InvalidInvitationException.class)
           .extracting(e -> ((InvalidInvitationException) e).errorCode())
-          .isEqualTo("invalid-invitation");
+          .isEqualTo("invalid-request");
       verifyNoInteractions(whoService, credentials, issuer);
       assertThat(published).isEmpty();
     }

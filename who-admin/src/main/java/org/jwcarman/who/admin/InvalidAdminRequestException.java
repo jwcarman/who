@@ -40,9 +40,9 @@ public class InvalidAdminRequestException extends RuntimeException implements Wh
     super(message);
   }
 
-  /** {@return {@code invalid-admin-request}} */
+  /** {@return {@code invalid-request}} */
   @Override
   public String errorCode() {
-    return "invalid-admin-request";
+    return "invalid-request";
   }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { browserSessionRequired, json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { BrowserSessionRequired, SignInRequired, WhoResult } from "./result.js";
+import type { BrowserSessionRequired, InvalidRequest, SignInRequired, WhoResult } from "./result.js";
 
 /** One of your API keys, as lists show it: never its secret. */
 export interface ApiKey {
@@ -47,9 +47,6 @@ export interface ApiKeyRequest {
   scopes: string[];
 }
 
-/** A body, lifetime, overlap, name or scope who refuses (`400`). */
-export type InvalidApiKeyRequest = "invalid-api-key-request";
-
 /** A request an API key signed in may not manage keys, so a key never mints keys (`403`). */
 export type ApiKeyCannotManageKeys = "api-key-cannot-manage-keys";
 
@@ -69,7 +66,7 @@ export interface ApiKeys<D> {
   /** Makes a key, answering its secret once. A browser needs a recent sign-in. */
   create(
     request: ApiKeyRequest,
-  ): Promise<WhoResult<NewApiKey, SignInRequired | ApiKeyCallerRefused | InvalidApiKeyRequest, D>>;
+  ): Promise<WhoResult<NewApiKey, SignInRequired | ApiKeyCallerRefused | InvalidRequest, D>>;
   /**
    * Replaces one of your keys with a new one, answering its secret once; the old key keeps working
    * for `overlap` (an ISO-8601 duration such as `PT1H`). A browser needs a recent sign-in.
@@ -77,15 +74,15 @@ export interface ApiKeys<D> {
   rotate(
     id: string,
     overlap: string,
-  ): Promise<WhoResult<NewApiKey, SignInRequired | ApiKeyCallerRefused | "not-found" | InvalidApiKeyRequest, D>>;
+  ): Promise<WhoResult<NewApiKey, SignInRequired | ApiKeyCallerRefused | "not-found" | InvalidRequest, D>>;
   /** Revokes one of your keys; another identity's is `"not-found"`. */
   revoke(id: string): Promise<WhoResult<void, "signed-out" | ApiKeyCallerRefused | "not-found", D>>;
   /** The key that signed this request in; `"not-found"` when no API key did. */
   current(): Promise<WhoResult<ApiKey, "signed-out" | "not-found", D>>;
 }
 
-function invalidRequest(status: number): InvalidApiKeyRequest | undefined {
-  return status === 400 ? "invalid-api-key-request" : undefined;
+function invalidRequest(status: number): InvalidRequest | undefined {
+  return status === 400 ? "invalid-request" : undefined;
 }
 
 function signedOutOrNotFound(status: number): "signed-out" | "not-found" | undefined {
@@ -119,7 +116,7 @@ export function apiKeys<D>(http: WhoHttp<D>): ApiKeys<D> {
         path: `/me/api-keys/${encodeURIComponent(id)}/rotations`,
         body: { overlap },
         read: json<NewApiKey>(),
-        reason: (status, code): SignInRequired | ApiKeyCallerRefused | "not-found" | InvalidApiKeyRequest | undefined =>
+        reason: (status, code): SignInRequired | ApiKeyCallerRefused | "not-found" | InvalidRequest | undefined =>
           signInRequired(status, code) ??
           callerRefused(status, code) ??
           (status === 404 ? "not-found" : invalidRequest(status)),

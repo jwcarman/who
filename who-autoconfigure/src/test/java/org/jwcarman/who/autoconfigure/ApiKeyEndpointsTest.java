@@ -304,7 +304,7 @@ class ApiKeyEndpointsTest {
           browser("POST", KEYS, "{\"name\":\"CI\",\"lifetime\":\"P1D\",\"scopes\":[\"not.held\"]}");
 
       assertThat(response.statusCode()).isEqualTo(400);
-      assertThat(response.headers().firstValue("Who-Error")).contains("invalid-api-key-request");
+      assertThat(response.headers().firstValue("Who-Error")).contains("invalid-request");
     }
 
     @Test

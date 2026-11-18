@@ -112,7 +112,7 @@ A `401` from a call that needs a recent sign-in means either "signed out" or "si
 
 If your error handling clears the header (an advice that calls `response.reset()`), or a page on another origin cannot read it because your CORS configuration does not expose it, such a `401` answers `'sign-in-required'`. `me.get()` then tells the two apart: it answers `'signed-out'` when no one is signed in.
 
-Where one status has two meanings, such as a `403` for a missing permission or a role the caller may not grant, the header decides too; without it the client takes the more common one (`'permission-required'`, `'identity-not-found'`, `'invalid-admin-request'`). A `409` on removing a credential is `'last-credential'` only when the header says so; any other `409` there is thrown as `'unexpected'`. A `403` is `'browser-session-required'` (or, at the API-key calls, `'api-key-cannot-manage-keys'`) only when the header says so: elsewhere in your account it is thrown as `'unexpected'`, and at an admin change it is `'permission-required'`.
+Where one status has two meanings, such as a `403` for a missing permission or a role the caller may not grant, the header decides too; without it the client takes the more common one (`'permission-required'`, `'identity-not-found'`, `'invalid-request'`). A `409` on removing a credential is `'last-credential'` only when the header says so; any other `409` there is thrown as `'unexpected'`. A `403` is `'browser-session-required'` (or, at the API-key calls, `'api-key-cannot-manage-keys'`) only when the header says so: elsewhere in your account it is thrown as `'unexpected'`, and at an admin change it is `'permission-required'`.
 
 ## Calls
 
@@ -154,8 +154,8 @@ Paths are below `baseUrl`. A call that needs a recent sign-in lists `'signed-out
 | `me.accounts.link(registrationId)` | `POST /me/accounts/{registrationId}` | (leaves the page) | *sign-in*, *browser*, `'not-found'` |
 | `me.accounts.unlink(id)` | `DELETE /me/accounts/{id}` | none | *sign-in*, *browser*, `'not-found'`, `'last-credential'` |
 | `me.apiKeys.list()` | `GET /me/api-keys` | `ApiKey[]` | `'signed-out'`, *browser*, `'api-key-cannot-manage-keys'` |
-| `me.apiKeys.create({ name, lifetime, scopes })` | `POST /me/api-keys` | `NewApiKey` | *sign-in*, *browser*, `'api-key-cannot-manage-keys'`, `'invalid-api-key-request'` |
-| `me.apiKeys.rotate(id, overlap)` | `POST /me/api-keys/{id}/rotations` | `NewApiKey` | *sign-in*, *browser*, `'api-key-cannot-manage-keys'`, `'not-found'`, `'invalid-api-key-request'` |
+| `me.apiKeys.create({ name, lifetime, scopes })` | `POST /me/api-keys` | `NewApiKey` | *sign-in*, *browser*, `'api-key-cannot-manage-keys'`, `'invalid-request'` |
+| `me.apiKeys.rotate(id, overlap)` | `POST /me/api-keys/{id}/rotations` | `NewApiKey` | *sign-in*, *browser*, `'api-key-cannot-manage-keys'`, `'not-found'`, `'invalid-request'` |
 | `me.apiKeys.revoke(id)` | `DELETE /me/api-keys/{id}` | none | `'signed-out'`, *browser*, `'api-key-cannot-manage-keys'`, `'not-found'` |
 | `me.apiKeys.current()` | `GET /me/api-keys/current` | `ApiKey` | `'signed-out'`, `'not-found'` |
 
@@ -166,13 +166,13 @@ Each needs a [permission](admin.md#permissions): `who.identities.read` for the r
 
 | Call | Endpoint | Value | Reasons |
 |---|---|---|---|
-| `admin.identities.list(query?)` | `GET /identities` | `IdentityPage` | `'signed-out'`, `'permission-required'`, `'invalid-admin-request'` |
+| `admin.identities.list(query?)` | `GET /identities` | `IdentityPage` | `'signed-out'`, `'permission-required'`, `'invalid-request'` |
 | `admin.identities.get(id)` | `GET /identities/{id}` | `AdminIdentity` | `'signed-out'`, `'permission-required'`, `'identity-not-found'` |
-| `admin.identities.setStatus(id, 'ACTIVE' \| 'DISABLED')` | `PATCH /identities/{id}` | `AdminIdentity` | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'invalid-admin-request'`, `'self-deactivation'`, `'last-admin'` |
+| `admin.identities.setStatus(id, 'ACTIVE' \| 'DISABLED')` | `PATCH /identities/{id}` | `AdminIdentity` | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'invalid-request'`, `'self-deactivation'`, `'last-admin'` |
 | `admin.identities.addRole(id, role)` | `PUT /identities/{id}/roles/{role}` | none | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'role-grant-forbidden'`, `'identity-not-found'`, `'unknown-role'` |
 | `admin.identities.removeRole(id, role)` | `DELETE /identities/{id}/roles/{role}` | none | *sign-in*, *browser*, `'permission-required'`, `'identity-outranks-caller'`, `'identity-not-found'`, `'unknown-role'`, `'last-admin'` |
 | `admin.roles.list()` | `GET /roles` | `AdminRole[]` | `'signed-out'`, `'permission-required'` |
-| `admin.invite(email, roles?)` | `POST /invitations` | `{ identityId, linkSent }` | *sign-in*, *browser*, `'permission-required'`, `'role-grant-forbidden'`, `'invalid-invitation'`, `'invalid-admin-request'`, `'email-address-taken'` |
+| `admin.invite(email, roles?)` | `POST /invitations` | `{ identityId, linkSent }` | *sign-in*, *browser*, `'permission-required'`, `'role-grant-forbidden'`, `'invalid-request'`, `'invalid-request'`, `'email-address-taken'` |
 
 `list`'s `query` takes `status`, `role`, `email`, `page` and `size`; only those given are sent.
 
@@ -188,7 +188,7 @@ What the reasons mean:
 | `'last-credential'` | Removing it would leave you no way to sign in. |
 | `'browser-session-required'` | Only a browser session on its own may do this: the request carried an API key or a bearer token, perhaps beside the session cookie. |
 | `'api-key-cannot-manage-keys'` | A request an API key signed in may not manage keys. |
-| `'invalid-api-key-request'` | who refused the key's name, lifetime, overlap or scopes; `detail` says why. |
+| `'invalid-request'` | who refused the request: an API key's name, lifetime, overlap or scopes, or an admin query or body; `detail` says why. |
 | the admin codes | The [`Who-Error` codes](errors.md#the-who-error-header) of the same names. |
 
 ### Email links

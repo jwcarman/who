@@ -469,8 +469,7 @@ class ApiKeysFilterTest {
           send("POST", KEYS, createBody("CI", "P1D", READ, "task.delete"), recentBrowser(alice));
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER))
-          .isEqualTo("invalid-api-key-request");
+      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("invalid-request");
       assertThat(service.findByIdentity(alice.id())).isEmpty();
     }
 

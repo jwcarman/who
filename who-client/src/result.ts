@@ -53,6 +53,9 @@ export type SignInRequired = "signed-out" | "reauthentication-required" | "sign-
  */
 export type BrowserSessionRequired = "browser-session-required";
 
+/** A query, path or body who refuses (`400`); the problem's `detail` says what was wrong. */
+export type InvalidRequest = "invalid-request";
+
 /**
  * Removing the credential would leave the identity no way to sign in: who keeps an identity's last
  * email address, passkey or linked account (`409`, `Who-Error: last-credential`).

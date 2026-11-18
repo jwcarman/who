@@ -337,7 +337,7 @@ class InvitationsFilterTest {
       MockHttpServletResponse response = invite(body("not-an-address"));
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-invitation");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
     }
   }
 
@@ -467,7 +467,7 @@ class InvitationsFilterTest {
       MockHttpServletResponse response = invite(body(ADDRESS, "editor", "ghost"));
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-invitation");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
       verify(invitations, never()).invite(anyString(), any());
     }
   }

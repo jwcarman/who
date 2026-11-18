@@ -579,7 +579,7 @@ class InvitationServiceTest {
       HttpResponse<String> response = asAlice(body(CAROL, "no-such-role"));
 
       assertThat(response.statusCode()).isEqualTo(400);
-      assertThat(response.headers().firstValue("Who-Error")).contains("invalid-invitation");
+      assertThat(response.headers().firstValue("Who-Error")).contains("invalid-request");
       assertThat(identities()).isEqualTo(before);
     }
 

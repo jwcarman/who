@@ -561,7 +561,7 @@ class IdentitiesFilterTest {
       MockHttpServletResponse response = get("/who/identities?email=bob@example.com");
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-admin-request");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
     }
 
     @Test
@@ -569,7 +569,7 @@ class IdentitiesFilterTest {
       MockHttpServletResponse response = get("/who/identities?size=101");
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-admin-request");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
       assertThat(get("/who/identities?size=100").getStatus()).isEqualTo(200);
     }
 
@@ -589,7 +589,7 @@ class IdentitiesFilterTest {
       MockHttpServletResponse response = get("/who/identities?" + query);
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-admin-request");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
     }
 
     @Test
@@ -722,7 +722,7 @@ class IdentitiesFilterTest {
       MockHttpServletResponse response = patch(other.id(), body);
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-admin-request");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
       assertThat(identities.findById(other.id()).orElseThrow().status())
           .isEqualTo(IdentityStatus.ACTIVE);
     }
@@ -732,7 +732,7 @@ class IdentitiesFilterTest {
       MockHttpServletResponse response = patch(other.id(), "{\"status\":\"INACTIVE\"}");
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-admin-request");
+      assertThat(response.getHeader(HEADER)).isEqualTo("invalid-request");
       assertThat(identities.findById(other.id()).orElseThrow().status())
           .isEqualTo(IdentityStatus.ACTIVE);
     }

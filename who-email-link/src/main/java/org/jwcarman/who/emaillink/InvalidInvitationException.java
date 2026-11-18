@@ -42,9 +42,9 @@ public class InvalidInvitationException extends WhoException implements WhoError
     super("%s", message);
   }
 
-  /** {@return {@code invalid-invitation}} */
+  /** {@return {@code invalid-request}} */
   @Override
   public String errorCode() {
-    return "invalid-invitation";
+    return "invalid-request";
   }
 }

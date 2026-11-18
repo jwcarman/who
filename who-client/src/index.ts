@@ -26,7 +26,6 @@ export type {
   IdentityPage,
   IdentityQuery,
   IdentityStatus,
-  InvalidAdminRequest,
   Invitation,
   LastAdmin,
   PermissionRequired,
@@ -38,7 +37,6 @@ export type {
   ApiKeyCannotManageKeys,
   ApiKeyRequest,
   ApiKeys,
-  InvalidApiKeyRequest,
   NewApiKey,
 } from "./apiKeys.js";
 export { createWhoClient, type SignInOptions, type SignInProvider, type WhoClient } from "./client.js";
@@ -61,6 +59,7 @@ export {
   type AlreadyRegistered,
   type BrowserSessionRequired,
   type Cancelled,
+  type InvalidRequest,
   type LastCredential,
   type PromptFailure,
   type SignInRequired,

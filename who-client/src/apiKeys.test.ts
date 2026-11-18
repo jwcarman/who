@@ -68,7 +68,7 @@ describe("me.apiKeys.create", () => {
   it.each([
     [401, "reauthentication-required", "reauthentication-required"],
     [401, "not-signed-in", "signed-out"],
-    [400, "invalid-api-key-request", "invalid-api-key-request"],
+    [400, "invalid-request", "invalid-request"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.post(at("/who/me/api-keys"), () => refused(status, code)));
 
@@ -95,7 +95,7 @@ describe("me.apiKeys.rotate", () => {
   it.each([
     [401, "reauthentication-required", "reauthentication-required"],
     [404, "api-key-not-found", "not-found"],
-    [400, "invalid-api-key-request", "invalid-api-key-request"],
+    [400, "invalid-request", "invalid-request"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.post(at("/who/me/api-keys/k1/rotations"), () => refused(status, code)));
 

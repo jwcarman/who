@@ -67,7 +67,7 @@ describe("admin.identities.list", () => {
   it.each([
     [401, "not-signed-in", "signed-out"],
     [403, "permission-required", "permission-required"],
-    [400, "invalid-admin-request", "invalid-admin-request"],
+    [400, "invalid-request", "invalid-request"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.get(at("/who/identities"), () => refused(status, code)));
 
@@ -123,7 +123,7 @@ describe("admin.identities.setStatus", () => {
     [403, "permission-required", "permission-required"],
     [403, "identity-outranks-caller", "identity-outranks-caller"],
     [404, "identity-not-found", "identity-not-found"],
-    [400, "invalid-admin-request", "invalid-admin-request"],
+    [400, "invalid-request", "invalid-request"],
     [409, "self-deactivation", "self-deactivation"],
     [409, "last-admin", "last-admin"],
   ])("answers %i %s as %s", async (status, code, reason) => {
@@ -255,8 +255,7 @@ describe("admin.invite", () => {
     [401, "reauthentication-required", "reauthentication-required"],
     [403, "permission-required", "permission-required"],
     [403, "role-grant-forbidden", "role-grant-forbidden"],
-    [400, "invalid-invitation", "invalid-invitation"],
-    [400, "invalid-admin-request", "invalid-admin-request"],
+    [400, "invalid-request", "invalid-request"],
     [409, "email-address-taken", "email-address-taken"],
   ])("answers %i %s as %s", async (status, code, reason) => {
     server.use(http.post(at("/who/invitations"), () => refused(status, code)));

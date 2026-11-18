@@ -357,7 +357,7 @@ class WhoAdminEndpointsTest {
       HttpResponse<String> response = asAlice("GET", "/who/identities?size=101", null);
 
       assertThat(response.statusCode()).isEqualTo(400);
-      assertThat(response.headers().firstValue("Who-Error")).contains("invalid-admin-request");
+      assertThat(response.headers().firstValue("Who-Error")).contains("invalid-request");
     }
 
     @Test

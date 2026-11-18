@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { browserSessionRequired, json, nothing, signedOut, signInRequired, type WhoHttp } from "./http.js";
-import type { BrowserSessionRequired, SignInRequired, WhoResult } from "./result.js";
+import type { BrowserSessionRequired, InvalidRequest, SignInRequired, WhoResult } from "./result.js";
 
 /** Whether an identity may sign in. */
 export type IdentityStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
@@ -86,9 +86,6 @@ export type IdentityOutranksCaller = "identity-outranks-caller";
 /** The change would leave no active identity that may manage identities (`409`). */
 export type LastAdmin = "last-admin";
 
-/** A query or body who refuses (`400`). */
-export type InvalidAdminRequest = "invalid-admin-request";
-
 /** The reasons reading as an admin can fail. */
 export type AdminReadFailure = "signed-out" | PermissionRequired;
 
@@ -102,7 +99,7 @@ export type AdminChangeFailure = SignInRequired | BrowserSessionRequired | Permi
 /** Identities: listing, reading, (de)activating them and assigning roles (`client.admin.identities`). */
 export interface AdminIdentities<D> {
   /** A page of identities. Needs `who.identities.read`. */
-  list(query?: IdentityQuery): Promise<WhoResult<IdentityPage, AdminReadFailure | InvalidAdminRequest, D>>;
+  list(query?: IdentityQuery): Promise<WhoResult<IdentityPage, AdminReadFailure | InvalidRequest, D>>;
   /** One identity. Needs `who.identities.read`. */
   get(id: string): Promise<WhoResult<AdminIdentity, AdminReadFailure | "identity-not-found", D>>;
   /**
@@ -120,7 +117,7 @@ export interface AdminIdentities<D> {
       | AdminChangeFailure
       | IdentityOutranksCaller
       | "identity-not-found"
-      | InvalidAdminRequest
+      | InvalidRequest
       | "self-deactivation"
       | LastAdmin,
       D
@@ -166,17 +163,13 @@ export interface Admin<D> {
   /**
    * Invites an address as a new identity holding `roles`, and emails it a sign-in link. Needs
    * `who.identities.manage` and every permission the roles carry. An unknown role is
-   * `"invalid-invitation"`; an address already someone's is `"email-address-taken"`.
+   * `"invalid-request"`; an address already someone's is `"email-address-taken"`.
    */
   invite(
     email: string,
     roles?: string[],
   ): Promise<
-    WhoResult<
-      Invitation,
-      AdminChangeFailure | RoleGrantForbidden | "invalid-invitation" | InvalidAdminRequest | "email-address-taken",
-      D
-    >
+    WhoResult<Invitation, AdminChangeFailure | RoleGrantForbidden | InvalidRequest | "email-address-taken", D>
   >;
 }
 
@@ -210,8 +203,8 @@ function roleNotFound(status: number, code: string | null): "identity-not-found"
   return code === "unknown-role" ? code : "identity-not-found";
 }
 
-function invalid(status: number): InvalidAdminRequest | undefined {
-  return status === 400 ? "invalid-admin-request" : undefined;
+function invalid(status: number): InvalidRequest | undefined {
+  return status === 400 ? "invalid-request" : undefined;
 }
 
 function identityPath(id: string): string {
@@ -263,7 +256,7 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
             | AdminChangeFailure
             | IdentityOutranksCaller
             | "identity-not-found"
-            | InvalidAdminRequest
+            | InvalidRequest
             | "self-deactivation"
             | LastAdmin
             | undefined => {
@@ -311,7 +304,7 @@ export function admin<D>(http: WhoHttp<D>): Admin<D> {
         read: json<Invitation>(),
         reason: (status, code) => {
           if (status === 400) {
-            return code === "invalid-invitation" ? code : "invalid-admin-request";
+            return "invalid-request";
           }
           if (status === 409) {
             return "email-address-taken";
