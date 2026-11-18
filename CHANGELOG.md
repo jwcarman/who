@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-18
+
 ### Breaking changes
 
 - **`MustacheWhoEmailRenderer` takes a list of template locations**, and
@@ -18,6 +20,10 @@ All notable changes to this project are documented here. The format follows
   searched after the application's and before who's, in bean order.
 - Subjects are Mustache templates with the body's values, such as
   `who.email.sign-in.subject=Sign in to {{app.name}}`, rendered on one line.
+
+### Changed
+
+- A subject that fails to render names its key and locale in the error.
 
 ## [0.23.0] - 2026-11-18
 
@@ -603,7 +609,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.23.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.24.0...HEAD
+[0.24.0]: https://github.com/jwcarman/who/releases/tag/0.24.0
 [0.23.0]: https://github.com/jwcarman/who/releases/tag/0.23.0
 [0.22.0]: https://github.com/jwcarman/who/releases/tag/0.22.0
 [0.21.0]: https://github.com/jwcarman/who/releases/tag/0.21.0

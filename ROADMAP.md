@@ -7,11 +7,6 @@ doc in `docs/superpowers/specs/` before any code. What has shipped is in the
 
 ## Next
 
-- **Email templates from a library, and subjects with values.** `who.email.templates` becomes a
-  list; a library adds its own templates and subjects with a `WhoEmailTemplates` bean, searched
-  after the application's and before who's; subjects are rendered with the body's values, so they
-  can name the app. (Design:
-  [library email templates](docs/superpowers/specs/2026-11-18-library-email-templates-design.md).)
 - **More identity providers.** Multi-tenant Microsoft Entra ID (`common` and `organizations`), with
   a tenant allow-list.
 - **Sign-up through `WhoSignUpPolicy` for email links.**
