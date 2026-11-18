@@ -258,6 +258,38 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
   }
 
   @Test
+  void registrationWithALineBreakInTheLabelFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request =
+        PasskeyEmulator.honest(ORIGIN).register(options, "Laptop\r\nVisit https://evil.example");
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("a passkey's label must be 1 to 64 characters, with no control characters");
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+    assertThat(notifications).isEmpty();
+  }
+
+  @Test
+  void registrationWithALabelLongerThan64CharactersFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request = PasskeyEmulator.honest(ORIGIN).register(options, "x".repeat(65));
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+  }
+
+  @Test
+  void registrationWithA64CharacterLabelSucceeds() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+
+    operations.registerCredential(PasskeyEmulator.honest(ORIGIN).register(options, "é".repeat(64)));
+
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).hasSize(1);
+  }
+
+  @Test
   void registrationWithAnotherIdentitysOptionsFails() {
     PublicKeyCredentialCreationOptions options = creationOptions();
     var request = PasskeyEmulator.honest(ORIGIN).register(options, "Laptop");

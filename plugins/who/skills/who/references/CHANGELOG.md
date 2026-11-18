@@ -85,6 +85,11 @@ All notable changes to this project are documented here. The format follows
 
 - Native images answer `GET /who/me` and every resource endpoint. They answered `500` ("Record
   components not available") since 0.21.0, because no answer type was registered for reflection.
+- A passkey's label must be 1 to 64 characters with no control characters; anything else answers
+  `400` `invalid-passkey-registration`. The label appears in the owner's "passkey added" email, so
+  a label with line breaks could have passed off text of its own there.
+- who's 5xx log lines escape control characters in the request's method and URI, so a request
+  cannot forge a log line.
 
 ## [0.22.0] - 2026-11-17
 
