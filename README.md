@@ -41,7 +41,7 @@ your application answers in its own format.
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-spring-boot-starter</artifactId>
-    <version>0.22.0</version>
+    <version>0.23.0</version>
 </dependency>
 ```
 

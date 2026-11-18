@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-18
+
 ### Breaking changes
 
 - **Every who email goes through `WhoEmails`.** It refuses inside a transaction, renders the email,
@@ -588,7 +590,8 @@ before you upgrade.
 - Spring Boot 4.1 (built against 4.1.2).
 - Java 25+ and PostgreSQL 14+, unchanged.
 
-[Unreleased]: https://github.com/jwcarman/who/compare/0.22.0...HEAD
+[Unreleased]: https://github.com/jwcarman/who/compare/0.23.0...HEAD
+[0.23.0]: https://github.com/jwcarman/who/releases/tag/0.23.0
 [0.22.0]: https://github.com/jwcarman/who/releases/tag/0.22.0
 [0.21.0]: https://github.com/jwcarman/who/releases/tag/0.21.0
 [0.20.0]: https://github.com/jwcarman/who/releases/tag/0.20.0

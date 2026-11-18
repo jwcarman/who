@@ -74,7 +74,7 @@ Fetch it, then check a jar against its `.asc` file:
 
 ```bash
 gpg --keyserver keyserver.ubuntu.com --recv-keys 62685DD087F84A30B6E77BF20DE19C9D88B89E43
-gpg --verify who-core-0.22.0.jar.asc who-core-0.22.0.jar
+gpg --verify who-core-0.23.0.jar.asc who-core-0.23.0.jar
 ```
 
 `gpg` should report a good signature from that fingerprint. If a release is ever signed with a
@@ -84,14 +84,14 @@ different key, this section will say so first.
 workflow run and commit that built it:
 
 ```bash
-gh attestation verify who-core-0.22.0.jar --repo jwcarman/who
+gh attestation verify who-core-0.23.0.jar --repo jwcarman/who
 ```
 
 **Rebuilding.** Builds are reproducible from 0.16.0 on: building a release tag with the same
 JDK major version gives byte-for-byte the jars on Maven Central.
 
 ```bash
-git checkout 0.22.0
-./mvnw -B versions:set -DnewVersion=0.22.0 -DgenerateBackupPoms=false
+git checkout 0.23.0
+./mvnw -B versions:set -DnewVersion=0.23.0 -DgenerateBackupPoms=false
 ./mvnw -B package -DskipTests
 ```
