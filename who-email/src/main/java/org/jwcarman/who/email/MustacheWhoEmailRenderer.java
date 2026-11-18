@@ -24,10 +24,12 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -57,10 +59,14 @@ import com.samskivert.mustache.Template;
  * variable the model lacks fails the render; a value that is null renders empty. Text templates are
  * not escaped; HTML templates escape their values.
  *
- * <p>The subject is the message {@code who.email.<template>.subject} in the email's locale.
+ * <p>The subject is the message {@code who.email.<template>.subject} in the email's locale,
+ * rendered as a text template with the same three names, then put on one line: every run of control
+ * characters, line breaks included, becomes one space. The message is read without arguments, so
+ * {@code MessageFormat} does not touch it.
  *
- * <p>Every template in every location is compiled when the renderer is created, so a template that
- * does not compile fails startup rather than the first send.
+ * <p>Every template in every location, and each template's subject in {@link Locale#ROOT} when it
+ * has one, is compiled when the renderer is created, so a template or subject that does not compile
+ * fails startup rather than the first send.
  */
 public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
 
@@ -70,6 +76,8 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
   private static final String BUILT_IN_PATTERN = "classpath*:/org/jwcarman/who/email/templates/";
   private static final String TEXT = ".txt";
   private static final String HTML = ".html";
+  private static final char LINE_SEPARATOR = (char) 0x2028;
+  private static final char PARAGRAPH_SEPARATOR = (char) 0x2029;
 
   private final ResourcePatternResolver resources;
   private final List<String> locations;
@@ -79,6 +87,7 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
   private final Mustache.Compiler textCompiler;
   private final Mustache.Compiler htmlCompiler;
   private final Map<String, Optional<Template>> compiled = new ConcurrentHashMap<>();
+  private final Map<String, Template> subjects = new ConcurrentHashMap<>();
 
   /**
    * Creates the renderer and compiles every template it can find.
@@ -111,8 +120,10 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
     // HTML templates escape their values
     this.textCompiler = compiler(TEXT).escapeHTML(false);
     this.htmlCompiler = compiler(HTML);
-    given.forEach(this::verify);
-    verify(BUILT_IN_PATTERN);
+    Set<String> names = new HashSet<>();
+    given.forEach(location -> names.addAll(verify(location)));
+    names.addAll(verify(BUILT_IN_PATTERN));
+    names.forEach(this::verifySubject);
   }
 
   @Override
@@ -124,7 +135,8 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
                 () -> new IllegalStateException("No who email template named " + name + TEXT));
     Map<String, Object> model = model(email);
     String html = template(name + HTML).map(template -> template.execute(model)).orElse(null);
-    String subject = messages.getMessage("who.email." + name + ".subject", null, locale);
+    String message = messages.getMessage(subjectKey(name), null, locale);
+    String subject = oneLine(subject(message).execute(model));
     return new OutgoingEmail(email.address(), subject, text.execute(model), html, email);
   }
 
@@ -132,6 +144,44 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
     Map<String, Object> extra = new HashMap<>();
     contributors.forEach(contributor -> extra.putAll(contributor.extra(email)));
     return Map.of("email", email, "app", app, "extra", extra);
+  }
+
+  private static String subjectKey(String name) {
+    return "who.email." + name + ".subject";
+  }
+
+  private Template subject(String message) {
+    return subjects.computeIfAbsent(message, textCompiler::compile);
+  }
+
+  private void verifySubject(String name) {
+    String message = messages.getMessage(subjectKey(name), null, null, Locale.ROOT);
+    if (message == null) {
+      return;
+    }
+    try {
+      subject(message);
+    } catch (MustacheException e) {
+      throw new IllegalStateException("The subject " + subjectKey(name) + " does not compile", e);
+    }
+  }
+
+  private static String oneLine(String subject) {
+    StringBuilder line = new StringBuilder(subject.length());
+    boolean control = false;
+    for (int i = 0; i < subject.length(); i++) {
+      char c = subject.charAt(i);
+      if (Character.isISOControl(c) || c == LINE_SEPARATOR || c == PARAGRAPH_SEPARATOR) {
+        if (!control) {
+          line.append(' ');
+        }
+        control = true;
+      } else {
+        line.append(c);
+        control = false;
+      }
+    }
+    return line.toString().strip();
   }
 
   private Optional<Template> template(String fileName) {
@@ -169,11 +219,16 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
     }
   }
 
-  private void verify(String location) {
+  private Set<String> verify(String location) {
+    Set<String> names = new HashSet<>();
     for (String extension : List.of(TEXT, HTML)) {
       try {
         for (Resource resource : resources.getResources(location + "*" + extension)) {
-          compile(resource, requireNonNull(resource.getFilename(), "filename"));
+          String fileName = requireNonNull(resource.getFilename(), "filename");
+          compile(resource, fileName);
+          if (extension.equals(TEXT)) {
+            names.add(fileName.substring(0, fileName.length() - TEXT.length()));
+          }
         }
       } catch (FileNotFoundException _) {
         // no such location: an application without templates of its own
@@ -181,6 +236,7 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
         throw new UncheckedIOException("Could not list the who email templates in " + location, e);
       }
     }
+    return names;
   }
 
   private static Reader reader(Resource resource) {

@@ -242,6 +242,72 @@ class MustacheWhoEmailRendererTest {
           .isEqualTo("About greeting");
       assertThat(renderer.render(email("greeting"), Locale.FRENCH).subject()).isEqualTo("Bonjour");
     }
+
+    private OutgoingEmail render(
+        TestEmail email, String subject, List<WhoEmailModelContributor> contributors) {
+      StaticMessageSource source = new StaticMessageSource();
+      source.addMessage("who.email." + email.template() + ".subject", Locale.ENGLISH, subject);
+      return new MustacheWhoEmailRenderer(
+              new PathMatchingResourcePatternResolver(),
+              List.of(EMPTY_LOCATION),
+              source,
+              Map.of("name", "Roux"),
+              contributors)
+          .render(email, Locale.ENGLISH);
+    }
+
+    @Test
+    void a_subject_names_the_app() {
+      assertThat(render(email("greeting"), "Sign in to {{app.name}}", List.of()).subject())
+          .isEqualTo("Sign in to Roux");
+    }
+
+    @Test
+    void a_subject_sees_the_email_and_extra() {
+      List<WhoEmailModelContributor> contributors = List.of(email -> Map.of("brand", "Acme"));
+
+      assertThat(
+              render(email("greeting"), "{{extra.brand}} for {{email.name}}", contributors)
+                  .subject())
+          .isEqualTo("Acme for Ann");
+    }
+
+    @Test
+    void a_plain_subject_is_unchanged() {
+      assertThat(render(email("greeting"), "It's {0} & <b>", List.of()).subject())
+          .isEqualTo("It's {0} & <b>");
+    }
+
+    @Test
+    void a_line_break_in_a_value_becomes_a_space() {
+      TestEmail email = new TestEmail("ann@example.com", "greeting", "Ann\r\n\r\nBcc: x", LINK);
+
+      assertThat(render(email, "Hi {{email.name}}", List.of()).subject())
+          .isEqualTo("Hi Ann Bcc: x");
+    }
+
+    @Test
+    void a_subject_naming_a_missing_value_fails_the_render() {
+      TestEmail email = email("greeting");
+
+      assertThatThrownBy(() -> render(email, "Hi {{nope}}", List.of()))
+          .hasMessageContaining("nope");
+    }
+
+    @Test
+    void a_subject_that_does_not_compile_fails_creation() {
+      StaticMessageSource source = new StaticMessageSource();
+      source.addMessage("who.email.greeting.subject", Locale.ROOT, "Hi {{#open}}");
+      PathMatchingResourcePatternResolver resources = new PathMatchingResourcePatternResolver();
+      List<String> locations = List.of(EMPTY_LOCATION);
+      Map<String, String> app = Map.of();
+      List<WhoEmailModelContributor> contributors = List.of();
+
+      assertThatThrownBy(
+              () -> new MustacheWhoEmailRenderer(resources, locations, source, app, contributors))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("who.email.greeting.subject");
+    }
   }
 
   @Nested
