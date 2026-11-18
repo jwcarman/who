@@ -84,6 +84,34 @@ WhoEmailSender whoEmailSender(MyMailer mailer) {
 
 With your own sender, leave out `who-email-smtp`, but keep `who-email` to render.
 
+### who answers its own errors
+
+Under who's base path, who now answers every error itself, as RFC 9457 Problem Details
+(`application/problem+json`) with a `code` member, whatever your `@RestControllerAdvice` says.
+A handler of yours for who's exceptions no longer runs for who's endpoints; it still runs for
+your own endpoints, which who's exceptions reach as before. A client that read your advice's body
+for who's endpoints reads who's now; see [Errors](errors.md#whos-answer).
+`invalid-admin-request`, `invalid-api-key-request` and `invalid-invitation` are now
+`invalid-request`.
+
+### who's endpoints are controllers
+
+`/who/me`, the session, passkey, email-address, linked-account, API-key and admin endpoints are
+Spring MVC controllers now, not servlet filters. That changes three things:
+
+- **Your authorization rules apply to them.** With who's default chain and the documented
+  `WhoPublicPaths` plus `anyRequest().authenticated()`, nothing changes. A rule of yours that
+  refuses `/who/**`, or demands a role there, now refuses who's endpoints too.
+- **The `*Endpoints` beans are gone**: `EmailAddressEndpoints`, `LinkedAccountsEndpoints`,
+  `ApiKeyEndpoints`, `WhoAdminEndpoints` and `WhoInvitationEndpoints`. A chain of your own that
+  applied one drops that call; the controllers are on with their module. To replace an endpoint,
+  define a bean of the controller's type.
+- **A controller of yours at one of who's paths fails startup** as an ambiguous mapping, where
+  before who's filter answered first and yours never ran.
+
+`WhoJson` is gone too: who's answer types carry their JSON shape themselves, so your
+`spring.jackson` settings still do not change them.
+
 ### Other changes
 
 - `WhoEmail` moved to `org.jwcarman.who.core.email`, is no longer sealed, and has `template()`. The

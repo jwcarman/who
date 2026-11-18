@@ -55,8 +55,8 @@ signed-in caller that is not one the table allows gets `403` `BrowserSessionRequ
 (`browser-session-required`), except that a request an API key signed in gets `403`
 `ApiKeyCannotManageKeysException` (`api-key-cannot-manage-keys`) at the API-key endpoints, since
 a bearer token may manage keys too, and `GET /who/me/api-keys/current` answers `404` to a request
-no API key signed in. Like every who failure, these go
-through your exception handling (see [Errors](errors.md)), and every POST and DELETE from a browser
+no API key signed in. Like every who failure, these are
+answered as who's [Problem Details](errors.md#whos-answer), and every POST and DELETE from a browser
 needs the CSRF header.
 
 Which chains serve them:

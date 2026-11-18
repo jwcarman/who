@@ -218,13 +218,14 @@ that ever broke the parsers.
   sign-in fails.
 - **Watch for abuse.** Alert on volumes of failed sign-ins and sign-in emails, using the
   [events](events.md).
-- **Answer errors safely.** who throws and your application formats the response
-  ([Errors](errors.md)); keep failure responses as uniform as who's.
-- **Know that who's endpoints answer before your authorization rules.** The `/who/me` and admin
-  endpoints answer from filters that run before Spring Security's `AuthorizationFilter`, so an
-  `authorizeHttpRequests` rule of yours (an IP allow-list, `hasRole`) never sees them; who's own
-  checks guard them ([Admin](admin.md#turn-it-on)). To restrict the admin endpoints further, turn
-  them off with `who.admin.enabled=false` and serve your own, or replace their beans.
+- **Answer errors safely.** who answers errors under its base path itself, uniformly; for your own
+  endpoints your application formats who's exceptions ([Errors](errors.md)): keep those
+  responses as uniform as who's.
+- **Your authorization rules guard who's endpoints too.** The `/who/me` and admin endpoints are
+  Spring MVC controllers, so an `authorizeHttpRequests` rule of yours (an IP allow-list, `hasRole`)
+  runs before them, and who's own checks after ([Admin](admin.md#turn-it-on)). A rule that
+  refuses `/who/**` refuses them; leave who's paths to `WhoPublicPaths` and
+  `anyRequest().authenticated()`.
 
 ## What who assumes
 

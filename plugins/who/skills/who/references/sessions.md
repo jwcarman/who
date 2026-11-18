@@ -128,7 +128,7 @@ The `id` is who's own, not the session cookie, so showing it exposes nothing tha
 
 Signing out the current browser through `DELETE /who/me/sessions/{id}` runs the chain's logout handlers, the same as `POST /who/logout`: who's, any you added, CSRF's, clearing the `XSRF-TOKEN` cookie, and Spring Security's `LogoutSuccessEvent`. It answers `204` rather than running the logout success handler.
 
-Answers, through your exception handling like who's other endpoints:
+Answers, as who's [Problem Details](errors.md#whos-answer) like who's other endpoints:
 
 - `401` when signed out, or when ending another session with a sign-in older than `who.security.recent-sign-in`. Sign in again and retry.
 - `403` for a caller who is signed in, but not by this browser's session: an API key or a bearer token sent on a chain that also accepts browser sessions, even with a session cookie beside it. A chain that accepts only keys or tokens has no session endpoints: there `/who/me/sessions` is answered like any other path of yours.

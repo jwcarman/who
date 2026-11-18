@@ -218,6 +218,41 @@ describe("decodeError", () => {
   });
 });
 
+describe("the error code", () => {
+  const problem = (code: string, status: number) =>
+    HttpResponse.json(
+      { type: `urn:who:error:${code}`, title: "Unauthorized", status, detail: "Sign in again", code },
+      { status, headers: { "Content-Type": "application/problem+json" } },
+    );
+
+  it("comes from the body's code when the header cannot be read", async () => {
+    server.use(http.delete(at("/who/me/sessions/a"), () => problem("reauthentication-required", 401)));
+    setCsrfCookie("t");
+
+    await expect(createWhoClient().me.sessions.end("a")).resolves.toMatchObject({
+      ok: false,
+      reason: "reauthentication-required",
+      detail: { code: "reauthentication-required" },
+    });
+  });
+
+  it("comes from the header first", async () => {
+    server.use(
+      http.delete(
+        at("/who/me/sessions/a"),
+        () =>
+          new HttpResponse(JSON.stringify({ code: "reauthentication-required" }), {
+            status: 401,
+            headers: { "Who-Error": "not-signed-in", "Content-Type": "application/json" },
+          }),
+      ),
+    );
+    setCsrfCookie("t");
+
+    await expect(createWhoClient().me.sessions.end("a")).resolves.toMatchObject({ reason: "signed-out" });
+  });
+});
+
 describe("signOut", () => {
   it("signs out, then fetches a new CSRF cookie", async () => {
     setCsrfCookie("t");

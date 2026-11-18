@@ -18,6 +18,7 @@ package org.jwcarman.who.spring.security;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,11 +29,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.jwcarman.who.spring.security.web.WhoJson;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * {@code GET /who/sign-in} tells a signed-out page which ways of signing in are on, so it can draw
@@ -44,6 +47,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * email} and {@code passkey} are then {@code false} and {@code providers} is empty.
  */
 final class SignInOptionsFilter extends OncePerRequestFilter {
+
+  private static final JsonMapper MAPPER = new JsonMapper();
 
   private final RequestMatcher matcher;
   private final List<PasswordlessLoginMethod> methods;
@@ -70,6 +75,11 @@ final class SignInOptionsFilter extends OncePerRequestFilter {
     options.put("passkey", false);
     options.put("providers", List.of());
     methods.forEach(method -> options.putAll(method.signInOptions()));
-    WhoJson.write(response, HttpServletResponse.SC_OK, options);
+    response.setStatus(HttpServletResponse.SC_OK);
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+    // a map of strings, booleans and lists: no naming or date setting changes it, and no type of
+    // who's needs registering for native images
+    response.getWriter().write(MAPPER.writeValueAsString(options));
   }
 }

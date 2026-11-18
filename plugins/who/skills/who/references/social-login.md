@@ -268,8 +268,7 @@ for GitHub, so the person sees which account they are about to use. `POST /who/o
 protected, like every POST) asks your [policy](#open-sign-up). `Allow` creates the identity, links
 the account and signs in, in one transaction. `Refuse` answers `403` with `SignUpRefusedException`.
 No pending sign-up, or an expired one, is `404` with `PendingSignUpNotFoundException`. A browser
-that is signed in cannot sign up (`403`). Answers go through your exception handling (see
-[Errors](errors.md)).
+that is signed in cannot sign up (`403`). Answers are who's [Problem Details](errors.md#whos-answer).
 
 Let the person confirm: show the `displayName` and call `POST /who/oidc/pending/sign-up` only when they
 click. Do not call it as soon as the page sees `pending=sign-up`. The confirmation is the one place

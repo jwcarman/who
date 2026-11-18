@@ -53,14 +53,18 @@ All notable changes to this project are documented here. The format follows
   built by hand drops its last two arguments.
 - **`OidcLoginMethod` no longer takes a `FederatedCredentialService` or a `LastCredentialGuard`.**
   Listing and unlinking accounts is the `LinkedAccountsController` bean's.
-- **who's resource endpoints are controllers.** `EmailAddressEndpoints`,
+- **who's resource endpoints are controllers.** `SessionsFilter`, `EmailAddressEndpoints`,
   `LinkedAccountsEndpoints`, `ApiKeyEndpoints`, `WhoAdminEndpoints` and `WhoInvitationEndpoints`
-  are removed; `EmailAddressesController`, `PasskeysController`, `LinkedAccountsController`,
+  are removed; `SessionsController`, `EmailAddressesController`, `PasskeysController`,
+  `LinkedAccountsController`,
   `ApiKeysController`, `IdentitiesController`, `RolesController` and `InvitationsController` are
   beans of their modules' auto-configuration, on with the module. The admin controllers share an
   `AdminGate` bean.
   The application's `authorizeHttpRequests` rules now apply to these endpoints, as to any
-  controller.
+  controller. An application controller mapped to one of their paths now fails startup as an
+  ambiguous mapping instead of being shadowed, and who's resource endpoints need Spring MVC.
+- **`WhoJson` is removed.** who's answer types pin their JSON shape with Jackson annotations
+  instead. `WhoMeController.me` returns its `WhoMeResponse` and no longer takes the response.
 
 ### Added
 
@@ -69,6 +73,16 @@ All notable changes to this project are documented here. The format follows
   email, `who.email.model.*` and `WhoEmailModelContributor` beans. Templates compile at startup.
 - `who-email-smtp`: SMTP delivery through Spring's `JavaMailSender`, multipart when there is HTML.
 - Emails are rendered in the request's locale, or `who.email.locale`.
+
+### Changed
+
+- The TypeScript client reads a failure's code from the `Who-Error` header, or, where CORS hides
+  it, from the body's `code`.
+
+### Fixed
+
+- Native images answer `GET /who/me` and every resource endpoint. They answered `500` ("Record
+  components not available") since 0.21.0, because no answer type was registered for reflection.
 
 ## [0.22.0] - 2026-11-17
 

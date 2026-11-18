@@ -467,7 +467,7 @@ class ContactController {
 
 - **The action is yours to name.** Give the widget the same one (`turnstile.render(..., { action: 'contact' })`): Turnstile's check refuses a token made for another action. Actions are up to 32 characters of letters, digits, `-` and `_`.
 - **No check bean, no check.** `ObjectProvider` lets the endpoint work when no check is configured, as who's do. Make the bean required instead if the endpoint must never go unchecked.
-- **The handler is optional.** Without it, Spring answers `403` from the exception's `@ResponseStatus`; with it, the answer also carries `Who-Error: human-check-failed`, which the TypeScript client reads.
+- **The handler is optional.** Without it, Spring answers `403` from the exception's `@ResponseStatus`, and who's autoconfiguration still adds `Who-Error: human-check-failed`, which the TypeScript client reads; write one to give the body your own shape.
 - **CSRF still comes first:** the controller runs after the security chain.
 - **Checks you call yourself publish no event and count in no meter.** `HumanCheckPerformed` and `who.human-checks` cover who's endpoints.
 

@@ -102,9 +102,9 @@ public class WhoMeController {
       Map<String, Long> credentials) {}
 
   /**
-   * Answers the current principal, freshly resolved for this request, as {@link WhoMeResponse}
-   * written by who's own mapper (see {@link WhoJson}), so the application's Jackson settings do not
-   * change its names or its instants.
+   * Answers the current principal, freshly resolved for this request, as {@link WhoMeResponse},
+   * whose annotations keep the application's Jackson settings from changing its names, its nulls or
+   * its instants.
    *
    * @param request the request
    * @param response answers {@code 200} with the identity

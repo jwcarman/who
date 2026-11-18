@@ -109,6 +109,23 @@ export function removeCredential(
   return signInRequired(status, code) ?? browserSessionRequired(status, code);
 }
 
+/**
+ * who's code for a failure: the `Who-Error` header, or, where it cannot be read (a page on
+ * another origin whose CORS configuration does not expose it), the `code` of who's Problem
+ * Details body. Reads a copy, so `decodeError` still gets the body.
+ */
+async function errorCode(response: Response): Promise<string | null> {
+  const header = response.headers.get(ERROR_HEADER);
+  if (header !== null) {
+    return header;
+  }
+  const body = await readJson(response.clone());
+  if (typeof body === "object" && body !== null && "code" in body && typeof body.code === "string") {
+    return body.code;
+  }
+  return null;
+}
+
 /** The default `decodeError`: a JSON body, or undefined. */
 async function readJson(response: Response): Promise<unknown> {
   const text = await response.text();
@@ -183,7 +200,7 @@ export class WhoHttp<D> {
         );
       }
     }
-    const reason = call.reason(response.status, response.headers.get(ERROR_HEADER));
+    const reason = call.reason(response.status, await errorCode(response));
     if (reason === undefined) {
       throw new WhoError(`who answered ${where} with ${response.status}`, "unexpected", response.status);
     }

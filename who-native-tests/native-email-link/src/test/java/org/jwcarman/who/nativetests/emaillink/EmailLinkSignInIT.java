@@ -205,6 +205,18 @@ class EmailLinkSignInIT {
     }
   }
 
+  @Test
+  void the_sign_in_options_name_email() {
+    try (WhoClient client = client()) {
+      WhoClient.Response options = client.get("/who/sign-in");
+
+      assertThat(options.status()).as(options.body()).isEqualTo(200);
+      assertThat(options.json().path("email").asBoolean()).isTrue();
+      assertThat(options.json().path("passkey").asBoolean()).isFalse();
+      assertThat(options.json().path("providers").isArray()).isTrue();
+    }
+  }
+
   @Nested
   class Admin {
 

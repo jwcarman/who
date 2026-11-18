@@ -22,14 +22,11 @@ The endpoints go on every chain who's configurers build, browser and stateless a
 `who.admin.enabled=false` turns them off without removing the jar. Invitations also need
 `who-email-link`; without it there is no `POST /who/invitations`.
 
-**Your authorization rules do not see them.** The endpoints answer from a filter right after
-`ExceptionTranslationFilter`, before Spring Security's `AuthorizationFilter`, so rules you write in
-`authorizeHttpRequests` (an IP allow-list, `hasRole`, a network check) never run for
-`/who/identities`, `/who/roles` or `/who/invitations`; neither do they for who's `/who/me`
-endpoints. who's own checks below are what guard them. To put the admin screen behind more than
-that, set `who.admin.enabled=false` and serve your own endpoints (see
-[Your own admin endpoints](#your-own-admin-endpoints)), or replace the `WhoAdminEndpoints` and
-`WhoInvitationEndpoints` beans.
+**Your authorization rules apply too.** The endpoints are Spring MVC controllers
+(`IdentitiesController`, `RolesController`, `InvitationsController`), so rules you write in
+`authorizeHttpRequests` (an IP allow-list, `hasRole`, a network check) run before them, as for
+any controller of yours; who's own checks below run after. A rule that refuses `/who/**` refuses
+them too.
 
 ## Permissions
 
@@ -234,10 +231,9 @@ Then:
 Nothing is created in any of these cases.
 
 An exception from your [`IdentityInvited`](events.md#identityinvited-runs-inside-the-invitation)
-listener (or from a callback passed to `InvitationService.invite`) rolls the invitation back and goes through your exception handling, like every who
-failure (see [Errors](errors.md)), even a `DuplicateKeyException` from your own tables, which is
-never reported as `email-address-taken`: a `@RestControllerAdvice` of yours answers it, or the
-exception's own `@ResponseStatus` does. A listener that refuses an invitation can say why:
+listener (or from a callback passed to `InvitationService.invite`) rolls the invitation back, and who answers it with the exception's own `@ResponseStatus`,
+else `500` (see [Errors](errors.md)), even a `DuplicateKeyException` from your own tables, which is
+never reported as `email-address-taken`. A listener that refuses an invitation can say why:
 
 ```java
 @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
@@ -322,7 +318,7 @@ the request. Data that comes from the request goes through the callback.
 `InvitationService` needs a single `PlatformTransactionManager` too. Without one, who builds
 neither it nor `POST /who/invitations`, but the application does not get that far: the rest of
 the admin endpoints fail startup for want of `LastAdminGuard`. An application that supplies its
-own `LastAdminGuard` (or `WhoAdminEndpoints`) bean starts, and then has no invitation endpoint
+own `LastAdminGuard` bean starts, and then has no invitation endpoint
 unless it also defines an `InvitationService` bean. Roles need `who-rbac`: without
 it, an invitation with roles is refused with `InvalidInvitationException` before anything is
 created, and one without roles still works. `who-rbac` is optional for `who-email-link`; the
@@ -331,8 +327,8 @@ implements with `RbacInvitationRoles` when `who-rbac` is present.
 
 ## Your own admin endpoints
 
-The beans behind the endpoints are `WhoAdminEndpoints` and `WhoInvitationEndpoints`; each is
-replaced by a bean of your own of the same type. To serve your own admin pages instead, use
+The beans behind the endpoints are `IdentitiesController`, `RolesController` and
+`InvitationsController`; each is replaced by a bean of your own of the same type. To serve your own admin pages instead, use
 `WhoService`, `RbacService`, `IdentityRepository.findPage` and `InvitationService` directly, and
 check permissions with `@RequiresPermission` and a recent sign-in with
 [`@RequiresRecentSignIn`](security-model.md#recent-sign-in).

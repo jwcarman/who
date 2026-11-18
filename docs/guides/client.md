@@ -86,33 +86,34 @@ The passkey calls also answer `{ ok: false, reason: 'cancelled', status: 0 }` wh
 
 ### Your error body: `decodeError`
 
-who does not write error bodies: it hands each failure to your application's exception handling (see [Errors](errors.md)), so the body is yours. `decodeError` reads it, and its return type becomes the type of every result's `detail`:
+who answers every failure under its base path with RFC 9457 Problem Details of its own (see [Errors](errors.md#whos-answer)), whatever your application's error handling does. `decodeError` reads it, and its return type becomes the type of every result's `detail`:
 
 ```ts
-interface ProblemDetail {
-  type: string;
+interface WhoProblem {
+  type: string; // urn:who:error:<code>
   title: string;
   status: number;
-  detail?: string;
+  detail: string | null; // null for a 5xx
+  code: string;
 }
 
 const who = createWhoClient({
-  decodeError: async (response) => (await response.json()) as ProblemDetail,
+  decodeError: async (response) => (await response.json()) as WhoProblem,
 });
 
 const result = await who.email.signIn({ email, code });
-if (!result.ok) show(result.detail.title); // a ProblemDetail
+if (!result.ok) show(result.detail.detail ?? result.detail.title);
 ```
 
 Without it, `detail` is the body parsed as JSON, or `undefined` when there is none or it is not JSON.
 
 ### The `Who-Error` header
 
-A `401` from a call that needs a recent sign-in means either "signed out" or "signed in too long ago". The client tells them apart by who's [`Who-Error` header](errors.md#the-who-error-header), not by your body: `'signed-out'` or `'reauthentication-required'`.
+A `401` from a call that needs a recent sign-in means either "signed out" or "signed in too long ago". The client tells them apart by who's [`Who-Error` header](errors.md#the-who-error-header): `'signed-out'` or `'reauthentication-required'`. Where a page on another origin cannot read the header, because your CORS configuration does not expose it, the client reads the same code from the body's `code`.
 
-If your error handling clears the header (an advice that calls `response.reset()`), or a page on another origin cannot read it because your CORS configuration does not expose it, such a `401` answers `'sign-in-required'`. `me.get()` then tells the two apart: it answers `'signed-out'` when no one is signed in.
+If neither is there (a body that is not who's), such a `401` answers `'sign-in-required'`. `me.get()` then tells the two apart: it answers `'signed-out'` when no one is signed in.
 
-Where one status has two meanings, such as a `403` for a missing permission or a role the caller may not grant, the header decides too; without it the client takes the more common one (`'permission-required'`, `'identity-not-found'`, `'invalid-request'`). A `409` on removing a credential is `'last-credential'` only when the header says so; any other `409` there is thrown as `'unexpected'`. A `403` is `'browser-session-required'` (or, at the API-key calls, `'api-key-cannot-manage-keys'`) only when the header says so: elsewhere in your account it is thrown as `'unexpected'`, and at an admin change it is `'permission-required'`.
+Where one status has two meanings, such as a `403` for a missing permission or a role the caller may not grant, the code decides too; without one the client takes the more common one (`'permission-required'`, `'identity-not-found'`, `'invalid-request'`). A `409` on removing a credential is `'last-credential'` only when the code says so; any other `409` there is thrown as `'unexpected'`. A `403` is `'browser-session-required'` (or, at the API-key calls, `'api-key-cannot-manage-keys'`) only when the code says so: elsewhere in your account it is thrown as `'unexpected'`, and at an admin change it is `'permission-required'`.
 
 ## Calls
 
