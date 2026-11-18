@@ -18,8 +18,10 @@ package org.jwcarman.who.spring.security.web;
 import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.beans.factory.ObjectProvider;
@@ -32,14 +34,16 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 /**
  * Fails startup when who's controllers would not answer where who's sign-in filters, logout, public
- * paths and error handling expect them: at {@link WhoPaths#of}. A controller mapping declared under
- * {@link WhoPaths#ROOT} must resolve to exactly that path, so a path prefix the application puts on
- * its controllers, a {@code WhoPaths} bean whose root is not {@code who.base-path}, or a {@code
- * spring.mvc.servlet.path} other than {@code /} is refused, naming the mapping.
+ * paths and error handling expect them: at {@link WhoPaths#of}. Each of who's own controller
+ * mappings declared under {@link WhoPaths#ROOT} must resolve to one of its declared paths there (an
+ * application's controller that uses the constant is not checked), so a path prefix the application
+ * puts on its controllers, a {@code WhoPaths} bean whose root is not {@code who.base-path}, or a
+ * {@code spring.mvc.servlet.path} other than {@code /} is refused, naming the mapping.
  */
 public final class WhoMappingCheck implements SmartInitializingSingleton {
 
   private static final int SHOWN = 3;
+  private static final String WHO_PACKAGE = "org.jwcarman.who.";
 
   private final WhoPaths paths;
   private final ObjectProvider<RequestMappingHandlerMapping> mappings;
@@ -91,22 +95,31 @@ public final class WhoMappingCheck implements SmartInitializingSingleton {
   }
 
   private void check(RequestMappingInfo info, HandlerMethod method, List<String> wrong) {
+    // who's own controllers, including methods an application's subclass inherits; an
+    // application's controller that uses WhoPaths.ROOT is its own business
+    if (!method.getMethod().getDeclaringClass().getPackageName().startsWith(WHO_PACKAGE)) {
+      return;
+    }
     RequestMapping declared =
         AnnotatedElementUtils.findMergedAnnotation(method.getMethod(), RequestMapping.class);
     if (declared == null) {
       return;
     }
+    Set<String> expected = new LinkedHashSet<>();
     for (String path : declared.path()) {
-      if (!path.startsWith(WhoPaths.ROOT)) {
-        continue;
+      if (path.startsWith(WhoPaths.ROOT)) {
+        expected.add(paths.of(path.substring(WhoPaths.ROOT.length())));
       }
-      String expected = paths.of(path.substring(WhoPaths.ROOT.length()));
-      String prefix = servletPathPrefix();
-      for (String actual : info.getPatternValues()) {
-        String served = prefix + actual;
-        if (!served.equals(expected)) {
-          wrong.add(method.getShortLogMessage() + " answers at " + served + ", not " + expected);
-        }
+    }
+    if (expected.isEmpty()) {
+      return;
+    }
+    String prefix = servletPathPrefix();
+    for (String actual : info.getPatternValues()) {
+      String served = prefix + actual;
+      if (!expected.contains(served)) {
+        wrong.add(
+            method.getShortLogMessage() + " answers at " + served + ", not under " + paths.root());
       }
     }
   }

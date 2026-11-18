@@ -30,6 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import example.app.AppWhoRootController;
+
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoMappingsMatchBasePathTest {
 
@@ -46,6 +48,13 @@ class WhoMappingsMatchBasePathTest {
   void who_starts_at_its_base_path() {
     runner
         .withPropertyValues("who.base-path=/auth")
+        .run(context -> assertThat(context).hasNotFailed());
+  }
+
+  @Test
+  void an_application_controller_using_whos_root_is_its_own_business() {
+    runner
+        .withUserConfiguration(AppController.class)
         .run(context -> assertThat(context).hasNotFailed());
   }
 
@@ -74,7 +83,7 @@ class WhoMappingsMatchBasePathTest {
   void a_whopaths_bean_that_disagrees_with_the_property_fails_startup() {
     runner
         .withUserConfiguration(OwnPaths.class)
-        .run(context -> assertThat(context).getFailure().hasMessageContaining(", not /auth/"));
+        .run(context -> assertThat(context).getFailure().hasMessageContaining(", not under /auth"));
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -82,6 +91,14 @@ class WhoMappingsMatchBasePathTest {
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {
       configurer.addPathPrefix("/api", type -> type.isAnnotationPresent(RestController.class));
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class AppController {
+    @Bean
+    AppWhoRootController appWhoRootController() {
+      return new AppWhoRootController();
     }
   }
 
