@@ -121,6 +121,7 @@
         <!-- Must stay first: WhoBomTest reads who-bom's flattened pom, written by its process-resources. -->
         <module>who-bom</module>
         <module>who-core</module>
+        <module>who-email</module>
         <module>who-jdbc</module>
         <module>who-rbac</module>
         <module>who-spring-security</module>

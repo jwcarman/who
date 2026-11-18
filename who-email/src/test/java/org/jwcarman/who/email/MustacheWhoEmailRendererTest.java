@@ -1,0 +1,176 @@
+/*
+ * Copyright © 2026 James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.who.email;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.email.OutgoingEmail;
+import org.jwcarman.who.core.email.WhoEmail;
+import org.springframework.context.support.StaticMessageSource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+class MustacheWhoEmailRendererTest {
+
+  record TestEmail(String address, String template, String name, @Nullable String link)
+      implements WhoEmail {}
+
+  private static final String LINK = "https://x/?a=1&b=2";
+  private static final String APP_LOCATION = "classpath:/app-templates/";
+  private static final String EMPTY_LOCATION = "classpath:/no-such-templates/";
+
+  private final StaticMessageSource messages = messages();
+
+  private static StaticMessageSource messages() {
+    StaticMessageSource source = new StaticMessageSource();
+    for (String template :
+        List.of("greeting", "farewell", "nope", "nullish", "partial", "extra", "absent")) {
+      source.addMessage("who.email." + template + ".subject", Locale.ENGLISH, "About " + template);
+    }
+    source.addMessage("who.email.greeting.subject", Locale.FRENCH, "Bonjour");
+    return source;
+  }
+
+  private MustacheWhoEmailRenderer renderer(String location) {
+    return renderer(location, List.of());
+  }
+
+  private MustacheWhoEmailRenderer renderer(
+      String location, List<WhoEmailModelContributor> contributors) {
+    return new MustacheWhoEmailRenderer(
+        new PathMatchingResourcePatternResolver(),
+        location,
+        messages,
+        Map.of("name", "Roux"),
+        contributors);
+  }
+
+  private static TestEmail email(String template) {
+    return new TestEmail("ann@example.com", template, "Ann", LINK);
+  }
+
+  @Nested
+  class Templates {
+
+    @Test
+    void renders_the_built_in_text_with_email_and_app_values() {
+      OutgoingEmail out = renderer(EMPTY_LOCATION).render(email("greeting"), Locale.ENGLISH);
+
+      assertThat(out.to()).isEqualTo("ann@example.com");
+      assertThat(out.text()).isEqualTo("Hello Ann from Roux: https://x/?a=1&b=2");
+    }
+
+    @Test
+    void an_override_of_one_template_leaves_the_others_built_in() {
+      MustacheWhoEmailRenderer renderer = renderer(APP_LOCATION);
+
+      assertThat(renderer.render(email("farewell"), Locale.ENGLISH).text())
+          .isEqualTo("See you Ann");
+      assertThat(renderer.render(email("greeting"), Locale.ENGLISH).text())
+          .isEqualTo("Hello Ann from Roux: https://x/?a=1&b=2");
+    }
+
+    @Test
+    void an_html_override_keeps_the_built_in_text() {
+      OutgoingEmail out = renderer(APP_LOCATION).render(email("greeting"), Locale.ENGLISH);
+
+      assertThat(out.html()).isEqualTo("<p>https://x/?a&#x3D;1&amp;b&#x3D;2</p>");
+      assertThat(out.text()).isEqualTo("Hello Ann from Roux: https://x/?a=1&b=2");
+    }
+
+    @Test
+    void without_an_html_template_html_is_null() {
+      assertThat(renderer(APP_LOCATION).render(email("farewell"), Locale.ENGLISH).html()).isNull();
+    }
+
+    @Test
+    void a_missing_variable_fails() {
+      MustacheWhoEmailRenderer renderer = renderer(EMPTY_LOCATION);
+
+      assertThatThrownBy(() -> renderer.render(email("nope"), Locale.ENGLISH))
+          .hasMessageContaining("nope");
+    }
+
+    @Test
+    void a_null_value_renders_empty() {
+      TestEmail email = new TestEmail("ann@example.com", "nullish", "Ann", null);
+
+      assertThat(renderer(EMPTY_LOCATION).render(email, Locale.ENGLISH).text()).isEqualTo("[]");
+    }
+
+    @Test
+    void a_partial_comes_from_the_app_location_first() {
+      assertThat(renderer(APP_LOCATION).render(email("partial"), Locale.ENGLISH).text())
+          .isEqualTo("Body app footer");
+      assertThat(renderer(EMPTY_LOCATION).render(email("partial"), Locale.ENGLISH).text())
+          .isEqualTo("Body built-in footer");
+    }
+
+    @Test
+    void a_missing_text_template_fails_with_its_name() {
+      MustacheWhoEmailRenderer renderer = renderer(EMPTY_LOCATION);
+
+      assertThatThrownBy(() -> renderer.render(email("absent"), Locale.ENGLISH))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("absent.txt");
+    }
+
+    @Test
+    void a_template_that_does_not_compile_fails_construction() {
+      assertThatThrownBy(() -> renderer("classpath:/broken-templates/"))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("bad.txt");
+    }
+  }
+
+  @Nested
+  class Subjects {
+
+    @Test
+    void the_subject_comes_from_the_message_source_in_the_locale() {
+      MustacheWhoEmailRenderer renderer = renderer(EMPTY_LOCATION);
+
+      assertThat(renderer.render(email("greeting"), Locale.ENGLISH).subject())
+          .isEqualTo("About greeting");
+      assertThat(renderer.render(email("greeting"), Locale.FRENCH).subject()).isEqualTo("Bonjour");
+    }
+  }
+
+  @Nested
+  class Extra {
+
+    @Test
+    void contributors_fill_extra() {
+      List<WhoEmailModelContributor> contributors =
+          List.of(
+              email -> Map.of("nickname", "Annie", "team", "red"), email -> Map.of("team", "blue"));
+
+      assertThat(
+              renderer(EMPTY_LOCATION, contributors).render(email("extra"), Locale.ENGLISH).text())
+          .isEqualTo("Annie blue");
+    }
+  }
+}

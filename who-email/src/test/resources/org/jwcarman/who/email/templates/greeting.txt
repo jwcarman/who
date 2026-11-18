@@ -1,0 +1,1 @@
+Hello {{email.name}} from {{app.name}}: {{email.link}}
