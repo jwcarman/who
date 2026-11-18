@@ -85,5 +85,23 @@ Every who endpoint lives under `who.base-path`. With the default `/who`:
 Everything under `/who/me` acts on the caller's own data only; see [Your Account](account.md) for
 who may call each one. The admin endpoints need who's own permissions; see [Admin](admin.md).
 
+### who's controllers and your Spring MVC setup
+
+`/who/me` and everything under it, and the admin endpoints, are Spring MVC controllers. Your
+application's MVC setup reaches them as it reaches your own controllers:
+
+- **A path prefix or servlet path fails startup.** who's sign-in filters, logout, public paths and
+  error handling sit at `who.base-path`, so a `configurePathMatch` prefix that matches who's
+  controllers, a `spring.mvc.servlet.path` other than `/`, or a `WhoPaths` bean whose root is not
+  `who.base-path` is refused at startup, naming the endpoints that moved. Exclude who's
+  controllers from a prefix (match on your own package) or set `who.base-path` instead.
+- **A `ResponseBodyAdvice` changes who's answers.** One that wraps every body in an envelope wraps
+  who's too, and who's client cannot read them. Limit it to your own packages
+  (`@ControllerAdvice(basePackages = ...)`). who's errors are not affected: who writes them itself.
+- **who's JSON shape relies on Jackson 3.** Its answer types pin their names, nulls and instants
+  with Jackson annotations, so `spring.jackson` settings do not change them. A Gson, JSON-B or
+  Jackson 2 converter preferred over Spring's Jackson 3 one ignores those annotations.
+- **Your interceptors and filters run for who's endpoints** like any request.
+
 Your own endpoints may live under the same root; who's rules apply only to its own paths, so
 yours still need whatever sign-in your chain asks for.

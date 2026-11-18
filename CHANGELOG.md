@@ -46,6 +46,8 @@ All notable changes to this project are documented here. The format follows
   The application's `authorizeHttpRequests` rules now apply to these endpoints, as to any
   controller. An application controller mapped to one of their paths now fails startup as an
   ambiguous mapping instead of being shadowed, and who's resource endpoints need Spring MVC.
+  A controller path prefix or `spring.mvc.servlet.path` that would move who's controllers away
+  from `who.base-path` fails startup.
 - **`WhoJson` is removed.** who's answer types pin their JSON shape with Jackson annotations
   instead. `WhoMeController.me` returns its `WhoMeResponse` and no longer takes the response.
 

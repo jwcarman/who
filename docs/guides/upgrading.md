@@ -92,6 +92,10 @@ Spring MVC controllers now, not servlet filters. That changes three things:
   define a bean of the controller's type.
 - **A controller of yours at one of who's paths fails startup** as an ambiguous mapping, where
   before who's filter answered first and yours never ran.
+- **Your Spring MVC setup reaches them.** A controller path prefix that matches who's
+  controllers, or a `spring.mvc.servlet.path`, now fails startup; a `ResponseBodyAdvice` that
+  wraps every body wraps who's answers too; your interceptors run for them. See
+  [who's controllers and your Spring MVC setup](configuration.md#whos-controllers-and-your-spring-mvc-setup).
 
 `WhoJson` is gone too: who's answer types carry their JSON shape themselves, so your
 `spring.jackson` settings still do not change them.

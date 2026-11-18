@@ -43,6 +43,7 @@ import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
 import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoMappingCheck;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +69,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.util.ClassUtils;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * Wires who into Spring Security when {@code who-spring-security} is on the classpath: the session
@@ -367,6 +369,25 @@ public class WhoSpringSecurityAutoConfiguration {
         WhoProperties properties) {
       return new SessionsController(
           whoSessions, repository, clock, properties.getSecurity().getRecentSignIn());
+    }
+
+    /**
+     * Fails startup when who's controllers would answer somewhere other than {@code who.base-path}:
+     * a path prefix on the application's controllers, a {@code WhoPaths} bean that disagrees with
+     * the property, or a servlet path.
+     *
+     * @param paths who's base path
+     * @param mappings Spring MVC's annotation handler mappings
+     * @param environment for {@code spring.mvc.servlet.path}
+     * @return the check
+     */
+    @Bean
+    public WhoMappingCheck whoMappingCheck(
+        WhoPaths paths,
+        ObjectProvider<RequestMappingHandlerMapping> mappings,
+        Environment environment) {
+      return new WhoMappingCheck(
+          paths, mappings, environment.getProperty("spring.mvc.servlet.path", "/"));
     }
 
     /**
