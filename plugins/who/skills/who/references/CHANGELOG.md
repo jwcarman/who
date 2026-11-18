@@ -24,6 +24,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **`MustacheWhoEmailRenderer` takes a list of template locations**, and
+  `WhoProperties.Email#getTemplates()` returns a `List<String>`.
+
+### Added
+
+- `who.email.templates` is a list of locations, searched in order; a single value still binds.
+- `WhoEmailTemplates`: a library registers its template location and subjects bundle as a bean,
+  searched after the application's and before who's, in bean order.
+- Subjects are Mustache templates with the body's values, such as
+  `who.email.sign-in.subject=Sign in to {{app.name}}`, rendered on one line.
+
 ## [0.23.0] - 2026-11-18
 
 ### Breaking changes

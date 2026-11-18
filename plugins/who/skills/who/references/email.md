@@ -77,8 +77,13 @@ template above.
 ## Templates
 
 who ships a plain-text template for every email, in its own words. To use yours, put a file with
-the template's name in `classpath:/templates/who/email/` (set `who.email.templates` to look
-elsewhere):
+the template's name in `classpath:/templates/who/email/`. `who.email.templates` is a list of
+Spring resource locations, searched in order, to look elsewhere or in several places (a `file:`
+location lets you edit templates without a rebuild):
+
+```properties
+who.email.templates=classpath:/templates/who/email/,file:./email/
+```
 
 | File | Effect |
 |---|---|
@@ -112,6 +117,12 @@ For example, `src/main/resources/templates/who/email/sign-in.html`:
 `{{> footer}}` is a partial: `footer.html` from your location, or from who's if it had one. A
 partial in a `.txt` template is `footer.txt`.
 
+For each file, template or partial, who looks in this order, and the first that has it wins:
+
+1. each location in `who.email.templates`, in order;
+2. each library's location (below), in bean order;
+3. who's own templates.
+
 ### What each email carries
 
 | Record | Accessors |
@@ -141,6 +152,28 @@ WhoEmailModelContributor displayNames(Profiles profiles) {
 Templates then use `{{extra.displayName}}`. Every contributor's map is merged, and a later bean's
 key wins. Since a missing variable fails the render, give every email the keys your templates use.
 
+### Templates from a library
+
+A library built on who can ship its own versions of who's emails, and its own subjects, by
+registering a `WhoEmailTemplates` bean, typically from its auto-configuration:
+
+```java
+@Bean
+@Order(100)
+WhoEmailTemplates acmeEmailTemplates() {
+    return new WhoEmailTemplates("classpath:/com/acme/email/", "com/acme/email-messages");
+}
+```
+
+The first argument is the library's template location, searched after the application's and before
+who's. The second is the basename of a message bundle with the library's subjects, or `null`:
+subjects are read from the application's messages, then from each library's bundle, then from
+who's. Several libraries are searched in bean order (`@Order`). An application still replaces any one
+of a library's files from its own location, as it replaces who's.
+
+For a native image, the library registers its templates and bundle as resources with its own
+`RuntimeHints`; who registers only its own.
+
 ## Subjects
 
 A subject is the message `who.email.<template>.subject`, read from your `MessageSource` first and
@@ -159,6 +192,19 @@ Set one in `src/main/resources/messages.properties`, which Spring Boot loads for
 ```properties
 who.email.sign-in.subject=Sign in to Acme
 ```
+
+A subject is a Mustache template too, with the same `email`, `app` and `extra` as the body, so it
+can name the app, which tells someone with accounts on two apps which one wrote:
+
+```properties
+who.email.model.name=Acme
+who.email.sign-in.subject=Sign in to {{app.name}}
+```
+
+A rendered subject is one line: every run of line breaks and other control characters becomes one
+space. who reads the message without arguments, so Spring does not run it through `MessageFormat`;
+`{0}` and `'` are plain text. A subject that doesn't compile fails startup, like a template; a
+variable it names that the model lacks fails the render.
 
 ## Languages
 

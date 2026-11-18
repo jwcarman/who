@@ -1,5 +1,24 @@
 # Upgrading
 
+## Upgrading to 0.24.0
+
+### Email template locations are a list
+
+`who.email.templates` is a list of locations, searched in order. A single value still binds, so an
+existing setting keeps working; `WhoProperties.Email#getTemplates()` returns a `List<String>`.
+
+`MustacheWhoEmailRenderer`'s constructor takes a `List<String>` of template locations instead of
+one location. Only a renderer you build by hand changes:
+
+```java
+new MustacheWhoEmailRenderer(resources, List.of("classpath:/templates/who/email/"), messages, app, contributors);
+```
+
+### Subjects are templates
+
+`who.email.<template>.subject` is rendered as Mustache. A subject with no `{{` renders as before. A
+rendered subject is put on one line.
+
 ## Upgrading to 0.23.0
 
 0.23.0 sends every who email through one seam, renders them from templates an application can

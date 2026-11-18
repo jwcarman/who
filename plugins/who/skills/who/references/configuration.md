@@ -25,7 +25,7 @@
 | `who.api-key.max-lifetime` | `365d` | The longest lifetime a new API key may be given. Positive, or startup fails |
 | `who.api-key.last-used-interval` | `5m` | How often, at most, an API key's last use is written. Positive, or startup fails |
 | `who.email.from` | none | The address every who email comes from. Required with `who-email-smtp` once a `JavaMailSender` exists; startup fails without it. See [Email](email.md) |
-| `who.email.templates` | `classpath:/templates/who/email/` | Where your email templates are, searched before who's own. `sign-in.txt` there replaces who's sign-in text; `sign-in.html` adds HTML |
+| `who.email.templates` | `classpath:/templates/who/email/` | Where your email templates are: a list of locations, searched in order before any library's and who's own. `sign-in.txt` there replaces who's sign-in text; `sign-in.html` adds HTML |
 | `who.email.locale` | the JVM's | The locale emails are rendered in when no request's locale is known |
 | `who.email.model.*` | none | Values every email template sees, as `{{app.<name>}}` |
 | `who.email-link.link-base-url` | none | Page of your app that receives sign-in links. The token is appended as `#token=...`. Required with `who-email-link`: a missing or blank value fails startup. List the page in `who.security.public-paths` |
