@@ -16,6 +16,7 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.time.Clock;
@@ -143,6 +144,31 @@ class AnswersIgnoreApplicationJacksonTest {
 
       // who's entry point answers it, outside Spring MVC, through the application's advice
       assertThat(result.getResponse().getStatus()).isEqualTo(401);
+    }
+  }
+
+  @Nested
+  class Sessions {
+
+    @Test
+    void the_listing_keeps_whos_names() throws Exception {
+      MvcResult result = browser.perform(get("/who/me/sessions")).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      JsonNode first = body(result).get(0);
+      assertThat(first.propertyNames())
+          .containsExactlyInAnyOrder(
+              "id", "device", "userAgent", "signInMethod", "signedInAt", "lastSeenAt", "current");
+      assertThat(first.get("current").asBoolean()).isTrue();
+    }
+
+    @Test
+    void a_controller_error_names_itself_in_the_who_error_header() throws Exception {
+      MvcResult result =
+          browser.perform(delete("/who/me/sessions/" + UUID.randomUUID())).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(404);
+      assertThat(result.getResponse().getHeader("Who-Error")).isEqualTo("session-not-found");
     }
   }
 }

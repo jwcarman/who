@@ -127,7 +127,7 @@ public class PasswordlessConfigurer
               // every browser chain lets its signed-in person see and end their sessions
               context
                   .getBeanProvider(SessionEndpoints.class)
-                  .ifAvailable(e -> e.configure(http, l, paths));
+                  .ifAvailable(e -> e.configure(http, l));
             })
         .headers(h -> h.referrerPolicy(r -> r.policy(NO_REFERRER)));
 

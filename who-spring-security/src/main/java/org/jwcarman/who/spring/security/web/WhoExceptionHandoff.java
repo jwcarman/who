@@ -126,7 +126,7 @@ public final class WhoExceptionHandoff {
     }
   }
 
-  private static @Nullable String codeOf(Exception exception) {
+  static @Nullable String codeOf(Exception exception) {
     if (exception instanceof WhoErrorCode coded) {
       return coded.errorCode();
     }

@@ -127,10 +127,14 @@ class PasswordlessConfigurerTest {
     }
 
     @Bean
-    SessionEndpoints sessionEndpoints(
+    SessionEndpoints sessionEndpoints() {
+      return new SessionEndpoints();
+    }
+
+    @Bean
+    SessionsController sessionsController(
         WhoSessions sessions, WhoSessionSecurityContextRepository repository, Clock clock) {
-      return new SessionEndpoints(
-          sessions, repository, new WhoExceptionHandoff(null), clock, Duration.ofMinutes(10));
+      return new SessionsController(sessions, repository, clock, Duration.ofMinutes(10));
     }
 
     @Bean

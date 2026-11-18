@@ -15,13 +15,6 @@
  */
 package org.jwcarman.who.spring.security;
 
-import static java.util.Objects.requireNonNull;
-
-import java.time.Clock;
-import java.time.Duration;
-
-import org.jwcarman.who.core.service.WhoSessions;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
@@ -30,56 +23,26 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
 /**
- * Adds the endpoints that let a signed-in person see their browser sessions and end them: {@code
- * GET /who/me/sessions}, {@code DELETE /who/me/sessions/{id}} and {@code DELETE
- * /who/me/sessions?others=true}. {@code WhoWebSecurity.passwordless()} adds them to every browser
- * chain when this bean exists. Not a way to sign in, so it does not make a chain a browser chain,
- * and it adds no public path.
+ * Connects {@link SessionsController} to a browser chain: ending the caller's own session through
+ * {@code DELETE /who/me/sessions/{id}} signs the browser out with that chain's logout handlers.
+ * {@code WhoWebSecurity.passwordless()} applies it to every browser chain when this bean exists.
+ * Not a way to sign in, so it does not make a chain a browser chain, and it adds no public path.
  */
 public class SessionEndpoints {
 
-  private final WhoSessions sessions;
-  private final WhoSessionSecurityContextRepository repository;
-  private final WhoExceptionHandoff handoff;
-  private final Clock clock;
-  private final Duration recentSignIn;
-
-  /**
-   * Creates the endpoints.
-   *
-   * @param sessions who's record of sessions
-   * @param repository reads the browser's who session and signs it out
-   * @param handoff answers errors through the application's exception handling
-   * @param clock the current time
-   * @param recentSignIn how recently the session must have signed in to end another session
-   */
-  public SessionEndpoints(
-      WhoSessions sessions,
-      WhoSessionSecurityContextRepository repository,
-      WhoExceptionHandoff handoff,
-      Clock clock,
-      Duration recentSignIn) {
-    this.sessions = requireNonNull(sessions, "sessions must not be null");
-    this.repository = requireNonNull(repository, "repository must not be null");
-    this.handoff = requireNonNull(handoff, "handoff must not be null");
-    this.clock = requireNonNull(clock, "clock must not be null");
-    this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
+  /** Creates the connection; it keeps no state. */
+  public SessionEndpoints() {
+    // stateless: configure adds the chain's logout to each request
   }
 
   /**
-   * Adds the endpoints' filter to a browser chain.
+   * Hands the chain's logout handlers to each request it serves.
    *
    * @param http the chain
    * @param logout the chain's logout, whose handlers sign this browser out
-   * @param paths where the endpoints live
    */
-  void configure(HttpSecurity http, LogoutConfigurer<HttpSecurity> logout, WhoPaths paths) {
-    // before authorization, as the email address endpoints, so a signed-out caller gets who's
-    // answer
-    http.addFilterAfter(
-        new SessionsFilter(
-            paths, sessions, repository, handoff, clock, recentSignIn, signOutHandler(logout)),
-        ExceptionTranslationFilter.class);
+  void configure(HttpSecurity http, LogoutConfigurer<HttpSecurity> logout) {
+    http.addFilterAfter(new ChainLogout(signOutHandler(logout)), ExceptionTranslationFilter.class);
   }
 
   /*

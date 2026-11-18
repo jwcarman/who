@@ -19,6 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -30,9 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
@@ -50,7 +53,9 @@ import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.spi.Credential;
+import org.jwcarman.who.spring.security.web.WhoErrorHeaderResolver;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
@@ -59,11 +64,17 @@ import org.springframework.security.config.annotation.web.configurers.LogoutConf
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.servlet.mvc.annotation.ResponseStatusExceptionResolver;
+import org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
 
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class SessionsFilterTest {
+class SessionsControllerTest {
 
   private static final Instant NOW = Instant.parse("2026-11-16T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
@@ -75,24 +86,23 @@ class SessionsFilterTest {
   private final WhoSessionSecurityContextRepository repository =
       new WhoSessionSecurityContextRepository(whoService, sessions, clock, events::add, _ -> false);
   private final JsonMapper json = JsonMapper.builder().build();
-  private final SessionsFilter filter =
-      new SessionsFilter(
-          WhoPaths.defaults(),
-          sessions,
-          repository,
-          new WhoExceptionHandoff(null),
-          clock,
-          RECENT,
-          SessionEndpoints.signOutHandler(
-              new LogoutConfigurer<HttpSecurity>()
-                  .addLogoutHandler(
-                      (request, response, authentication) ->
-                          repository.onLogout(request, authentication))));
+  private final LogoutHandler chainLogout =
+      SessionEndpoints.signOutHandler(
+          new LogoutConfigurer<HttpSecurity>()
+              .addLogoutHandler(
+                  (request, response, authentication) ->
+                      repository.onLogout(request, authentication)));
+  private final AtomicInteger chainLogouts = new AtomicInteger();
+  private final MockMvc mvc =
+      MockMvcBuilders.standaloneSetup(new SessionsController(sessions, repository, clock, RECENT))
+          .setHandlerExceptionResolvers(
+              new WhoErrorHeaderResolver(),
+              new ResponseStatusExceptionResolver(),
+              new DefaultHandlerExceptionResolver())
+          .build();
 
   private final Identity alice = Identity.create();
   private final Identity bob = Identity.create();
-  private final AtomicBoolean reachedChain = new AtomicBoolean();
-  private final FilterChain chain = (req, res) -> reachedChain.set(true);
 
   @BeforeEach
   void resolveCredentials() {
@@ -138,19 +148,35 @@ class SessionsFilterTest {
   /** Sends a request from {@code session}, signed in as its identity. */
   private MockHttpServletResponse send(String method, String uri, HttpSession session)
       throws Exception {
-    return send(new MockHttpServletRequest(method, uri), session);
+    return send(request(HttpMethod.valueOf(method), uri), session);
   }
 
   /** Sends {@code request} from {@code session}, authenticated as the session loads. */
-  private MockHttpServletResponse send(MockHttpServletRequest request, HttpSession session)
+  private MockHttpServletResponse send(MockHttpServletRequestBuilder request, HttpSession session)
       throws Exception {
     if (session != null) {
-      request.setSession(session);
-      SecurityContextHolder.setContext(repository.loadDeferredContext(request).get());
+      // loaded on the request itself, as the chain's SecurityContextHolderFilter does
+      request
+          .session((MockHttpSession) session)
+          .with(
+              loading -> {
+                SecurityContextHolder.setContext(repository.loadDeferredContext(loading).get());
+                return loading;
+              });
     }
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
-    return response;
+    return perform(request);
+  }
+
+  /** Sends {@code request} as it is, with the chain's logout handed to it as ChainLogout does. */
+  private MockHttpServletResponse perform(MockHttpServletRequestBuilder request) throws Exception {
+    LogoutHandler counted =
+        (req, res, authentication) -> {
+          chainLogouts.incrementAndGet();
+          chainLogout.logout(req, res, authentication);
+        };
+    return mvc.perform(request.requestAttr(ChainLogout.ATTRIBUTE, counted))
+        .andReturn()
+        .getResponse();
   }
 
   @Test
@@ -178,7 +204,6 @@ class SessionsFilterTest {
         .containsEntry("signInMethod", "passkey")
         .containsEntry("signedInAt", NOW.minusSeconds(120).toString())
         .containsEntry("lastSeenAt", NOW.minusSeconds(120).toString());
-    assertThat(reachedChain).isFalse();
   }
 
   @Test
@@ -266,9 +291,8 @@ class SessionsFilterTest {
     HttpSession third = browser(alice, NOW, "c");
     HttpSession bobs = browser(bob, NOW, "d");
 
-    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/me/sessions");
-    request.setParameter("others", "true");
-    MockHttpServletResponse response = send(request, mine);
+    MockHttpServletResponse response =
+        send(delete("/who/me/sessions").param("others", "true"), mine);
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(json.readTree(response.getContentAsString()).get("ended").asInt()).isEqualTo(2);
@@ -290,10 +314,7 @@ class SessionsFilterTest {
   void old_path_is_not_served() throws Exception {
     HttpSession mine = browser(alice, NOW, "a");
 
-    MockHttpServletResponse response = send("GET", "/who/sessions", mine);
-
-    assertThat(reachedChain).isTrue();
-    assertThat(response.getContentAsString()).isEmpty();
+    assertThat(send("GET", "/who/sessions", mine).getStatus()).isEqualTo(404);
   }
 
   @Test
@@ -307,9 +328,7 @@ class SessionsFilterTest {
         .setAuthentication(
             new WhoAuthenticationToken(
                 new WhoPrincipal(alice, Set.of()), UUID.randomUUID(), SignInMethod.API_KEY));
-    MockHttpServletResponse response = new MockHttpServletResponse();
-
-    filter.doFilter(new MockHttpServletRequest("GET", "/who/me/sessions"), response, chain);
+    MockHttpServletResponse response = perform(get("/who/me/sessions"));
 
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
@@ -318,27 +337,16 @@ class SessionsFilterTest {
   @Test
   void an_api_key_sent_with_a_browser_session_is_403() throws Exception {
     // on a mixed chain the key's authentication replaces the session's, but the cookie still rides
-    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/me/sessions");
-    request.setSession(browser(alice, NOW, "a"));
+    MockHttpSession session = (MockHttpSession) browser(alice, NOW, "a");
     SecurityContextHolder.getContext()
         .setAuthentication(
             new WhoAuthenticationToken(
                 new WhoPrincipal(alice, Set.of()), UUID.randomUUID(), SignInMethod.API_KEY));
-    MockHttpServletResponse response = new MockHttpServletResponse();
 
-    filter.doFilter(request, response, chain);
+    MockHttpServletResponse response = perform(get("/who/me/sessions").session(session));
 
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
-  }
-
-  @Test
-  void other_paths_pass_through() throws Exception {
-    MockHttpServletResponse response = new MockHttpServletResponse();
-
-    filter.doFilter(new MockHttpServletRequest("GET", "/who/me"), response, chain);
-
-    assertThat(reachedChain).isTrue();
   }
 
   @Test
@@ -346,24 +354,20 @@ class SessionsFilterTest {
     HttpSession stale = browser(alice, NOW.minus(RECENT).minusSeconds(1), "a");
     HttpSession other = browser(alice, NOW, "b");
 
-    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/me/sessions");
-    request.setParameter("others", "true");
-
-    assertThat(send(request, stale).getStatus()).isEqualTo(401);
+    assertThat(send(delete("/who/me/sessions").param("others", "true"), stale).getStatus())
+        .isEqualTo(401);
     assertThat(sessions.findLive(idOf(other))).isPresent();
   }
 
   @Test
   void a_token_not_loaded_from_the_browser_session_is_403() throws Exception {
-    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/me/sessions");
-    request.setSession(browser(alice, NOW, "a"));
+    MockHttpSession session = (MockHttpSession) browser(alice, NOW, "a");
     SecurityContextHolder.getContext()
         .setAuthentication(
             new WhoAuthenticationToken(
                 new WhoPrincipal(alice, Set.of()), alice.id(), SignInMethod.PASSKEY));
-    MockHttpServletResponse response = new MockHttpServletResponse();
 
-    filter.doFilter(request, response, chain);
+    MockHttpServletResponse response = perform(get("/who/me/sessions").session(session));
 
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
@@ -373,18 +377,23 @@ class SessionsFilterTest {
   void a_session_that_changed_hands_after_loading_is_403() throws Exception {
     // another request in the same browser signed bob in between loading and answering
     HttpSession shared = browser(alice, NOW, "a");
-    MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/who/me/sessions");
-    request.setParameter("others", "true");
-    request.setSession(shared);
-    SecurityContextHolder.setContext(repository.loadDeferredContext(request).get());
     HttpSession bobs = browser(bob, NOW, "b");
-    shared.setAttribute(
-        WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-        bobs.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE));
     HttpSession alicesOther = browser(alice, NOW, "c");
-    MockHttpServletResponse response = new MockHttpServletResponse();
 
-    filter.doFilter(request, response, chain);
+    MockHttpServletResponse response =
+        perform(
+            delete("/who/me/sessions")
+                .param("others", "true")
+                .session((MockHttpSession) shared)
+                .with(
+                    loading -> {
+                      SecurityContextHolder.setContext(
+                          repository.loadDeferredContext(loading).get());
+                      shared.setAttribute(
+                          WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+                          bobs.getAttribute(WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE));
+                      return loading;
+                    }));
 
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(sessions.findLive(idOf(alicesOther))).isPresent();
@@ -398,6 +407,50 @@ class SessionsFilterTest {
         new WhoSession(alice.id(), alice.id(), NOW, SignInMethod.PASSKEY));
 
     assertThat(send("GET", "/who/me/sessions", unrecorded).getStatus()).isEqualTo(401);
+  }
+
+  @Test
+  void a_bearer_token_is_refused() throws Exception {
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new WhoAuthenticationToken(
+                new WhoPrincipal(alice, Set.of()), UUID.randomUUID(), SignInMethod.JWT));
+
+    MockHttpServletResponse response = perform(get("/who/me/sessions"));
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
+  }
+
+  @Test
+  void ending_your_own_session_runs_the_chains_logout() throws Exception {
+    HttpSession mine = browser(alice, NOW, "a");
+
+    send("DELETE", "/who/me/sessions/" + idOf(mine), mine);
+
+    assertThat(chainLogouts).hasValue(1);
+  }
+
+  @Test
+  void ending_another_session_does_not_sign_this_one_out() throws Exception {
+    HttpSession mine = browser(alice, NOW, "a");
+    HttpSession other = browser(alice, NOW, "b");
+
+    send("DELETE", "/who/me/sessions/" + idOf(other), mine);
+
+    assertThat(chainLogouts).hasValue(0);
+  }
+
+  @Test
+  void the_answers_are_the_records_themselves() throws NoSuchMethodException {
+    // Spring registers a handler's return type for native images; a void handler hides it
+    assertThat(SessionsController.class.getMethod("list", HttpServletRequest.class).getReturnType())
+        .isEqualTo(List.class);
+    assertThat(
+            SessionsController.class
+                .getMethod("endOthers", String.class, HttpServletRequest.class)
+                .getReturnType())
+        .isEqualTo(EndedSessions.class);
   }
 
   private static final class MutableClock extends Clock {

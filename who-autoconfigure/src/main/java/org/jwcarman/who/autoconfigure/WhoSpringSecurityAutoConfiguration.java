@@ -33,6 +33,7 @@ import org.jwcarman.who.spring.security.PasswordlessLoginMethod;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.RecentSignInMethodInterceptor;
 import org.jwcarman.who.spring.security.SessionEndpoints;
+import org.jwcarman.who.spring.security.SessionsController;
 import org.jwcarman.who.spring.security.StatelessLoginMethod;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoPublicPathContributor;
@@ -40,6 +41,7 @@ import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
+import org.jwcarman.who.spring.security.web.WhoErrorHeaderResolver;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.slf4j.Logger;
@@ -65,6 +67,7 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.servlet.HandlerExceptionResolver;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Wires who into Spring Security when {@code who-spring-security} is on the classpath: the session
@@ -213,27 +216,12 @@ public class WhoSpringSecurityAutoConfiguration {
    * browser sessions, and ending them. Ending another session needs a sign-in within {@code
    * who.security.recent-sign-in}.
    *
-   * @param whoSessions who's record of sessions
-   * @param repository reads the browser's who session and signs it out
-   * @param handoff answers errors through the application's exception handling, when it has one
-   * @param clock the current time
-   * @param properties who's properties, for the recent-sign-in window
-   * @return the endpoints
+   * @return the endpoints' connection to each browser chain
    */
   @Bean
   @ConditionalOnMissingBean
-  public SessionEndpoints whoSessionEndpoints(
-      WhoSessions whoSessions,
-      WhoSessionSecurityContextRepository repository,
-      ObjectProvider<WhoExceptionHandoff> handoff,
-      Clock clock,
-      WhoProperties properties) {
-    return new SessionEndpoints(
-        whoSessions,
-        repository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
-        clock,
-        properties.getSecurity().getRecentSignIn());
+  public SessionEndpoints whoSessionEndpoints() {
+    return new SessionEndpoints();
   }
 
   /**
@@ -359,6 +347,42 @@ public class WhoSpringSecurityAutoConfiguration {
         RecentSignInAuthorizationManager recentSignIn,
         ObjectProvider<LastCredentialGuard> guard) {
       return new WhoMeController(repository, recentSignIn, guard);
+    }
+
+    /**
+     * {@code /who/me/sessions}: the caller's browser sessions.
+     *
+     * @param whoSessions who's record of sessions
+     * @param repository reads the browser's who session
+     * @param clock the current time
+     * @param properties who's properties, for the recent-sign-in window
+     * @return the controller
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public SessionsController whoSessionsController(
+        WhoSessions whoSessions,
+        WhoSessionSecurityContextRepository repository,
+        Clock clock,
+        WhoProperties properties) {
+      return new SessionsController(
+          whoSessions, repository, clock, properties.getSecurity().getRecentSignIn());
+    }
+
+    /**
+     * Puts {@link WhoErrorHeaderResolver} first among Spring MVC's exception resolvers, so a who
+     * exception thrown by a who controller is named in the {@code Who-Error} header.
+     *
+     * @return the configurer
+     */
+    @Bean
+    public WebMvcConfigurer whoErrorHeaderConfigurer() {
+      return new WebMvcConfigurer() {
+        @Override
+        public void extendHandlerExceptionResolvers(List<HandlerExceptionResolver> resolvers) {
+          resolvers.addFirst(new WhoErrorHeaderResolver());
+        }
+      };
     }
   }
 
