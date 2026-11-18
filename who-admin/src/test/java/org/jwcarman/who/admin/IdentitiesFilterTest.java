@@ -305,7 +305,7 @@ class IdentitiesFilterTest {
         withEmails,
         withGuard,
         new LastAdminGuard(mock(JdbcClient.class), mock(PlatformTransactionManager.class), false),
-        new AdminGate(sessions, new WhoExceptionHandoff(null), clock, RECENT),
+        new AdminGate(sessions, new WhoExceptionHandoff(WhoPaths.defaults(), null), clock, RECENT),
         JSON);
   }
 

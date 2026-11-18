@@ -69,6 +69,10 @@ import tools.jackson.databind.json.JsonMapper;
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
 
+  // the same for an id that does not exist and one that is not the caller's
+  private static final String NOT_FOUND =
+      "{\"type\":\"urn:who:error:passkey-not-found\",\"title\":\"Not Found\",\"status\":404,\"detail\":\"No such passkey\",\"code\":\"passkey-not-found\"}";
+
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
 
@@ -133,7 +137,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
                 identityRepository,
                 List.of(new PasskeySignInCredentialCounter(jdbcClient)),
                 transactionManager),
-            new WhoExceptionHandoff(null),
+            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             clock,
             RECENT);
     alice = identityRepository.save(Identity.create());
@@ -289,7 +293,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
 
       assertThat(response.getStatus()).isEqualTo(404);
       assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("passkey-not-found");
-      assertThat(response.getContentAsString()).isEmpty();
+      assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
     }
 
     @Test

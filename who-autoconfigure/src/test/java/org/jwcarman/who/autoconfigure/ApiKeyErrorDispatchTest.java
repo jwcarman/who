@@ -254,12 +254,19 @@ class ApiKeyErrorDispatchTest {
   class A_refused_key {
 
     @Test
-    void signs_in_once_and_gets_the_answer_an_email_link_failure_gets() throws Exception {
+    void signs_in_once_and_is_named_on_the_applications_paths() throws Exception {
       HttpResponse<String> refused = get("/open/ping", "who_unknown");
 
       assertThat(refused.statusCode()).isEqualTo(401);
+      assertThat(refused.headers().firstValue("Who-Error")).contains("sign-in-failed");
       assertThat(apiKeyEvents()).singleElement().isInstanceOf(SignInFailed.class);
+    }
 
+    @Test
+    void gets_the_answer_an_email_link_failure_gets_under_whos_base_path() throws Exception {
+      HttpResponse<String> refused = get("/who/me", "who_unknown");
+
+      assertThat(refused.statusCode()).isEqualTo(401);
       HttpResponse<String> emailLink = failEmailLinkSignIn();
       assertThat(emailLink.statusCode()).isEqualTo(401);
       assertThat(comparable(refused)).isEqualTo(comparable(emailLink));

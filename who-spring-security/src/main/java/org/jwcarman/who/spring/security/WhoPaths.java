@@ -17,6 +17,8 @@ package org.jwcarman.who.spring.security;
 
 import static java.util.Objects.requireNonNull;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 /**
  * Where every who endpoint lives: one root, such as {@code /who} (the default) or {@code /auth},
  * and each endpoint's path below it. Sign-in methods, who's own filters and {@code /me} all take
@@ -74,6 +76,18 @@ public record WhoPaths(String root) {
       throw new IllegalArgumentException("\"" + relative + "\" must start with /");
     }
     return root + relative;
+  }
+
+  /**
+   * Whether {@code request} is for one of who's endpoints: its path, without the context path, is
+   * the root or below it.
+   *
+   * @param request the request
+   * @return whether who's base path holds it
+   */
+  public boolean contains(HttpServletRequest request) {
+    String path = request.getRequestURI().substring(request.getContextPath().length());
+    return path.equals(root) || path.startsWith(root + "/");
   }
 
   private static String problem(String root) {

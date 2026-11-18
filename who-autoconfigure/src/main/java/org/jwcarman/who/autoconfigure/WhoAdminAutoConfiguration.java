@@ -153,7 +153,7 @@ public class WhoAdminAutoConfiguration {
         guard.getIfAvailable(),
         lastAdmin,
         sessionRepository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
         properties.getSecurity().getRecentSignIn());
@@ -204,7 +204,7 @@ public class WhoAdminAutoConfiguration {
           invitationService,
           rbacService,
           sessionRepository,
-          handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+          handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
           jsonMapper.getIfAvailable(JsonMapper::new),
           clock,
           properties.getSecurity().getRecentSignIn());

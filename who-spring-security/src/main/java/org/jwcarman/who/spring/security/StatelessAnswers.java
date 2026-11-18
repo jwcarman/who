@@ -43,10 +43,7 @@ final class StatelessAnswers {
 
   static void apply(
       HttpSecurity http, ApplicationContext context, List<StatelessLoginMethod> methods) {
-    WhoExceptionHandoff handoff =
-        context
-            .getBeanProvider(WhoExceptionHandoff.class)
-            .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    WhoExceptionHandoff handoff = WhoExceptionHandoff.from(context);
     // a recent-sign-in challenge goes only with a 401, whoever answers the refusal
     http.addFilterBefore(new StepUpChallengeFilter(), ExceptionTranslationFilter.class);
     http.exceptionHandling(

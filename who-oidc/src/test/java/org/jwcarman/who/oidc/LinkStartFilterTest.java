@@ -104,7 +104,7 @@ class LinkStartFilterTest {
               "/who/oidc/authorize"),
           saved,
           sessions,
-          new WhoExceptionHandoff(null),
+          new WhoExceptionHandoff(WhoPaths.defaults(), null),
           Clock.fixed(NOW, ZoneOffset.UTC),
           RECENT_SIGN_IN);
   private final Identity bob = Identity.create(IdentityStatus.ACTIVE);

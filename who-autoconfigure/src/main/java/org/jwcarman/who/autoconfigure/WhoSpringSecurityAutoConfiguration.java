@@ -41,7 +41,7 @@ import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.LastSignInCookie;
-import org.jwcarman.who.spring.security.web.WhoErrorHeaderResolver;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.slf4j.Logger;
@@ -370,17 +370,19 @@ public class WhoSpringSecurityAutoConfiguration {
     }
 
     /**
-     * Puts {@link WhoErrorHeaderResolver} first among Spring MVC's exception resolvers, so a who
-     * exception thrown by a who controller is named in the {@code Who-Error} header.
+     * Puts {@link WhoErrorResolver} first among Spring MVC's exception resolvers: under who's base
+     * path who answers with its own problem; elsewhere a who exception is named in the {@code
+     * Who-Error} header beside the application's answer.
      *
+     * @param paths who's base path
      * @return the configurer
      */
     @Bean
-    public WebMvcConfigurer whoErrorHeaderConfigurer() {
+    public WebMvcConfigurer whoErrorConfigurer(WhoPaths paths) {
       return new WebMvcConfigurer() {
         @Override
         public void extendHandlerExceptionResolvers(List<HandlerExceptionResolver> resolvers) {
-          resolvers.addFirst(new WhoErrorHeaderResolver());
+          resolvers.addFirst(new WhoErrorResolver(paths));
         }
       };
     }
@@ -403,9 +405,11 @@ public class WhoSpringSecurityAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public WhoExceptionHandoff whoExceptionHandoff(
+        WhoPaths paths,
         @Qualifier("handlerExceptionResolver") ObjectProvider<HandlerExceptionResolver> resolver) {
       HandlerExceptionResolver mvc = resolver.getIfAvailable();
       return new WhoExceptionHandoff(
+          paths,
           mvc == null
               ? null
               : (request, response, exception) ->

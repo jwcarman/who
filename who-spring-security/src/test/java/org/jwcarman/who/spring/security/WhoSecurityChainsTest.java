@@ -512,7 +512,7 @@ class WhoSecurityChainsTest {
                 mockMvc(context)
                     .perform(post("/who/email/send"))
                     .andExpect(status().isForbidden())
-                    .andExpect(header().doesNotExist("Who-Error")));
+                    .andExpect(header().string("Who-Error", "invalid-csrf-token")));
     assertThat(CHECKS).hasValue(0);
   }
 

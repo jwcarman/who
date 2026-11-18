@@ -256,6 +256,7 @@ public class WhoEmailLinkAutoConfiguration {
    * @param whoEventPublisher publishes the sign-in-succeeded event
    * @param clock stamps events
    * @param lastSignInCookie remembers the method used, unless turned off
+   * @param paths who's base path, under which who answers failures itself
    * @return the handlers
    */
   @Bean
@@ -265,10 +266,11 @@ public class WhoEmailLinkAutoConfiguration {
       ObjectProvider<WhoExceptionHandoff> handoff,
       WhoEventPublisher whoEventPublisher,
       Clock clock,
-      ObjectProvider<LastSignInCookie> lastSignInCookie) {
+      ObjectProvider<LastSignInCookie> lastSignInCookie,
+      WhoPaths paths) {
     return new JsonAuthenticationHandlers(
         jsonMapper(jsonMapper),
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         whoEventPublisher,
         clock,
         lastSignInCookie.getIfAvailable());
@@ -502,7 +504,7 @@ public class WhoEmailLinkAutoConfiguration {
         emailCredentialService,
         lastCredentialGuard,
         sessionRepository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         executor,
         jsonMapper(jsonMapper),
         clock,

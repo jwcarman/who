@@ -123,7 +123,8 @@ class PasswordlessConfigurerTest {
 
     @Bean
     WhoExceptionHandoff whoExceptionHandoff() {
-      return new WhoExceptionHandoff((request, response, exception) -> !HANDED_OFF.add(exception));
+      return new WhoExceptionHandoff(
+          WhoPaths.defaults(), (request, response, exception) -> !HANDED_OFF.add(exception));
     }
 
     @Bean

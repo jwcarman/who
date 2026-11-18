@@ -1,1 +1,2 @@
-org.springframework.aot.hint.RuntimeHintsRegistrar=org.jwcarman.who.spring.security.aot.WhoSessionRuntimeHints
+org.springframework.aot.hint.RuntimeHintsRegistrar=org.jwcarman.who.spring.security.aot.WhoSessionRuntimeHints,\
+  org.jwcarman.who.spring.security.aot.WhoProblemRuntimeHints

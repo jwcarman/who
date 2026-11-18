@@ -283,10 +283,13 @@ class EmailSignInEventsTest {
     return code.startsWith("0") ? "111111" : "000000";
   }
 
-  /** The uniform failure answer: {@code 401} with no body, whatever the reason. */
+  /** The uniform failure answer: {@code 401} with who's one sign-in-failed body. */
   private static void assertUniform401(MvcResult result) throws Exception {
     assertThat(result.getResponse().getStatus()).isEqualTo(401);
-    assertThat(result.getResponse().getContentAsString()).isEmpty();
+    // one answer whatever the reason, so a failure tells nothing about the address or passkey
+    assertThat(result.getResponse().getContentAsString())
+        .isEqualTo(
+            "{\"type\":\"urn:who:error:sign-in-failed\",\"title\":\"Unauthorized\",\"status\":401,\"detail\":\"Sign-in failed\",\"code\":\"sign-in-failed\"}");
   }
 
   private SignInFailed onlyFailure() {

@@ -34,6 +34,7 @@ import org.jwcarman.who.core.event.SignInMethod;
 import org.jwcarman.who.core.event.SignInSucceeded;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -52,13 +53,14 @@ class JsonAuthenticationHandlersTest {
   private final WhoExceptionHandoff.Resolver recording =
       (request, response, exception) -> handedOff.add(exception);
   private final JsonAuthenticationHandlers handlers =
-      new JsonAuthenticationHandlers(mapper, new WhoExceptionHandoff(recording));
+      new JsonAuthenticationHandlers(
+          mapper, new WhoExceptionHandoff(WhoPaths.defaults(), recording));
   private final MockHttpServletResponse response = new MockHttpServletResponse();
   private final List<WhoEvent> published = new ArrayList<>();
   private final JsonAuthenticationHandlers publishing =
       new JsonAuthenticationHandlers(
           mapper,
-          new WhoExceptionHandoff(recording),
+          new WhoExceptionHandoff(WhoPaths.defaults(), recording),
           published::add,
           Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -151,7 +153,7 @@ class JsonAuthenticationHandlersTest {
   private final JsonAuthenticationHandlers remembering =
       new JsonAuthenticationHandlers(
           mapper,
-          new WhoExceptionHandoff(recording),
+          new WhoExceptionHandoff(WhoPaths.defaults(), recording),
           published::add,
           Clock.fixed(NOW, ZoneOffset.UTC),
           new LastSignInCookie());

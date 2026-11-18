@@ -141,10 +141,7 @@ public class PasskeyLoginMethod implements PasswordlessLoginMethod {
   @Override
   public void configure(HttpSecurity http) {
     ApplicationContext context = http.getSharedObject(ApplicationContext.class);
-    WhoExceptionHandoff handoff =
-        context
-            .getBeanProvider(WhoExceptionHandoff.class)
-            .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    WhoExceptionHandoff handoff = WhoExceptionHandoff.from(context);
     WhoEventPublisher eventPublisher =
         context
             .getBeanProvider(WhoEventPublisher.class)

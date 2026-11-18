@@ -53,7 +53,7 @@ class HumanCheckFilterTest {
     MockFilterChain chain = new MockFilterChain();
     new HumanCheckFilter(
             check,
-            new WhoExceptionHandoff(null),
+            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             PathPatternRequestMatcher.withDefaults(),
             ACTIONS,
             events::add,

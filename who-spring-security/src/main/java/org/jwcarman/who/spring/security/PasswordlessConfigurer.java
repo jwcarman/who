@@ -87,10 +87,7 @@ public class PasswordlessConfigurer
     ApplicationContext context = http.getSharedObject(ApplicationContext.class);
     WhoSessionSecurityContextRepository repository =
         context.getBean(WhoSessionSecurityContextRepository.class);
-    WhoExceptionHandoff handoff =
-        context
-            .getBeanProvider(WhoExceptionHandoff.class)
-            .getIfAvailable(() -> new WhoExceptionHandoff(null));
+    WhoExceptionHandoff handoff = WhoExceptionHandoff.from(context);
     // a chain built without Spring Boot has no WhoPaths bean: who's endpoints stay under /who
     WhoPaths paths = context.getBeanProvider(WhoPaths.class).getIfAvailable(WhoPaths::defaults);
 

@@ -170,6 +170,17 @@ abstract class ErrorHandoffScenarios {
     return browser;
   }
 
+  /** who answered under its base path, with its own problem, whatever the application's advice. */
+  static void assertWhos(MvcResult result, int status, String code) throws Exception {
+    assertThat(result.getResponse().getStatus()).isEqualTo(status);
+    assertThat(result.getResponse().getHeader("Who-Error")).isEqualTo(code);
+    assertThat(result.getResponse().getContentType()).startsWith("application/problem+json");
+    assertThat(result.getResponse().getContentAsString())
+        .contains("\"type\":\"urn:who:error:" + code + "\"")
+        .contains("\"code\":\"" + code + "\"")
+        .doesNotContain("from the advice");
+  }
+
   MvcResult badSignInToken() throws Exception {
     return new Browser(mvc)
         .performWithCsrf(

@@ -18,7 +18,6 @@ package org.jwcarman.who.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.CookieManager;
-import java.net.HttpCookie;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -85,28 +84,30 @@ class WhoErrorHeaderAdviceTest {
   }
 
   @Test
-  void the_application_s_body_and_who_s_header_both_arrive() throws Exception {
-    client.send(
-        HttpRequest.newBuilder(uri("/auth/me")).GET().build(),
-        HttpResponse.BodyHandlers.discarding());
-    String csrf =
-        cookies.getCookieStore().getCookies().stream()
-            .filter(c -> c.getName().equals("XSRF-TOKEN"))
-            .map(HttpCookie::getValue)
-            .findFirst()
-            .orElseThrow();
-
+  void on_the_applications_paths_its_body_and_whos_header_both_arrive() throws Exception {
     HttpResponse<String> response =
         client.send(
-            HttpRequest.newBuilder(uri("/auth/me/email-addresses"))
-                .header("Content-Type", "application/json")
-                .header("X-XSRF-TOKEN", csrf)
-                .POST(HttpRequest.BodyPublishers.ofString("{\"address\":\"x@example.com\"}"))
-                .build(),
+            HttpRequest.newBuilder(uri("/app/orders")).GET().build(),
             HttpResponse.BodyHandlers.ofString());
 
     assertThat(response.statusCode()).isEqualTo(401);
     assertThat(response.body()).contains("\"detail\":\"Sign in first\"");
+    assertThat(response.headers().firstValue("Who-Error")).contains("not-signed-in");
+  }
+
+  @Test
+  void under_whos_base_path_who_answers_whatever_the_advice() throws Exception {
+    HttpResponse<String> response =
+        client.send(
+            HttpRequest.newBuilder(uri("/auth/me")).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+
+    assertThat(response.statusCode()).isEqualTo(401);
+    assertThat(response.headers().firstValue("Content-Type"))
+        .hasValueSatisfying(type -> assertThat(type).startsWith("application/problem+json"));
+    assertThat(response.body())
+        .contains("\"code\":\"not-signed-in\"")
+        .doesNotContain("Sign in first");
     assertThat(response.headers().firstValue("Who-Error")).contains("not-signed-in");
   }
 }

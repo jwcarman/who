@@ -260,10 +260,7 @@ public final class OidcLoginMethod implements PasswordlessLoginMethod {
                 clock,
                 signUpWindow,
                 linkWindow);
-        WhoExceptionHandoff handoff =
-            context
-                .getBeanProvider(WhoExceptionHandoff.class)
-                .getIfAvailable(() -> new WhoExceptionHandoff(null));
+        WhoExceptionHandoff handoff = WhoExceptionHandoff.from(context);
         // added here, where the session strategy is known; sorts before authorization, as
         // passkeys' guard filter does
         http.addFilterAfter(

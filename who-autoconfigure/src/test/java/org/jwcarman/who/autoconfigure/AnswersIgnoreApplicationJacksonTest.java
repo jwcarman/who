@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.spring.security.web.SessionNotFoundException;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -41,10 +43,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import tools.jackson.databind.JsonNode;
@@ -100,6 +109,35 @@ class AnswersIgnoreApplicationJacksonTest {
     @Bean
     WhoEmailSender whoEmailSender() {
       return _ -> {};
+    }
+
+    @Bean
+    CatchAllAdvice catchAllAdvice() {
+      return new CatchAllAdvice();
+    }
+
+    @Bean
+    Orders orders() {
+      return new Orders();
+    }
+  }
+
+  /** An application advice that answers everything its own way. */
+  @RestControllerAdvice
+  static class CatchAllAdvice {
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.I_AM_A_TEAPOT)
+    Map<String, String> anything(Exception e) {
+      return Map.of("app", e.getClass().getSimpleName());
+    }
+  }
+
+  /** An application endpoint that fails with one of who's exceptions. */
+  @RestController
+  static class Orders {
+    @GetMapping("/app/orders/{id}")
+    String order(@PathVariable("id") String id) {
+      throw new SessionNotFoundException();
     }
   }
 
@@ -168,6 +206,33 @@ class AnswersIgnoreApplicationJacksonTest {
           browser.perform(delete("/who/me/sessions/" + UUID.randomUUID())).andReturn();
 
       assertThat(result.getResponse().getStatus()).isEqualTo(404);
+      assertThat(result.getResponse().getHeader("Who-Error")).isEqualTo("session-not-found");
+    }
+  }
+
+  @Nested
+  class Errors {
+
+    @Test
+    void under_whos_base_path_the_answer_is_whos_problem_whatever_the_application_advises()
+        throws Exception {
+      MvcResult result =
+          browser.perform(delete("/who/me/sessions/" + UUID.randomUUID())).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(404);
+      assertThat(result.getResponse().getContentType()).startsWith("application/problem+json");
+      assertThat(body(result).propertyNames())
+          .containsExactlyInAnyOrder("type", "title", "status", "detail", "code");
+      assertThat(body(result).get("code").asString()).isEqualTo("session-not-found");
+    }
+
+    @Test
+    void a_who_exception_on_the_applications_path_is_the_applications_with_whos_header()
+        throws Exception {
+      MvcResult result = browser.perform(get("/app/orders/1")).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(418);
+      assertThat(body(result).get("app").asString()).isEqualTo("SessionNotFoundException");
       assertThat(result.getResponse().getHeader("Who-Error")).isEqualTo("session-not-found");
     }
   }

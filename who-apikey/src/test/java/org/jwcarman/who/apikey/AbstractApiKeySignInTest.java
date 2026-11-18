@@ -25,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.BeforeEach;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -103,7 +104,8 @@ abstract class AbstractApiKeySignInTest extends AbstractApiKeyTest {
     @Bean
     WhoExceptionHandoff whoExceptionHandoff() {
       // records, then lets who fall back to the bare status
-      return new WhoExceptionHandoff((request, response, exception) -> !HANDED_OFF.add(exception));
+      return new WhoExceptionHandoff(
+          WhoPaths.defaults(), (request, response, exception) -> !HANDED_OFF.add(exception));
     }
 
     @Bean

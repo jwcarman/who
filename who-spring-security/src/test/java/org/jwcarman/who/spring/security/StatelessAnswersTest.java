@@ -124,7 +124,7 @@ class StatelessAnswersTest {
   private static MockHttpServletResponse answer(
       List<StatelessLoginMethod> methods, MockHttpServletResponse response) throws Exception {
     AuthenticationEntryPoint entryPoint =
-        StatelessAnswers.entryPoint(new WhoExceptionHandoff(null), methods);
+        StatelessAnswers.entryPoint(new WhoExceptionHandoff(WhoPaths.defaults(), null), methods);
     entryPoint.commence(new MockHttpServletRequest(), response, SIGNED_OUT);
     return response;
   }
@@ -162,7 +162,7 @@ class StatelessAnswersTest {
 
   private static MockHttpServletResponse deny(AccessDeniedException denied) throws Exception {
     MockHttpServletResponse response = new MockHttpServletResponse();
-    StatelessAnswers.deniedHandler(new WhoExceptionHandoff(null))
+    StatelessAnswers.deniedHandler(new WhoExceptionHandoff(WhoPaths.defaults(), null))
         .handle(new MockHttpServletRequest(), response, denied);
     return response;
   }
@@ -214,6 +214,7 @@ class StatelessAnswersTest {
     // an application whose exception handling answers every refusal with 403
     WhoExceptionHandoff handoff =
         new WhoExceptionHandoff(
+            WhoPaths.defaults(),
             (req, res, e) -> {
               res.setStatus(403);
               return true;

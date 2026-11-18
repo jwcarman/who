@@ -337,8 +337,10 @@ class EmailLinkSignInTest {
 
   private static void assertInvalidToken(MvcResult result) throws Exception {
     assertThat(result.getResponse().getStatus()).isEqualTo(401);
-    // who writes no error body: with no advice, the status is all there is
-    assertThat(result.getResponse().getContentAsString()).isEmpty();
+    // one answer whatever the reason, so a failure tells nothing about the address or passkey
+    assertThat(result.getResponse().getContentAsString())
+        .isEqualTo(
+            "{\"type\":\"urn:who:error:sign-in-failed\",\"title\":\"Unauthorized\",\"status\":401,\"detail\":\"Sign-in failed\",\"code\":\"sign-in-failed\"}");
   }
 
   // ---------------------------------------------------------------- the flow

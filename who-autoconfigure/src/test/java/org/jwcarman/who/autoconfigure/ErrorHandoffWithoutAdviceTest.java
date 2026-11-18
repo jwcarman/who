@@ -43,14 +43,18 @@ class ErrorHandoffWithoutAdviceTest extends ErrorHandoffScenarios {
   }
 
   @Test
-  void withoutAnAdviceEachPathAnswersItsStatusOnly() throws Exception {
-    assertStatusOnly(badSignInToken(), 401);
-    assertStatusOnly(unknownPasskeySignIn(), 401);
+  void withoutAnAdviceTheApplicationsPathsAnswerTheirStatusOnly() throws Exception {
     assertStatusOnly(signedOutGuarded(), 401);
-    assertStatusOnly(signedOutWhoMe(), 401);
     assertStatusOnly(deniedByUrlRule(), 403);
-    assertStatusOnly(registrationSignedOut(), 401);
-    assertStatusOnly(registrationOutsideTheWindow(), 401);
-    assertStatusOnly(invalidRegistration(), 400);
+  }
+
+  @Test
+  void whosPathsAnswerWithWhosProblem() throws Exception {
+    assertWhos(badSignInToken(), 401, "sign-in-failed");
+    assertWhos(unknownPasskeySignIn(), 401, "sign-in-failed");
+    assertWhos(signedOutWhoMe(), 401, "not-signed-in");
+    assertWhos(registrationSignedOut(), 401, "not-signed-in");
+    assertWhos(registrationOutsideTheWindow(), 401, "reauthentication-required");
+    assertWhos(invalidRegistration(), 400, "invalid-passkey-registration");
   }
 }

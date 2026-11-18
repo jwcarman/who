@@ -73,6 +73,10 @@ import tools.jackson.databind.json.JsonMapper;
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ApiKeysFilterTest {
 
+  // the same for an id that does not exist and one that is not the caller's
+  private static final String NOT_FOUND =
+      "{\"type\":\"urn:who:error:api-key-not-found\",\"title\":\"Not Found\",\"status\":404,\"detail\":\"No such API key\",\"code\":\"api-key-not-found\"}";
+
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
   private static final String KEYS = "/who/me/api-keys";
@@ -223,7 +227,7 @@ class ApiKeysFilterTest {
             WhoPaths.defaults(),
             service,
             sessionRepository,
-            new WhoExceptionHandoff(null),
+            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             JSON,
             clock,
             RECENT);
@@ -577,7 +581,7 @@ class ApiKeysFilterTest {
               recentBrowser(alice));
 
       assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getContentAsString()).isEmpty();
+      assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       assertThat(signsIn(bobs.key())).isTrue();
       assertThat(service.findByIdentity(bob.id())).hasSize(1);
     }
@@ -593,7 +597,7 @@ class ApiKeysFilterTest {
                 recentBrowser(alice));
         assertThat(response.getStatus()).as(id).isEqualTo(404);
         assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("api-key-not-found");
-        assertThat(response.getContentAsString()).isEmpty();
+        assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       }
     }
 
@@ -681,7 +685,7 @@ class ApiKeysFilterTest {
           send("DELETE", KEYS + "/" + bobs.id(), null, recentBrowser(alice));
 
       assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getContentAsString()).isEmpty();
+      assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       assertThat(signsIn(bobs.key())).isTrue();
     }
 
@@ -692,7 +696,7 @@ class ApiKeysFilterTest {
             send("DELETE", KEYS + "/" + id, null, recentBrowser(alice));
         assertThat(response.getStatus()).as(id).isEqualTo(404);
         assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("api-key-not-found");
-        assertThat(response.getContentAsString()).isEmpty();
+        assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       }
     }
   }
@@ -765,7 +769,7 @@ class ApiKeysFilterTest {
       MockHttpServletResponse fromBearer = bearer(alice, "GET", KEYS + "/current", null);
 
       assertThat(fromBrowser.getStatus()).isEqualTo(404);
-      assertThat(fromBrowser.getContentAsString()).isEmpty();
+      assertThat(fromBrowser.getContentAsString()).isEqualTo(NOT_FOUND);
       assertThat(fromBearer.getStatus()).isEqualTo(404);
     }
 

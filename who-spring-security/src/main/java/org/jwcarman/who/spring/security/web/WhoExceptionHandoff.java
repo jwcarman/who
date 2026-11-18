@@ -15,6 +15,8 @@
  */
 package org.jwcarman.who.spring.security.web;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,21 +24,23 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.jspecify.annotations.Nullable;
 import org.jwcarman.who.core.exception.LastCredentialException;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
- * Hands an exception raised outside Spring MVC (in a security filter, failure handler or entry
- * point) to the application's exception resolvers, so the application's own
- * {@code @RestControllerAdvice} answers it like any controller exception. who's autoconfiguration
- * adapts Spring MVC's {@code handlerExceptionResolver} bean to a {@link Resolver}. who writes no
- * error body: when nothing resolves the exception, it calls {@code response.sendError} with the
+ * Answers an exception raised outside Spring MVC (in a security filter, failure handler or entry
+ * point). Under who's base path who answers it itself with its {@link WhoProblem}, whatever the
+ * application's error handling does. Elsewhere it goes to the application's exception resolvers, so
+ * the application's own {@code @RestControllerAdvice} answers it like any controller exception;
+ * who's autoconfiguration adapts Spring MVC's {@code handlerExceptionResolver} bean to a {@link
+ * Resolver}. When nothing resolves it there, it calls {@code response.sendError} with the
  * exception's {@link ResponseStatus} ({@code 409} for a {@link LastCredentialException}), or the
- * fallback, and lets the application's error handling answer. An exception sent as a {@code 5xx}
- * that way is logged at {@code ERROR} with its stack trace first, since nothing else saw it.
+ * fallback, and lets the application's error handling answer; a {@code 5xx} sent that way is logged
+ * at {@code ERROR} with its stack trace first, since nothing else saw it.
  */
 public final class WhoExceptionHandoff {
 
@@ -63,15 +67,36 @@ public final class WhoExceptionHandoff {
     boolean resolve(HttpServletRequest request, HttpServletResponse response, Exception exception);
   }
 
+  private final WhoPaths paths;
   private final @Nullable Resolver resolver;
 
   /**
    * Creates the handoff.
    *
+   * @param paths who's base path, under which who answers errors itself
    * @param resolver the application's resolver; null to always fall back to {@code sendError}
    */
-  public WhoExceptionHandoff(@Nullable Resolver resolver) {
+  public WhoExceptionHandoff(WhoPaths paths, @Nullable Resolver resolver) {
+    this.paths = requireNonNull(paths, "paths must not be null");
     this.resolver = resolver;
+  }
+
+  /**
+   * The handoff of an application context: its {@code WhoExceptionHandoff} bean, else one over its
+   * {@link WhoPaths} bean (or {@link WhoPaths#defaults()}) that answers outside who's base path
+   * with {@code sendError}.
+   *
+   * @param beans the application's beans
+   * @return the handoff
+   */
+  public static WhoExceptionHandoff from(BeanFactory beans) {
+    return beans
+        .getBeanProvider(WhoExceptionHandoff.class)
+        .getIfAvailable(
+            () ->
+                new WhoExceptionHandoff(
+                    beans.getBeanProvider(WhoPaths.class).getIfAvailable(WhoPaths::defaults),
+                    null));
   }
 
   /**
@@ -94,8 +119,12 @@ public final class WhoExceptionHandoff {
     if (response.isCommitted()) {
       return;
     }
+    if (paths.contains(request)) {
+      WhoProblems.write(request, response, exception, fallback);
+      return;
+    }
     // set first, so it stands beside whatever the application writes
-    String code = codeOf(exception);
+    String code = WhoProblems.codeOf(exception);
     if (code != null) {
       response.setHeader(HEADER, code);
     }
@@ -103,7 +132,7 @@ public final class WhoExceptionHandoff {
     if (resolver != null && resolved(request, response, exception) || response.isCommitted()) {
       return;
     }
-    HttpStatus status = statusOf(exception, fallback);
+    HttpStatus status = WhoProblems.statusOf(exception, fallback);
     if (status.is5xxServerError()) {
       // nothing else will: the application's handlers never saw it, and sendError logs nothing
       log.error(
@@ -124,23 +153,5 @@ public final class WhoExceptionHandoff {
       log.debug("Resolving {} failed: {}", exception.getClass().getName(), e.getClass().getName());
       return false;
     }
-  }
-
-  static @Nullable String codeOf(Exception exception) {
-    if (exception instanceof WhoErrorCode coded) {
-      return coded.errorCode();
-    }
-    // who-core has no WhoErrorCode to implement
-    return exception instanceof LastCredentialException last ? last.errorCode() : null;
-  }
-
-  private static HttpStatus statusOf(Exception exception, HttpStatus fallback) {
-    // who-core has no Spring web to annotate it with
-    if (exception instanceof LastCredentialException) {
-      return HttpStatus.CONFLICT;
-    }
-    ResponseStatus status =
-        AnnotatedElementUtils.findMergedAnnotation(exception.getClass(), ResponseStatus.class);
-    return status == null ? fallback : status.code();
   }
 }

@@ -122,7 +122,10 @@ class OidcLinkTest extends AbstractOidcTest {
 
       assertThat(result.getResponse().getStatus()).isEqualTo(404);
       assertThat(result.getResponse().getRedirectedUrl()).isNull();
-      assertThat(result.getResponse().getContentAsString()).contains("from the advice");
+      // under who's base path who answers, not the application's advice
+      assertThat(result.getResponse().getContentAsString())
+          .contains("\"code\":\"unknown-provider\"")
+          .doesNotContain("from the advice");
     }
   }
 

@@ -208,7 +208,7 @@ public class WhoApiKeyAutoConfiguration {
         paths,
         apiKeyService,
         sessionRepository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
         properties.getSecurity().getRecentSignIn());

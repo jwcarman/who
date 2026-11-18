@@ -338,7 +338,8 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
     ApplicationContext context = mock(ApplicationContext.class);
     ObjectProvider<WhoExceptionHandoff> handoffs = mock();
     when(context.getBeanProvider(WhoExceptionHandoff.class)).thenReturn(handoffs);
-    when(handoffs.getIfAvailable(any())).thenReturn(new WhoExceptionHandoff(null));
+    when(handoffs.getIfAvailable(any()))
+        .thenReturn(new WhoExceptionHandoff(WhoPaths.defaults(), null));
     ObjectProvider<WhoEventPublisher> publishers = mock();
     when(context.getBeanProvider(WhoEventPublisher.class)).thenReturn(publishers);
     when(publishers.getIfAvailable(any())).thenReturn(WhoEventPublisher.NOOP);

@@ -94,21 +94,21 @@ class ErrorHandoffTest extends ErrorHandoffScenarios {
   }
 
   @Test
-  void signInFailureReachesTheAdviceAsSignInFailed() throws Exception {
+  void aSignInFailureIsWhosEvenWithAnAdvice() throws Exception {
     MvcResult result = badSignInToken();
-    assertAdvised(result, 401, "SignInFailedException");
+    assertWhos(result, 401, "sign-in-failed");
     assertThat(result.getResponse().getContentAsString())
         .doesNotContain("invalid_token")
         .doesNotContain("x".repeat(43));
   }
 
   @Test
-  void passkeySignInFailureReachesTheAdvice() throws Exception {
-    assertAdvised(unknownPasskeySignIn(), 401, "SignInFailedException");
+  void aPasskeySignInFailureIsWhos() throws Exception {
+    assertWhos(unknownPasskeySignIn(), 401, "sign-in-failed");
   }
 
   @Test
-  void signedOutRequestReachesTheAdvice() throws Exception {
+  void aSignedOutRequestToTheApplicationReachesItsAdvice() throws Exception {
     assertAdvised(signedOutGuarded(), 401, "NotSignedInException");
   }
 
@@ -118,8 +118,8 @@ class ErrorHandoffTest extends ErrorHandoffScenarios {
   }
 
   @Test
-  void whoMeSignedOutReachesTheAdvice() throws Exception {
-    assertAdvised(signedOutWhoMe(), 401, "NotSignedInException");
+  void whoMeSignedOutIsWhos() throws Exception {
+    assertWhos(signedOutWhoMe(), 401, "not-signed-in");
   }
 
   @Test
@@ -134,9 +134,9 @@ class ErrorHandoffTest extends ErrorHandoffScenarios {
   }
 
   @Test
-  void passkeyRegistrationErrorsReachTheAdvice() throws Exception {
-    assertAdvised(registrationSignedOut(), 401, "NotSignedInException");
-    assertAdvised(registrationOutsideTheWindow(), 401, "ReauthenticationRequiredException");
-    assertAdvised(invalidRegistration(), 400, "InvalidPasskeyRegistrationException");
+  void passkeyRegistrationErrorsAreWhos() throws Exception {
+    assertWhos(registrationSignedOut(), 401, "not-signed-in");
+    assertWhos(registrationOutsideTheWindow(), 401, "reauthentication-required");
+    assertWhos(invalidRegistration(), 400, "invalid-passkey-registration");
   }
 }

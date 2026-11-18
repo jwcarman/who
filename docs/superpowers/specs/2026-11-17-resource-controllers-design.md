@@ -112,8 +112,11 @@ who answers every error itself; outside it, the application does.**
   else one named from its status (`400 invalid-request`, `401 unauthorized`, `403 forbidden`,
   `404 not-found`, `405 method-not-allowed`, `406 not-acceptable`, `415 unsupported-media-type`,
   `5xx server-error`, any other `error`). A `5xx` is logged at `ERROR` with its stack trace.
-  Controllers get it from a who advice limited to who's packages and ordered first; the filters
-  that stay, and the entry point, get it from `WhoExceptionHandoff`, which now checks the path.
+  Controllers get it from `WhoErrorResolver`, first among Spring MVC's exception resolvers, which
+  checks the path (builder's call: scoping an advice by package is not the path rule); the filters
+  that stay, and the entry point, get it from `WhoExceptionHandoff`, which checks the path too.
+  Spring Security's CSRF refusal is `403 invalid-csrf-token`, so the client knows to fetch a new
+  token.
 - **Outside the base path** (the application's endpoints): unchanged. A who exception, such as
   `NotSignedInException` from the entry point or `ReauthenticationRequiredException` from
   `@RequiresRecentSignIn`, goes to the application's advice, else `sendError`.

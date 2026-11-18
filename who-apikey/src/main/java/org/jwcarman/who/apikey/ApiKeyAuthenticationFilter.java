@@ -29,6 +29,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.web.SignInFailedException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.beans.factory.ObjectProvider;
@@ -114,7 +115,7 @@ public final class ApiKeyAuthenticationFilter extends AuthenticationFilter {
     this.provider = provider;
     // the provider publishes the sign-in; the request just goes on
     setSuccessHandler((request, response, authentication) -> {});
-    setFailureHandler(handOffTo(new WhoExceptionHandoff(null)));
+    setFailureHandler(handOffTo(new WhoExceptionHandoff(WhoPaths.defaults(), null)));
     // the sign-in lasts for the request only
     setSecurityContextRepository(signedIn);
   }
@@ -175,11 +176,7 @@ public final class ApiKeyAuthenticationFilter extends AuthenticationFilter {
     AuthenticationManager postProcessed =
         postProcessor.getIfUnique(ObjectPostProcessor::identity).postProcess(manager);
     setAuthenticationManagerResolver(request -> postProcessed);
-    setFailureHandler(
-        handOffTo(
-            context
-                .getBeanProvider(WhoExceptionHandoff.class)
-                .getIfAvailable(() -> new WhoExceptionHandoff(null))));
+    setFailureHandler(handOffTo(WhoExceptionHandoff.from(context)));
   }
 
   private static AuthenticationFailureHandler handOffTo(WhoExceptionHandoff handoff) {

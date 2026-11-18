@@ -49,7 +49,6 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
-import org.jwcarman.who.spring.security.web.SignInFailedException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.spring.security.web.WhoMeController;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
@@ -170,7 +169,8 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
     @Bean
     WhoExceptionHandoff whoExceptionHandoff() {
       // records, then lets who fall back to the bare status
-      return new WhoExceptionHandoff((request, response, exception) -> !HANDED_OFF.add(exception));
+      return new WhoExceptionHandoff(
+          WhoPaths.defaults(), (request, response, exception) -> !HANDED_OFF.add(exception));
     }
 
     @Bean
@@ -410,11 +410,14 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
   }
 
   @Test
-  void a_forged_assertion_is_handed_to_the_application_as_a_failed_sign_in() throws Exception {
+  void a_forged_assertion_is_answered_by_who_as_a_failed_sign_in() throws Exception {
     MockHttpServletResponse refused = signIn(forged());
 
     assertThat(refused.getStatus()).isEqualTo(401);
-    assertThat(HANDED_OFF).singleElement().isInstanceOf(SignInFailedException.class);
+    assertThat(refused.getHeader("Who-Error")).isEqualTo("sign-in-failed");
+    assertThat(refused.getContentAsString()).contains("\"code\":\"sign-in-failed\"");
+    // under who's base path the application's handlers are not asked
+    assertThat(HANDED_OFF).isEmpty();
     assertThat(perform(get("/who/me")).getStatus()).isEqualTo(401);
   }
 

@@ -347,8 +347,10 @@ class PasskeySignInTest {
 
   private static void assertInvalidCredential(MvcResult result) throws Exception {
     assertThat(result.getResponse().getStatus()).isEqualTo(401);
-    // who writes no error body: with no advice, the status is all there is
-    assertThat(result.getResponse().getContentAsString()).isEmpty();
+    // one answer whatever the reason, so a failure tells nothing about the address or passkey
+    assertThat(result.getResponse().getContentAsString())
+        .isEqualTo(
+            "{\"type\":\"urn:who:error:sign-in-failed\",\"title\":\"Unauthorized\",\"status\":401,\"detail\":\"Sign-in failed\",\"code\":\"sign-in-failed\"}");
   }
 
   private static String identityIdOf(Browser browser) throws Exception {
@@ -440,11 +442,13 @@ class PasskeySignInTest {
 
     MvcResult registered = register(browser, device.register(options, "Laptop"));
     assertThat(registered.getResponse().getStatus()).isEqualTo(401);
-    assertThat(registered.getResponse().getContentAsString()).isEmpty();
+    assertThat(registered.getResponse().getContentAsString())
+        .contains("\"code\":\"reauthentication-required\"");
 
     MvcResult again = creationOptions(browser);
     assertThat(again.getResponse().getStatus()).isEqualTo(401);
-    assertThat(again.getResponse().getContentAsString()).isEmpty();
+    assertThat(again.getResponse().getContentAsString())
+        .contains("\"code\":\"reauthentication-required\"");
     assertThat(
             jdbcClient
                 .sql("SELECT count(*) FROM who_passkey_credential")
@@ -464,7 +468,8 @@ class PasskeySignInTest {
     MvcResult registered = register(browser, phishing.register(creationOptionsJson(browser), "x"));
 
     assertThat(registered.getResponse().getStatus()).isEqualTo(400);
-    assertThat(registered.getResponse().getContentAsString()).isEmpty();
+    assertThat(registered.getResponse().getContentAsString())
+        .contains("\"code\":\"invalid-passkey-registration\"");
     assertThat(
             jdbcClient
                 .sql("SELECT count(*) FROM who_passkey_credential")
@@ -486,7 +491,8 @@ class PasskeySignInTest {
         register(browser, new PasskeyDevice(ORIGIN).register(ownersOptions, "Planted"));
 
     assertThat(registered.getResponse().getStatus()).isEqualTo(400);
-    assertThat(registered.getResponse().getContentAsString()).isEmpty();
+    assertThat(registered.getResponse().getContentAsString())
+        .contains("\"code\":\"invalid-passkey-registration\"");
     assertThat(
             jdbcClient
                 .sql("SELECT count(*) FROM who_passkey_credential")

@@ -26,8 +26,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,9 +51,6 @@ import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.InvalidPasskeyRegistrationException;
-import org.jwcarman.who.spring.security.web.NotSignedInException;
-import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -78,18 +73,24 @@ class PasskeyRegistrationGuardFilterTest {
   private final WhoSessionSecurityContextRepository sessions =
       new WhoSessionSecurityContextRepository(
           whoService, whoSessions, clock, WhoEventPublisher.NOOP, _ -> false);
-  private final List<Exception> handedOff = new ArrayList<>();
   private final PasskeyRegistrationGuardFilter guard =
       new PasskeyRegistrationGuardFilter(
           WhoPaths.defaults(),
           sessions,
           clock,
           WINDOW,
-          new WhoExceptionHandoff((req, res, e) -> !handedOff.add(e)));
+          new WhoExceptionHandoff(WhoPaths.defaults(), (req, res, e) -> false));
 
   private final MockHttpServletResponse response = new MockHttpServletResponse();
   private final AtomicBoolean reachedChain = new AtomicBoolean();
   private final FilterChain passing = (req, res) -> reachedChain.set(true);
+
+  /** who answered under its base path: its code in the header and in the problem body. */
+  private void assertWhoAnswered(String code) throws IOException {
+    assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo(code);
+    assertThat(response.getContentType()).startsWith("application/problem+json");
+    assertThat(response.getContentAsString()).contains("\"code\":\"" + code + "\"");
+  }
 
   private static MockHttpServletRequest post(String path) {
     return request("POST", path);
@@ -128,9 +129,8 @@ class PasskeyRegistrationGuardFilterTest {
   void guardHandsOffNotSignedInWhenSignedOut(String path) throws ServletException, IOException {
     guard.doFilter(post(path), response, passing);
 
-    assertThat(handedOff).singleElement().isInstanceOf(NotSignedInException.class);
+    assertWhoAnswered("not-signed-in");
     assertThat(response.getStatus()).isEqualTo(401);
-    assertThat(response.getContentAsString()).isEmpty();
     assertThat(reachedChain).isFalse();
   }
 
@@ -142,9 +142,8 @@ class PasskeyRegistrationGuardFilterTest {
 
     guard.doFilter(request, response, passing);
 
-    assertThat(handedOff).singleElement().isInstanceOf(ReauthenticationRequiredException.class);
+    assertWhoAnswered("reauthentication-required");
     assertThat(response.getStatus()).isEqualTo(401);
-    assertThat(response.getContentAsString()).isEmpty();
     assertThat(reachedChain).isFalse();
   }
 
@@ -163,7 +162,6 @@ class PasskeyRegistrationGuardFilterTest {
 
     assertThat(reachedChain).isTrue();
     assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.getContentAsString()).isEmpty();
   }
 
   @ParameterizedTest
@@ -194,13 +192,10 @@ class PasskeyRegistrationGuardFilterTest {
           throw new IllegalArgumentException("verification failed");
         });
 
-    assertThat(handedOff)
-        .singleElement()
-        .isInstanceOf(InvalidPasskeyRegistrationException.class)
-        .extracting(Throwable::getCause)
-        .isNull();
+    assertWhoAnswered("invalid-passkey-registration");
+    // the verifier's own words stay on the server
+    assertThat(response.getContentAsString()).doesNotContain("verification failed");
     assertThat(response.getStatus()).isEqualTo(400);
-    assertThat(response.getContentAsString()).isEmpty();
   }
 
   @Test
@@ -214,9 +209,8 @@ class PasskeyRegistrationGuardFilterTest {
           throw new ServletException("wrapped verification failure");
         });
 
-    assertThat(handedOff).singleElement().isInstanceOf(InvalidPasskeyRegistrationException.class);
+    assertWhoAnswered("invalid-passkey-registration");
     assertThat(response.getStatus()).isEqualTo(400);
-    assertThat(response.getContentAsString()).isEmpty();
   }
 
   @Test
@@ -232,9 +226,9 @@ class PasskeyRegistrationGuardFilterTest {
           throw new IllegalArgumentException("verification failed midway");
         });
 
-    assertThat(handedOff).singleElement().isInstanceOf(InvalidPasskeyRegistrationException.class);
+    assertWhoAnswered("invalid-passkey-registration");
     assertThat(response.getStatus()).isEqualTo(400);
-    assertThat(response.getContentAsString()).isEmpty();
+    assertThat(response.getContentAsString()).doesNotContain("partial");
   }
 
   @Test

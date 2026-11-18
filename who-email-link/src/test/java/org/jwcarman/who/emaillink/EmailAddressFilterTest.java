@@ -65,6 +65,10 @@ import tools.jackson.databind.json.JsonMapper;
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class EmailAddressFilterTest extends AbstractEmailLinkTest {
 
+  // the same for an id that does not exist and one that is not the caller's
+  private static final String NOT_FOUND =
+      "{\"type\":\"urn:who:error:email-address-not-found\",\"title\":\"Not Found\",\"status\":404,\"detail\":\"No such email address\",\"code\":\"email-address-not-found\"}";
+
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
 
@@ -144,7 +148,7 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
                 List.of(new EmailSignInCredentialCounter(jdbcClient)),
                 transactionManager),
             sessionRepository,
-            new WhoExceptionHandoff(null),
+            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             Runnable::run,
             json,
             clock,
@@ -308,7 +312,7 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
       MockHttpServletResponse response = send("DELETE", PATH + theirs.id(), session);
 
       assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getContentAsString()).isEmpty();
+      assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       assertThat(credentials.findById(theirs.id())).isPresent();
     }
 
@@ -321,7 +325,7 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
       assertThat(send("DELETE", PATH + UUID.randomUUID(), session).getStatus()).isEqualTo(404);
       MockHttpServletResponse notAnId = send("DELETE", PATH + "nope", session);
       assertThat(notAnId.getStatus()).isEqualTo(404);
-      assertThat(notAnId.getContentAsString()).isEmpty();
+      assertThat(notAnId.getContentAsString()).isEqualTo(NOT_FOUND);
     }
 
     @Test

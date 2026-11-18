@@ -77,6 +77,10 @@ import com.nimbusds.jose.util.JSONArrayUtils;
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class LinkedAccountsFilterTest {
 
+  // the same for an id that does not exist and one that is not the caller's
+  private static final String NOT_FOUND =
+      "{\"type\":\"urn:who:error:linked-account-not-found\",\"title\":\"Not Found\",\"status\":404,\"detail\":\"No such linked account\",\"code\":\"linked-account-not-found\"}";
+
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
   private static final String ACME_ISSUER = "https://idp.example.com";
@@ -237,7 +241,7 @@ class LinkedAccountsFilterTest {
             service,
             new LastCredentialGuard(identities, List.of(counter), manager),
             sessionRepository,
-            new WhoExceptionHandoff(null),
+            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             clock,
             RECENT);
   }
@@ -408,7 +412,7 @@ class LinkedAccountsFilterTest {
       MockHttpServletResponse response = send("DELETE", PATH + theirs.id(), session);
 
       assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getContentAsString()).isEmpty();
+      assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       assertThat(accounts.findById(theirs.id())).isPresent();
       assertThat(links.findIdentityIdByCredentialId(theirs.id())).contains(bob.id());
     }
@@ -422,7 +426,7 @@ class LinkedAccountsFilterTest {
       assertThat(send("DELETE", PATH + UUID.randomUUID(), session).getStatus()).isEqualTo(404);
       MockHttpServletResponse notAnId = send("DELETE", PATH + "nope", session);
       assertThat(notAnId.getStatus()).isEqualTo(404);
-      assertThat(notAnId.getContentAsString()).isEmpty();
+      assertThat(notAnId.getContentAsString()).isEqualTo(NOT_FOUND);
     }
 
     @Test

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.who.core.exception.LastCredentialException;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
@@ -33,10 +34,16 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoExceptionHandoffTest {
 
-  private final MockHttpServletRequest request = new MockHttpServletRequest();
+  private static final WhoPaths PATHS = new WhoPaths("/auth");
+
+  // outside who's base path: the application answers
+  private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/orders");
   private final MockHttpServletResponse response = new MockHttpServletResponse();
   private final List<Exception> resolved = new ArrayList<>();
 
@@ -58,7 +65,7 @@ class WhoExceptionHandoffTest {
   @Test
   void aResolvedExceptionIsLeftToTheResolver() throws Exception {
     NotSignedInException exception = new NotSignedInException();
-    new WhoExceptionHandoff(resolving(418))
+    new WhoExceptionHandoff(PATHS, resolving(418))
         .handOff(request, response, exception, HttpStatus.UNAUTHORIZED);
     assertThat(resolved).containsExactly(exception);
     assertThat(response.getStatus()).isEqualTo(418);
@@ -68,7 +75,7 @@ class WhoExceptionHandoffTest {
 
   @Test
   void anUnresolvedExceptionSendsItsAnnotatedStatus() throws Exception {
-    new WhoExceptionHandoff(unresolving())
+    new WhoExceptionHandoff(PATHS, unresolving())
         .handOff(request, response, new ReauthenticationRequiredException(), HttpStatus.FORBIDDEN);
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.isCommitted()).isTrue();
@@ -77,7 +84,7 @@ class WhoExceptionHandoffTest {
 
   @Test
   void the_last_credential_exception_is_a_conflict_whatever_the_fallback() throws Exception {
-    new WhoExceptionHandoff(null)
+    new WhoExceptionHandoff(PATHS, null)
         .handOff(request, response, new LastCredentialException(), HttpStatus.BAD_REQUEST);
     assertThat(response.getStatus()).isEqualTo(409);
     assertNoBody();
@@ -85,14 +92,14 @@ class WhoExceptionHandoffTest {
 
   @Test
   void the_last_credential_exception_names_itself_in_the_header() throws Exception {
-    new WhoExceptionHandoff(resolving(409))
+    new WhoExceptionHandoff(PATHS, resolving(409))
         .handOff(request, response, new LastCredentialException(), HttpStatus.CONFLICT);
     assertThat(response.getHeader("Who-Error")).isEqualTo("last-credential");
   }
 
   @Test
   void anUnannotatedExceptionSendsTheFallback() throws Exception {
-    new WhoExceptionHandoff(unresolving())
+    new WhoExceptionHandoff(PATHS, unresolving())
         .handOff(request, response, new AccessDeniedException("x"), HttpStatus.FORBIDDEN);
     assertThat(response.getStatus()).isEqualTo(403);
     assertNoBody();
@@ -100,7 +107,7 @@ class WhoExceptionHandoffTest {
 
   @Test
   void withoutAResolverItSendsTheStatus() throws Exception {
-    new WhoExceptionHandoff(null)
+    new WhoExceptionHandoff(PATHS, null)
         .handOff(request, response, new NotSignedInException(), HttpStatus.FORBIDDEN);
     assertThat(response.getStatus()).isEqualTo(401);
     assertNoBody();
@@ -110,7 +117,7 @@ class WhoExceptionHandoffTest {
   void handOffLeavesCommittedResponsesAlone() throws Exception {
     response.setStatus(200);
     response.setCommitted(true);
-    new WhoExceptionHandoff(resolving(418))
+    new WhoExceptionHandoff(PATHS, resolving(418))
         .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
     assertThat(resolved).isEmpty();
     assertThat(response.getStatus()).isEqualTo(200);
@@ -122,7 +129,7 @@ class WhoExceptionHandoffTest {
         (req, res, ex) -> {
           throw new IllegalStateException("broken advice");
         };
-    new WhoExceptionHandoff(throwing)
+    new WhoExceptionHandoff(PATHS, throwing)
         .handOff(
             request, response, new InvalidPasskeyRegistrationException(), HttpStatus.UNAUTHORIZED);
     assertThat(response.getStatus()).isEqualTo(400);
@@ -137,7 +144,7 @@ class WhoExceptionHandoffTest {
           ((MockHttpServletResponse) res).setCommitted(true);
           throw new IllegalStateException("failed after answering");
         };
-    new WhoExceptionHandoff(commitsThenThrows)
+    new WhoExceptionHandoff(PATHS, commitsThenThrows)
         .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.getErrorMessage()).isNull();
@@ -145,7 +152,7 @@ class WhoExceptionHandoffTest {
 
   @Test
   void a_coded_exception_names_itself_in_the_header_when_resolved() throws Exception {
-    new WhoExceptionHandoff(resolving(401))
+    new WhoExceptionHandoff(PATHS, resolving(401))
         .handOff(
             request, response, new ReauthenticationRequiredException(), HttpStatus.UNAUTHORIZED);
     assertThat(response.getHeader("Who-Error")).isEqualTo("reauthentication-required");
@@ -153,7 +160,7 @@ class WhoExceptionHandoffTest {
 
   @Test
   void a_coded_exception_names_itself_in_the_header_on_the_fallback() throws Exception {
-    new WhoExceptionHandoff(null)
+    new WhoExceptionHandoff(PATHS, null)
         .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
     assertThat(response.getHeader("Who-Error")).isEqualTo("not-signed-in");
     assertThat(response.getStatus()).isEqualTo(401);
@@ -161,7 +168,7 @@ class WhoExceptionHandoffTest {
 
   @Test
   void an_uncoded_exception_sets_no_header() throws Exception {
-    new WhoExceptionHandoff(null)
+    new WhoExceptionHandoff(PATHS, null)
         .handOff(request, response, new AccessDeniedException("no"), HttpStatus.FORBIDDEN);
     assertThat(response.getHeader("Who-Error")).isNull();
   }
@@ -169,9 +176,67 @@ class WhoExceptionHandoffTest {
   @Test
   void a_committed_response_gets_no_header() throws Exception {
     response.setCommitted(true);
-    new WhoExceptionHandoff(null)
+    new WhoExceptionHandoff(PATHS, null)
         .handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
     assertThat(response.getHeader("Who-Error")).isNull();
+  }
+
+  @Nested
+  class Under_whos_base_path {
+
+    private final MockHttpServletRequest whoRequest =
+        new MockHttpServletRequest("DELETE", "/auth/me/sessions/x");
+
+    @Test
+    void who_answers_with_its_problem_and_never_asks_the_application() throws Exception {
+      new WhoExceptionHandoff(PATHS, resolving(418))
+          .handOff(whoRequest, response, new SessionNotFoundException(), HttpStatus.BAD_REQUEST);
+
+      assertThat(resolved).isEmpty();
+      assertThat(response.getStatus()).isEqualTo(404);
+      assertThat(response.getContentType()).isEqualTo("application/problem+json");
+      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("session-not-found");
+      JsonNode body = JsonMapper.builder().build().readTree(response.getContentAsString());
+      assertThat(body.get("code").asString()).isEqualTo("session-not-found");
+      assertThat(body.get("type").asString()).isEqualTo("urn:who:error:session-not-found");
+    }
+
+    @Test
+    void the_root_itself_is_whos() throws Exception {
+      new WhoExceptionHandoff(PATHS, resolving(418))
+          .handOff(
+              new MockHttpServletRequest("GET", "/auth"),
+              response,
+              new SessionNotFoundException(),
+              HttpStatus.BAD_REQUEST);
+
+      assertThat(resolved).isEmpty();
+      assertThat(response.getStatus()).isEqualTo(404);
+    }
+
+    @Test
+    void a_path_that_only_starts_like_the_root_is_the_applications() throws Exception {
+      new WhoExceptionHandoff(PATHS, resolving(418))
+          .handOff(
+              new MockHttpServletRequest("GET", "/authors"),
+              response,
+              new SessionNotFoundException(),
+              HttpStatus.BAD_REQUEST);
+
+      assertThat(resolved).hasSize(1);
+    }
+
+    @Test
+    void the_context_path_is_not_part_of_whos_path() throws Exception {
+      MockHttpServletRequest underContext = new MockHttpServletRequest("GET", "/shop/auth/me");
+      underContext.setContextPath("/shop");
+
+      new WhoExceptionHandoff(PATHS, resolving(418))
+          .handOff(underContext, response, new SessionNotFoundException(), HttpStatus.BAD_REQUEST);
+
+      assertThat(resolved).isEmpty();
+      assertThat(response.getStatus()).isEqualTo(404);
+    }
   }
 
   private void assertNoBody() throws Exception {
@@ -186,7 +251,7 @@ class WhoExceptionHandoffTest {
     @Test
     void an_unresolved_failure_answered_500_is_logged_at_error_with_its_stack_trace(
         CapturedOutput output) throws Exception {
-      new WhoExceptionHandoff(unresolving())
+      new WhoExceptionHandoff(PATHS, unresolving())
           .handOff(
               request,
               response,
@@ -203,7 +268,7 @@ class WhoExceptionHandoffTest {
     @Test
     void a_failure_without_a_resolver_answered_500_is_logged_too(CapturedOutput output)
         throws Exception {
-      new WhoExceptionHandoff(null)
+      new WhoExceptionHandoff(PATHS, null)
           .handOff(
               request,
               response,
@@ -216,7 +281,7 @@ class WhoExceptionHandoffTest {
     @Test
     void a_resolved_failure_is_left_to_the_application_to_log(CapturedOutput output)
         throws Exception {
-      new WhoExceptionHandoff(resolving(500))
+      new WhoExceptionHandoff(PATHS, resolving(500))
           .handOff(
               request,
               response,
@@ -228,7 +293,7 @@ class WhoExceptionHandoffTest {
 
     @Test
     void an_unresolved_refusal_below_500_is_not_logged(CapturedOutput output) throws Exception {
-      new WhoExceptionHandoff(unresolving())
+      new WhoExceptionHandoff(PATHS, unresolving())
           .handOff(
               request,
               response,

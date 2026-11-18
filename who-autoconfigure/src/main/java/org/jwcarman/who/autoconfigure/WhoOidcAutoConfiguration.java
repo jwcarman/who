@@ -301,7 +301,7 @@ public class WhoOidcAutoConfiguration {
         accounts,
         lastCredentialGuard,
         sessions,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(null)),
+        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         clock,
         properties.getSecurity().getRecentSignIn());
   }

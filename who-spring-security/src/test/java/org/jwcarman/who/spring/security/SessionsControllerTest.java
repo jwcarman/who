@@ -53,7 +53,7 @@ import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.core.spi.Credential;
-import org.jwcarman.who.spring.security.web.WhoErrorHeaderResolver;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -68,9 +68,8 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.servlet.mvc.annotation.ResponseStatusExceptionResolver;
-import org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -95,10 +94,7 @@ class SessionsControllerTest {
   private final AtomicInteger chainLogouts = new AtomicInteger();
   private final MockMvc mvc =
       MockMvcBuilders.standaloneSetup(new SessionsController(sessions, repository, clock, RECENT))
-          .setHandlerExceptionResolvers(
-              new WhoErrorHeaderResolver(),
-              new ResponseStatusExceptionResolver(),
-              new DefaultHandlerExceptionResolver())
+          .setHandlerExceptionResolvers(new WhoErrorResolver(WhoPaths.defaults()))
           .build();
 
   private final Identity alice = Identity.create();
@@ -407,6 +403,31 @@ class SessionsControllerTest {
         new WhoSession(alice.id(), alice.id(), NOW, SignInMethod.PASSKEY));
 
     assertThat(send("GET", "/who/me/sessions", unrecorded).getStatus()).isEqualTo(401);
+  }
+
+  @Test
+  void an_error_is_whos_problem() throws Exception {
+    HttpSession mine = browser(alice, NOW, "a");
+
+    MockHttpServletResponse response =
+        send("DELETE", "/who/me/sessions/" + UUID.randomUUID(), mine);
+
+    assertThat(response.getStatus()).isEqualTo(404);
+    assertThat(response.getContentType()).startsWith("application/problem+json");
+    JsonNode body = json.readTree(response.getContentAsString());
+    assertThat(body.get("code").asString()).isEqualTo("session-not-found");
+    assertThat(body.get("type").asString()).isEqualTo("urn:who:error:session-not-found");
+  }
+
+  @Test
+  void ending_all_without_others_is_an_invalid_request() throws Exception {
+    HttpSession mine = browser(alice, NOW, "a");
+
+    MockHttpServletResponse response = send("DELETE", "/who/me/sessions", mine);
+
+    assertThat(response.getHeader("Who-Error")).isEqualTo("invalid-request");
+    assertThat(json.readTree(response.getContentAsString()).get("code").asString())
+        .isEqualTo("invalid-request");
   }
 
   @Test

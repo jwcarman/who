@@ -148,7 +148,7 @@ class InvitationsFilterTest {
     when(rbac.findRole("ghost")).thenReturn(Optional.empty());
     when(invitations.invite(anyString(), any()))
         .thenReturn(new Invitation(invited, EmailLinkOutcome.SENT));
-    WhoExceptionHandoff handoff = new WhoExceptionHandoff(null);
+    WhoExceptionHandoff handoff = new WhoExceptionHandoff(WhoPaths.defaults(), null);
     filter =
         new InvitationsFilter(
             WhoPaths.defaults(),
@@ -288,7 +288,7 @@ class InvitationsFilterTest {
       MockHttpServletResponse response = invite(body(ADDRESS));
 
       assertThat(response.getStatus()).isEqualTo(500);
-      assertThat(response.getHeader(HEADER)).isNull();
+      assertThat(response.getHeader(HEADER)).isEqualTo("server-error");
     }
 
     @Test
@@ -302,7 +302,7 @@ class InvitationsFilterTest {
     }
 
     @Test
-    void any_other_failure_is_handed_to_the_application_as_a_server_error() throws Exception {
+    void any_other_failure_is_answered_by_who_as_a_server_error() throws Exception {
       List<Exception> handedOff = new ArrayList<>();
       filter =
           new InvitationsFilter(
@@ -311,7 +311,7 @@ class InvitationsFilterTest {
               rbac,
               new AdminGate(
                   sessions,
-                  new WhoExceptionHandoff((req, res, e) -> !handedOff.add(e)),
+                  new WhoExceptionHandoff(WhoPaths.defaults(), (req, res, e) -> !handedOff.add(e)),
                   clock,
                   RECENT),
               JSON);
@@ -321,8 +321,11 @@ class InvitationsFilterTest {
 
       MockHttpServletResponse response = invite(body(ADDRESS));
 
-      assertThat(handedOff).containsExactly(failure);
+      // under who's base path the application's handlers are not asked
+      assertThat(handedOff).isEmpty();
       assertThat(response.getStatus()).isEqualTo(500);
+      assertThat(response.getHeader(HEADER)).isEqualTo("server-error");
+      assertThat(response.getContentAsString()).doesNotContain("the listener failed");
     }
 
     @Test
