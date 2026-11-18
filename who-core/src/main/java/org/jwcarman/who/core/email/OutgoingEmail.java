@@ -26,7 +26,8 @@ import org.jspecify.annotations.Nullable;
  *
  * @param to the recipient's address
  * @param subject the subject line
- * @param text the plain-text body
+ * @param text the plain-text body, not HTML-escaped: send it as {@code text/plain}, never inside
+ *     HTML
  * @param html the HTML body, or {@code null} when the email has no HTML template; the sender then
  *     sends text only
  * @param source the email this was rendered from, for senders that use a provider's own templates

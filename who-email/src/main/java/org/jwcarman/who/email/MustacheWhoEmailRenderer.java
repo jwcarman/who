@@ -37,7 +37,6 @@ import org.springframework.context.MessageSource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
-import com.samskivert.mustache.Escapers;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.MustacheException;
 import com.samskivert.mustache.Template;
@@ -102,8 +101,9 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
     this.messages = requireNonNull(messages, "messages must not be null");
     this.app = Map.copyOf(requireNonNull(app, "app must not be null"));
     this.contributors = List.copyOf(requireNonNull(contributors, "contributors must not be null"));
-    // a text email is not HTML: "&" stays "&"; HTML templates escape their values
-    this.textCompiler = compiler(TEXT).withEscaper(Escapers.NONE);
+    // a text email is sent as text/plain, where escaping would only corrupt it ("&b=2" in a link);
+    // HTML templates escape their values
+    this.textCompiler = compiler(TEXT).escapeHTML(false);
     this.htmlCompiler = compiler(HTML);
     verify(location);
     verify(BUILT_IN_PATTERN);
