@@ -94,11 +94,35 @@ refuse `/who/**` now refuses these endpoints too, as it would any controller.
 
 ### Errors
 
-Controllers throw who's exceptions and let Spring MVC resolve them: the application's advice, else
-`@ResponseStatus`. `WhoExceptionHandoff` stays for the filters that remain. Any status that the
-hand-off supplied which an exception does not declare (such as `409` for
-`LastCredentialException`) moves onto the exception as `@ResponseStatus`, so the status does not
-change.
+who has its own error shape now that it has its own client (owner's call). **Under who's base path
+who answers every error itself; outside it, the application does.**
+
+- **Under the base path** (every who endpoint, Spring's sign-in filters included, since who mounts
+  them all there): the answer is RFC 9457 Problem Details, `application/problem+json`, written by
+  who whatever the application's advice says:
+
+  ```json
+  { "type": "urn:who:error:session-not-found", "title": "Not Found", "status": 404,
+    "detail": "No session of yours has that id", "code": "session-not-found" }
+  ```
+
+  `code` is the exception's code; `type` is `urn:who:error:` plus the code; `title` is the status's
+  reason phrase; `detail` is the exception's message, `null` for a `5xx`. Every error there has a
+  code: who's exceptions their own (`LastCredentialException` is `409 last-credential`), anything
+  else one named from its status (`400 invalid-request`, `401 unauthorized`, `403 forbidden`,
+  `404 not-found`, `405 method-not-allowed`, `406 not-acceptable`, `415 unsupported-media-type`,
+  `5xx server-error`, any other `error`). A `5xx` is logged at `ERROR` with its stack trace.
+  Controllers get it from a who advice limited to who's packages and ordered first; the filters
+  that stay, and the entry point, get it from `WhoExceptionHandoff`, which now checks the path.
+- **Outside the base path** (the application's endpoints): unchanged. A who exception, such as
+  `NotSignedInException` from the entry point or `ReauthenticationRequiredException` from
+  `@RequiresRecentSignIn`, goes to the application's advice, else `sendError`.
+- **The `Who-Error` header stays, everywhere** (owner's call): the code under the base path, and
+  who's exception's code outside it. The client reads the header first and falls back to the body's
+  `code`, so who's own endpoints work even where CORS does not expose the header.
+
+The problem record is written by hand in the filters, so it is registered for native images with
+runtime hints.
 
 ### Ending your own session
 
@@ -131,6 +155,8 @@ string, so nothing on the wire changes. Request bodies are read as today: the co
 ## Breaking changes (CHANGELOG and upgrading.md)
 
 - `WhoJson` and the resource `*Endpoints` beans are removed.
+- Errors under who's base path are who's Problem Details, not the application's advice's body;
+  every one has a `Who-Error` code.
 - The application's authorization rules apply to who's resource endpoints.
 - An application that applied a `*Endpoints` bean to a chain of its own (if that was public API)
   drops that call; the controllers are on with their module.
