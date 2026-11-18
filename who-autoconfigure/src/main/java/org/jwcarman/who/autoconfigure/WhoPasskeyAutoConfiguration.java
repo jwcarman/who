@@ -19,15 +19,17 @@ package org.jwcarman.who.autoconfigure;
 import java.time.Clock;
 import java.util.Set;
 
+import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.email.WhoEmailMessages;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.passkey.EmailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
-import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyCredentialRemover;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
@@ -49,8 +51,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
@@ -67,9 +69,7 @@ import tools.jackson.databind.json.JsonMapper;
  * WebAuthnRelyingPartyOperations} bean, since Spring's WebAuthn filters look it up and the provider
  * must verify through the same instance.
  */
-@AutoConfiguration(
-    after = WhoAutoConfiguration.class,
-    afterName = "org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration")
+@AutoConfiguration(after = {WhoAutoConfiguration.class, WhoEmailAutoConfiguration.class})
 @EnableConfigurationProperties(WhoProperties.class)
 @ConditionalOnClass(name = "org.jwcarman.who.passkey.PasskeyLoginMethod")
 @ConditionalOnBooleanProperty(name = "who.passkey.enabled", matchIfMissing = true)
@@ -79,7 +79,6 @@ public class WhoPasskeyAutoConfiguration {
 
   private static final String EMAIL_CREDENTIAL_SERVICE =
       "org.jwcarman.who.emaillink.EmailCredentialService";
-  private static final String JAVA_MAIL_SENDER = "org.springframework.mail.javamail.JavaMailSender";
 
   /** Creates the autoconfiguration; Spring Boot calls it. */
   public WhoPasskeyAutoConfiguration() {
@@ -209,23 +208,20 @@ public class WhoPasskeyAutoConfiguration {
   }
 
   /**
-   * Emails the owner when a passkey is added, when who-email-link and Spring's mail support are on
-   * the classpath; otherwise sends nothing.
+   * Emails the owner, through {@link WhoEmails}, when a passkey is added: when email-link sign-in
+   * is on, so the owner has an address, and there is a {@link WhoEmails}. Otherwise sends nothing,
+   * and says so once at WARN.
    *
-   * @param context the application, to find the mail beans
-   * @param properties who's properties, for the email's sender and subject
+   * @param context the application, to find the email beans
    * @return the notifier
    */
   @Bean
   @ConditionalOnMissingBean
-  public PasskeyAddedNotifier passkeyAddedNotifier(
-      ApplicationContext context, WhoProperties properties) {
-    ClassLoader classLoader = context.getClassLoader();
-    if (!ClassUtils.isPresent(EMAIL_CREDENTIAL_SERVICE, classLoader)
-        || !ClassUtils.isPresent(JAVA_MAIL_SENDER, classLoader)) {
-      return noPasskeyAddedEmails("who-email-link or spring-boot-starter-mail is not present");
+  public PasskeyAddedNotifier passkeyAddedNotifier(ApplicationContext context) {
+    if (!ClassUtils.isPresent(EMAIL_CREDENTIAL_SERVICE, context.getClassLoader())) {
+      return noPasskeyAddedEmails("who-email-link is not present, so owners have no address");
     }
-    return PasskeyEmails.notifier(context, properties);
+    return PasskeyEmails.notifier(context);
   }
 
   /**
@@ -333,27 +329,23 @@ public class WhoPasskeyAutoConfiguration {
     }
 
     /**
-     * A {@link MailPasskeyAddedNotifier} when email-link sign-in is on, a {@code JavaMailSender}
-     * exists and {@code who.passkey.from} is set; otherwise one that sends nothing.
+     * An {@link EmailPasskeyAddedNotifier} when email-link sign-in is on and there is a {@link
+     * WhoEmails}; otherwise one that sends nothing.
      */
-    static PasskeyAddedNotifier notifier(ApplicationContext context, WhoProperties properties) {
+    static PasskeyAddedNotifier notifier(ApplicationContext context) {
       EmailCredentialService emails =
           context.getBeanProvider(EmailCredentialService.class).getIfAvailable();
       if (emails == null) {
         return noPasskeyAddedEmails("email-link sign-in is off (who.email-link.enabled=false)");
       }
-      JavaMailSender mailSender = context.getBeanProvider(JavaMailSender.class).getIfAvailable();
-      if (mailSender == null) {
-        return noPasskeyAddedEmails("there is no JavaMailSender (spring.mail.host)");
+      WhoEmails whoEmails = context.getBeanProvider(WhoEmails.class).getIfAvailable();
+      if (whoEmails == null) {
+        return noPasskeyAddedEmails(
+            "there is no WhoEmails: add who-email and a sender (who-email-smtp, or a"
+                + " WhoEmailSender bean)");
       }
-      String from = properties.getPasskey().getFrom();
-      if (!StringUtils.hasText(from)) {
-        return noPasskeyAddedEmails("who.passkey.from is not set");
-      }
-      return new MailPasskeyAddedNotifier(
-          mailSender,
-          identityId -> emails.findOldestFor(identityId).map(EmailCredential::address),
-          from);
+      return new EmailPasskeyAddedNotifier(
+          whoEmails, identityId -> emails.findOldestFor(identityId).map(EmailCredential::address));
     }
   }
 
@@ -365,5 +357,16 @@ public class WhoPasskeyAutoConfiguration {
     log.warn(
         "Passkey-added emails are off, so owners are not told when a passkey is added: {}", reason);
     return (identityId, label) -> {};
+  }
+
+  /** The subject of the passkey-added email, when who-email renders it. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.email.WhoEmailMessages")
+  static class EmailMessagesConfiguration {
+
+    @Bean
+    public WhoEmailMessages whoPasskeyMessages() {
+      return new WhoEmailMessages("org/jwcarman/who/passkey/email-messages");
+    }
   }
 }

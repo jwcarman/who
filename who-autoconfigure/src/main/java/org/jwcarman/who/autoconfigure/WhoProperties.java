@@ -352,13 +352,6 @@ public class WhoProperties {
     private Set<String> allowedOrigins = new LinkedHashSet<>();
 
     /**
-     * Sender address of the email that tells the owner a passkey was added. The email is sent only
-     * when it is set, {@code who-email-link} is on and a {@code JavaMailSender} exists; otherwise
-     * who logs a warning at startup. It does not fall back to {@code who.email-link.from}.
-     */
-    private String from;
-
-    /**
      * Returns the relying party id.
      *
      * @return the relying party id
@@ -410,24 +403,6 @@ public class WhoProperties {
      */
     public void setAllowedOrigins(Set<String> allowedOrigins) {
       this.allowedOrigins = allowedOrigins;
-    }
-
-    /**
-     * Returns the sender address of passkey-added emails.
-     *
-     * @return the sender address, or {@code null}
-     */
-    public String getFrom() {
-      return from;
-    }
-
-    /**
-     * Sets the sender address of passkey-added emails.
-     *
-     * @param from the sender address
-     */
-    public void setFrom(String from) {
-      this.from = from;
     }
   }
 

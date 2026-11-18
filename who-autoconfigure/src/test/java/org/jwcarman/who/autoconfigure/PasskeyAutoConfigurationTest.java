@@ -18,7 +18,6 @@ package org.jwcarman.who.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 import java.time.Duration;
@@ -26,19 +25,23 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import jakarta.servlet.Filter;
 
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.email.OutgoingEmail;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.CredentialRemover;
+import org.jwcarman.who.emaillink.EmailAddressChanges;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.emaillink.EmailLinkIssuer;
+import org.jwcarman.who.passkey.EmailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
-import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyAddedNotifier;
 import org.jwcarman.who.passkey.PasskeyCredentialRemover;
 import org.jwcarman.who.passkey.PasskeyLoginMethod;
@@ -48,7 +51,6 @@ import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.passkey.PasskeySettings;
 import org.jwcarman.who.passkey.WhoRelyingPartyOperations;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
-import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -63,8 +65,6 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -93,6 +93,7 @@ class PasskeyAutoConfigurationTest {
   static final String RP_ID = "who.passkey.rp-id=app.example.com";
   static final String PASSKEYS_OFF = "who.passkey.enabled=false";
   static final String EMAIL_LINKS_OFF = "who.email-link.enabled=false";
+  static final String WHO_EMAIL_FROM = "who.email.from=who@example.com";
   static final String LINK_BASE_URL = "who.email-link.link-base-url=https://app.example.com/in";
   static final String CODE_SECRET =
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij";
@@ -307,12 +308,7 @@ class PasskeyAutoConfigurationTest {
   void oneNameResolverAndOneNotifierWithEverythingOn() {
     postgresRunner()
         .withPropertyValues(
-            RP_ID,
-            LINK_BASE_URL,
-            CODE_SECRET,
-            "spring.mail.host=localhost",
-            "who.email.from=who@example.com",
-            "who.passkey.from=security@example.com")
+            RP_ID, LINK_BASE_URL, CODE_SECRET, "spring.mail.host=localhost", WHO_EMAIL_FROM)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -463,35 +459,25 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
-  void mailSenderEmailLinksAndFromSendPasskeyAddedEmails() {
+  void smtpEmailLinksAndFromSendPasskeyAddedEmails() {
     postgresRunner()
         .withPropertyValues(
-            RP_ID,
-            LINK_BASE_URL,
-            CODE_SECRET,
-            "spring.mail.host=localhost",
-            "who.email.from=who@example.com",
-            "who.passkey.from=security@example.com")
+            RP_ID, LINK_BASE_URL, CODE_SECRET, "spring.mail.host=localhost", WHO_EMAIL_FROM)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
               assertThat(context)
                   .getBean(PasskeyAddedNotifier.class)
-                  .isInstanceOf(MailPasskeyAddedNotifier.class);
+                  .isInstanceOf(EmailPasskeyAddedNotifier.class);
             });
   }
 
   @Test
   void passkeyAddedEmailGoesToTheOldestAddress() {
-    JavaMailSender mailSender = mock(JavaMailSender.class);
+    List<OutgoingEmail> sent = new CopyOnWriteArrayList<>();
     postgresRunner()
-        .withPropertyValues(
-            RP_ID,
-            LINK_BASE_URL,
-            CODE_SECRET,
-            "who.email.from=who@example.com",
-            "who.passkey.from=security@example.com")
-        .withBean(JavaMailSender.class, () -> mailSender)
+        .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET)
+        .withBean(WhoEmailSender.class, () -> sent::add)
         .run(
             context -> {
               assertThat(context).hasNotFailed();
@@ -504,11 +490,15 @@ class PasskeyAutoConfigurationTest {
 
               context.getBean(PasskeyAddedNotifier.class).passkeyAdded(identity.id(), "Laptop");
 
-              ArgumentCaptor<SimpleMailMessage> sent =
-                  ArgumentCaptor.forClass(SimpleMailMessage.class);
-              verify(mailSender).send(sent.capture());
-              assertThat(sent.getValue().getTo()).containsExactly(address);
-              assertThat(sent.getValue().getFrom()).isEqualTo("security@example.com");
+              assertThat(sent)
+                  .singleElement()
+                  .satisfies(
+                      email -> {
+                        assertThat(email.to()).isEqualTo(address);
+                        assertThat(email.subject())
+                            .isEqualTo("A passkey was added to your account");
+                        assertThat(email.text()).contains("\"Laptop\"");
+                      });
             });
   }
 
@@ -518,17 +508,12 @@ class PasskeyAutoConfigurationTest {
         postgresRunner()
             .withPropertyValues(EMAIL_LINKS_OFF)
             .withClassLoader(new FilteredClassLoader("org.jwcarman.who.emaillink"))
-            .withPropertyValues(
-                RP_ID,
-                "spring.mail.host=localhost",
-                "who.email.from=who@example.com",
-                "who.passkey.from=security@example.com");
+            .withPropertyValues(RP_ID, "spring.mail.host=localhost", WHO_EMAIL_FROM);
 
     assertThat(passkeyAddedEmailWarnings(runner, false))
         .singleElement()
         .asString()
-        .contains("who-email-link or spring-boot-starter-mail is not present")
-        .doesNotContain("security@example.com");
+        .contains("who-email-link is not present");
     runner.run(
         context -> {
           assertThat(context).doesNotHaveBean(EmailCredentialService.class);
@@ -548,19 +533,14 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
-  void withoutSpringMailNoPasskeyAddedEmailsButTheNameIsStillTheAddress() {
+  void withoutSpringMailAnAppsOwnSenderSendsPasskeyAddedEmails() {
     ApplicationContextRunner runner =
         postgresRunner()
             .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
             .withBean(WhoEmailSender.class, () -> mock(WhoEmailSender.class))
-            .withPropertyValues(
-                RP_ID, LINK_BASE_URL, CODE_SECRET, "who.passkey.from=security@example.com");
+            .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET);
 
-    assertThat(passkeyAddedEmailWarnings(runner, false))
-        .singleElement()
-        .asString()
-        .contains("who-email-link or spring-boot-starter-mail is not present")
-        .doesNotContain("security@example.com");
+    assertThat(passkeyAddedEmailWarnings(runner, true)).isEmpty();
     runner.run(
         context -> {
           assertThat(context).hasNotFailed();
@@ -579,59 +559,33 @@ class PasskeyAutoConfigurationTest {
   }
 
   @Test
-  void withoutFromNoPasskeyAddedEmails() {
-    assertThat(
-            passkeyAddedEmailWarnings(
-                false,
-                RP_ID,
-                LINK_BASE_URL,
-                CODE_SECRET,
-                "spring.mail.host=localhost",
-                "who.email.from=who@example.com"))
-        .singleElement()
-        .asString()
-        .contains("who.passkey.from")
-        .doesNotContain("who@example.com");
-  }
-
-  @Test
   void withoutEmailLinksNoPasskeyAddedEmails() {
     assertThat(
             passkeyAddedEmailWarnings(
-                false,
-                RP_ID,
-                EMAIL_LINKS_OFF,
-                "spring.mail.host=localhost",
-                "who.passkey.from=security@example.com"))
+                false, RP_ID, EMAIL_LINKS_OFF, "spring.mail.host=localhost", WHO_EMAIL_FROM))
         .singleElement()
         .asString()
-        .contains("who.email-link.enabled=false")
-        .doesNotContain("security@example.com");
+        .contains("who.email-link.enabled=false");
   }
 
   @Test
-  void withoutAMailSenderNoPasskeyAddedEmails() {
-    assertThat(
-            passkeyAddedEmailWarnings(
-                false, RP_ID, LINK_BASE_URL, CODE_SECRET, "who.passkey.from=security@example.com"))
+  void withoutWhoEmailsNoPasskeyAddedEmails() {
+    // an application with its own email-link senders, so email-link starts without WhoEmails
+    ApplicationContextRunner runner =
+        postgresRunner()
+            .withBean(EmailLinkIssuer.class, () -> mock(EmailLinkIssuer.class))
+            .withBean(EmailAddressChanges.class, () -> mock(EmailAddressChanges.class))
+            .withPropertyValues(RP_ID, LINK_BASE_URL, CODE_SECRET);
+
+    assertThat(passkeyAddedEmailWarnings(runner, false))
         .singleElement()
         .asString()
-        .contains("spring.mail.host")
-        .doesNotContain("security@example.com");
+        .contains("there is no WhoEmails");
   }
 
   @Test
   void sendingPasskeyAddedEmailsWarnsNothing() {
-    assertThat(
-            passkeyAddedEmailWarnings(
-                true,
-                RP_ID,
-                LINK_BASE_URL,
-                CODE_SECRET,
-                "spring.mail.host=localhost",
-                "who.email.from=who@example.com",
-                "who.passkey.from=security@example.com"))
-        .isEmpty();
+    assertThat(passkeyAddedEmailWarnings(true, RP_ID, LINK_BASE_URL, CODE_SECRET)).isEmpty();
   }
 
   /**
@@ -641,7 +595,7 @@ class PasskeyAutoConfigurationTest {
   private static List<String> passkeyAddedEmailWarnings(boolean sends, String... properties) {
     return passkeyAddedEmailWarnings(
         postgresRunner()
-            // email links can then be on without a JavaMailSender
+            // email links can then be on without a mail server
             .withBean(WhoEmailSender.class, () -> mock(WhoEmailSender.class))
             .withPropertyValues(properties),
         sends);
@@ -659,7 +613,8 @@ class PasskeyAutoConfigurationTest {
           context -> {
             assertThat(context).hasNotFailed();
             assertThat(
-                    context.getBean(PasskeyAddedNotifier.class) instanceof MailPasskeyAddedNotifier)
+                    context.getBean(PasskeyAddedNotifier.class)
+                        instanceof EmailPasskeyAddedNotifier)
                 .isEqualTo(sends);
           });
     } finally {
