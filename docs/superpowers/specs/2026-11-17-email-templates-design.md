@@ -1,6 +1,6 @@
 # Email templates and one seam for sending
 
-Status: approved by the owner. Date: 2026-11-17. Target: 0.22.0.
+Status: approved by the owner. Date: 2026-11-17. Target: 0.23.0.
 
 ## Intent
 
