@@ -96,7 +96,7 @@ public final class WhoProblems {
       return;
     }
     WhoProblem problem = of(exception, fallback);
-    if (problem.status() >= 500) {
+    if (problem.status() >= 500 && log.isErrorEnabled()) {
       log.error(
           "{} {} failed; answering {}",
           LogValues.printable(request.getMethod()),

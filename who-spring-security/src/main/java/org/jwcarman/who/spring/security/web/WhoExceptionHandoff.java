@@ -133,8 +133,8 @@ public final class WhoExceptionHandoff {
       return;
     }
     HttpStatus status = WhoProblems.statusOf(exception, fallback);
-    if (status.is5xxServerError()) {
-      // nothing else will: the application's handlers never saw it, and sendError logs nothing
+    // nothing else will log it: the application's handlers never saw it, and sendError logs nothing
+    if (status.is5xxServerError() && log.isErrorEnabled()) {
       log.error(
           "{} {} failed and no exception handler of the application answered it; sending {}",
           LogValues.printable(request.getMethod()),

@@ -188,10 +188,17 @@ SecurityFilterChain web(HttpSecurity http, WhoPublicPaths publicPaths) {
   `InvitationService.invite` outside any transaction, and attach the app's own data with the callback of
   `invite(email, roleNames, callback)` (it runs in the invitation's transaction, on the caller's
   thread); an `IdentityInvited` listener is for cross-cutting reactions such as auditing. See `references/account.md` and `references/admin.md`.
-- **Answer who's errors in the app's own format.** who throws exceptions (such as
-  `NotSignedInException`) and hands even filter-level ones to Spring MVC's exception resolvers,
-  so one `@RestControllerAdvice` covers them. Each also sets a `Who-Error` header with a stable
-  code that clients can rely on. See `references/errors.md`.
+- **who answers errors under its base path itself; the app answers the rest.** Under
+  `who.base-path` who writes its own RFC 9457 Problem Details (with a `code`), whatever the app's
+  advice says, so don't write handlers for who's endpoints. On the app's own endpoints who's
+  exceptions (such as `NotSignedInException`) reach the app's `@RestControllerAdvice`, filter-level
+  ones included. Every failure also carries a `Who-Error` header with a stable code. See
+  `references/errors.md`.
+- **who's `/who/me` and admin endpoints are Spring MVC controllers.** The app's
+  `authorizeHttpRequests` rules apply to them, so never refuse `/who/**`; permit
+  `WhoPublicPaths` and require authentication for the rest. Don't put a path prefix on
+  controllers that would cover who's (startup fails), and limit an enveloping
+  `ResponseBodyAdvice` to the app's own packages. See `references/configuration.md`.
 - **Browser sign-in uses Spring's `csrf.spa()`**: the client reads the `XSRF-TOKEN` cookie and
   sends `X-XSRF-TOKEN` on unsafe requests. The TypeScript client does this for you.
 - **Secrets come from the environment**, never from committed config, and never with a default
