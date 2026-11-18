@@ -95,6 +95,18 @@
         </dependency>
         <dependency>
             <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-email</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
+            <artifactId>who-email-smtp</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.jwcarman.who</groupId>
             <artifactId>who-email-link</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>

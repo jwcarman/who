@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -60,6 +61,7 @@ public class WhoProperties {
   private Oidc oidc = new Oidc();
   private Sessions sessions = new Sessions();
   private Admin admin = new Admin();
+  private Email email = new Email();
 
   /**
    * Returns when to run Who's bundled DDL schema scripts.
@@ -170,6 +172,24 @@ public class WhoProperties {
   }
 
   /**
+   * Returns the email properties.
+   *
+   * @return email properties
+   */
+  public Email getEmail() {
+    return email;
+  }
+
+  /**
+   * Sets the email properties.
+   *
+   * @param email email properties
+   */
+  public void setEmail(Email email) {
+    this.email = email;
+  }
+
+  /**
    * Returns the passkey module properties.
    *
    * @return passkey properties
@@ -185,6 +205,105 @@ public class WhoProperties {
    */
   public void setPasskey(Passkey passkey) {
     this.passkey = passkey;
+  }
+
+  /**
+   * How who renders and sends its emails ({@code who-email}, {@code who-email-smtp} or an
+   * application's own sender).
+   */
+  public static class Email {
+
+    /** Creates the settings with their defaults. */
+    public Email() {
+      // defaults are set on the fields
+    }
+
+    /** The address every who email comes from; required by {@code who-email-smtp}. */
+    private String from;
+
+    /**
+     * Where the application's email templates are, searched before who's own: a file named {@code
+     * sign-in.txt} there replaces who's sign-in text, and {@code sign-in.html} adds HTML.
+     */
+    private String templates = "classpath:/templates/who/email/";
+
+    /** The locale emails are rendered in when no request's locale is known; the JVM's if unset. */
+    private Locale locale;
+
+    /** Application-wide template values, seen as {@code {{app.<name>}}}. */
+    private Map<String, String> model = new LinkedHashMap<>();
+
+    /**
+     * Returns the address every who email comes from.
+     *
+     * @return the sender address, or null if unset
+     */
+    public String getFrom() {
+      return from;
+    }
+
+    /**
+     * Sets the address every who email comes from.
+     *
+     * @param from the sender address
+     */
+    public void setFrom(String from) {
+      this.from = from;
+    }
+
+    /**
+     * Returns where the application's email templates are.
+     *
+     * @return the template location
+     */
+    public String getTemplates() {
+      return templates;
+    }
+
+    /**
+     * Sets where the application's email templates are.
+     *
+     * @param templates the template location
+     */
+    public void setTemplates(String templates) {
+      this.templates = templates;
+    }
+
+    /**
+     * Returns the locale used when no request's locale is known.
+     *
+     * @return the locale, or null for the JVM's
+     */
+    public Locale getLocale() {
+      return locale;
+    }
+
+    /**
+     * Sets the locale used when no request's locale is known.
+     *
+     * @param locale the locale
+     */
+    public void setLocale(Locale locale) {
+      this.locale = locale;
+    }
+
+    /**
+     * Returns the application-wide template values.
+     *
+     * @return the values, by name
+     */
+    public Map<String, String> getModel() {
+      return model;
+    }
+
+    /**
+     * Sets the application-wide template values.
+     *
+     * @param model the values, by name
+     */
+    public void setModel(Map<String, String> model) {
+      this.model = model;
+    }
   }
 
   /** Properties for the {@code who-passkey} module. */

@@ -122,6 +122,7 @@
         <module>who-bom</module>
         <module>who-core</module>
         <module>who-email</module>
+        <module>who-email-smtp</module>
         <module>who-jdbc</module>
         <module>who-rbac</module>
         <module>who-spring-security</module>
