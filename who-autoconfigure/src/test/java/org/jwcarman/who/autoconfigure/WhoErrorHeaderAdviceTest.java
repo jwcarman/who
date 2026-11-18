@@ -90,7 +90,7 @@ class WhoErrorHeaderAdviceTest {
             HttpRequest.newBuilder(uri("/app/orders")).GET().build(),
             HttpResponse.BodyHandlers.ofString());
 
-    assertThat(response.statusCode()).isEqualTo(401);
+    assertThat(response.statusCode()).as(response.headers() + " " + response.body()).isEqualTo(401);
     assertThat(response.body()).contains("\"detail\":\"Sign in first\"");
     assertThat(response.headers().firstValue("Who-Error")).contains("not-signed-in");
   }

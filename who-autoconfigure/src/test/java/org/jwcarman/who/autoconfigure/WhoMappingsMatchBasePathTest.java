@@ -57,7 +57,7 @@ class WhoMappingsMatchBasePathTest {
             context ->
                 assertThat(context)
                     .getFailure()
-                    .hasMessageContaining("/api/who/me")
+                    .hasMessageContaining("answers at /api/who/")
                     .hasMessageContaining("who.base-path"));
   }
 
@@ -74,7 +74,7 @@ class WhoMappingsMatchBasePathTest {
   void a_whopaths_bean_that_disagrees_with_the_property_fails_startup() {
     runner
         .withUserConfiguration(OwnPaths.class)
-        .run(context -> assertThat(context).getFailure().hasMessageContaining("/auth/me"));
+        .run(context -> assertThat(context).getFailure().hasMessageContaining(", not /auth/"));
   }
 
   @Configuration(proxyBeanMethods = false)

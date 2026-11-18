@@ -17,15 +17,20 @@ package org.jwcarman.who.spring.security.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.exception.LastCredentialException;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.security.web.csrf.InvalidCsrfTokenException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -126,5 +131,20 @@ class WhoProblemsTest {
 
     assertThat(problem.status()).isEqualTo(400);
     assertThat(problem.code()).isEqualTo("invalid-request");
+  }
+
+  @Test
+  void a_method_not_allowed_keeps_its_allow_header() throws Exception {
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    WhoProblems.write(
+        new MockHttpServletRequest("PATCH", "/who/me/sessions"),
+        response,
+        new HttpRequestMethodNotSupportedException("PATCH", List.of("GET", "DELETE")),
+        HttpStatus.INTERNAL_SERVER_ERROR);
+
+    assertThat(response.getStatus()).isEqualTo(405);
+    assertThat(response.getHeader("Who-Error")).isEqualTo("method-not-allowed");
+    assertThat(response.getHeaderValues("Allow").toString()).contains("GET").contains("DELETE");
   }
 }

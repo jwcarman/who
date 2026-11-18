@@ -106,6 +106,12 @@ public final class WhoProblems {
     }
     response.resetBuffer();
     response.setStatus(problem.status());
+    if (exception instanceof ErrorResponse error) {
+      // headers the status calls for, such as a 405's Allow
+      error
+          .getHeaders()
+          .forEach((name, values) -> values.forEach(v -> response.addHeader(name, v)));
+    }
     response.setHeader(WhoExceptionHandoff.HEADER, problem.code());
     response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     byte[] body = JSON.writeValueAsBytes(problem);
