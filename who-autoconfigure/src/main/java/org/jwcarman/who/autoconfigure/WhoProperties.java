@@ -222,10 +222,11 @@ public class WhoProperties {
     private String from;
 
     /**
-     * Where the application's email templates are, searched before who's own: a file named {@code
-     * sign-in.txt} there replaces who's sign-in text, and {@code sign-in.html} adds HTML.
+     * Where the application's email templates are, searched in order before any library's and who's
+     * own: a file named {@code sign-in.txt} there replaces who's sign-in text, and {@code
+     * sign-in.html} adds HTML.
      */
-    private String templates = "classpath:/templates/who/email/";
+    private List<String> templates = new ArrayList<>(List.of("classpath:/templates/who/email/"));
 
     /** The locale emails are rendered in when no request's locale is known; the JVM's if unset. */
     private Locale locale;
@@ -252,20 +253,20 @@ public class WhoProperties {
     }
 
     /**
-     * Returns where the application's email templates are.
+     * Returns where the application's email templates are, in search order.
      *
-     * @return the template location
+     * @return the template locations
      */
-    public String getTemplates() {
+    public List<String> getTemplates() {
       return templates;
     }
 
     /**
-     * Sets where the application's email templates are.
+     * Sets where the application's email templates are, in search order.
      *
-     * @param templates the template location
+     * @param templates the template locations
      */
-    public void setTemplates(String templates) {
+    public void setTemplates(List<String> templates) {
       this.templates = templates;
     }
 

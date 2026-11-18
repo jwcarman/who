@@ -17,8 +17,10 @@ package org.jwcarman.who.autoconfigure;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.jwcarman.who.core.email.WhoEmailRenderer;
 import org.jwcarman.who.core.email.WhoEmailSender;
@@ -26,6 +28,7 @@ import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.email.MustacheWhoEmailRenderer;
 import org.jwcarman.who.email.WhoEmailMessages;
 import org.jwcarman.who.email.WhoEmailModelContributor;
+import org.jwcarman.who.email.WhoEmailTemplates;
 import org.jwcarman.who.email.smtp.SmtpWhoEmailSender;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -95,16 +98,25 @@ public class WhoEmailAutoConfiguration {
         ObjectProvider<MessageSource> messageSource,
         ObjectProvider<WhoEmailMessages> bundles,
         ObjectProvider<WhoEmailModelContributor> contributors,
+        ObjectProvider<WhoEmailTemplates> libraries,
         WhoProperties properties) {
+      List<WhoEmailTemplates> ordered = libraries.orderedStream().toList();
       ResourceBundleMessageSource who = new ResourceBundleMessageSource();
       who.setDefaultEncoding("UTF-8");
       who.setFallbackToSystemLocale(false);
+      // a library's subjects win over who's own; the application's win over both
+      ordered.stream()
+          .map(WhoEmailTemplates::messages)
+          .filter(Objects::nonNull)
+          .forEach(who::addBasenames);
       bundles.orderedStream().map(WhoEmailMessages::basename).forEach(who::addBasenames);
       MessageSource app = messageSource.getIfAvailable(StaticMessageSource::new);
       WhoProperties.Email email = properties.getEmail();
       return new MustacheWhoEmailRenderer(
           resources,
-          List.of(email.getTemplates()),
+          Stream.concat(
+                  email.getTemplates().stream(), ordered.stream().map(WhoEmailTemplates::location))
+              .toList(),
           new AppFirstMessageSource(app, who),
           email.getModel(),
           List.copyOf(contributors.orderedStream().toList()));

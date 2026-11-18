@@ -30,13 +30,56 @@ import org.jwcarman.who.core.email.WhoEmailRenderer;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.email.MustacheWhoEmailRenderer;
+import org.jwcarman.who.email.WhoEmailTemplates;
 import org.jwcarman.who.email.smtp.SmtpWhoEmailSender;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.MessageSource;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.support.StaticMessageSource;
+import org.springframework.core.annotation.Order;
 import org.springframework.mail.javamail.JavaMailSender;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoEmailAutoConfigurationTest {
+
+  record LibTest(String address) implements WhoEmail {
+    @Override
+    public String template() {
+      return "lib-test";
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class OneLibrary {
+    @Bean
+    WhoEmailTemplates library() {
+      return new WhoEmailTemplates("classpath:/lib-email/", "lib-email/lib-messages");
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class TwoLibraries {
+    @Bean
+    @Order(2)
+    WhoEmailTemplates second() {
+      return new WhoEmailTemplates("classpath:/lib-email/", "lib-email/lib-messages");
+    }
+
+    @Bean
+    @Order(1)
+    WhoEmailTemplates first() {
+      return new WhoEmailTemplates("classpath:/app-email/", null);
+    }
+  }
+
+  private static OutgoingEmail renderLibTest(AssertableApplicationContext context) {
+    return context
+        .getBean(WhoEmailRenderer.class)
+        .render(new LibTest("ann@example.com"), Locale.ENGLISH);
+  }
 
   record Hello(String address) implements WhoEmail {
     @Override
@@ -113,6 +156,51 @@ class WhoEmailAutoConfigurationTest {
                       .getFailure()
                       .rootCause()
                       .hasMessageContaining("who.email.from"));
+    }
+  }
+
+  @Nested
+  class Libraries {
+
+    @Test
+    void a_librarys_template_and_subject_are_used() {
+      runner
+          .withUserConfiguration(OneLibrary.class)
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .run(
+              context -> {
+                OutgoingEmail out = renderLibTest(context);
+                assertThat(out.text()).isEqualTo("From the library");
+                assertThat(out.subject()).isEqualTo("Library subject");
+              });
+    }
+
+    @Test
+    void the_applications_location_beats_a_librarys() {
+      runner
+          .withUserConfiguration(OneLibrary.class)
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .withPropertyValues("who.email.templates=classpath:/app-email/")
+          .run(context -> assertThat(renderLibTest(context).text()).isEqualTo("From the app"));
+    }
+
+    @Test
+    void the_applications_subject_beats_a_librarys() {
+      StaticMessageSource app = new StaticMessageSource();
+      app.addMessage("who.email.lib-test.subject", Locale.ENGLISH, "App subject");
+      runner
+          .withUserConfiguration(OneLibrary.class)
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .withBean("messageSource", MessageSource.class, () -> app)
+          .run(context -> assertThat(renderLibTest(context).subject()).isEqualTo("App subject"));
+    }
+
+    @Test
+    void libraries_are_searched_in_bean_order() {
+      runner
+          .withUserConfiguration(TwoLibraries.class)
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .run(context -> assertThat(renderLibTest(context).text()).isEqualTo("From the app"));
     }
   }
 

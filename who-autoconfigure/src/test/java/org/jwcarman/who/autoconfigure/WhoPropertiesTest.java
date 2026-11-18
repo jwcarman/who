@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -58,7 +59,7 @@ class WhoPropertiesTest {
     assertThat(props.getPasskey().isEnabled()).isFalse();
     assertThat(props.getEmailLink().isEnabled()).isFalse();
     assertThat(props.getEmail().getFrom()).isEqualTo("no-reply@example.com");
-    assertThat(props.getEmail().getTemplates()).isEqualTo("classpath:/mail/");
+    assertThat(props.getEmail().getTemplates()).isEqualTo(List.of("classpath:/mail/"));
     assertThat(props.getEmail().getLocale()).isEqualTo(Locale.CANADA_FRENCH);
     assertThat(props.getEmail().getModel()).containsEntry("support-address", "help@example.com");
     assertThat(props.getEnrollment().isEnabled()).isFalse();
@@ -69,6 +70,18 @@ class WhoPropertiesTest {
     assertThat(props.getOidc().getSignUpWindow()).isEqualTo(Duration.ofMinutes(5));
     assertThat(props.getOidc().getProviders().get("acme").isEnabled()).isFalse();
     assertThat(props.getOidc().getProviders().get("acme").getTrustEmail()).isTrue();
+  }
+
+  @Test
+  void email_templates_bind_a_comma_separated_list() {
+    WhoProperties props =
+        new Binder(
+                new MapConfigurationPropertySource(
+                    Map.of("who.email.templates", "classpath:/a/,file:./b/")))
+            .bind("who", WhoProperties.class)
+            .get();
+
+    assertThat(props.getEmail().getTemplates()).isEqualTo(List.of("classpath:/a/", "file:./b/"));
   }
 
   @Test
@@ -132,7 +145,7 @@ class WhoPropertiesTest {
     WhoProperties.Email email = new WhoProperties().getEmail();
 
     assertThat(email.getFrom()).isNull();
-    assertThat(email.getTemplates()).isEqualTo("classpath:/templates/who/email/");
+    assertThat(email.getTemplates()).isEqualTo(List.of("classpath:/templates/who/email/"));
     assertThat(email.getLocale()).isNull();
     assertThat(email.getModel()).isEmpty();
   }
