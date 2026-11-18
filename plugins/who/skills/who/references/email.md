@@ -171,8 +171,13 @@ subjects are read from the application's messages, then from each library's bund
 who's. Several libraries are searched in bean order (`@Order`). An application still replaces any one
 of a library's files from its own location, as it replaces who's.
 
-For a native image, the library registers its templates and bundle as resources with its own
-`RuntimeHints`; who registers only its own.
+For a native image, the library registers its own with a `RuntimeHintsRegistrar`; who registers
+only its own. Register the templates as resources and the subjects as a resource bundle:
+
+```java
+hints.resources().registerPattern("com/acme/email/*");
+hints.resources().registerResourceBundle("com/acme/email-messages");
+```
 
 ## Subjects
 
