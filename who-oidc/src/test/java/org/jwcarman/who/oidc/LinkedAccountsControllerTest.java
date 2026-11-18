@@ -20,6 +20,9 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -33,9 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
@@ -60,22 +61,27 @@ import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
+import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import com.nimbusds.jose.util.JSONArrayUtils;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class LinkedAccountsFilterTest {
+class LinkedAccountsControllerTest {
 
   // the same for an id that does not exist and one that is not the caller's
   private static final String NOT_FOUND =
@@ -197,13 +203,11 @@ class LinkedAccountsFilterTest {
   private final MutableClock clock = new MutableClock();
   private final Links links = new Links();
   private final Accounts accounts = new Accounts(links);
-  private final AtomicBoolean reachedChain = new AtomicBoolean();
-  private final FilterChain chain = (req, res) -> reachedChain.set(true);
   private final Identity alice = Identity.create(IdentityStatus.ACTIVE);
   private final Identity bob = Identity.create(IdentityStatus.ACTIVE);
   private FederatedCredentialService service;
   private WhoSessionSecurityContextRepository sessionRepository;
-  private LinkedAccountsFilter filter;
+  private MockMvc mvc;
 
   @BeforeEach
   void setUp() {
@@ -234,16 +238,18 @@ class LinkedAccountsFilterTest {
             clock,
             WhoEventPublisher.NOOP,
             _ -> false);
-    filter =
-        new LinkedAccountsFilter(
-            WhoPaths.defaults(),
+    LinkedAccountsController controller =
+        new LinkedAccountsController(
             SignInRegistrations.of(List.of(ACME), Map.of()),
             service,
             new LastCredentialGuard(identities, List.of(counter), manager),
             sessionRepository,
-            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             clock,
             RECENT);
+    mvc =
+        MockMvcBuilders.standaloneSetup(controller)
+            .setHandlerExceptionResolvers(new WhoErrorResolver(WhoPaths.defaults()))
+            .build();
   }
 
   @AfterEach
@@ -271,18 +277,23 @@ class LinkedAccountsFilterTest {
   /** Sends a request from {@code session}, authenticated as the session loads. */
   private MockHttpServletResponse send(String method, String uri, HttpSession session)
       throws Exception {
-    MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+    MockHttpServletRequestBuilder request = request(HttpMethod.valueOf(method), uri);
     if (session != null) {
-      request.setSession(session);
-      SecurityContextHolder.setContext(sessionRepository.loadDeferredContext(request).get());
+      // loaded on the request itself, as the chain's SecurityContextHolderFilter does
+      request
+          .session((MockHttpSession) session)
+          .with(
+              loading -> {
+                SecurityContextHolder.setContext(
+                    sessionRepository.loadDeferredContext(loading).get());
+                return loading;
+              });
     }
-    return filter(request);
+    return perform(request);
   }
 
-  private MockHttpServletResponse filter(MockHttpServletRequest request) throws Exception {
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
-    return response;
+  private MockHttpServletResponse perform(MockHttpServletRequestBuilder request) throws Exception {
+    return mvc.perform(request).andReturn().getResponse();
   }
 
   private void authenticateWithApiKey(Identity identity) {
@@ -325,7 +336,6 @@ class LinkedAccountsFilterTest {
       assertThat(body.getFirst()).containsOnlyKeys("id", "provider", "linkedAt");
       assertThat(Instant.parse((String) body.getFirst().get("linkedAt")))
           .isCloseTo(Instant.now(), within(Duration.ofMinutes(1)));
-      assertThat(reachedChain.get()).isFalse();
     }
 
     @Test
@@ -354,7 +364,7 @@ class LinkedAccountsFilterTest {
       account(bob, ACME_ISSUER, "bobs");
       authenticateWithApiKey(alice);
 
-      MockHttpServletResponse response = filter(new MockHttpServletRequest("GET", ACCOUNTS));
+      MockHttpServletResponse response = perform(get(ACCOUNTS));
 
       assertThat(response.getStatus()).isEqualTo(200);
       assertThat(parse(response)).hasSize(1);
@@ -363,6 +373,14 @@ class LinkedAccountsFilterTest {
     @Test
     void signed_out_is_unauthorized() throws Exception {
       assertThat(send("GET", ACCOUNTS, null).getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void the_answer_is_the_list_of_records() throws NoSuchMethodException {
+      // Spring registers a handler's return type for native images; a void handler hides it
+      assertThat(
+              LinkedAccountsController.class.getMethod("list").getGenericReturnType().getTypeName())
+          .isEqualTo("java.util.List<" + LinkedAccountView.class.getName() + ">");
     }
   }
 
@@ -438,8 +456,7 @@ class LinkedAccountsFilterTest {
       MockHttpServletResponse response = send("DELETE", PATH + phone.id(), session);
 
       assertThat(response.getStatus()).isEqualTo(401);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER))
-          .isEqualTo("reauthentication-required");
+      assertThat(response.getHeader("Who-Error")).isEqualTo("reauthentication-required");
       assertThat(accounts.findById(phone.id())).isPresent();
       assertThat(links.findIdentityIdByCredentialId(phone.id())).isPresent();
     }
@@ -459,11 +476,11 @@ class LinkedAccountsFilterTest {
     void api_key_beside_cookie_is_forbidden() throws Exception {
       FederatedCredential laptop = account(alice, ACME_ISSUER, "laptop");
       FederatedCredential phone = account(alice, ACME_ISSUER, "phone");
-      MockHttpServletRequest request = new MockHttpServletRequest("DELETE", PATH + phone.id());
-      request.setSession(browser(alice, laptop.id(), NOW));
+      HttpSession session = browser(alice, laptop.id(), NOW);
       authenticateWithApiKey(alice);
 
-      MockHttpServletResponse response = filter(request);
+      MockHttpServletResponse response =
+          perform(delete(PATH + phone.id()).session((MockHttpSession) session));
 
       assertThat(response.getStatus()).isEqualTo(403);
       assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
@@ -473,29 +490,6 @@ class LinkedAccountsFilterTest {
     @Test
     void signed_out_is_unauthorized() throws Exception {
       assertThat(send("DELETE", PATH + UUID.randomUUID(), null).getStatus()).isEqualTo(401);
-    }
-  }
-
-  @Test
-  void starting_a_link_is_not_this_filters_request() throws Exception {
-    MockHttpServletRequest request = new MockHttpServletRequest("POST", ACCOUNTS + "/acme");
-
-    filter.doFilter(request, new MockHttpServletResponse(), chain);
-
-    assertThat(reachedChain.get()).isTrue();
-  }
-
-  @Test
-  void any_other_request_passes_through() throws Exception {
-    List<MockHttpServletRequest> others = new ArrayList<>();
-    others.add(new MockHttpServletRequest("GET", ACCOUNTS + "/acme"));
-    others.add(new MockHttpServletRequest("DELETE", ACCOUNTS));
-    others.add(new MockHttpServletRequest("GET", "/who/me/passkeys"));
-
-    for (MockHttpServletRequest request : others) {
-      reachedChain.set(false);
-      filter.doFilter(request, new MockHttpServletResponse(), chain);
-      assertThat(reachedChain.get()).as(request.getRequestURI()).isTrue();
     }
   }
 }

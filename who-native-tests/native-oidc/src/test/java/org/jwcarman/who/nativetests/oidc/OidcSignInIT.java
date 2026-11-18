@@ -206,6 +206,33 @@ class OidcSignInIT {
     try (WhoClient fresh = client()) {
       assertThat(signInAtProvider(fresh, another)).endsWith("/");
       assertThat(fresh.get("/who/me").status()).isEqualTo(200);
+
+      WhoClient.Response listed = fresh.get("/who/me/accounts");
+      assertThat(listed.status()).as(listed.body()).isEqualTo(200);
+      assertThat(listed.json().valueStream().map(a -> a.path("provider").asString()))
+          .containsExactly("test", "test");
+      assertThat(listed.json().get(0).propertyNames())
+          .containsExactlyInAnyOrder("id", "provider", "linkedAt");
+      // oldest first: the account linked before, not the one this session signed in with
+      String first = listed.json().get(0).path("id").asString();
+
+      WhoClient.Response unlinked = fresh.delete("/who/me/accounts/" + first);
+
+      assertThat(unlinked.status()).as(unlinked.body()).isEqualTo(204);
+      assertThat(fresh.get("/who/me/accounts").json().size()).isEqualTo(1);
+    }
+  }
+
+  @Test
+  void unlinking_an_unknown_account_is_whos_not_found_problem() throws Exception {
+    String subject = linkedAccount();
+    try (WhoClient client = client()) {
+      signInAtProvider(client, subject);
+
+      WhoClient.Response response = client.delete("/who/me/accounts/not-an-id");
+
+      assertThat(response.status()).isEqualTo(404);
+      assertThat(response.json().path("code").asString()).isEqualTo("linked-account-not-found");
     }
   }
 }

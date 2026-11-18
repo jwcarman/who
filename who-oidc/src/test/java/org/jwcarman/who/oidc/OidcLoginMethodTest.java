@@ -31,10 +31,8 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.IdentityRepository;
-import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
-import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
@@ -89,8 +87,6 @@ class OidcLoginMethodTest {
         registrations,
         whoService,
         mock(FederatedCredentialRepository.class),
-        mock(FederatedCredentialService.class),
-        mock(LastCredentialGuard.class),
         new WhoSessionSecurityContextRepository(
             whoService,
             InMemorySessionRecordRepository.whoSessions(clock, WhoEventPublisher.NOOP),

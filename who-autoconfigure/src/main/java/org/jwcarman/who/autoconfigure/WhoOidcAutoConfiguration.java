@@ -34,7 +34,7 @@ import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.oidc.CallbackRegistrations;
 import org.jwcarman.who.oidc.InvalidRegistrationException;
-import org.jwcarman.who.oidc.LinkedAccountsEndpoints;
+import org.jwcarman.who.oidc.LinkedAccountsController;
 import org.jwcarman.who.oidc.OidcLoginMethod;
 import org.jwcarman.who.oidc.OidcRedirects;
 import org.jwcarman.who.oidc.OidcSignInCredentialCounter;
@@ -43,7 +43,6 @@ import org.jwcarman.who.oidc.ProviderSettings;
 import org.jwcarman.who.oidc.SignInRegistrations;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -224,9 +223,6 @@ public class WhoOidcAutoConfiguration {
    * @param registrations the registrations who signs in with
    * @param whoService resolves credentials
    * @param credentials finds provider credentials
-   * @param accounts lists and unlinks the caller's accounts
-   * @param lastCredentialGuard required: accounts are never unlinked without the last-credential
-   *     rule, so an application without it fails to start
    * @param sessions stores the who session
    * @param signUpService confirms pending sign-ups and links
    * @param identities finds the identity signed in
@@ -241,8 +237,6 @@ public class WhoOidcAutoConfiguration {
       SignInRegistrations registrations,
       WhoService whoService,
       FederatedCredentialRepository credentials,
-      FederatedCredentialService accounts,
-      LastCredentialGuard lastCredentialGuard,
       WhoSessionSecurityContextRepository sessions,
       OidcSignUpService signUpService,
       IdentityRepository identities,
@@ -259,8 +253,6 @@ public class WhoOidcAutoConfiguration {
         registrations,
         whoService,
         credentials,
-        accounts,
-        lastCredentialGuard,
         sessions,
         signUpService,
         identities,
@@ -271,37 +263,32 @@ public class WhoOidcAutoConfiguration {
   }
 
   /**
-   * The caller's linked accounts on every stateless chain; a browser chain gets them from the login
-   * method.
+   * {@code GET /who/me/accounts} and {@code DELETE /who/me/accounts/{id}}: the caller's linked
+   * provider accounts, listed by any signed-in caller and unlinked from a browser session.
    *
-   * @param paths where the endpoints live
    * @param registrations names each account's provider
    * @param accounts lists and unlinks the caller's accounts
-   * @param lastCredentialGuard keeps an identity from losing its last sign-in credential
+   * @param lastCredentialGuard required: accounts are never unlinked without the last-credential
+   *     rule, so an application without it fails to start
    * @param sessions tells a browser session from a key or token
-   * @param handoff the application's exception handling, if it has who's handoff
    * @param clock the current time
    * @param properties {@code who.security.recent-sign-in}
-   * @return the endpoints
+   * @return the controller
    */
   @Bean
   @ConditionalOnMissingBean
-  public LinkedAccountsEndpoints linkedAccountsEndpoints(
-      WhoPaths paths,
+  public LinkedAccountsController linkedAccountsController(
       SignInRegistrations registrations,
       FederatedCredentialService accounts,
       LastCredentialGuard lastCredentialGuard,
       WhoSessionSecurityContextRepository sessions,
-      ObjectProvider<WhoExceptionHandoff> handoff,
       Clock clock,
       WhoProperties properties) {
-    return new LinkedAccountsEndpoints(
-        paths,
+    return new LinkedAccountsController(
         registrations,
         accounts,
         lastCredentialGuard,
         sessions,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         clock,
         properties.getSecurity().getRecentSignIn());
   }

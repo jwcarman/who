@@ -35,10 +35,12 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.TestPasskeys;
 import org.jwcarman.who.spring.security.web.SessionNotFoundException;
+import org.jwcarman.who.test.StubOidcProvider;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -77,6 +79,11 @@ import tools.jackson.databind.json.JsonMapper;
       "who.passkey.allowed-origins=http://localhost",
       "who.jwt.enabled=false",
       "who.turnstile.enabled=false",
+      "who.oidc.enabled=true",
+      "who.oidc.failure-url=/signin",
+      "spring.security.oauth2.client.registration.stub.client-id=client",
+      "spring.security.oauth2.client.registration.stub.client-secret=secret",
+      "spring.security.oauth2.client.registration.stub.scope=openid,email",
       "spring.session.jdbc.initialize-schema=always",
       "spring.jackson.property-naming-strategy=SNAKE_CASE",
       "spring.jackson.datatype.datetime.write-dates-as-timestamps=true",
@@ -90,6 +97,7 @@ class AnswersIgnoreApplicationJacksonTest {
   private static final JsonMapper READER = JsonMapper.builder().build();
 
   static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
+  static final StubOidcProvider PROVIDER = StubOidcProvider.start();
 
   static {
     POSTGRES.start();
@@ -100,6 +108,7 @@ class AnswersIgnoreApplicationJacksonTest {
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add("spring.security.oauth2.client.provider.stub.issuer-uri", PROVIDER::issuer);
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -160,6 +169,7 @@ class AnswersIgnoreApplicationJacksonTest {
   @Autowired private JdbcWhoPasskeyUserRepository passkeyUsers;
   @Autowired private JdbcWhoPasskeyCredentialRepository passkeyCredentials;
   @Autowired private JdbcClient jdbc;
+  @Autowired private FederatedCredentialService federatedCredentials;
 
   private Identity identity;
   private WhoMockMvcBrowser browser;
@@ -268,6 +278,25 @@ class AnswersIgnoreApplicationJacksonTest {
           .containsExactlyInAnyOrder("credentialId", "label", "createdAt", "lastUsedAt");
       assertThat(first.get("lastUsedAt").isNull()).isTrue();
       assertThat(first.get("createdAt").isString()).isTrue();
+    }
+  }
+
+  @Nested
+  class LinkedAccounts {
+
+    @Test
+    void the_list_keeps_its_shape() throws Exception {
+      federatedCredentials.link(identity, PROVIDER.issuer(), "jackson");
+
+      MvcResult result = browser.perform(get("/who/me/accounts")).andReturn();
+
+      assertThat(result.getResponse().getStatus())
+          .as(result.getResponse().getContentAsString())
+          .isEqualTo(200);
+      JsonNode first = body(result).get(0);
+      assertThat(first.propertyNames()).containsExactlyInAnyOrder("id", "provider", "linkedAt");
+      assertThat(first.get("provider").asString()).isEqualTo("stub");
+      assertThat(first.get("linkedAt").isString()).isTrue();
     }
   }
 
