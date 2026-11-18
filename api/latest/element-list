@@ -3,6 +3,7 @@ org.jwcarman.who.apikey
 org.jwcarman.who.autoconfigure
 org.jwcarman.who.core.crypto
 org.jwcarman.who.core.domain
+org.jwcarman.who.core.email
 org.jwcarman.who.core.event
 org.jwcarman.who.core.exception
 org.jwcarman.who.core.id
@@ -11,6 +12,9 @@ org.jwcarman.who.core.repository
 org.jwcarman.who.core.service
 org.jwcarman.who.core.signup
 org.jwcarman.who.core.spi
+org.jwcarman.who.email
+org.jwcarman.who.email.aot
+org.jwcarman.who.email.smtp
 org.jwcarman.who.emaillink
 org.jwcarman.who.enrollment
 org.jwcarman.who.federated
