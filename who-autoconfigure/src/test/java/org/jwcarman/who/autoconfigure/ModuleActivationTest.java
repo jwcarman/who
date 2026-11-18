@@ -31,6 +31,7 @@ import org.jwcarman.who.admin.LastAdminGuard;
 import org.jwcarman.who.admin.WhoAdminEndpoints;
 import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.signup.ClosedSignUpPolicy;
 import org.jwcarman.who.core.signup.WhoSignUpPolicy;
@@ -40,7 +41,6 @@ import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.InvitationRoles;
 import org.jwcarman.who.emaillink.InvitationService;
 import org.jwcarman.who.emaillink.RbacInvitationRoles;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.enrollment.WhoEnrollmentService;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
 import org.jwcarman.who.oidc.OidcLoginMethod;
@@ -139,7 +139,7 @@ class ModuleActivationTest {
     }
 
     @Test
-    void without_the_mail_starter_the_failure_names_it() {
+    void without_spring_mail_the_failure_names_who_email_smtp() {
       new ApplicationContextRunner()
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
@@ -149,7 +149,7 @@ class ModuleActivationTest {
               SECRET,
               RP_ID,
               "spring.mail.host=smtp.example.com",
-              "who.email-link.from=sign-in@example.com")
+              "who.email.from=sign-in@example.com")
           .run(
               context -> {
                 assertMissing(context, "spring.mail.host", "email-link");
@@ -157,7 +157,7 @@ class ModuleActivationTest {
                     .rootCause()
                     .isInstanceOfSatisfying(
                         WhoConfigurationException.class,
-                        e -> assertThat(e.action()).contains("spring-boot-starter-mail"));
+                        e -> assertThat(e.action()).contains("who-email-smtp"));
               });
     }
   }

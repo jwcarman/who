@@ -218,7 +218,8 @@ final class EmailAddressFilter extends OncePerRequestFilter {
     response.setStatus(HttpServletResponse.SC_ACCEPTED);
     String address = body.get(ADDRESS);
     UUID replacing = replaces;
-    executor.execute(() -> changes.request(identity.id(), address, replacing));
+    executor.execute(
+        RequestLocales.carrying(request, () -> changes.request(identity.id(), address, replacing)));
   }
 
   private void confirm(HttpServletRequest request, HttpServletResponse response, Identity identity)

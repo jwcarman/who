@@ -1,0 +1,7 @@
+{{#email.change}}Make this your account's email address, in place of the old one: {{/email.change}}{{^email.change}}Add this address to your account: {{/email.change}}{{email.link}}
+
+Or enter this code: {{email.formattedCode}}
+
+The link and the code expire in {{email.expiresIn}} and work once, while you are signed in.
+
+If you didn't ask to add this address, ignore this email and nothing changes. Never share this code with anyone.

@@ -18,6 +18,7 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,6 +26,8 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.crypto.Secrets;
+import org.jwcarman.who.core.email.WhoEmail;
+import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.observation.WhoObservations;
 import org.jwcarman.who.core.service.Resolution;
@@ -58,7 +61,7 @@ public class EmailLinkIssuer {
   private final EmailCredentialService credentialService;
   private final WhoService whoService;
   private final EmailLinkTokenRepository repository;
-  private final WhoEmailSender sender;
+  private final WhoEmails emails;
   private final EmailLinkSettings settings;
   private final Clock clock;
   private final WhoEventPublisher eventPublisher;
@@ -71,7 +74,7 @@ public class EmailLinkIssuer {
    * @param credentialService finds email credentials
    * @param whoService resolves credentials to active identities
    * @param repository stores token hashes
-   * @param sender sends the link
+   * @param emails sends the link
    * @param settings the link settings
    * @param clock the clock
    */
@@ -79,11 +82,11 @@ public class EmailLinkIssuer {
       EmailCredentialService credentialService,
       WhoService whoService,
       EmailLinkTokenRepository repository,
-      WhoEmailSender sender,
+      WhoEmails emails,
       EmailLinkSettings settings,
       Clock clock) {
     this(
-        credentialService, whoService, repository, sender, settings, clock, WhoEventPublisher.NOOP);
+        credentialService, whoService, repository, emails, settings, clock, WhoEventPublisher.NOOP);
   }
 
   /**
@@ -92,7 +95,7 @@ public class EmailLinkIssuer {
    * @param credentialService finds email credentials
    * @param whoService resolves credentials to active identities
    * @param repository stores token hashes
-   * @param sender sends the link
+   * @param emails sends the link
    * @param settings the link settings
    * @param clock the clock
    * @param eventPublisher where {@link SignInEmailRequested} is published
@@ -101,7 +104,7 @@ public class EmailLinkIssuer {
       EmailCredentialService credentialService,
       WhoService whoService,
       EmailLinkTokenRepository repository,
-      WhoEmailSender sender,
+      WhoEmails emails,
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher eventPublisher) {
@@ -109,7 +112,7 @@ public class EmailLinkIssuer {
         credentialService,
         whoService,
         repository,
-        sender,
+        emails,
         settings,
         clock,
         eventPublisher,
@@ -122,7 +125,7 @@ public class EmailLinkIssuer {
    * @param credentialService finds email credentials
    * @param whoService resolves credentials to active identities
    * @param repository stores token hashes
-   * @param sender sends the link
+   * @param emails sends the link
    * @param settings the link settings
    * @param clock the clock
    * @param eventPublisher where {@link SignInEmailRequested} is published
@@ -132,7 +135,7 @@ public class EmailLinkIssuer {
       EmailCredentialService credentialService,
       WhoService whoService,
       EmailLinkTokenRepository repository,
-      WhoEmailSender sender,
+      WhoEmails emails,
       EmailLinkSettings settings,
       Clock clock,
       WhoEventPublisher eventPublisher,
@@ -141,7 +144,7 @@ public class EmailLinkIssuer {
         requireNonNull(credentialService, "credentialService must not be null");
     this.whoService = requireNonNull(whoService, "whoService must not be null");
     this.repository = requireNonNull(repository, "repository must not be null");
-    this.sender = requireNonNull(sender, "sender must not be null");
+    this.emails = requireNonNull(emails, "emails must not be null");
     this.settings = requireNonNull(settings, "settings must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.eventPublisher = requireNonNull(eventPublisher, "eventPublisher must not be null");
@@ -185,7 +188,7 @@ public class EmailLinkIssuer {
   @FunctionalInterface
   interface LinkEmail {
 
-    WhoEmail build(String address, String link, String code, Instant expiresAt);
+    WhoEmail build(String address, String link, String code, Instant expiresAt, Duration validFor);
   }
 
   private EmailLinkOutcome issueUnobserved(String address, String tokenValue, LinkEmail email) {
@@ -271,17 +274,21 @@ public class EmailLinkIssuer {
       Instant expiresAt,
       String tokenHash,
       LinkEmail email) {
+    WhoEmail message = null;
     try {
-      sender.send(
+      message =
           email.build(
               credential.address(),
               settings.linkBaseUrl() + "#token=" + tokenValue,
               code,
-              expiresAt));
+              expiresAt,
+              settings.tokenTtl());
+      emails.send(message);
       return EmailLinkOutcome.SENT;
     } catch (RuntimeException e) {
       log.warn(
-          "Failed to send sign-in link for credential {}: {}",
+          "Failed to send the {} email for credential {}: {}",
+          message == null ? "sign-in link" : message.template(),
           credential.id(),
           e.getClass().getName());
       deleteQuietly(credential, tokenHash);

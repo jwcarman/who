@@ -15,20 +15,22 @@
  */
 package org.jwcarman.who.emaillink;
 
-/**
- * An email who asks a {@link WhoEmailSender} to deliver. Sealed, so a sender can switch over every
- * kind and the compiler tells it when who adds one.
- */
-public sealed interface WhoEmail
-    permits EmailLinkMessage,
-        InvitationMessage,
-        EmailAddressConfirmationMessage,
-        EmailAddressChangedMessage {
+import java.time.Duration;
+
+/** How a link email says how long its link and code work. */
+final class EmailExpiry {
+
+  private EmailExpiry() {}
 
   /**
-   * Returns the recipient.
-   *
-   * @return the address the email goes to
+   * The time left in whole minutes, rounded up and never less than one: {@code "15 minutes"},
+   * {@code "1 minute"}.
    */
-  String address();
+  static String describe(Duration validFor) {
+    long wholeMinutes = validFor.toMinutes();
+    long minutes =
+        validFor.minusMinutes(wholeMinutes).isPositive() ? wholeMinutes + 1 : wholeMinutes;
+    long shown = Math.max(1, minutes);
+    return shown + (shown == 1 ? " minute" : " minutes");
+  }
 }

@@ -476,29 +476,11 @@ public class WhoProperties {
     private Duration resendInterval = Duration.ofSeconds(60);
 
     /**
-     * Sender address of sign-in emails; required when email-link sign-in is on and links are sent
-     * through Spring Boot's {@code JavaMailSender}.
-     */
-    private String from;
-
-    /** Subject of sign-in emails. */
-    private String subject = "Your sign-in link and code";
-
-    /**
      * Page of the application that receives the link confirming an address being added or changed;
      * the token is appended as a {@code #confirm-address=...} fragment. Defaults to {@code
      * link-base-url}.
      */
     private String addressConfirmationUrl;
-
-    /** Subject of the email confirming an address being added or changed. */
-    private String addressConfirmationSubject = "Confirm your email address";
-
-    /** Subject of the email telling an address it was replaced. */
-    private String addressChangedSubject = "Your email address was changed";
-
-    /** Subject of invitation emails. */
-    private String invitationSubject = "You have been invited";
 
     /** Number of characters in the typed sign-in code; at least 6. */
     private int codeLength = 6;
@@ -567,42 +549,6 @@ public class WhoProperties {
     }
 
     /**
-     * Returns the sender address of sign-in emails.
-     *
-     * @return the from address
-     */
-    public String getFrom() {
-      return from;
-    }
-
-    /**
-     * Sets the sender address of sign-in emails.
-     *
-     * @param from the from address
-     */
-    public void setFrom(String from) {
-      this.from = from;
-    }
-
-    /**
-     * Returns the subject of sign-in emails.
-     *
-     * @return the subject
-     */
-    public String getSubject() {
-      return subject;
-    }
-
-    /**
-     * Sets the subject of sign-in emails.
-     *
-     * @param subject the subject
-     */
-    public void setSubject(String subject) {
-      this.subject = subject;
-    }
-
-    /**
      * Returns the page that receives address confirmation links.
      *
      * @return the URL, or null for {@code link-base-url}
@@ -618,60 +564,6 @@ public class WhoProperties {
      */
     public void setAddressConfirmationUrl(String addressConfirmationUrl) {
       this.addressConfirmationUrl = addressConfirmationUrl;
-    }
-
-    /**
-     * Returns the subject of an address confirmation.
-     *
-     * @return the subject
-     */
-    public String getAddressConfirmationSubject() {
-      return addressConfirmationSubject;
-    }
-
-    /**
-     * Sets the subject of an address confirmation.
-     *
-     * @param addressConfirmationSubject the subject
-     */
-    public void setAddressConfirmationSubject(String addressConfirmationSubject) {
-      this.addressConfirmationSubject = addressConfirmationSubject;
-    }
-
-    /**
-     * Returns the subject of the notice to a replaced address.
-     *
-     * @return the subject
-     */
-    public String getAddressChangedSubject() {
-      return addressChangedSubject;
-    }
-
-    /**
-     * Sets the subject of the notice to a replaced address.
-     *
-     * @param addressChangedSubject the subject
-     */
-    public void setAddressChangedSubject(String addressChangedSubject) {
-      this.addressChangedSubject = addressChangedSubject;
-    }
-
-    /**
-     * Returns the subject of an invitation.
-     *
-     * @return the subject
-     */
-    public String getInvitationSubject() {
-      return invitationSubject;
-    }
-
-    /**
-     * Sets the subject of an invitation.
-     *
-     * @param invitationSubject the subject
-     */
-    public void setInvitationSubject(String invitationSubject) {
-      this.invitationSubject = invitationSubject;
     }
 
     /**

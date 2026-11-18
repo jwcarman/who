@@ -41,10 +41,10 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
@@ -151,7 +151,7 @@ class WhoRecentSignInTest {
     @Bean
     WhoEmailSender whoEmailSender() {
       return email -> {
-        if (email instanceof EmailLinkMessage message) {
+        if (email.source() instanceof EmailLinkMessage message) {
           SENT.add(message);
         }
       };

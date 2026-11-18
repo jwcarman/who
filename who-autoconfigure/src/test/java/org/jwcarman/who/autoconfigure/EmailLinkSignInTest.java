@@ -30,6 +30,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -49,6 +50,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.email.OutgoingEmail;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailCredential;
@@ -57,17 +60,17 @@ import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
-import org.jwcarman.who.emaillink.WhoEmail;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.support.StaticMessageSource;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -150,6 +153,13 @@ class EmailLinkSignInTest {
     }
 
     @Bean
+    MessageSource messageSource() {
+      StaticMessageSource messages = new StaticMessageSource();
+      messages.addMessage("who.email.sign-in.subject", Locale.FRENCH, "Votre lien de connexion");
+      return messages;
+    }
+
+    @Bean
     @Primary
     PermissionsResolver stubPermissionsResolver() {
       return id -> Set.of("task.read");
@@ -204,10 +214,12 @@ class EmailLinkSignInTest {
   static final class RecordingSender implements WhoEmailSender {
 
     final List<SentLink> sent = new CopyOnWriteArrayList<>();
+    final List<String> subjects = new CopyOnWriteArrayList<>();
 
     @Override
-    public void send(WhoEmail email) {
-      if (email instanceof EmailLinkMessage message) {
+    public void send(OutgoingEmail email) {
+      subjects.add(email.subject());
+      if (email.source() instanceof EmailLinkMessage message) {
         sent.add(new SentLink(message.address(), message.link(), message.code()));
       }
     }
@@ -284,6 +296,7 @@ class EmailLinkSignInTest {
     jdbcClient.sql("DELETE FROM who_identity").update();
     clock.set(NOW);
     sender.sent.clear();
+    sender.subjects.clear();
 
     identity = identityRepository.save(Identity.create(IdentityStatus.ACTIVE));
     credential = emailCredentialService.register(identity, ADDRESS);
@@ -359,6 +372,20 @@ class EmailLinkSignInTest {
         .andExpect(jsonPath("$.identityId").value(identity.id().toString()))
         .andExpect(jsonPath("$.permissions.length()").value(1))
         .andExpect(jsonPath("$.permissions[0]").value("task.read"));
+  }
+
+  @Test
+  void the_sign_in_email_uses_the_requests_locale() throws Exception {
+    Browser browser = new Browser(mvc);
+
+    browser.performWithCsrf(
+        generate("{\"email\":\"owner@example.com\"}").header("Accept-Language", "fr"));
+    clock.advance(Duration.ofMinutes(2));
+    browser.performWithCsrf(
+        generate("{\"email\":\"owner@example.com\"}").header("Accept-Language", "en"));
+
+    assertThat(sender.subjects)
+        .containsExactly("Votre lien de connexion", "Your sign-in link and code");
   }
 
   @Test
@@ -776,7 +803,7 @@ class EmailLinkSignInTest {
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("WhoEmailSender")
                     .hasMessageContaining("spring.mail.host")
-                    .hasMessageContaining("who.email-link.from"));
+                    .hasMessageContaining("who.email.from"));
   }
 
   @Test

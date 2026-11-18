@@ -18,6 +18,7 @@ package org.jwcarman.who.emaillink;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -25,9 +26,12 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.email.WhoEmail;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class EmailLinkMessageTest {
+
+  private static final Duration FIFTEEN = Duration.ofMinutes(15);
 
   @Test
   void to_string_hides_the_link_and_the_code() {
@@ -36,7 +40,8 @@ class EmailLinkMessageTest {
             "a@b.c",
             "https://app.test/signin#token=SECRETTOKEN",
             "K7F2QM",
-            Instant.parse("2026-11-13T10:00:00Z"));
+            Instant.parse("2026-11-13T10:00:00Z"),
+            FIFTEEN);
 
     assertThat(message.toString())
         .doesNotContain("SECRETTOKEN", "K7F2QM", "https://")
@@ -51,6 +56,7 @@ class EmailLinkMessageTest {
             "https://app.test/profile#confirm-address=SECRETTOKEN",
             "K7F2QM",
             Instant.parse("2026-11-13T10:00:00Z"),
+            FIFTEEN,
             false);
 
     assertThat(message.toString())
@@ -69,7 +75,7 @@ class EmailLinkMessageTest {
 
   @Test
   void every_email_names_its_recipient() {
-    WhoEmail signIn = new EmailLinkMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH);
+    WhoEmail signIn = new EmailLinkMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, FIFTEEN);
     WhoEmail notice = new EmailAddressChangedMessage("old@b.c", "new@b.c");
 
     assertThat(signIn.address()).isEqualTo("a@b.c");
@@ -84,6 +90,7 @@ class EmailLinkMessageTest {
             "https://app.test/signin#token=SECRETTOKEN",
             "K7F2QM",
             Instant.parse("2026-11-13T10:00:00Z"),
+            FIFTEEN,
             Set.of("editor"));
 
     assertThat(message.toString())
@@ -96,7 +103,8 @@ class EmailLinkMessageTest {
   @Test
   void an_invitation_copies_its_roles() {
     Set<String> roles = new HashSet<>(Set.of("editor"));
-    InvitationMessage message = new InvitationMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, roles);
+    InvitationMessage message =
+        new InvitationMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, FIFTEEN, roles);
 
     roles.add("admin");
 
@@ -108,15 +116,50 @@ class EmailLinkMessageTest {
   @Test
   void an_invitation_needs_every_part() {
     Set<String> none = Set.of();
-    assertThatThrownBy(() -> new InvitationMessage(null, "l", "c", Instant.EPOCH, none))
+    assertThatThrownBy(() -> new InvitationMessage(null, "l", "c", Instant.EPOCH, FIFTEEN, none))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new InvitationMessage("a", null, "c", Instant.EPOCH, none))
+    assertThatThrownBy(() -> new InvitationMessage("a", null, "c", Instant.EPOCH, FIFTEEN, none))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new InvitationMessage("a", "l", null, Instant.EPOCH, none))
+    assertThatThrownBy(() -> new InvitationMessage("a", "l", null, Instant.EPOCH, FIFTEEN, none))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new InvitationMessage("a", "l", "c", null, none))
+    assertThatThrownBy(() -> new InvitationMessage("a", "l", "c", null, FIFTEEN, none))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new InvitationMessage("a", "l", "c", Instant.EPOCH, null))
+    assertThatThrownBy(() -> new InvitationMessage("a", "l", "c", Instant.EPOCH, FIFTEEN, null))
         .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void each_email_names_its_template() {
+    assertThat(new EmailLinkMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, FIFTEEN).template())
+        .isEqualTo("sign-in");
+    assertThat(
+            new InvitationMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, FIFTEEN, Set.of())
+                .template())
+        .isEqualTo("invitation");
+    assertThat(
+            new EmailAddressConfirmationMessage(
+                    "a@b.c", "l", "K7F2QM", Instant.EPOCH, FIFTEEN, false)
+                .template())
+        .isEqualTo("address-confirmation");
+    assertThat(new EmailAddressChangedMessage("old@b.c", "new@b.c").template())
+        .isEqualTo("address-changed");
+  }
+
+  @Test
+  void expires_in_rounds_up_to_whole_minutes() {
+    assertThat(link(Duration.ofMinutes(15)).expiresIn()).isEqualTo("15 minutes");
+    assertThat(link(Duration.ofSeconds(61)).expiresIn()).isEqualTo("2 minutes");
+    assertThat(link(Duration.ofSeconds(30)).expiresIn()).isEqualTo("1 minute");
+    assertThat(link(Duration.ZERO).expiresIn()).isEqualTo("1 minute");
+  }
+
+  @Test
+  void a_link_email_needs_how_long_it_works() {
+    assertThatThrownBy(() -> new EmailLinkMessage("a@b.c", "l", "c", Instant.EPOCH, null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  private static EmailLinkMessage link(Duration validFor) {
+    return new EmailLinkMessage("a@b.c", "l", "K7F2QM", Instant.EPOCH, validFor);
   }
 }

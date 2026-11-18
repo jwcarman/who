@@ -23,7 +23,7 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.jwcarman.who.emaillink.WhoEmailSender;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.springframework.boot.diagnostics.FailureAnalysis;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

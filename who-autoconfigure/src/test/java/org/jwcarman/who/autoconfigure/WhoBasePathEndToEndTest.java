@@ -39,10 +39,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoSecurity;
@@ -111,7 +111,7 @@ class WhoBasePathEndToEndTest {
     @Bean
     WhoEmailSender whoEmailSender() {
       return email -> {
-        if (email instanceof EmailLinkMessage message) {
+        if (email.source() instanceof EmailLinkMessage message) {
           SENT.add(message);
         }
       };

@@ -214,8 +214,8 @@ public class InvitationService {
               linkIssuer.issue(
                   invited.address(),
                   Secrets.token(),
-                  (address, link, code, expiresAt) ->
-                      new InvitationMessage(address, link, code, expiresAt, names)),
+                  (address, link, code, expiresAt, validFor) ->
+                      new InvitationMessage(address, link, code, expiresAt, validFor, names)),
               EmailLinkOutcome.SEND_FAILED);
     } catch (RuntimeException e) {
       // class name only: the message could carry the address

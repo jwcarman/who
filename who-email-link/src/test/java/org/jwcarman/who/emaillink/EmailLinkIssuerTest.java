@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -46,6 +47,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
+import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.core.event.WhoEvent;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.service.Resolution.Inactive;
@@ -80,13 +82,13 @@ class EmailLinkIssuerTest {
   private final EmailCredentialService credentials = mock(EmailCredentialService.class);
   private final WhoService whoService = mock(WhoService.class);
   private final EmailLinkTokenRepository repository = mock(EmailLinkTokenRepository.class);
-  private final WhoEmailSender sender = mock(WhoEmailSender.class);
+  private final WhoEmails emails = mock(WhoEmails.class);
   private final EmailLinkIssuer issuer =
       new EmailLinkIssuer(
           credentials,
           whoService,
           repository,
-          sender,
+          emails,
           new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
           Clock.fixed(NOW, ZoneOffset.UTC));
 
@@ -141,7 +143,7 @@ class EmailLinkIssuerTest {
     issuer.issue(ADDRESS, TOKEN);
 
     ArgumentCaptor<EmailLinkMessage> message = ArgumentCaptor.forClass(EmailLinkMessage.class);
-    verify(sender).send(message.capture());
+    verify(emails).send(message.capture());
     String code = message.getValue().code();
     assertThat(message.getValue().address()).isEqualTo(ADDRESS);
     assertThat(message.getValue().link()).isEqualTo("https://app.test/signin#token=" + TOKEN);
@@ -163,7 +165,7 @@ class EmailLinkIssuerTest {
 
     issuer.issue(ADDRESS, TOKEN);
 
-    verifyNoInteractions(repository, sender, whoService);
+    verifyNoInteractions(repository, emails, whoService);
   }
 
   @ParameterizedTest
@@ -171,7 +173,7 @@ class EmailLinkIssuerTest {
   void noAddressStopsBeforeTheLookup(String address) {
     issuer.issue(address, TOKEN);
 
-    verifyNoInteractions(credentials, repository, sender, whoService);
+    verifyNoInteractions(credentials, repository, emails, whoService);
   }
 
   @Test
@@ -180,7 +182,7 @@ class EmailLinkIssuerTest {
 
     issuer.issue(ADDRESS, TOKEN);
 
-    verifyNoInteractions(repository, sender);
+    verifyNoInteractions(repository, emails);
   }
 
   @Test
@@ -190,15 +192,42 @@ class EmailLinkIssuerTest {
 
     issuer.issue(ADDRESS, TOKEN);
 
-    verifyNoInteractions(sender);
+    verifyNoInteractions(emails);
     verify(repository, never()).delete(any(), anyString());
+  }
+
+  @Test
+  void a_render_failure_deletes_the_token_and_reports_send_failed() {
+    known(true);
+    when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
+    EmailLinkIssuer rendering =
+        new EmailLinkIssuer(
+            credentials,
+            whoService,
+            repository,
+            new WhoEmails(
+                (email, locale) -> {
+                  throw new IllegalStateException("secret-detail " + ADDRESS);
+                },
+                email -> {},
+                () -> Locale.ENGLISH),
+            new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
+            Clock.fixed(NOW, ZoneOffset.UTC));
+
+    assertThat(rendering.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
+
+    ArgumentCaptor<String> issuedHash = ArgumentCaptor.forClass(String.class);
+    verify(repository).issue(any(), issuedHash.capture(), anyString(), any(), any(), any());
+    verify(repository).delete(credential.id(), issuedHash.getValue());
+    assertOneSafeWarning("IllegalStateException", true);
+    assertThat(logs.list.getFirst().getFormattedMessage()).contains("sign-in");
   }
 
   @Test
   void failedSendRemovesTheTokenSoTheUserCanRetry() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
+    doThrow(new IllegalStateException("smtp down")).when(emails).send(any(EmailLinkMessage.class));
 
     issuer.issue(ADDRESS, TOKEN);
 
@@ -212,7 +241,7 @@ class EmailLinkIssuerTest {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
     doThrow(new IllegalStateException("secret-detail " + ADDRESS))
-        .when(sender)
+        .when(emails)
         .send(any(EmailLinkMessage.class));
 
     issuer.issue(ADDRESS, TOKEN);
@@ -243,7 +272,7 @@ class EmailLinkIssuerTest {
 
     issuer.issue(ADDRESS, TOKEN);
 
-    verifyNoInteractions(sender);
+    verifyNoInteractions(emails);
     verify(repository, never()).delete(any(), anyString());
     assertOneSafeWarning(IllegalStateException.class.getName(), !step.equals("findByAddress"));
   }
@@ -264,7 +293,7 @@ class EmailLinkIssuerTest {
     assertThat(issuer.issue("a".repeat(310) + "@example.com", TOKEN))
         .isEqualTo(EmailLinkOutcome.UNKNOWN_ADDRESS);
 
-    verifyNoInteractions(credentials, repository, sender, whoService);
+    verifyNoInteractions(credentials, repository, emails, whoService);
   }
 
   @Test
@@ -272,14 +301,14 @@ class EmailLinkIssuerTest {
     issuer.issue("not-an-address", TOKEN);
     issuer.issue(null, TOKEN);
 
-    verifyNoInteractions(credentials, repository, sender, whoService);
+    verifyNoInteractions(credentials, repository, emails, whoService);
   }
 
   @Test
   void failedCleanupAfterAFailedSendIsLoggedWithoutTheAddressOrToken() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
+    doThrow(new IllegalStateException("smtp down")).when(emails).send(any(EmailLinkMessage.class));
     doThrow(new IllegalArgumentException("secret-detail " + ADDRESS))
         .when(repository)
         .delete(any(), anyString());
@@ -342,7 +371,7 @@ class EmailLinkIssuerTest {
         credentials,
         whoService,
         repository,
-        sender,
+        emails,
         new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
         Clock.fixed(NOW, ZoneOffset.UTC),
         events::add);
@@ -359,7 +388,7 @@ class EmailLinkIssuerTest {
     assertThat(publishingTo(events).issue(ADDRESS, TOKEN))
         .isEqualTo(EmailLinkOutcome.INACTIVE_IDENTITY);
 
-    verify(sender, never()).send(any());
+    verify(emails, never()).send(any());
     assertThat(events)
         .containsExactly(
             new SignInEmailRequested(
@@ -391,7 +420,7 @@ class EmailLinkIssuerTest {
             credentials,
             whoService,
             repository,
-            sender,
+            emails,
             new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
             Clock.fixed(NOW, ZoneOffset.UTC),
             event -> {
@@ -400,7 +429,7 @@ class EmailLinkIssuerTest {
 
     assertThat(throwing.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
 
-    verify(sender).send(any());
+    verify(emails).send(any());
     assertOneSafeWarning("IllegalStateException", false);
   }
 
@@ -410,7 +439,7 @@ class EmailLinkIssuerTest {
 
     // the mocked WhoService stubs nothing, so resolveDetailed answers null
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.INACTIVE_IDENTITY);
-    verify(sender, never()).send(any());
+    verify(emails, never()).send(any());
   }
 
   @Test
@@ -425,7 +454,7 @@ class EmailLinkIssuerTest {
   void failedSendIsSendFailed() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
+    doThrow(new IllegalStateException("smtp down")).when(emails).send(any(EmailLinkMessage.class));
 
     assertThat(issuer.issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
     verify(repository).delete(eq(credential.id()), anyString());
@@ -456,7 +485,7 @@ class EmailLinkIssuerTest {
         credentials,
         whoService,
         repository,
-        sender,
+        emails,
         new EmailLinkSettings("https://app.test/signin", TTL, RESEND, CODE_LENGTH, 5, SECRET),
         Clock.fixed(NOW, ZoneOffset.UTC),
         WhoEventPublisher.NOOP,
@@ -504,7 +533,7 @@ class EmailLinkIssuerTest {
   void aFailedSendIsObservedAsSendFailed() {
     known(true);
     when(repository.issue(any(), anyString(), anyString(), any(), any(), any())).thenReturn(true);
-    doThrow(new IllegalStateException("smtp down")).when(sender).send(any(EmailLinkMessage.class));
+    doThrow(new IllegalStateException("smtp down")).when(emails).send(any(EmailLinkMessage.class));
     TestObservationRegistry registry = TestObservationRegistry.create();
 
     assertThat(observedBy(registry).issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
@@ -565,6 +594,6 @@ class EmailLinkIssuerTest {
             });
 
     assertThat(observedBy(failing).issue(ADDRESS, TOKEN)).isEqualTo(EmailLinkOutcome.SENT);
-    verify(sender).send(any(EmailLinkMessage.class));
+    verify(emails).send(any(EmailLinkMessage.class));
   }
 }

@@ -27,6 +27,7 @@ import java.util.UUID;
 import org.jwcarman.who.core.crypto.MessageDigests;
 import org.jwcarman.who.core.crypto.Secrets;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.id.Identifiers;
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ public class EmailAddressChanges {
 
   private final EmailCredentialService credentials;
   private final EmailAddressRequestRepository requests;
-  private final WhoEmailSender sender;
+  private final WhoEmails emails;
   private final EmailLinkSettings settings;
   private final EmailCodeHasher codeHasher;
   private final String confirmationUrl;
@@ -65,7 +66,7 @@ public class EmailAddressChanges {
    *
    * @param credentials registers and replaces the addresses
    * @param requests keeps the requests waiting to be confirmed
-   * @param sender sends the confirmation and the notice to a replaced address
+   * @param emails sends the confirmation and the notice to a replaced address
    * @param settings the link lifetime, resend interval, code length, attempts and code secret
    * @param confirmationUrl the page that receives the confirmation link; the token follows {@link
    *     #TOKEN_FRAGMENT}
@@ -75,14 +76,14 @@ public class EmailAddressChanges {
   public EmailAddressChanges(
       EmailCredentialService credentials,
       EmailAddressRequestRepository requests,
-      WhoEmailSender sender,
+      WhoEmails emails,
       EmailLinkSettings settings,
       String confirmationUrl,
       Clock clock,
       WhoEventPublisher eventPublisher) {
     this.credentials = requireNonNull(credentials, "credentials must not be null");
     this.requests = requireNonNull(requests, "requests must not be null");
-    this.sender = requireNonNull(sender, "sender must not be null");
+    this.emails = requireNonNull(emails, "emails must not be null");
     this.settings = requireNonNull(settings, "settings must not be null");
     this.codeHasher = new EmailCodeHasher(settings.codeSecret());
     this.confirmationUrl = requireNonNull(confirmationUrl, "confirmationUrl must not be null");
@@ -157,12 +158,13 @@ public class EmailAddressChanges {
       return EmailAddressRequestOutcome.SEND_FAILED;
     }
     try {
-      sender.send(
+      emails.send(
           new EmailAddressConfirmationMessage(
               address,
               confirmationUrl + TOKEN_FRAGMENT + token,
               code,
               request.expiresAt(),
+              settings.tokenTtl(),
               request.change()));
       return EmailAddressRequestOutcome.SENT;
     } catch (RuntimeException e) {
@@ -244,7 +246,7 @@ public class EmailAddressChanges {
     }
     EmailCredential added = credentials.replace(identity, request.address(), old.get().id());
     try {
-      sender.send(new EmailAddressChangedMessage(old.get().address(), added.address()));
+      emails.send(new EmailAddressChangedMessage(old.get().address(), added.address()));
     } catch (RuntimeException e) {
       log.warn(
           "Failed to tell a replaced address of identity {}: {}",

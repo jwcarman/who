@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -39,9 +40,10 @@ class WhoPropertiesTest {
                     Map.ofEntries(
                         Map.entry("who.passkey.enabled", "false"),
                         Map.entry("who.email-link.enabled", "false"),
-                        Map.entry("who.email-link.address-confirmation-subject", "Confirm it"),
-                        Map.entry("who.email-link.address-changed-subject", "It changed"),
-                        Map.entry("who.email-link.invitation-subject", "Join us"),
+                        Map.entry("who.email.from", "no-reply@example.com"),
+                        Map.entry("who.email.templates", "classpath:/mail/"),
+                        Map.entry("who.email.locale", "fr_CA"),
+                        Map.entry("who.email.model.support-address", "help@example.com"),
                         Map.entry("who.enrollment.enabled", "false"),
                         Map.entry("who.api-key.enabled", "false"),
                         Map.entry("who.jwt.enabled", "false"),
@@ -55,9 +57,10 @@ class WhoPropertiesTest {
 
     assertThat(props.getPasskey().isEnabled()).isFalse();
     assertThat(props.getEmailLink().isEnabled()).isFalse();
-    assertThat(props.getEmailLink().getAddressConfirmationSubject()).isEqualTo("Confirm it");
-    assertThat(props.getEmailLink().getAddressChangedSubject()).isEqualTo("It changed");
-    assertThat(props.getEmailLink().getInvitationSubject()).isEqualTo("Join us");
+    assertThat(props.getEmail().getFrom()).isEqualTo("no-reply@example.com");
+    assertThat(props.getEmail().getTemplates()).isEqualTo("classpath:/mail/");
+    assertThat(props.getEmail().getLocale()).isEqualTo(Locale.CANADA_FRENCH);
+    assertThat(props.getEmail().getModel()).containsEntry("support-address", "help@example.com");
     assertThat(props.getEnrollment().isEnabled()).isFalse();
     assertThat(props.getApiKey().isEnabled()).isFalse();
     assertThat(props.getJwt().isEnabled()).isFalse();
@@ -125,13 +128,13 @@ class WhoPropertiesTest {
   }
 
   @Test
-  void emailLinkSubjectRoundTrips() {
-    WhoProperties props = new WhoProperties();
-    assertThat(props.getEmailLink().getSubject()).isEqualTo("Your sign-in link and code");
+  void emailDefaults() {
+    WhoProperties.Email email = new WhoProperties().getEmail();
 
-    props.getEmailLink().setSubject("Sign in to Acme");
-
-    assertThat(props.getEmailLink().getSubject()).isEqualTo("Sign in to Acme");
+    assertThat(email.getFrom()).isNull();
+    assertThat(email.getTemplates()).isEqualTo("classpath:/templates/who/email/");
+    assertThat(email.getLocale()).isNull();
+    assertThat(email.getModel()).isEmpty();
   }
 
   @Test

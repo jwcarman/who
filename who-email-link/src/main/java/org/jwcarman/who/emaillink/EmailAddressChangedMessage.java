@@ -17,6 +17,8 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import org.jwcarman.who.core.email.WhoEmail;
+
 /**
  * An email telling an address that it no longer signs in, because the identity's owner (or someone
  * with their session) made another address theirs in its place. The old address is the one most
@@ -43,5 +45,15 @@ public record EmailAddressChangedMessage(String address, String newAddress) impl
   public String maskedNewAddress() {
     int at = newAddress.lastIndexOf('@');
     return newAddress.charAt(0) + "***" + (at > 0 ? newAddress.substring(at) : "");
+  }
+
+  /**
+   * Returns {@code address-changed}, the name of this email's template.
+   *
+   * @return the template's name
+   */
+  @Override
+  public String template() {
+    return "address-changed";
   }
 }

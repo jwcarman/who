@@ -33,10 +33,10 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoPublicPaths;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,7 +83,7 @@ class WhoOwnEndpointsRootTest {
     @Bean
     WhoEmailSender whoEmailSender() {
       return email -> {
-        if (email instanceof EmailLinkMessage message) {
+        if (email.source() instanceof EmailLinkMessage message) {
           SENT.add(message);
         }
       };

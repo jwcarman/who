@@ -51,6 +51,6 @@ public class EmailLinkGenerationSuccessHandler implements OneTimeTokenGeneration
     response.setStatus(HttpServletResponse.SC_ACCEPTED);
     String address = token.getUsername();
     String tokenValue = token.getTokenValue();
-    executor.execute(() -> issuer.issue(address, tokenValue));
+    executor.execute(RequestLocales.carrying(request, () -> issuer.issue(address, tokenValue)));
   }
 }

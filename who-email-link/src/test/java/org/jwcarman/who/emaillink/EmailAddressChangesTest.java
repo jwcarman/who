@@ -28,7 +28,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -38,6 +40,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmail;
 import org.jwcarman.who.core.event.CredentialAdded;
 import org.jwcarman.who.core.event.CredentialRevoked;
 import org.jwcarman.who.core.event.WhoEvent;
@@ -45,7 +48,12 @@ import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
+// outside a transaction, as in production: who sends no email while one is open
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class EmailAddressChangesTest extends AbstractEmailLinkTest {
 
@@ -67,9 +75,20 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
 
   private final List<WhoEmail> sent = new CopyOnWriteArrayList<>();
   private final List<WhoEvent> events = new CopyOnWriteArrayList<>();
-  private WhoEmailSender sender = sent::add;
+  private Consumer<WhoEmail> sender = sent::add;
   private EmailCredentialService credentials;
   private Identity alice;
+
+  @Autowired private JdbcClient jdbcClient;
+
+  @AfterEach
+  void clearTables() {
+    jdbcClient
+        .sql(
+            "TRUNCATE who_email_address_request, who_email_link_token, who_email_credential,"
+                + " who_credential_identity, who_identity CASCADE")
+        .update();
+  }
 
   @BeforeEach
   void setUp() {
@@ -90,7 +109,7 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
     return new EmailAddressChanges(
         credentials,
         requests,
-        email -> sender.send(email),
+        TestEmails.delivering(email -> sender.accept(email)),
         SETTINGS,
         CONFIRM_URL,
         Clock.fixed(now, ZoneOffset.UTC),
@@ -353,7 +372,7 @@ class EmailAddressChangesTest extends AbstractEmailLinkTest {
     return new EmailAddressChanges(
         credentials,
         requestRepository,
-        email -> sender.send(email),
+        TestEmails.delivering(email -> sender.accept(email)),
         SETTINGS,
         CONFIRM_URL,
         Clock.fixed(NOW, ZoneOffset.UTC),

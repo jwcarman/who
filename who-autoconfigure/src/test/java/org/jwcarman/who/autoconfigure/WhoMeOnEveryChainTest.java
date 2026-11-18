@@ -40,11 +40,11 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredential;
 import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.rbac.RbacService;
@@ -122,7 +122,7 @@ class WhoMeOnEveryChainTest {
     @Bean
     WhoEmailSender whoEmailSender() {
       return email -> {
-        if (email instanceof EmailLinkMessage message) {
+        if (email.source() instanceof EmailLinkMessage message) {
           SENT.add(message);
         }
       };

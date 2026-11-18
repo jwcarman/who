@@ -32,19 +32,19 @@ import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.Resolution;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
+import org.jwcarman.who.email.smtp.SmtpWhoEmailSender;
 import org.jwcarman.who.emaillink.EmailCredentialRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkIssuer;
 import org.jwcarman.who.emaillink.EmailLinkLoginMethod;
 import org.jwcarman.who.emaillink.JdbcEmailCredentialRepository;
-import org.jwcarman.who.emaillink.MailWhoEmailSender;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.federated.FederatedCredentialRepository;
 import org.jwcarman.who.federated.JdbcFederatedCredentialRepository;
 import org.jwcarman.who.jwt.WhoJwtAuthenticationConverter;
@@ -190,10 +190,12 @@ class WhoAutoConfigurationTest {
         .withUserConfiguration(MailDataSourceConfig.class)
         .withPropertyValues("spring.mail.host=localhost")
         .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
+        // without who-email-smtp: who's SMTP sender is the app's choice, not its mail's
+        .withClassLoader(new FilteredClassLoader(SmtpWhoEmailSender.class))
         .run(
             context -> {
               assertThat(context).hasNotFailed();
-              assertThat(context).doesNotHaveBean(MailWhoEmailSender.class);
+              assertThat(context).doesNotHaveBean(WhoEmailSender.class);
               assertThat(context).doesNotHaveBean(EmailLinkLoginMethod.class);
             });
   }
@@ -231,12 +233,12 @@ class WhoAutoConfigurationTest {
             LINK_BASE_URL,
             CODE_SECRET,
             "spring.mail.host=localhost",
-            "who.email-link.from=who@example.com")
+            "who.email.from=who@example.com")
         .withPropertyValues("who.passkey.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();
-              assertThat(context).hasSingleBean(MailWhoEmailSender.class);
+              assertThat(context).hasSingleBean(SmtpWhoEmailSender.class);
             });
   }
 
@@ -252,7 +254,7 @@ class WhoAutoConfigurationTest {
                 assertThat(context.getStartupFailure())
                     .isNotNull()
                     .rootCause()
-                    .hasMessageContaining("who.email-link.from"));
+                    .hasMessageContaining("who.email.from"));
   }
 
   @Test

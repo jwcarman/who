@@ -35,6 +35,8 @@ import org.jwcarman.who.autoconfigure.EmailLinkSignInTest.Browser;
 import org.jwcarman.who.autoconfigure.EmailLinkSignInTest.MutableClock;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.email.WhoEmail;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.emaillink.EmailAddressChangedMessage;
@@ -43,8 +45,6 @@ import org.jwcarman.who.emaillink.EmailAddressConfirmationMessage;
 import org.jwcarman.who.emaillink.EmailCredential;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkMessage;
-import org.jwcarman.who.emaillink.WhoEmail;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -108,7 +108,7 @@ class EmailAddressChangeTest {
 
     @Bean
     WhoEmailSender whoEmailSender(Outbox outbox) {
-      return outbox.sent::add;
+      return email -> outbox.sent.add(email.source());
     }
 
     @Bean

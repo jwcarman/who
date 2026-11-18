@@ -17,8 +17,11 @@ package org.jwcarman.who.emaillink;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
+
+import org.jwcarman.who.core.email.WhoEmail;
 
 /**
  * An email inviting a person to the application: the link and the typed code that both sign them in
@@ -29,10 +32,16 @@ import java.util.Set;
  * @param link the sign-in link, carrying the token in its fragment
  * @param code the raw normalized sign-in code
  * @param expiresAt when the link and the code stop working
+ * @param validFor how long the link and the code work from when the email is sent
  * @param roles the names of the roles the invitation gave the identity; empty for none
  */
 public record InvitationMessage(
-    String address, String link, String code, Instant expiresAt, Set<String> roles)
+    String address,
+    String link,
+    String code,
+    Instant expiresAt,
+    Duration validFor,
+    Set<String> roles)
     implements WhoEmail {
 
   /** Compact constructor: validates that no field is {@code null} and copies the roles. */
@@ -41,6 +50,7 @@ public record InvitationMessage(
     requireNonNull(link, "link must not be null");
     requireNonNull(code, "code must not be null");
     requireNonNull(expiresAt, "expiresAt must not be null");
+    requireNonNull(validFor, "validFor must not be null");
     roles = Set.copyOf(requireNonNull(roles, "roles must not be null"));
   }
 
@@ -62,5 +72,24 @@ public record InvitationMessage(
    */
   public String formattedCode() {
     return EmailCodes.format(code);
+  }
+
+  /**
+   * Returns how long the link and the code work, for reading: {@code 15 minutes}, {@code 1 minute}.
+   *
+   * @return the time left, in whole minutes rounded up
+   */
+  public String expiresIn() {
+    return EmailExpiry.describe(validFor);
+  }
+
+  /**
+   * Returns {@code invitation}, the name of this email's template.
+   *
+   * @return the template's name
+   */
+  @Override
+  public String template() {
+    return "invitation";
   }
 }

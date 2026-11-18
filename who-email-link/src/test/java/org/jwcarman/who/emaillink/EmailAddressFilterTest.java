@@ -133,7 +133,7 @@ class EmailAddressFilterTest extends AbstractEmailLinkTest {
             new EmailAddressChanges(
                 credentials,
                 requests,
-                email -> {},
+                TestEmails.delivering(email -> {}),
                 SETTINGS,
                 "https://app.test/profile",
                 clock,

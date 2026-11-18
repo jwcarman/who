@@ -32,10 +32,10 @@ import jakarta.servlet.Filter;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.emaillink.EmailCredentialService;
-import org.jwcarman.who.emaillink.WhoEmailSender;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.MailPasskeyAddedNotifier;
@@ -311,7 +311,7 @@ class PasskeyAutoConfigurationTest {
             LINK_BASE_URL,
             CODE_SECRET,
             "spring.mail.host=localhost",
-            "who.email-link.from=who@example.com",
+            "who.email.from=who@example.com",
             "who.passkey.from=security@example.com")
         .run(
             context -> {
@@ -470,7 +470,7 @@ class PasskeyAutoConfigurationTest {
             LINK_BASE_URL,
             CODE_SECRET,
             "spring.mail.host=localhost",
-            "who.email-link.from=who@example.com",
+            "who.email.from=who@example.com",
             "who.passkey.from=security@example.com")
         .run(
             context -> {
@@ -489,7 +489,7 @@ class PasskeyAutoConfigurationTest {
             RP_ID,
             LINK_BASE_URL,
             CODE_SECRET,
-            "who.email-link.from=who@example.com",
+            "who.email.from=who@example.com",
             "who.passkey.from=security@example.com")
         .withBean(JavaMailSender.class, () -> mailSender)
         .run(
@@ -519,7 +519,10 @@ class PasskeyAutoConfigurationTest {
             .withPropertyValues(EMAIL_LINKS_OFF)
             .withClassLoader(new FilteredClassLoader("org.jwcarman.who.emaillink"))
             .withPropertyValues(
-                RP_ID, "spring.mail.host=localhost", "who.passkey.from=security@example.com");
+                RP_ID,
+                "spring.mail.host=localhost",
+                "who.email.from=who@example.com",
+                "who.passkey.from=security@example.com");
 
     assertThat(passkeyAddedEmailWarnings(runner, false))
         .singleElement()
@@ -584,7 +587,7 @@ class PasskeyAutoConfigurationTest {
                 LINK_BASE_URL,
                 CODE_SECRET,
                 "spring.mail.host=localhost",
-                "who.email-link.from=who@example.com"))
+                "who.email.from=who@example.com"))
         .singleElement()
         .asString()
         .contains("who.passkey.from")
@@ -626,7 +629,7 @@ class PasskeyAutoConfigurationTest {
                 LINK_BASE_URL,
                 CODE_SECRET,
                 "spring.mail.host=localhost",
-                "who.email-link.from=who@example.com",
+                "who.email.from=who@example.com",
                 "who.passkey.from=security@example.com"))
         .isEmpty();
   }

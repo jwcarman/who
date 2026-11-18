@@ -38,6 +38,7 @@ final class WhoTestAutoConfigurations {
           WhoFederatedAutoConfiguration.class,
           WhoJwtAutoConfiguration.class,
           WhoApiKeyAutoConfiguration.class,
+          WhoEmailAutoConfiguration.class,
           WhoEmailLinkAutoConfiguration.class,
           WhoPasskeyAutoConfiguration.class,
           WhoOidcAutoConfiguration.class,
