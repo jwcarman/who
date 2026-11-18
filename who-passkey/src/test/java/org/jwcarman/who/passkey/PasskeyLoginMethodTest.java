@@ -41,7 +41,6 @@ import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
-import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
@@ -190,10 +189,7 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
           sessionRepository,
           jsonMapper,
           clock,
-          Duration.ofMinutes(10),
-          new PasskeyService(credentialRepository),
-          LastCredentialGuards.withAnotherCredential(
-              identityRepository, jdbcClient, transactionManager));
+          Duration.ofMinutes(10));
     }
 
     @Bean
@@ -328,9 +324,7 @@ class PasskeyLoginMethodTest extends AbstractPasskeyTest {
         sessionRepository,
         JsonMapper.builder().build(),
         Clock.systemUTC(),
-        Duration.ofMinutes(10),
-        mock(PasskeyService.class),
-        mock(LastCredentialGuard.class));
+        Duration.ofMinutes(10));
   }
 
   private static HttpSecurity mockHttp() {

@@ -237,8 +237,7 @@ Then:
 
 | Status | `Who-Error` | When |
 |---|---|---|
-| `400` | `invalid-admin-request` | The body is not a JSON object, `email` is not a string, or `roles` is not an array of strings |
-| `400` | `invalid-invitation` | The address is missing or malformed, a role name is blank or names no role, or roles were asked for without `who-rbac` |
+| `400` | `invalid-request` | The body is not a JSON object, `email` is not a string, or `roles` is not an array of strings; the address is missing or malformed, a role name is blank or names no role, or roles were asked for without `who-rbac`. The problem's `detail` says which |
 | `403` | `role-grant-forbidden` | A role carries a permission the caller does not hold, as for assigning one |
 | `409` | `email-address-taken` | The address is already an identity's, or a concurrent invite of the same address took it first |
 

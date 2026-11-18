@@ -37,6 +37,7 @@ import org.jwcarman.who.passkey.PasskeyNameResolver;
 import org.jwcarman.who.passkey.PasskeyService;
 import org.jwcarman.who.passkey.PasskeySettings;
 import org.jwcarman.who.passkey.PasskeySignInCredentialCounter;
+import org.jwcarman.who.passkey.PasskeysController;
 import org.jwcarman.who.passkey.WhoPasskeyAuthenticationProvider;
 import org.jwcarman.who.passkey.WhoRelyingPartyOperations;
 import org.jwcarman.who.spring.security.WhoPaths;
@@ -271,9 +272,6 @@ public class WhoPasskeyAutoConfiguration {
    * @param clock stamps events
    * @param settings the relying party's settings, for the registration window
    * @param whoEventPublisher publishes sign-in events
-   * @param passkeyService lists and revokes passkeys, for {@code /me/passkeys}
-   * @param lastCredentialGuard required: passkeys are never removed without the last-credential
-   *     rule, so an application without it fails to start
    * @return the login method
    */
   @Bean
@@ -288,9 +286,7 @@ public class WhoPasskeyAutoConfiguration {
       ObjectProvider<JsonMapper> jsonMapper,
       Clock clock,
       PasskeySettings settings,
-      WhoEventPublisher whoEventPublisher,
-      PasskeyService passkeyService,
-      LastCredentialGuard lastCredentialGuard) {
+      WhoEventPublisher whoEventPublisher) {
     return new PasskeyLoginMethod(
         paths,
         userRepository,
@@ -300,9 +296,36 @@ public class WhoPasskeyAutoConfiguration {
         sessionRepository,
         jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
-        settings.registrationWindow(),
+        settings.registrationWindow());
+  }
+
+  /**
+   * {@code GET /who/me/passkeys} and {@code DELETE /who/me/passkeys/{credentialId}}: the caller's
+   * passkeys, listed and removed from a browser session.
+   *
+   * @param sessionRepository classifies the caller
+   * @param passkeyService lists and revokes passkeys
+   * @param lastCredentialGuard required: passkeys are never removed without the last-credential
+   *     rule, so an application without it fails to start
+   * @param clock the current time
+   * @param settings the relying party's settings: removing a passkey needs a sign-in within the
+   *     registration window
+   * @return the controller
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public PasskeysController passkeysController(
+      WhoSessionSecurityContextRepository sessionRepository,
+      PasskeyService passkeyService,
+      LastCredentialGuard lastCredentialGuard,
+      Clock clock,
+      PasskeySettings settings) {
+    return new PasskeysController(
+        sessionRepository,
         passkeyService,
-        lastCredentialGuard);
+        lastCredentialGuard,
+        clock,
+        settings.registrationWindow());
   }
 
   /**

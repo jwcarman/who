@@ -39,6 +39,18 @@ All notable changes to this project are documented here. The format follows
 - **`MailPasskeyAddedNotifier` is removed.** The passkey-added email goes through `WhoEmails` and is
   sent whenever email-link sign-in is on.
 - **`EmailLinkMessage`, `InvitationMessage` and `EmailAddressConfirmationMessage` gain `validFor`.**
+- **who answers every error under its base path itself**, as Problem Details
+  (`application/problem+json`: `type` `urn:who:error:<code>`, `title`, `status`, `detail`, `code`),
+  whatever the application's advice does. Every error there has a code. Outside the base path the
+  application's advice still answers who's exceptions, with the `Who-Error` header.
+- **`invalid-request` replaces `invalid-admin-request`, `invalid-api-key-request` and
+  `invalid-invitation`**, in the `Who-Error` header and in the TypeScript client, whose
+  `InvalidAdminRequest` and `InvalidApiKeyRequest` types become `InvalidRequest`.
+- **`WhoExceptionHandoff` takes `WhoPaths`.** `WhoExceptionHandoff.from(BeanFactory)` gives an
+  application context's handoff.
+- **`PasskeyLoginMethod` no longer takes a `PasskeyService` or a `LastCredentialGuard`.**
+  Listing and removing passkeys is the `PasskeysController` bean's, so a `PasskeyLoginMethod`
+  built by hand drops its last two arguments.
 
 ### Added
 

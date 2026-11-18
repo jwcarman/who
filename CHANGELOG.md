@@ -31,6 +31,9 @@ All notable changes to this project are documented here. The format follows
   `InvalidAdminRequest` and `InvalidApiKeyRequest` types become `InvalidRequest`.
 - **`WhoExceptionHandoff` takes `WhoPaths`.** `WhoExceptionHandoff.from(BeanFactory)` gives an
   application context's handoff.
+- **`PasskeyLoginMethod` no longer takes a `PasskeyService` or a `LastCredentialGuard`.**
+  Listing and removing passkeys is the `PasskeysController` bean's, so a `PasskeyLoginMethod`
+  built by hand drops its last two arguments.
 
 ### Added
 

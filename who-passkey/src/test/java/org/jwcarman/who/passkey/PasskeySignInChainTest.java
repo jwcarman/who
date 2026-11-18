@@ -254,10 +254,7 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
         WhoService whoService,
         WhoSessionSecurityContextRepository sessionRepository,
         JsonMapper jsonMapper,
-        Clock clock,
-        IdentityRepository identityRepository,
-        JdbcClient jdbcClient,
-        PlatformTransactionManager transactionManager) {
+        Clock clock) {
       return new PasskeyLoginMethod(
           WhoPaths.defaults(),
           userRepository,
@@ -267,10 +264,24 @@ class PasskeySignInChainTest extends AbstractPasskeyTest {
           sessionRepository,
           jsonMapper,
           clock,
-          WINDOW,
+          WINDOW);
+    }
+
+    @Bean
+    PasskeysController passkeysController(
+        WhoSessionSecurityContextRepository sessionRepository,
+        JdbcWhoPasskeyCredentialRepository credentialRepository,
+        Clock clock,
+        IdentityRepository identityRepository,
+        JdbcClient jdbcClient,
+        PlatformTransactionManager transactionManager) {
+      return new PasskeysController(
+          sessionRepository,
           new PasskeyService(credentialRepository),
           LastCredentialGuards.withAnotherCredential(
-              identityRepository, jdbcClient, transactionManager));
+              identityRepository, jdbcClient, transactionManager),
+          clock,
+          WINDOW);
     }
 
     @Bean

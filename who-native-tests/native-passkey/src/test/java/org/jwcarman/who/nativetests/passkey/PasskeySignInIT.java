@@ -37,6 +37,7 @@ import org.jwcarman.who.nativetests.support.TestDatabase;
 import org.jwcarman.who.nativetests.support.TestEndpoints;
 import org.jwcarman.who.nativetests.support.WhoClient;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -125,6 +126,44 @@ class PasskeySignInIT {
     assertThat(client.post("/who/logout", null).status()).isEqualTo(204);
     assertThat(client.get("/who/me").status()).isEqualTo(401);
     return identityId;
+  }
+
+  @Nested
+  class Managing {
+
+    @Test
+    void a_passkey_is_listed_by_label_and_removed() {
+      try (WhoClient client = client()) {
+        signInByEmail(client, false);
+        registerPasskey(client, new PasskeyDevice(origin));
+
+        WhoClient.Response listed = client.get("/who/me/passkeys");
+        assertThat(listed.status()).as(listed.body()).isEqualTo(200);
+        assertThat(listed.json().size()).isEqualTo(1);
+        JsonNode passkey = listed.json().get(0);
+        assertThat(passkey.propertyNames())
+            .containsExactlyInAnyOrder("credentialId", "label", "createdAt", "lastUsedAt");
+        assertThat(passkey.path("label").asString()).isEqualTo("test device");
+
+        WhoClient.Response removed =
+            client.delete("/who/me/passkeys/" + passkey.path("credentialId").asString());
+
+        assertThat(removed.status()).as(removed.body()).isEqualTo(204);
+        assertThat(client.get("/who/me/passkeys").json().size()).isZero();
+      }
+    }
+
+    @Test
+    void an_unknown_passkey_is_whos_not_found_problem() {
+      try (WhoClient client = client()) {
+        signInByEmail(client, false);
+
+        WhoClient.Response response = client.delete("/who/me/passkeys/not-a-passkey");
+
+        assertThat(response.status()).isEqualTo(404);
+        assertThat(response.json().path("code").asString()).isEqualTo("passkey-not-found");
+      }
+    }
   }
 
   @Nested

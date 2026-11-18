@@ -16,8 +16,10 @@
 package org.jwcarman.who.passkey;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 
-import java.lang.reflect.Modifier;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,9 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
@@ -51,23 +52,28 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
+class PasskeysControllerTest extends AbstractPasskeyTest {
 
   // the same for an id that does not exist and one that is not the caller's
   private static final String NOT_FOUND =
@@ -112,10 +118,8 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
   private final MutableClock clock = new MutableClock();
   private final JsonMapper json = JsonMapper.builder().build();
   private final Map<UUID, PublicKeyCredentialUserEntity> users = new HashMap<>();
-  private final AtomicBoolean reachedChain = new AtomicBoolean();
-  private final FilterChain chain = (req, res) -> reachedChain.set(true);
   private WhoSessionSecurityContextRepository sessionRepository;
-  private PasskeyCredentialsFilter filter;
+  private MockMvc mvc;
   private Identity alice;
   private Identity bob;
 
@@ -128,18 +132,20 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
             clock,
             WhoEventPublisher.NOOP,
             _ -> false);
-    filter =
-        new PasskeyCredentialsFilter(
-            WhoPaths.defaults(),
+    PasskeysController controller =
+        new PasskeysController(
             sessionRepository,
             passkeys,
             new LastCredentialGuard(
                 identityRepository,
                 List.of(new PasskeySignInCredentialCounter(jdbcClient)),
                 transactionManager),
-            new WhoExceptionHandoff(WhoPaths.defaults(), null),
             clock,
             RECENT);
+    mvc =
+        MockMvcBuilders.standaloneSetup(controller)
+            .setHandlerExceptionResolvers(new WhoErrorResolver(WhoPaths.defaults()))
+            .build();
     alice = identityRepository.save(Identity.create());
     bob = identityRepository.save(Identity.create());
   }
@@ -181,18 +187,32 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
   /** Sends a request from {@code session}, authenticated as the session loads. */
   private MockHttpServletResponse send(String method, String uri, HttpSession session)
       throws Exception {
-    MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+    MockHttpServletRequestBuilder request = request(HttpMethod.valueOf(method), uri);
     if (session != null) {
-      request.setSession(session);
-      SecurityContextHolder.setContext(sessionRepository.loadDeferredContext(request).get());
+      // loaded on the request itself, as the chain's SecurityContextHolderFilter does
+      request
+          .session((MockHttpSession) session)
+          .with(
+              loading -> {
+                SecurityContextHolder.setContext(
+                    sessionRepository.loadDeferredContext(loading).get());
+                return loading;
+              });
     }
-    return filter(request);
+    return perform(request);
   }
 
-  private MockHttpServletResponse filter(MockHttpServletRequest request) throws Exception {
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
-    return response;
+  private MockHttpServletResponse perform(MockHttpServletRequestBuilder request) throws Exception {
+    return mvc.perform(request).andReturn().getResponse();
+  }
+
+  /** Signs the request in with a stateless token beside the browser's cookie. */
+  private static void signInStateless(Identity identity, SignInMethod method) {
+    SecurityContext stateless = new SecurityContextImpl();
+    stateless.setAuthentication(
+        new WhoAuthenticationToken(
+            new WhoPrincipal(identity, Set.of()), UUID.randomUUID(), method));
+    SecurityContextHolder.setContext(stateless);
   }
 
   @Nested
@@ -223,24 +243,40 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
           .containsEntry("createdAt", created.toString());
       assertThat(response.getContentAsString()).doesNotContain("\"id\"");
       assertThat(response.getContentAsString()).doesNotContain(older.id().toString());
-      assertThat(reachedChain.get()).isFalse();
     }
 
     @Test
     void api_key_beside_cookie_is_forbidden() throws Exception {
       PasskeySummary passkey = passkey(alice, "Laptop", NOW.minusSeconds(60));
       HttpSession session = browser(alice, passkey.id(), NOW);
-      MockHttpServletRequest request = new MockHttpServletRequest("GET", "/who/me/passkeys");
-      request.setSession(session);
-      SecurityContext apiKey = new SecurityContextImpl();
-      apiKey.setAuthentication(
-          new WhoAuthenticationToken(new WhoPrincipal(alice, Set.of()), UUID.randomUUID()));
-      SecurityContextHolder.setContext(apiKey);
+      signInStateless(alice, SignInMethod.API_KEY);
 
-      MockHttpServletResponse response = filter(request);
+      MockHttpServletResponse response =
+          perform(get("/who/me/passkeys").session((MockHttpSession) session));
 
       assertThat(response.getStatus()).isEqualTo(403);
       assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
+    }
+
+    @Test
+    void a_bearer_token_is_refused() throws Exception {
+      signInStateless(alice, SignInMethod.JWT);
+
+      MockHttpServletResponse response = perform(get("/who/me/passkeys"));
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
+    }
+
+    @Test
+    void the_answer_is_the_list_of_records() throws NoSuchMethodException {
+      // Spring registers a handler's return type for native images; a void handler hides it
+      assertThat(
+              PasskeysController.class
+                  .getMethod("list", HttpServletRequest.class)
+                  .getGenericReturnType()
+                  .getTypeName())
+          .isEqualTo("java.util.List<" + PasskeyView.class.getName() + ">");
     }
 
     @Test
@@ -279,7 +315,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
           send("DELETE", "/who/me/passkeys/" + theirs.credentialId(), session);
 
       assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("passkey-not-found");
+      assertThat(response.getHeader("Who-Error")).isEqualTo("passkey-not-found");
       assertThat(passkeys.list(bob.id())).hasSize(2);
     }
 
@@ -292,7 +328,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
       MockHttpServletResponse response = send("DELETE", "/who/me/passkeys/nope", session);
 
       assertThat(response.getStatus()).isEqualTo(404);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("passkey-not-found");
+      assertThat(response.getHeader("Who-Error")).isEqualTo("passkey-not-found");
       assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
     }
 
@@ -306,8 +342,7 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
           send("DELETE", "/who/me/passkeys/" + phone.credentialId(), session);
 
       assertThat(response.getStatus()).isEqualTo(401);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER))
-          .isEqualTo("reauthentication-required");
+      assertThat(response.getHeader("Who-Error")).isEqualTo("reauthentication-required");
       assertThat(passkeys.list(alice.id())).hasSize(2);
     }
 
@@ -327,15 +362,13 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
     void api_key_beside_cookie_is_forbidden() throws Exception {
       PasskeySummary laptop = passkey(alice, "Laptop", NOW.minusSeconds(120));
       PasskeySummary phone = passkey(alice, "Phone", NOW.minusSeconds(60));
-      MockHttpServletRequest request =
-          new MockHttpServletRequest("DELETE", "/who/me/passkeys/" + phone.credentialId());
-      request.setSession(browser(alice, laptop.id(), NOW));
-      SecurityContext apiKey = new SecurityContextImpl();
-      apiKey.setAuthentication(
-          new WhoAuthenticationToken(new WhoPrincipal(alice, Set.of()), UUID.randomUUID()));
-      SecurityContextHolder.setContext(apiKey);
+      HttpSession session = browser(alice, laptop.id(), NOW);
+      signInStateless(alice, SignInMethod.API_KEY);
 
-      MockHttpServletResponse response = filter(request);
+      MockHttpServletResponse response =
+          perform(
+              delete("/who/me/passkeys/" + phone.credentialId())
+                  .session((MockHttpSession) session));
 
       assertThat(response.getStatus()).isEqualTo(403);
       assertThat(response.getHeader("Who-Error")).isEqualTo("browser-session-required");
@@ -345,17 +378,6 @@ class PasskeyCredentialsFilterTest extends AbstractPasskeyTest {
     @Test
     void signed_out_is_unauthorized() throws Exception {
       assertThat(send("DELETE", "/who/me/passkeys/abc", null).getStatus()).isEqualTo(401);
-    }
-  }
-
-  @Nested
-  class Visibility {
-
-    @Test
-    void the_filter_and_its_constructor_are_package_private() {
-      assertThat(Modifier.isPublic(PasskeyCredentialsFilter.class.getModifiers())).isFalse();
-      assertThat(PasskeyCredentialsFilter.class.getDeclaredConstructors())
-          .allSatisfy(c -> assertThat(Modifier.isPublic(c.getModifiers())).isFalse());
     }
   }
 }

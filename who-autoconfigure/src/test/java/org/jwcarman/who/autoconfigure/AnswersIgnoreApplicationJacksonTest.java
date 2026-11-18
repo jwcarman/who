@@ -35,6 +35,9 @@ import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
+import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
+import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
+import org.jwcarman.who.passkey.TestPasskeys;
 import org.jwcarman.who.spring.security.web.SessionNotFoundException;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +47,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,7 +73,8 @@ import tools.jackson.databind.json.JsonMapper;
       "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
-      "who.passkey.enabled=false",
+      "who.passkey.rp-id=localhost",
+      "who.passkey.allowed-origins=http://localhost",
       "who.jwt.enabled=false",
       "who.turnstile.enabled=false",
       "spring.session.jdbc.initialize-schema=always",
@@ -139,11 +144,22 @@ class AnswersIgnoreApplicationJacksonTest {
     String order(@PathVariable("id") String id) {
       throw new SessionNotFoundException();
     }
+
+    @GetMapping("/app/sample")
+    Sample sample() {
+      return new Sample("value", null, NOW);
+    }
   }
+
+  /** An application answer, which follows the application's settings. */
+  record Sample(String someName, String nothing, Instant at) {}
 
   @Autowired private MockMvc mvc;
   @Autowired private IdentityRepository identities;
   @Autowired private EmailCredentialService emailCredentials;
+  @Autowired private JdbcWhoPasskeyUserRepository passkeyUsers;
+  @Autowired private JdbcWhoPasskeyCredentialRepository passkeyCredentials;
+  @Autowired private JdbcClient jdbc;
 
   private Identity identity;
   private WhoMockMvcBrowser browser;
@@ -158,6 +174,18 @@ class AnswersIgnoreApplicationJacksonTest {
 
   private static JsonNode body(MvcResult result) throws Exception {
     return READER.readTree(result.getResponse().getContentAsString());
+  }
+
+  @Nested
+  class TheApplicationsOwnAnswers {
+
+    @Test
+    void follow_its_settings() throws Exception {
+      MvcResult result = browser.perform(get("/app/sample")).andReturn();
+
+      assertThat(body(result).propertyNames()).containsExactlyInAnyOrder("some_name", "at");
+      assertThat(body(result).get("at").isNumber()).isTrue();
+    }
   }
 
   @Nested
@@ -220,6 +248,25 @@ class AnswersIgnoreApplicationJacksonTest {
       assertThat(result.getResponse().getStatus()).isEqualTo(200);
       JsonNode first = body(result).get(0);
       assertThat(first.propertyNames()).containsExactlyInAnyOrder("id", "address", "createdAt");
+      assertThat(first.get("createdAt").isString()).isTrue();
+    }
+  }
+
+  @Nested
+  class Passkeys {
+
+    @Test
+    void a_passkey_never_used_has_a_null_last_used_at() throws Exception {
+      TestPasskeys.registerNeverUsed(
+          passkeyUsers, passkeyCredentials, jdbc, identity.id(), "Laptop");
+
+      MvcResult result = browser.perform(get("/who/me/passkeys")).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      JsonNode first = body(result).get(0);
+      assertThat(first.propertyNames())
+          .containsExactlyInAnyOrder("credentialId", "label", "createdAt", "lastUsedAt");
+      assertThat(first.get("lastUsedAt").isNull()).isTrue();
       assertThat(first.get("createdAt").isString()).isTrue();
     }
   }
