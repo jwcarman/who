@@ -129,7 +129,9 @@ foreign key and revoked pending enrollment tokens. See
 | `who-apikey` | `ApiKeyAuthenticationFilter` and `ApiKeyService` |
 | `who-enrollment` | `WhoEnrollmentService`, for issuing and redeeming enrollment tokens |
 | `who-admin` | Admin endpoints for identities, roles and invitations, guarded by `who.identities.read` and `who.identities.manage`; brings `who-rbac` |
-| `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `WhoEmailSender`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login |
+| `who-email-link` | Email sign-in with a link or a typed code: `EmailCredentialService`, `EmailLinkMessage`, and the hooks for Spring's one-time-token login. Needs `who-email` and a sender |
+| `who-email` | Renders who's emails from Mustache templates an application can override; subjects from its messages. See [Email](https://jwcarman.github.io/who/guides/email/) |
+| `who-email-smtp` | Delivers who's emails over SMTP through Spring's `JavaMailSender` (`who.email.from`) |
 | `who-turnstile` | Cloudflare Turnstile as the human check on who's email endpoints: `TurnstileHumanCheck` |
 | `who-passkey` | Passkey sign-in: `PasskeyService`, `PasskeyAddedNotifier`, and the hooks for Spring's WebAuthn login |
 | `who-spring-security` | `@RequiresPermission`, `WhoSecurity.all()`, `WhoWebSecurity.passwordless()`, `WhoHumanCheck`, `GET /who/me` and `GET /who/sign-in` |

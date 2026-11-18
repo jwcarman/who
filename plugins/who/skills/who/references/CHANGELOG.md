@@ -23,6 +23,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **Every who email goes through `WhoEmails`.** It refuses inside a transaction, renders the email,
+  and hands the result to a `WhoEmailSender`.
+- **`WhoEmailSender` moved to who-core and delivers only.** It takes a rendered `OutgoingEmail`
+  instead of a `WhoEmail`. `WhoEmail` moved to who-core too, is no longer sealed, and has
+  `template()`.
+- **Sending moved out of `who-email-link`.** Add `who-email` (rendering) and `who-email-smtp` (SMTP
+  delivery). `MailWhoEmailSender` is replaced by `SmtpWhoEmailSender`.
+- **`who.email.from` replaces `who.email-link.from` and `who.passkey.from`.**
+- **Subjects are message keys.** `who.email.<template>.subject` replaces
+  `who.email-link.subject`, `invitation-subject`, `address-confirmation-subject` and
+  `address-changed-subject`.
+- **`MailPasskeyAddedNotifier` is removed.** The passkey-added email goes through `WhoEmails` and is
+  sent whenever email-link sign-in is on.
+- **`EmailLinkMessage`, `InvitationMessage` and `EmailAddressConfirmationMessage` gain `validFor`.**
+
+### Added
+
+- `who-email`: renders who's emails from Mustache templates. An application replaces any email's
+  text, or adds HTML, by dropping a file in `classpath:/templates/who/email/`; values come from the
+  email, `who.email.model.*` and `WhoEmailModelContributor` beans. Templates compile at startup.
+- `who-email-smtp`: SMTP delivery through Spring's `JavaMailSender`, multipart when there is HTML.
+- Emails are rendered in the request's locale, or `who.email.locale`.
+
 ## [0.22.0] - 2026-11-17
 
 ### Added

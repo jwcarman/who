@@ -97,7 +97,8 @@ plugins:
           - guides/configuration.md: the exact name and default of any who.* property, and every endpoint path
           - guides/database.md: creating who's tables, Flyway or Liquibase copies of the schema
         Signing in:
-          - guides/email-links.md: sign-in by emailed link or code, sending mail, adding or changing an address, the Turnstile human check, rate limiting
+          - guides/email-links.md: sign-in by emailed link or code, adding or changing an address, the Turnstile human check, rate limiting
+          - guides/email.md: who's emails, the who-email and who-email-smtp modules, overriding templates, HTML, subjects, languages, a sender of your own
           - guides/passkeys.md: passkey sign-in and registration, rp-id and origins, the "passkey added" email
           - guides/social-login.md: Google, GitHub or any OpenID Connect provider, who may sign up, linking accounts
           - guides/api-keys.md: issuing, rotating and revoking API keys, scopes, the key header
@@ -132,6 +133,7 @@ nav:
       - JWT: guides/jwt.md
       - API Keys: guides/api-keys.md
       - Email Links: guides/email-links.md
+      - Email: guides/email.md
       - Passkeys: guides/passkeys.md
       - Social Login: guides/social-login.md
       - Sessions: guides/sessions.md

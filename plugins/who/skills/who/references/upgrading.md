@@ -2,6 +2,7 @@
 
 **Contents**
 
+- Upgrading to 0.23.0
 - Upgrading to 0.21.0
 - Upgrading to 0.20.0
 - Upgrading to 0.19.0
@@ -14,6 +15,88 @@
 - Upgrading to 0.12.0
 - Upgrading to 0.11.0
 - Upgrading to 0.10.0
+
+## Upgrading to 0.23.0
+
+0.23.0 sends every who email through one seam, renders them from templates an application can
+replace, and splits sending out of the feature modules. An application that sends who's emails over
+SMTP adds two dependencies and moves its `from` and subject settings; one with its own
+`WhoEmailSender` rewrites it as pure delivery.
+
+### Add who-email and a sender
+
+`who-email-link` no longer sends mail itself. Add the renderer and the SMTP sender beside it:
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-email</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-email-smtp</artifactId>
+</dependency>
+```
+
+`who-email-smtp` brings `spring-boot-starter-mail`, so you can drop that dependency. Without both,
+email-link sign-in fails startup, and the message says which is missing.
+
+### One sending address
+
+`who.email.from` replaces `who.email-link.from` and `who.passkey.from`:
+
+```yaml
+who:
+  email:
+    from: no-reply@example.com
+```
+
+The old properties are gone, with no aliases. With `who-email-smtp` and a mail host, a missing
+`who.email.from` fails startup.
+
+### Subjects are messages
+
+The four subject properties are now message keys, read from your `MessageSource` (such as
+`src/main/resources/messages.properties`):
+
+| 0.22 property | 0.23 message key |
+|---|---|
+| `who.email-link.subject` | `who.email.sign-in.subject` |
+| `who.email-link.invitation-subject` | `who.email.invitation.subject` |
+| `who.email-link.address-confirmation-subject` | `who.email.address-confirmation.subject` |
+| `who.email-link.address-changed-subject` | `who.email.address-changed.subject` |
+
+The passkey-added email's subject is `who.email.passkey-added.subject`. The defaults are unchanged.
+
+### A custom WhoEmailSender delivers only
+
+`WhoEmailSender` moved to `org.jwcarman.who.core.email` and takes a rendered `OutgoingEmail`
+(`to`, `subject`, `text`, an optional `html`, and the `source` it was rendered from) instead of a
+`WhoEmail`. A sender that switched over who's emails to word them itself becomes a few lines of
+delivery, and its wording moves into [templates](email.md#templates):
+
+```java
+@Bean
+WhoEmailSender whoEmailSender(MyMailer mailer) {
+    return email -> mailer.send(email.to(), email.subject(), email.text(), email.html());
+}
+```
+
+With your own sender, leave out `who-email-smtp`, but keep `who-email` to render.
+
+### Other changes
+
+- `WhoEmail` moved to `org.jwcarman.who.core.email`, is no longer sealed, and has `template()`. The
+  email records stay in `org.jwcarman.who.emaillink`.
+- `EmailLinkMessage`, `InvitationMessage` and `EmailAddressConfirmationMessage` gain a `validFor`
+  component, after `expiresAt`, and `expiresIn()`. Code that constructs them passes the duration.
+- `MailWhoEmailSender` is gone; `SmtpWhoEmailSender` in `who-email-smtp` replaces it.
+- `MailPasskeyAddedNotifier` is gone. The passkey-added email now goes through the same setup as
+  sign-in links, and is sent whenever email-link sign-in is on.
+- `WhoEmails.send` refuses inside a transaction. who's own callers already send after commit;
+  `InvitationService.invite` already refused one.
+
+The emails' wording is unchanged.
 
 ## Upgrading to 0.21.0
 

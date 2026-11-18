@@ -264,27 +264,29 @@ The address lands in the user's synced credential manager (for example iCloud Ke
 
 ## The "passkey added" email
 
-When a passkey is registered, who can email the owner, so that someone who did not add a passkey notices. It needs all of:
-
-- `who-email-link` on the classpath and turned on (`who.email-link.link-base-url`);
-- a `JavaMailSender` (`spring.mail.host`);
-- `who.passkey.from`.
+When a passkey is registered, who emails the owner, so that someone who did not add a passkey
+notices. The email goes to the identity's oldest address, through the same [email](email.md) setup
+as sign-in links, so it is sent whenever email-link sign-in is on:
 
 ```yaml
 spring:
   mail:
     host: smtp.example.com
 who:
+  email:
+    from: no-reply@example.com
   email-link:
     link-base-url: https://app.example.com/signin
     code-secret: <at least 32 random characters>
-    from: no-reply@example.com
   passkey:
     rp-id: app.example.com
-    from: no-reply@example.com
 ```
 
-`who.passkey.from` does not fall back to `who.email-link.from`. If any of the three is missing, no email is sent and who logs a warning once at startup, at `WARN`, naming what is missing. The warning names properties only, never addresses. An identity with no email address gets no email.
+Its template is `passkey-added`, and `{{email.label}}` is the passkey's name; its subject is
+`who.email.passkey-added.subject`. Without `who-email-link`, or with it turned off, no email is
+sent and who logs a warning once at startup, at `WARN`, saying why. An identity with no email
+address gets no email. A failure to send is logged, never thrown, so it never fails the
+registration.
 
 To notify some other way, register a `PasskeyAddedNotifier` bean:
 

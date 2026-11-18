@@ -24,15 +24,14 @@
 | `who.api-key.prefix` | `who_` | Starts every new API key, so secret scanners can spot one. Letters, digits and `_`, 2 to 20 characters, ending in `_`, or startup fails. Changing it leaves existing keys working |
 | `who.api-key.max-lifetime` | `365d` | The longest lifetime a new API key may be given. Positive, or startup fails |
 | `who.api-key.last-used-interval` | `5m` | How often, at most, an API key's last use is written. Positive, or startup fails |
+| `who.email.from` | none | The address every who email comes from. Required with `who-email-smtp` once a `JavaMailSender` exists; startup fails without it. See [Email](email.md) |
+| `who.email.templates` | `classpath:/templates/who/email/` | Where your email templates are, searched before who's own. `sign-in.txt` there replaces who's sign-in text; `sign-in.html` adds HTML |
+| `who.email.locale` | the JVM's | The locale emails are rendered in when no request's locale is known |
+| `who.email.model.*` | none | Values every email template sees, as `{{app.<name>}}` |
 | `who.email-link.link-base-url` | none | Page of your app that receives sign-in links. The token is appended as `#token=...`. Required with `who-email-link`: a missing or blank value fails startup. List the page in `who.security.public-paths` |
 | `who.email-link.token-ttl` | `5m` | How long a sign-in link stays valid |
 | `who.email-link.resend-interval` | `60s` | Minimum time between two links for the same address. Startup fails if it is longer than `token-ttl` |
-| `who.email-link.from` | none | Sender address of sign-in emails. Required when links go out through Spring Boot's `JavaMailSender` |
-| `who.email-link.subject` | `Your sign-in link and code` | Subject of sign-in emails |
-| `who.email-link.invitation-subject` | `You have been invited` | Subject of invitation emails |
 | `who.email-link.address-confirmation-url` | `link-base-url` | Page of your app that receives the link confirming an address being added or changed. The token is appended as `#confirm-address=...`. The person must be signed in there |
-| `who.email-link.address-confirmation-subject` | `Confirm your email address` | Subject of the email confirming an address being added or changed |
-| `who.email-link.address-changed-subject` | `Your email address was changed` | Subject of the email telling an address it was replaced |
 | `who.email-link.code-length` | `6` | Number of characters in the typed sign-in code. At least 6 |
 | `who.email-link.code-max-attempts` | `5` | Wrong guesses a sign-in code survives before it is burnt. The link still works. At least 1 |
 | `who.email-link.code-secret` | none | Secret that keys the code hash. Required with `who-email-link`, at least 32 characters, the same on every instance. Never stored in the database |
@@ -44,7 +43,6 @@
 | `who.passkey.rp-id` | none | The application's own host, such as `app.example.com`. Required with `who-passkey`: startup fails without it. Never use a registrable domain that other apps share |
 | `who.passkey.rp-name` | `who` | Name of the relying party, shown by authenticators. Must not be blank |
 | `who.passkey.allowed-origins` | `https://<rp-id>` | Origins a registration or sign-in response may come from: each a scheme (`http` or `https`), a host and an optional port, with no path, such as `http://localhost:8080`. Startup fails on anything else |
-| `who.passkey.from` | none | Sender address of the "passkey added" email. The email is sent only when this is set, `who-email-link` is on and a `JavaMailSender` exists. It does not fall back to `who.email-link.from`. When the email cannot be sent, who logs a warning at startup |
 | `who.oidc.success-url` | `/` | Where a provider sign-in lands. A path on this site |
 | `who.oidc.failure-url` | `/` | Where a pending sign-up lands, with `pending=sign-up`, and every failed provider sign-in, with `error=already-linked`, `signed-in` or `signin-failed`. A path on this site; list it in `who.security.public-paths` |
 | `who.oidc.link-url` | `success-url` | Where a link the signed-in person asked for lands: `pending=link` to confirm it, `error=already-linked`, or nothing for an account they already had. A path on this site, such as the account settings page |

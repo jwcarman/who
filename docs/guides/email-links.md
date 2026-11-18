@@ -24,18 +24,23 @@ who:
     code-secret: <at least 32 random characters>
 ```
 
-The application also needs a way to send mail. Either register a `WhoEmailSender` bean, or send through Spring Boot's `JavaMailSender`: add `spring-boot-starter-mail` (who-email-link does not bring it) and set `spring.mail.host` and `who.email-link.from`:
+It also needs a way to send its emails: add `who-email` and `who-email-smtp`, and set
+`spring.mail.host` and `who.email.from`:
 
 ```yaml
 spring:
   mail:
     host: smtp.example.com
 who:
+  email:
+    from: no-reply@example.com
   email-link:
     link-base-url: https://app.example.com/signin
     code-secret: <at least 32 random characters>
-    from: no-reply@example.com
 ```
+
+[Email](email.md) covers changing what the emails say, HTML, subjects and languages, and sending
+through something other than SMTP.
 
 Startup fails, and the message names the fix, if:
 
@@ -43,44 +48,17 @@ Startup fails, and the message names the fix, if:
 - `who.email-link.code-length` is below 6;
 - `who.email-link.code-max-attempts` is below 1;
 - `who.email-link.code-secret` is missing, shorter than 32 characters, or an unresolved placeholder such as `${CODE_SECRET}` (Spring binds an unset variable as that literal text);
-- there is no `WhoEmailSender`, and no `JavaMailSender` (from `spring-boot-starter-mail` and `spring.mail.host`) with `who.email-link.from`;
+- there is no way to send its emails: no `who-email` (or `WhoEmailRenderer` of your own), or no `who-email-smtp` with `spring.mail.host` (or `WhoEmailSender` of your own);
 - `who.email-link.resend-interval` is longer than `who.email-link.token-ttl`.
 
 Each message also says how to turn email links off without removing the jar:
 `who.email-link.enabled=false`.
 
-A custom sender is one method, which takes any of who's four emails. `WhoEmail` is sealed, so a `switch` covers them all and the compiler tells you when who adds one:
-
-```java
-@Bean
-WhoEmailSender whoEmailSender(MyMailer mailer) {
-    return email -> {
-        switch (email) {
-            case EmailLinkMessage m -> mailer.send(m.address(), "Your sign-in link and code",
-                "Sign in: " + m.link()
-                    + "\n\nOr enter this code: " + m.formattedCode()
-                    + "\n\nIf you didn't ask to sign in, ignore this email."
-                    + " Never share this code with anyone.");
-            case InvitationMessage m -> mailer.send(m.address(), "You have been invited",
-                "You have been invited. Accept by signing in: " + m.link()
-                    + "\n\nOr enter this code: " + m.formattedCode()
-                    + "\n\nIf you weren't expecting this, ignore this email."
-                    + " Never share this code with anyone.");
-            case EmailAddressConfirmationMessage m -> mailer.send(m.address(), "Confirm your email address",
-                "Add this address to your account: " + m.link()
-                    + "\n\nOr enter this code: " + m.formattedCode()
-                    + "\n\nIf you didn't ask for this, ignore this email.");
-            case EmailAddressChangedMessage m -> mailer.send(m.address(), "Your email address was changed",
-                "Your account's email address is now " + m.maskedNewAddress()
-                    + ". If you didn't do this, contact us right away.");
-        }
-    };
-}
-```
-
-`EmailLinkMessage` is the sign-in email. It carries `address`, `link`, `code` and `expiresAt`. `formattedCode()` returns the code in groups, such as `K7F-2QM`, which is easier to read and type. The link is `link-base-url` followed by `#token=` and the token. `InvitationMessage` is the email of an [invitation](admin.md#invitations): the same fields, plus `roles`, the names of the roles the invitation gave (empty for none), so a sender can word an invitation differently from a sign-in. Signing in with its link or code is accepting the invitation. The last two are for [adding or changing an address](#adding-or-changing-an-address): `EmailAddressConfirmationMessage` has the same fields plus `change`, and `EmailAddressChangedMessage` goes to the replaced address, with the new one in `newAddress` and `maskedNewAddress()`. Do not log a link or a code.
-
-The default sender (through `JavaMailSender`) sends plain text: the link, the formatted code, and how long both stay valid. Its subjects are `who.email-link.subject`, `invitation-subject`, `address-confirmation-subject` and `address-changed-subject`.
+who sends four emails from here, each rendered from a template you can replace: `sign-in`,
+`invitation`, `address-confirmation` and `address-changed`. The sign-in email carries the link, the
+code in groups (such as `K7F-2QM`, easier to read and type) and how long both stay valid. The link is
+`link-base-url` followed by `#token=` and the token. [Email](email.md#what-each-email-carries) lists
+what each one carries.
 
 See the [Configuration Reference](configuration.md) for all the properties.
 
@@ -304,7 +282,7 @@ To remove an address without replacing it, the person calls `DELETE /who/me/emai
 
 | Outcome | Meaning |
 |---|---|
-| `SENT` | The link and code were stored and handed to the `WhoEmailSender`. |
+| `SENT` | The link and code were stored and their email sent through `WhoEmails`. |
 | `UNKNOWN_ADDRESS` | The text is not an address, or no email credential has it. |
 | `INACTIVE_IDENTITY` | The address is known, but its identity is not active. |
 | `RESEND_SUPPRESSED` | A link was sent within the [resend interval](#the-resend-interval). |

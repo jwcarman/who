@@ -218,9 +218,9 @@ answers `201`:
 invitation stands, and the person can still sign in by asking for a link on the sign-in page.
 
 The email is an `InvitationMessage`, not the sign-in `EmailLinkMessage`: it carries the link and
-code, as a sign-in does, plus the `roles` given, and who's default sender words it as an
-invitation, with the subject `who.email-link.invitation-subject`. A custom
-[`WhoEmailSender`](email-links.md#turn-it-on) can word it its own way.
+code, as a sign-in does, plus the `roles` given, and who words it as an invitation, with its own
+`invitation` template and the subject `who.email.invitation.subject`. Replace either to word it
+your own way (see [Email](email.md)).
 
 It needs `who.identities.manage` and, from a browser session, a recent sign-in, checked as above.
 Then:
