@@ -45,7 +45,7 @@ import tools.jackson.databind.annotation.JsonNaming;
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record IdentityView(
     UUID id,
-    IdentityStatus status,
+    @JsonFormat(shape = JsonFormat.Shape.STRING) IdentityStatus status,
     @JsonFormat(shape = JsonFormat.Shape.STRING) Instant createdAt,
     List<String> roles,
     List<String> emailAddresses,

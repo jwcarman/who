@@ -92,7 +92,8 @@ import tools.jackson.databind.json.JsonMapper;
       "spring.session.jdbc.initialize-schema=always",
       "spring.jackson.property-naming-strategy=SNAKE_CASE",
       "spring.jackson.datatype.datetime.write-dates-as-timestamps=true",
-      "spring.jackson.default-property-inclusion=non_null"
+      "spring.jackson.default-property-inclusion=non_null",
+      "spring.jackson.datatype.enum.write-enums-using-index=true"
     })
 @AutoConfigureMockMvc
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -374,6 +375,7 @@ class AnswersIgnoreApplicationJacksonTest {
           .containsExactlyInAnyOrder(
               "id", "status", "createdAt", "roles", "emailAddresses", "credentials");
       assertThat(first.get("createdAt").isString()).isTrue();
+      assertThat(first.get("status").asString()).isEqualTo("ACTIVE");
     }
 
     @Test
