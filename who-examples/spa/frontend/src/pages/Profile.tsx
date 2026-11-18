@@ -224,7 +224,7 @@ export function Profile() {
         </ul>
         <form className="inline" onSubmit={addPasskey}>
           <input type="text" value={label} onChange={e => setLabel(e.target.value)}
-                 placeholder="Name it, such as Laptop" maxLength={100} required />
+                 placeholder="Name it, such as Laptop" maxLength={64} required />
           <button type="submit">Add a passkey</button>
         </form>
         <p className="muted">You can add one within 10 minutes of signing in.</p>

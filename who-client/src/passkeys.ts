@@ -59,8 +59,9 @@ export interface MyPasskeys<D> {
   /** Your passkeys, oldest first. */
   list(): Promise<WhoResult<Passkey[], "signed-out" | BrowserSessionRequired, D>>;
   /**
-   * Registers a new passkey under `label`. Needs a recent sign-in; who answers that before the
-   * browser is asked anything.
+   * Registers a new passkey under `label`: 1 to 64 characters, not blank, with no line breaks or
+   * other control characters, or who answers `"rejected"` after the browser has made the passkey.
+   * Needs a recent sign-in; who answers that before the browser is asked anything.
    */
   register(
     label: string,

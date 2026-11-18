@@ -175,7 +175,7 @@ async function registerPasskey(label) {
 }
 ```
 
-The `label` is required: 1 to 64 characters, with no line breaks or other control characters, or the registration answers `400` `invalid-passkey-registration`. It is the name the user sees in your passkey list and in the "passkey added" email, such as "Laptop".
+The `label` is required: 1 to 64 characters, not blank, with no line breaks or other control characters, or the registration answers `400` `invalid-passkey-registration`. It is the name the user sees in your passkey list and in the "passkey added" email, such as "Laptop".
 
 The answers. An error's body is whatever your application writes for its exception (see [Errors](errors.md)):
 

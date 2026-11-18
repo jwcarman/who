@@ -181,7 +181,7 @@ What the reasons mean:
 
 | Reason | When |
 |---|---|
-| `'rejected'` | A wrong, used or expired code, link or passkey. |
+| `'rejected'` | A wrong, used or expired code, link or passkey, or a passkey label that is blank, longer than 64 characters or holds a line break. |
 | `'not-found'` | No such session, passkey, address, account, key or provider, or one that is someone else's. |
 | `'conflict'` | The address or provider account belongs to someone else. |
 | `'refused'` | Your sign-up policy said no. |

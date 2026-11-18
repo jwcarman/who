@@ -281,6 +281,16 @@ class WhoRelyingPartyOperationsTest extends AbstractPasskeyTest {
   }
 
   @Test
+  void registrationWithABlankLabelFails() {
+    PublicKeyCredentialCreationOptions options = creationOptions();
+    var request = PasskeyEmulator.honest(ORIGIN).register(options, "   ");
+
+    assertThatThrownBy(() -> operations.registerCredential(request))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(credentialRepository.findByUserId(options.getUser().getId())).isEmpty();
+  }
+
+  @Test
   void registrationWithA64CharacterLabelSucceeds() {
     PublicKeyCredentialCreationOptions options = creationOptions();
 

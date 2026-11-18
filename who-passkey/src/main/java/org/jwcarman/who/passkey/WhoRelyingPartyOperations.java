@@ -187,7 +187,7 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
    *
    * @throws IllegalStateException if no identity is signed in, or the options' user entity is not
    *     the signed-in identity's
-   * @throws IllegalArgumentException if the label is empty, longer than 64 characters, or holds a
+   * @throws IllegalArgumentException if the label is blank, longer than 64 characters, or holds a
    *     control character
    */
   @Override
@@ -221,7 +221,7 @@ public class WhoRelyingPartyOperations implements WebAuthnRelyingPartyOperations
   // the label reaches the owner's "passkey added" email: no line breaks to forge text with
   private static void requireValidLabel(String label) {
     if (label == null
-        || label.isEmpty()
+        || label.isBlank()
         || label.codePointCount(0, label.length()) > MAX_LABEL_LENGTH
         || label.codePoints().anyMatch(WhoRelyingPartyOperations::isControl)) {
       throw new IllegalArgumentException(
