@@ -62,6 +62,14 @@ class WhoEmailAutoConfigurationTest {
   }
 
   @Configuration(proxyBeanMethods = false)
+  static class ValuedLibrary {
+    @Bean
+    WhoEmailTemplates library() {
+      return new WhoEmailTemplates("classpath:/lib-email/", "lib-email/valued-messages");
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
   static class TwoLibraries {
     @Bean
     @Order(2)
@@ -195,6 +203,16 @@ class WhoEmailAutoConfigurationTest {
               WhoEmailMessages.class, () -> new WhoEmailMessages("who-email-test/who-messages"))
           .withPropertyValues("who.email.templates=classpath:/lib-email/")
           .run(context -> assertThat(renderLibTest(context).subject()).isEqualTo("Who subject"));
+    }
+
+    @Test
+    void a_librarys_subject_names_the_app_from_properties() {
+      runner
+          .withUserConfiguration(ValuedLibrary.class)
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .withPropertyValues("who.email.model.name=Roux")
+          .run(
+              context -> assertThat(renderLibTest(context).subject()).isEqualTo("Sign in to Roux"));
     }
 
     @Test
