@@ -295,6 +295,26 @@ class MustacheWhoEmailRendererTest {
     }
 
     @Test
+    void a_subject_that_fails_names_its_key_and_locale() {
+      StaticMessageSource source = new StaticMessageSource();
+      source.addMessage("who.email.greeting.subject", Locale.FRENCH, "Salut {{nope}}");
+      MustacheWhoEmailRenderer renderer =
+          new MustacheWhoEmailRenderer(
+              new PathMatchingResourcePatternResolver(),
+              List.of(EMPTY_LOCATION),
+              source,
+              Map.of(),
+              List.of());
+      TestEmail email = email("greeting");
+
+      assertThatThrownBy(() -> renderer.render(email, Locale.FRENCH))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("who.email.greeting.subject")
+          .hasMessageContaining("fr")
+          .hasMessageContaining("nope");
+    }
+
+    @Test
     void a_subject_that_does_not_compile_fails_creation() {
       StaticMessageSource source = new StaticMessageSource();
       source.addMessage("who.email.greeting.subject", Locale.ROOT, "Hi {{#open}}");

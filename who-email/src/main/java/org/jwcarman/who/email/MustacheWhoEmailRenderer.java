@@ -98,7 +98,8 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
    * @param messages supplies the subjects
    * @param app the application-wide values, seen as {@code app}
    * @param contributors supply the values seen as {@code extra}, in order
-   * @throws IllegalStateException if a template does not compile
+   * @throws IllegalStateException if a template, or a subject in {@link Locale#ROOT}, does not
+   *     compile
    */
   public MustacheWhoEmailRenderer(
       ResourcePatternResolver resources,
@@ -136,7 +137,7 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
     Map<String, Object> model = model(email);
     String html = template(name + HTML).map(template -> template.execute(model)).orElse(null);
     String message = messages.getMessage(subjectKey(name), null, locale);
-    String subject = oneLine(subject(message).execute(model));
+    String subject = oneLine(renderSubject(name, message, model, locale));
     return new OutgoingEmail(email.address(), subject, text.execute(model), html, email);
   }
 
@@ -152,6 +153,22 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
 
   private Template subject(String message) {
     return subjects.computeIfAbsent(message, textCompiler::compile);
+  }
+
+  private String renderSubject(
+      String name, String message, Map<String, Object> model, Locale locale) {
+    try {
+      return subject(message).execute(model);
+    } catch (MustacheException e) {
+      throw new IllegalStateException(
+          "The subject "
+              + subjectKey(name)
+              + " ("
+              + locale
+              + ") could not be rendered: "
+              + e.getMessage(),
+          e);
+    }
   }
 
   private void verifySubject(String name) {

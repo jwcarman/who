@@ -85,6 +85,9 @@ location lets you edit templates without a rebuild):
 who.email.templates=classpath:/templates/who/email/,file:./email/
 ```
 
+Each location is one place, so use `classpath:`, not `classpath*:`: who looks a file up in each
+location in turn, and a `classpath*:` location never matches.
+
 | File | Effect |
 |---|---|
 | `sign-in.txt` | replaces who's text for sign-in emails |
@@ -208,8 +211,10 @@ who.email.sign-in.subject=Sign in to {{app.name}}
 
 A rendered subject is one line: every run of line breaks and other control characters becomes one
 space. who reads the message without arguments, so Spring does not run it through `MessageFormat`;
-`{0}` and `'` are plain text. A subject that doesn't compile fails startup, like a template; a
-variable it names that the model lacks fails the render.
+`{0}` and `'` are plain text, unless you set `spring.messages.always-use-message-format=true`, which
+makes Spring run every message through `MessageFormat` and breaks a subject with `{{`. A subject
+that doesn't compile fails startup, like a template; a variable it names that the model lacks fails
+the render, with an error naming the subject's key and locale.
 
 ## Languages
 

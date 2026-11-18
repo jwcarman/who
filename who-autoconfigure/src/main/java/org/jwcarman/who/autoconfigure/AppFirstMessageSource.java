@@ -26,9 +26,10 @@ import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.NoSuchMessageException;
 
 /**
- * The application's messages first, then who's: a message the application defines wins, and one it
- * lacks comes from who's bundles. An application message that is only its own code counts as
- * lacking, since {@code spring.messages.use-code-as-default-message} answers every code that way.
+ * The application's messages first, then the email bundles: a message the application defines wins,
+ * and one it lacks comes from the libraries' bundles ({@code WhoEmailTemplates}), then who's. An
+ * application message that is only its own code counts as lacking, since {@code
+ * spring.messages.use-code-as-default-message} answers every code that way.
  */
 final class AppFirstMessageSource implements MessageSource {
 

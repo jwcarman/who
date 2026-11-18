@@ -85,6 +85,22 @@ class WhoPropertiesTest {
   }
 
   @Test
+  void indexed_email_templates_replace_the_default() {
+    WhoProperties props =
+        new Binder(
+                new MapConfigurationPropertySource(
+                    Map.of(
+                        "who.email.templates[0]",
+                        "classpath:/x/",
+                        "who.email.templates[1]",
+                        "file:./y/")))
+            .bind("who", WhoProperties.class)
+            .get();
+
+    assertThat(props.getEmail().getTemplates()).isEqualTo(List.of("classpath:/x/", "file:./y/"));
+  }
+
+  @Test
   void an_api_key_duration_set_to_null_is_refused_by_name() {
     WhoProperties.ApiKey apiKey = new WhoProperties().getApiKey();
 
