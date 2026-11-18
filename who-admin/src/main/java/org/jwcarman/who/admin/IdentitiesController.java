@@ -17,7 +17,6 @@ package org.jwcarman.who.admin;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -199,11 +198,9 @@ public class IdentitiesController {
    * @param id the identity's id
    * @param request the request, whose body is {@code {"status": "ACTIVE" | "DISABLED"}}
    * @return the identity as it is now
-   * @throws IOException if the body cannot be read
    */
   @PatchMapping(IDENTITY)
-  public IdentityView changeStatus(@PathVariable("id") String id, HttpServletRequest request)
-      throws IOException {
+  public IdentityView changeStatus(@PathVariable("id") String id, HttpServletRequest request) {
     WhoPrincipal caller = gate.admit(request, WhoAdminPermissions.IDENTITIES_MANAGE, true);
     Identity target = identity(id);
     requireNotOutranked(caller, target);

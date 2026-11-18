@@ -38,15 +38,21 @@ final class AdminBodies {
    * @param request the request
    * @return the object
    * @throws InvalidAdminRequestException if the body is larger than {@value #MAX_BODY_BYTES} bytes
-   *     or is not a JSON object
-   * @throws IOException if reading fails
+   *     or is not a JSON object, or cannot be read
    */
-  static JsonNode readObject(JsonMapper jsonMapper, HttpServletRequest request) throws IOException {
+  static JsonNode readObject(JsonMapper jsonMapper, HttpServletRequest request) {
     // The servlet container owns the request stream and closes it; who must not.
     if (request.getContentLengthLong() > MAX_BODY_BYTES) {
       throw new InvalidAdminRequestException("The body is too large");
     }
-    byte[] bytes = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
+    byte[] bytes;
+    try {
+      bytes = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
+    } catch (IOException _) {
+      // the client went away mid-body, or sent one the container could not read: not a server
+      // error, and the answer most likely reaches no one
+      throw new InvalidAdminRequestException("The body could not be read");
+    }
     if (bytes.length > MAX_BODY_BYTES) {
       throw new InvalidAdminRequestException("The body is too large");
     }

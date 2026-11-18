@@ -17,7 +17,6 @@ package org.jwcarman.who.apikey;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
@@ -130,11 +129,10 @@ public class ApiKeysController {
    *
    * @param request the request, whose body is {@code {name, lifetime, scopes}}
    * @return the key, with its raw secret
-   * @throws IOException if the body cannot be read
    */
   @PostMapping(COLLECTION)
   @ResponseStatus(HttpStatus.CREATED)
-  public CreatedApiKey create(HttpServletRequest request) throws IOException {
+  public CreatedApiKey create(HttpServletRequest request) {
     Caller caller = recentManager(request);
     JsonNode body = ApiKeyBodies.read(jsonMapper, request);
     String name = ApiKeyBodies.requiredString(body, "name");
@@ -154,12 +152,10 @@ public class ApiKeysController {
    * @param id the key's id
    * @param request the request, whose body is {@code {overlap}}
    * @return the new key, with its raw secret
-   * @throws IOException if the body cannot be read
    */
   @PostMapping(COLLECTION + "/{id}/rotations")
   @ResponseStatus(HttpStatus.CREATED)
-  public CreatedApiKey rotate(@PathVariable("id") String id, HttpServletRequest request)
-      throws IOException {
+  public CreatedApiKey rotate(@PathVariable("id") String id, HttpServletRequest request) {
     // before the body or the id is looked at, so a stale session learns nothing about any key
     Caller caller = recentManager(request);
     UUID keyId = owned(id, caller.identity().id());

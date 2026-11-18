@@ -17,7 +17,6 @@ package org.jwcarman.who.admin;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -85,11 +84,10 @@ public class InvitationsController {
    *
    * @param request the request, whose body is {@code {"email": "...", "roles": ["..."]}}
    * @return the invited identity and whether its sign-in link was sent
-   * @throws IOException if the body cannot be read
    */
   @PostMapping(WhoPaths.ROOT + "/invitations")
   @ResponseStatus(HttpStatus.CREATED)
-  public CreatedInvitation invite(HttpServletRequest request) throws IOException {
+  public CreatedInvitation invite(HttpServletRequest request) {
     WhoPrincipal caller = gate.admit(request, WhoAdminPermissions.IDENTITIES_MANAGE, true);
     JsonNode body = AdminBodies.readObject(jsonMapper, request);
     String email = email(body);
