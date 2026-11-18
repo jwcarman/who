@@ -18,7 +18,7 @@ package org.jwcarman.who.email;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A feature's bundle of default email messages, such as its subjects under {@code
+ * Contributes a feature's bundle of default email messages, such as its subjects under {@code
  * who.email.<template>.subject}. Each feature that sends email registers one as a bean; the
  * application's own messages win over every bundle.
  *

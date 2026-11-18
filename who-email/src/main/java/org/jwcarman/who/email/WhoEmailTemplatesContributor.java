@@ -20,10 +20,10 @@ import static java.util.Objects.requireNonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A library's email templates and subjects. A library that ships its own versions of who's emails
- * registers one as a bean, typically from its own auto-configuration. For each file, who searches
- * the application's locations ({@code who.email.templates}) first, then each library's in bean
- * order ({@code @Order}), then its own built-ins; subjects are found the same way, in the
+ * Contributes a library's email templates and subjects. A library that ships its own versions of
+ * who's emails registers one as a bean, typically from its own auto-configuration. For each file,
+ * who searches the application's locations ({@code who.email.templates}) first, then each library's
+ * in bean order ({@code @Order}), then its own built-ins; subjects are found the same way, in the
  * application's messages, then each library's bundle, then who's.
  *
  * @param location where the library's templates are, as a Spring resource location such as {@code

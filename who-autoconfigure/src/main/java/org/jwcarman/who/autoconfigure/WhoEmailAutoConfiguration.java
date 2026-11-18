@@ -97,7 +97,7 @@ public class WhoEmailAutoConfiguration {
         ResourcePatternResolver resources,
         ObjectProvider<MessageSource> messageSource,
         ObjectProvider<WhoEmailMessagesContributor> bundles,
-        ObjectProvider<WhoEmailModelContributor> contributors,
+        ObjectProvider<WhoEmailModelContributor> modelContributors,
         ObjectProvider<WhoEmailTemplatesContributor> libraries,
         WhoProperties properties) {
       List<WhoEmailTemplatesContributor> ordered = libraries.orderedStream().toList();
@@ -120,7 +120,7 @@ public class WhoEmailAutoConfiguration {
               .toList(),
           new AppFirstMessageSource(app, who),
           email.getModel(),
-          List.copyOf(contributors.orderedStream().toList()));
+          List.copyOf(modelContributors.orderedStream().toList()));
     }
   }
 

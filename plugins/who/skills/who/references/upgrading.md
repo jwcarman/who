@@ -28,6 +28,10 @@ components are unchanged:
 - `WhoEmailTemplates` is now `WhoEmailTemplatesContributor`.
 - `WhoEmailMessages` is now `WhoEmailMessagesContributor`.
 
+Update any class name written as a string too, such as
+`@ConditionalOnClass(name = "org.jwcarman.who.email.WhoEmailMessages")`: the compiler does not catch
+it, and a condition that stops matching silently drops your templates or subjects.
+
 ```java
 @Bean
 WhoEmailTemplatesContributor acmeEmailTemplates() {
