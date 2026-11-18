@@ -30,6 +30,13 @@ public record WhoPaths(String root) {
   /** The root when none is configured. */
   public static final String DEFAULT_ROOT = "/who";
 
+  /**
+   * The root as a placeholder for a request mapping, {@code who.base-path} or {@link
+   * #DEFAULT_ROOT}: {@code @GetMapping(WhoPaths.ROOT + "/me")}. The {@code WhoPaths} bean checks
+   * the same property at startup.
+   */
+  public static final String ROOT = "${who.base-path:" + DEFAULT_ROOT + "}";
+
   private static final String FORBIDDEN = "*{}?#;";
 
   /**

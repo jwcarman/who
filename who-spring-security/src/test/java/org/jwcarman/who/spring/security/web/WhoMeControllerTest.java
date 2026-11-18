@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -178,6 +180,20 @@ class WhoMeControllerTest {
 
       assertThatThrownBy(() -> controller.resolve(request, other))
           .isInstanceOf(NotSignedInException.class);
+    }
+  }
+
+  @Nested
+  class Answer {
+
+    @Test
+    void the_answer_is_the_record_itself() throws NoSuchMethodException {
+      // Spring registers a handler's return type for native images; a void handler hides it
+      assertThat(
+              WhoMeController.class
+                  .getMethod("me", HttpServletRequest.class, Authentication.class)
+                  .getReturnType())
+          .isEqualTo(WhoMeController.WhoMeResponse.class);
     }
   }
 }

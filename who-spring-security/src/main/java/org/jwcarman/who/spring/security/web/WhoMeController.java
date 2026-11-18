@@ -17,7 +17,6 @@ package org.jwcarman.who.spring.security.web;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +24,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.WhoPrincipal;
@@ -35,12 +33,19 @@ import org.jwcarman.who.core.service.LastCredentialGuard;
 import org.jwcarman.who.spring.security.RecentSignInAuthorizationManager;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoCaller;
+import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 /**
  * who's one endpoint of its own: {@code GET /who/me} tells an app who is signed in.
@@ -87,11 +92,13 @@ public class WhoMeController {
    * @param credentials how many sign-in credentials the identity holds, by kind ({@code email},
    *     {@code passkey}, {@code account}); empty when who cannot count them
    */
+  @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
+  @JsonInclude(JsonInclude.Include.ALWAYS)
   public record WhoMeResponse(
       UUID identityId,
       Set<String> permissions,
       String signInMethod,
-      Instant recentSignInUntil,
+      @JsonFormat(shape = JsonFormat.Shape.STRING) Instant recentSignInUntil,
       Map<String, Long> credentials) {}
 
   /**
@@ -105,11 +112,9 @@ public class WhoMeController {
    * @throws NotSignedInException when no one is signed in; the application formats it
    * @throws IOException if writing fails
    */
-  @GetMapping("${who.base-path:/who}/me")
-  public void me(
-      HttpServletRequest request, HttpServletResponse response, Authentication authentication)
-      throws IOException {
-    WhoJson.write(response, HttpServletResponse.SC_OK, resolve(request, authentication));
+  @GetMapping(WhoPaths.ROOT + "/me")
+  public WhoMeResponse me(HttpServletRequest request, Authentication authentication) {
+    return resolve(request, authentication);
   }
 
   /** The answer for this request; signed out is {@link NotSignedInException}. */
