@@ -22,19 +22,17 @@ import java.time.Duration;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationProvider;
 import org.jwcarman.who.apikey.ApiKeyCredentialRepository;
-import org.jwcarman.who.apikey.ApiKeyEndpoints;
 import org.jwcarman.who.apikey.ApiKeyFormat;
 import org.jwcarman.who.apikey.ApiKeyLoginMethod;
 import org.jwcarman.who.apikey.ApiKeyService;
+import org.jwcarman.who.apikey.ApiKeysController;
 import org.jwcarman.who.apikey.JdbcApiKeyCredentialRepository;
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.core.spi.PermissionsResolver;
-import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
@@ -182,33 +180,27 @@ public class WhoApiKeyAutoConfiguration {
   }
 
   /**
-   * The caller's API keys at {@code /me/api-keys} under {@code who.base-path}, on every browser
-   * chain and every stateless chain.
+   * The caller's API keys at {@code /me/api-keys} under {@code who.base-path}, for a browser
+   * session or a bearer token.
    *
    * @param apiKeyService makes, lists, rotates and revokes the keys
    * @param sessionRepository reads the browser's who session and its sign-in time
-   * @param handoff the application's exception handling, if it has who's handoff
-   * @param jsonMapper the application's JSON mapper, if it has one
+   * @param jsonMapper reads request bodies; a default one when the application has none
    * @param clock the current time
    * @param properties {@code who.security.recent-sign-in}
-   * @param paths where the endpoints live
-   * @return the endpoints
+   * @return the controller
    */
   @Bean
   @ConditionalOnMissingBean
-  public ApiKeyEndpoints apiKeyEndpoints(
+  public ApiKeysController apiKeysController(
       ApiKeyService apiKeyService,
       WhoSessionSecurityContextRepository sessionRepository,
-      ObjectProvider<WhoExceptionHandoff> handoff,
       ObjectProvider<JsonMapper> jsonMapper,
       Clock clock,
-      WhoProperties properties,
-      WhoPaths paths) {
-    return new ApiKeyEndpoints(
-        paths,
+      WhoProperties properties) {
+    return new ApiKeysController(
         apiKeyService,
         sessionRepository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         jsonMapper.getIfAvailable(JsonMapper::new),
         clock,
         properties.getSecurity().getRecentSignIn());

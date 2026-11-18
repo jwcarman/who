@@ -24,6 +24,7 @@ import java.util.Set;
 import org.jwcarman.who.apikey.ApiKeyService;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.rbac.Role;
 import org.springframework.http.ResponseEntity;
@@ -31,9 +32,10 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Endpoints for the test only: recorded events, and setting up identities with keys. */
+/** Endpoints for the test only: recorded events, captured mail, and setting up identities. */
 @RestController
 class TestController {
 
@@ -41,19 +43,46 @@ class TestController {
   static final String USER_ROLE = "native-user";
 
   private final EventRecorder recorder;
+  private final CapturingMailSender mail;
   private final WhoService who;
+  private final EmailCredentialService emails;
   private final ApiKeyService apiKeys;
   private final RbacService rbac;
 
-  TestController(EventRecorder recorder, WhoService who, ApiKeyService apiKeys, RbacService rbac) {
+  TestController(
+      EventRecorder recorder,
+      CapturingMailSender mail,
+      WhoService who,
+      EmailCredentialService emails,
+      ApiKeyService apiKeys,
+      RbacService rbac) {
     this.recorder = recorder;
+    this.mail = mail;
     this.who = who;
+    this.emails = emails;
     this.apiKeys = apiKeys;
     this.rbac = rbac;
   }
 
   /** The body of {@code POST /test/setup/api-key}. */
   record ApiKeySetup(boolean admin) {}
+
+  /** The body of {@code POST /test/setup/identity}. */
+  record IdentitySetup(String email) {}
+
+  @GetMapping(value = "/test/mail", produces = "text/plain")
+  ResponseEntity<String> mail(@RequestParam("to") String address) {
+    return ResponseEntity.of(mail.lastTo(address));
+  }
+
+  /** An identity that signs in by email and holds the user permission, so it may scope a key. */
+  @PostMapping("/test/setup/identity")
+  Map<String, String> setUpIdentity(@RequestBody IdentitySetup setup) {
+    Identity identity = who.createIdentity();
+    emails.register(identity, setup.email());
+    rbac.assignRoleToIdentity(identity, role(USER_ROLE, ApiController.USER_PERMISSION));
+    return Map.of("identityId", identity.id().toString());
+  }
 
   @GetMapping("/test/events")
   List<Map<String, String>> events() {

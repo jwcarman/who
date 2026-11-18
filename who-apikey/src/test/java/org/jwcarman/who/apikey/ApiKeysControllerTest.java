@@ -32,9 +32,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
@@ -54,7 +53,7 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -62,6 +61,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -71,7 +72,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class ApiKeysFilterTest {
+class ApiKeysControllerTest {
 
   // the same for an id that does not exist and one that is not the caller's
   private static final String NOT_FOUND =
@@ -192,13 +193,11 @@ class ApiKeysFilterTest {
   private final MutableClock clock = new MutableClock();
   private final Links links = new Links();
   private final Keys keys = new Keys();
-  private final AtomicBoolean reachedChain = new AtomicBoolean();
-  private final FilterChain chain = (req, res) -> reachedChain.set(true);
   private final Identity alice = Identity.create(IdentityStatus.ACTIVE);
   private final Identity bob = Identity.create(IdentityStatus.ACTIVE);
   private ApiKeyService service;
   private WhoSessionSecurityContextRepository sessionRepository;
-  private ApiKeysFilter filter;
+  private MockMvc mvc;
 
   @BeforeEach
   void setUp() {
@@ -222,15 +221,11 @@ class ApiKeysFilterTest {
             clock,
             WhoEventPublisher.NOOP,
             _ -> false);
-    filter =
-        new ApiKeysFilter(
-            WhoPaths.defaults(),
-            service,
-            sessionRepository,
-            new WhoExceptionHandoff(WhoPaths.defaults(), null),
-            JSON,
-            clock,
-            RECENT);
+    mvc =
+        MockMvcBuilders.standaloneSetup(
+                new ApiKeysController(service, sessionRepository, JSON, clock, RECENT))
+            .setHandlerExceptionResolvers(new WhoErrorResolver(WhoPaths.defaults()))
+            .build();
   }
 
   @AfterEach
@@ -307,10 +302,9 @@ class ApiKeysFilterTest {
     return sendAs(SignInMethod.JWT, UUID.randomUUID(), identity, verb, uri, body);
   }
 
+  /** Dispatches the request as built, with the security context already set for it. */
   private MockHttpServletResponse filter(MockHttpServletRequest request) throws Exception {
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
-    return response;
+    return mvc.perform(servletContext -> request).andReturn().getResponse();
   }
 
   private static JsonNode json(MockHttpServletResponse response) throws Exception {
@@ -458,8 +452,7 @@ class ApiKeysFilterTest {
           send("POST", KEYS, createBody("CI", "P1D", READ), staleBrowser(alice));
 
       assertThat(response.getStatus()).isEqualTo(401);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER))
-          .isEqualTo("reauthentication-required");
+      assertThat(response.getHeader("Who-Error")).isEqualTo("reauthentication-required");
       assertThat(service.findByIdentity(alice.id())).isEmpty();
     }
 
@@ -469,7 +462,7 @@ class ApiKeysFilterTest {
           send("POST", KEYS, createBody("CI", "P1D", READ, "task.delete"), recentBrowser(alice));
 
       assertThat(response.getStatus()).isEqualTo(400);
-      assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("invalid-request");
+      assertThat(response.getHeader("Who-Error")).isEqualTo("invalid-request");
       assertThat(service.findByIdentity(alice.id())).isEmpty();
     }
 
@@ -504,7 +497,36 @@ class ApiKeysFilterTest {
 
     @Test
     void a_body_that_is_not_json_is_bad_request() throws Exception {
-      assertThat(send("POST", KEYS, "not json", recentBrowser(alice)).getStatus()).isEqualTo(400);
+      MockHttpServletResponse response = send("POST", KEYS, "not json", recentBrowser(alice));
+
+      assertThat(response.getStatus()).isEqualTo(400);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("invalid-request");
+    }
+
+    @Test
+    void a_body_over_8192_bytes_is_refused() throws Exception {
+      String name = "x".repeat(8192);
+
+      MockHttpServletResponse response =
+          send("POST", KEYS, createBody(name, "P1D", READ), recentBrowser(alice));
+
+      assertThat(response.getStatus()).isEqualTo(400);
+      assertThat(response.getHeader("Who-Error")).isEqualTo("invalid-request");
+      assertThat(service.findByIdentity(alice.id())).isEmpty();
+    }
+
+    @Test
+    void the_answers_are_the_records() throws NoSuchMethodException {
+      // Spring registers a handler's return type for native images; a void handler hides it
+      assertThat(
+              ApiKeysController.class
+                  .getMethod("list", HttpServletRequest.class)
+                  .getGenericReturnType()
+                  .getTypeName())
+          .isEqualTo("java.util.List<" + ApiKeyView.class.getName() + ">");
+      assertThat(
+              ApiKeysController.class.getMethod("create", HttpServletRequest.class).getReturnType())
+          .isEqualTo(CreatedApiKey.class);
     }
 
     @Test
@@ -595,7 +617,7 @@ class ApiKeysFilterTest {
                 "{\"overlap\":\"PT0S\"}",
                 recentBrowser(alice));
         assertThat(response.getStatus()).as(id).isEqualTo(404);
-        assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("api-key-not-found");
+        assertThat(response.getHeader("Who-Error")).isEqualTo("api-key-not-found");
         assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       }
     }
@@ -694,7 +716,7 @@ class ApiKeysFilterTest {
         MockHttpServletResponse response =
             send("DELETE", KEYS + "/" + id, null, recentBrowser(alice));
         assertThat(response.getStatus()).as(id).isEqualTo(404);
-        assertThat(response.getHeader(WhoExceptionHandoff.HEADER)).isEqualTo("api-key-not-found");
+        assertThat(response.getHeader("Who-Error")).isEqualTo("api-key-not-found");
         assertThat(response.getContentAsString()).isEqualTo(NOT_FOUND);
       }
     }
@@ -782,23 +804,6 @@ class ApiKeysFilterTest {
   void the_created_answer_never_shows_the_key_in_to_string() {
     NewApiKey created = key(alice, "CI");
 
-    assertThat(ApiKeysFilter.Created.of(created).toString())
-        .contains("CI")
-        .doesNotContain(created.key());
-  }
-
-  @Test
-  void any_other_request_passes_through() throws Exception {
-    for (String[] r :
-        List.of(
-            new String[] {"GET", KEYS + "/" + UUID.randomUUID()},
-            new String[] {"PUT", KEYS},
-            new String[] {"GET", "/who/me/passkeys"},
-            new String[] {"GET", KEYS + "/current/extra"})) {
-      reachedChain.set(false);
-      MockHttpServletResponse response = send(r[0], r[1], null, recentBrowser(alice));
-      assertThat(reachedChain).as(r[0] + " " + r[1]).isTrue();
-      assertThat(response.getStatus()).isEqualTo(200);
-    }
+    assertThat(CreatedApiKey.of(created).toString()).contains("CI").doesNotContain(created.key());
   }
 }

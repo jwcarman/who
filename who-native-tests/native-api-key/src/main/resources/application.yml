@@ -4,9 +4,18 @@ spring:
   # spring.datasource.* come from the test's arguments
 
 who:
+  email:
+    # The address every email who sends comes from.
+    from: sign-in@example.test
   security:
     # who's default chain opens these to signed-out requests
     public-paths:
       - "/api/open"
       - "/test/**"
   initialize-schema: never
+  email-link:
+    # Set here, not only as an argument: Spring AOT builds the beans at build time, and email-link
+    # sign-in fails startup without it.
+    link-base-url: http://localhost:8080/signin
+    # a fixed secret is fine: this app exists only for tests
+    code-secret: native-tests-only-code-secret-0123456789

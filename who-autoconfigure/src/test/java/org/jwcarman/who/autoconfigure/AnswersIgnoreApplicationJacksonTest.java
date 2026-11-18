@@ -18,6 +18,7 @@ package org.jwcarman.who.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -39,6 +40,7 @@ import org.jwcarman.who.federated.FederatedCredentialService;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.TestPasskeys;
+import org.jwcarman.who.rbac.RbacService;
 import org.jwcarman.who.spring.security.web.SessionNotFoundException;
 import org.jwcarman.who.test.StubOidcProvider;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
@@ -49,6 +51,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -170,6 +173,7 @@ class AnswersIgnoreApplicationJacksonTest {
   @Autowired private JdbcWhoPasskeyCredentialRepository passkeyCredentials;
   @Autowired private JdbcClient jdbc;
   @Autowired private FederatedCredentialService federatedCredentials;
+  @Autowired private RbacService rbac;
 
   private Identity identity;
   private WhoMockMvcBrowser browser;
@@ -297,6 +301,49 @@ class AnswersIgnoreApplicationJacksonTest {
       assertThat(first.propertyNames()).containsExactlyInAnyOrder("id", "provider", "linkedAt");
       assertThat(first.get("provider").asString()).isEqualTo("stub");
       assertThat(first.get("linkedAt").isString()).isTrue();
+    }
+  }
+
+  @Nested
+  class ApiKeys {
+
+    private MvcResult create() throws Exception {
+      TestApiKeys.grant(rbac, identity);
+      return browser
+          .perform(
+              post("/who/me/api-keys")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"name\":\"ci\",\"lifetime\":\"P1D\",\"scopes\":[\""
+                          + TestApiKeys.PERMISSION
+                          + "\"]}"))
+          .andReturn();
+    }
+
+    @Test
+    void a_created_key_keeps_its_shape() throws Exception {
+      MvcResult result = create();
+
+      assertThat(result.getResponse().getStatus())
+          .as(result.getResponse().getContentAsString())
+          .isEqualTo(201);
+      assertThat(body(result).propertyNames())
+          .containsExactlyInAnyOrder("id", "name", "scopes", "expiresAt", "key");
+      assertThat(body(result).get("expiresAt").isString()).isTrue();
+    }
+
+    @Test
+    void the_list_keeps_a_null_last_used_at() throws Exception {
+      assertThat(create().getResponse().getStatus()).isEqualTo(201);
+
+      MvcResult result = browser.perform(get("/who/me/api-keys")).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      JsonNode first = body(result).get(0);
+      assertThat(first.propertyNames())
+          .containsExactlyInAnyOrder(
+              "id", "name", "scopes", "createdAt", "expiresAt", "lastUsedAt");
+      assertThat(first.get("lastUsedAt").isNull()).isTrue();
     }
   }
 

@@ -26,18 +26,34 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.PermissionsResolver;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurationExcludeFilter;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.context.TypeExcludeFilter;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.web.bind.annotation.RestController;
 
 // Security auto-configuration excluded — integration tests only need the repository and service
 // beans.
 @Import({JdbcApiKeyCredentialRepository.class})
-@SpringBootApplication(
+@SpringBootConfiguration
+@EnableAutoConfiguration(
     exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
+// who's controllers are the autoconfiguration's to wire, with collaborators this app does not have
+@ComponentScan(
+    excludeFilters = {
+      @ComponentScan.Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
+      @ComponentScan.Filter(
+          type = FilterType.CUSTOM,
+          classes = AutoConfigurationExcludeFilter.class),
+      @ComponentScan.Filter(RestController.class)
+    })
 class WhoApiKeyTestApp {
 
   @Bean
