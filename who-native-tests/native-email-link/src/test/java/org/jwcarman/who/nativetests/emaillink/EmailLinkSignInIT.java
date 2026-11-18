@@ -17,9 +17,12 @@ package org.jwcarman.who.nativetests.emaillink;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -105,6 +108,101 @@ class EmailLinkSignInIT {
         client.post("/who/email/sign-in", WhoClient.json(Map.of("token", token)));
     assertThat(response.status()).isEqualTo(200);
     return response.json().path("identityId").asString();
+  }
+
+  /** Waits for the last email to {@code address} to contain {@code text}, and returns it. */
+  static String awaitMailContaining(WhoClient client, String address, String text) {
+    Instant deadline = Instant.now().plusSeconds(10);
+    String last = "";
+    while (Instant.now().isBefore(deadline)) {
+      last = TestEndpoints.awaitMail(client, address);
+      if (last.contains(text)) {
+        return last;
+      }
+      LockSupport.parkNanos(Duration.ofMillis(100).toNanos());
+    }
+    throw new AssertionError("No email to " + address + " containing \"" + text + "\": " + last);
+  }
+
+  /** Confirms an address change with the code from its confirmation email; answers its id. */
+  static String confirmByCode(WhoClient client, String confirmation) {
+    WhoClient.Response confirmed =
+        client.post(
+            "/who/me/email-addresses/confirmations",
+            WhoClient.json(Map.of("code", find(CODE, confirmation))));
+    assertThat(confirmed.status()).isEqualTo(200);
+    return confirmed.json().path("credentialId").asString();
+  }
+
+  @Nested
+  class EmailAddresses {
+
+    @Test
+    void an_address_is_added_listed_and_removed() {
+      try (WhoClient client = client()) {
+        String first = newAddress();
+        setUpIdentity(client, first, false);
+        signInByLink(client, first);
+        String second = newAddress();
+
+        assertThat(
+                client
+                    .post("/who/me/email-addresses", WhoClient.json(Map.of("address", second)))
+                    .status())
+            .isEqualTo(202);
+        String added =
+            confirmByCode(client, awaitMailContaining(client, second, "Add this address"));
+
+        WhoClient.Response listed = client.get("/who/me/email-addresses");
+        assertThat(listed.status()).isEqualTo(200);
+        assertThat(listed.json().valueStream().map(a -> a.path("address").asString()))
+            .containsExactlyInAnyOrder(first, second);
+        assertThat(listed.json().get(0).propertyNames())
+            .containsExactlyInAnyOrder("id", "address", "createdAt");
+
+        assertThat(client.delete("/who/me/email-addresses/" + added).status()).isEqualTo(204);
+        assertThat(client.get("/who/me/email-addresses").json().size()).isEqualTo(1);
+      }
+    }
+
+    @Test
+    void changing_the_address_tells_the_old_one() {
+      try (WhoClient client = client()) {
+        String old = newAddress();
+        setUpIdentity(client, old, false);
+        signInByLink(client, old);
+        String oldId = client.get("/who/me/email-addresses").json().get(0).path("id").asString();
+        String newer = newAddress();
+
+        assertThat(
+                client
+                    .post(
+                        "/who/me/email-addresses",
+                        WhoClient.json(Map.of("address", newer, "replaces", oldId)))
+                    .status())
+            .isEqualTo(202);
+        confirmByCode(client, awaitMailContaining(client, newer, "in place of the old one"));
+
+        assertThat(awaitMailContaining(client, old, "was changed to"))
+            .contains("no longer signs in");
+      }
+    }
+
+    @Test
+    void an_id_that_is_not_one_is_whos_not_found_problem() {
+      try (WhoClient client = client()) {
+        String address = newAddress();
+        setUpIdentity(client, address, false);
+        signInByLink(client, address);
+
+        WhoClient.Response response = client.delete("/who/me/email-addresses/not-an-id");
+
+        assertThat(response.status()).isEqualTo(404);
+        assertThat(response.json().path("code").asString()).isEqualTo("email-address-not-found");
+        assertThat(response.json().path("type").asString())
+            .isEqualTo("urn:who:error:email-address-not-found");
+      }
+    }
   }
 
   @Nested

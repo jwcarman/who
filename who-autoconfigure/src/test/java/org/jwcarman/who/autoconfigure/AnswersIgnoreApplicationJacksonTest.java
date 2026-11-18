@@ -211,6 +211,20 @@ class AnswersIgnoreApplicationJacksonTest {
   }
 
   @Nested
+  class EmailAddresses {
+
+    @Test
+    void the_list_keeps_whos_names() throws Exception {
+      MvcResult result = browser.perform(get("/who/me/email-addresses")).andReturn();
+
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      JsonNode first = body(result).get(0);
+      assertThat(first.propertyNames()).containsExactlyInAnyOrder("id", "address", "createdAt");
+      assertThat(first.get("createdAt").isString()).isTrue();
+    }
+  }
+
+  @Nested
   class Errors {
 
     @Test

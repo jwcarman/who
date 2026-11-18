@@ -19,20 +19,26 @@ import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.jdbc.JdbcCredentialIdentityRepository;
 import org.jwcarman.who.jdbc.JdbcIdentityRepository;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.web.bind.annotation.RestController;
 
 @Import({
   JdbcEmailCredentialRepository.class,
   JdbcEmailLinkTokenRepository.class,
   JdbcEmailAddressRequestRepository.class
 })
-@SpringBootApplication(
+@SpringBootConfiguration
+@EnableAutoConfiguration(
     exclude = {SecurityAutoConfiguration.class, UserDetailsServiceAutoConfiguration.class})
+// who's controllers are the autoconfiguration's to wire, with collaborators this app does not have
+@ComponentScan(excludeFilters = @ComponentScan.Filter(RestController.class))
 class WhoEmailLinkTestApp {
 
   @Bean

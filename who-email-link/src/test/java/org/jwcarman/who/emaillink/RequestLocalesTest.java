@@ -22,6 +22,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +48,28 @@ class RequestLocalesTest {
     Future<?> done = executor.submit(carried);
     done.get();
     return seen.get();
+  }
+
+  @Test
+  void a_lazily_resolved_locale_is_resolved_before_the_request_ends() throws Exception {
+    // DispatcherServlet binds one that asks the request each time; once the request is done, the
+    // container recycles it and asking throws
+    AtomicBoolean requestDone = new AtomicBoolean();
+    LocaleContextHolder.setLocaleContext(
+        () -> {
+          if (requestDone.get()) {
+            throw new IllegalStateException("The request object has been recycled");
+          }
+          return Locale.GERMAN;
+        });
+    AtomicReference<Locale> seen = new AtomicReference<>();
+
+    Runnable carried =
+        RequestLocales.carrying(
+            new MockHttpServletRequest(), () -> seen.set(LocaleContextHolder.getLocale()));
+    requestDone.set(true);
+
+    assertThat(localeSeenOnAnotherThread(carried, seen)).isEqualTo(Locale.GERMAN);
   }
 
   @Test

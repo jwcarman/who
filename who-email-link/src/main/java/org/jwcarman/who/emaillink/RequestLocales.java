@@ -15,13 +15,13 @@
  */
 package org.jwcarman.who.emaillink;
 
-import java.util.Optional;
-
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.context.i18n.LocaleContext;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.i18n.SimpleLocaleContext;
+import org.springframework.context.i18n.SimpleTimeZoneAwareLocaleContext;
+import org.springframework.context.i18n.TimeZoneAwareLocaleContext;
 
 /**
  * Carries a request's locale to work done off the request thread, so an email issued there is
@@ -36,9 +36,7 @@ final class RequestLocales {
    * request's own ({@code Accept-Language}). Whatever was bound before is restored afterwards.
    */
   static Runnable carrying(HttpServletRequest request, Runnable task) {
-    LocaleContext locale =
-        Optional.ofNullable(LocaleContextHolder.getLocaleContext())
-            .orElseGet(() -> new SimpleLocaleContext(request.getLocale()));
+    LocaleContext locale = resolvedNow(request);
     return () -> {
       LocaleContext previous = LocaleContextHolder.getLocaleContext();
       LocaleContextHolder.setLocaleContext(locale);
@@ -48,5 +46,21 @@ final class RequestLocales {
         LocaleContextHolder.setLocaleContext(previous);
       }
     };
+  }
+
+  /**
+   * The request's locale, resolved on the request thread. Spring MVC binds a context that asks the
+   * request each time, and once the request ends the container recycles it, so asking from another
+   * thread afterwards fails.
+   */
+  private static LocaleContext resolvedNow(HttpServletRequest request) {
+    LocaleContext bound = LocaleContextHolder.getLocaleContext();
+    if (bound == null) {
+      return new SimpleLocaleContext(request.getLocale());
+    }
+    if (bound instanceof TimeZoneAwareLocaleContext zoned) {
+      return new SimpleTimeZoneAwareLocaleContext(zoned.getLocale(), zoned.getTimeZone());
+    }
+    return new SimpleLocaleContext(bound.getLocale());
   }
 }

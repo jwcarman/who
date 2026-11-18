@@ -30,8 +30,8 @@ import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.core.spi.CredentialRemover;
 import org.jwcarman.who.email.WhoEmailMessages;
 import org.jwcarman.who.emaillink.EmailAddressChanges;
-import org.jwcarman.who.emaillink.EmailAddressEndpoints;
 import org.jwcarman.who.emaillink.EmailAddressRequestRepository;
+import org.jwcarman.who.emaillink.EmailAddressesController;
 import org.jwcarman.who.emaillink.EmailCredentialRepository;
 import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.EmailLinkAuthenticationProvider;
@@ -470,41 +470,35 @@ public class WhoEmailLinkAutoConfiguration {
   }
 
   /**
-   * {@code /who/me/email-addresses}: a signed-in person asks for and confirms an address change.
+   * {@code /who/me/email-addresses}: a signed-in person lists, adds, changes and removes addresses.
    *
    * @param emailAddressChanges makes the changes
    * @param emailCredentialService lists and revokes the addresses
    * @param lastCredentialGuard required: addresses are never removed without the last-credential
    *     rule, so an application without it fails to start
    * @param sessionRepository finds the browser session, for the recent-sign-in check
-   * @param handoff hands errors to the application's exception handling, when present
    * @param executor sends the confirmation off the request thread
    * @param jsonMapper reads the request bodies; a default one when the application has none
    * @param clock checks how recently the person signed in
    * @param properties who's properties, for the recent-sign-in window
-   * @param paths where the endpoints live
-   * @return the endpoints
+   * @return the controller
    */
   @Bean
   @ConditionalOnMissingBean
-  public EmailAddressEndpoints emailAddressEndpoints(
+  public EmailAddressesController emailAddressesController(
       EmailAddressChanges emailAddressChanges,
       EmailCredentialService emailCredentialService,
       LastCredentialGuard lastCredentialGuard,
       WhoSessionSecurityContextRepository sessionRepository,
-      ObjectProvider<WhoExceptionHandoff> handoff,
       @Qualifier(EXECUTOR_BEAN_NAME) Executor executor,
       ObjectProvider<JsonMapper> jsonMapper,
       Clock clock,
-      WhoProperties properties,
-      WhoPaths paths) {
-    return new EmailAddressEndpoints(
-        paths,
+      WhoProperties properties) {
+    return new EmailAddressesController(
         emailAddressChanges,
         emailCredentialService,
         lastCredentialGuard,
         sessionRepository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
         executor,
         jsonMapper(jsonMapper),
         clock,
