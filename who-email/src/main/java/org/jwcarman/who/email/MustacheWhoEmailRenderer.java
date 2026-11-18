@@ -62,7 +62,9 @@ import com.samskivert.mustache.Template;
  * <p>The subject is the message {@code who.email.<template>.subject} in the email's locale,
  * rendered as a text template with the same three names, then put on one line: every run of control
  * characters, line breaks included, becomes one space. The message is read without arguments, so
- * {@code MessageFormat} does not touch it.
+ * {@code MessageFormat} does not touch it, unless the {@link MessageSource} always applies it (as
+ * Spring's {@code spring.messages.always-use-message-format} does), which breaks a subject that
+ * uses Mustache tags.
  *
  * <p>Every template in every location, and each template's subject in {@link Locale#ROOT} when it
  * has one, is compiled when the renderer is created, so a template or subject that does not compile

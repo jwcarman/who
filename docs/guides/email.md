@@ -200,8 +200,9 @@ who.email.sign-in.subject=Sign in to {{app.name}}
 
 A rendered subject is one line: every run of line breaks and other control characters becomes one
 space. who reads the message without arguments, so Spring does not run it through `MessageFormat`;
-`{0}` and `'` are plain text, unless you set `spring.messages.always-use-message-format=true`, which
-makes Spring run every message through `MessageFormat` and breaks a subject with `{{`. A subject
+`{0}` and `'` are plain text. The exception is `spring.messages.always-use-message-format=true`:
+Spring then runs every message of yours through `MessageFormat`, which breaks a subject of yours
+with `{{`. who's and libraries' subjects are read separately and are not affected. A subject
 that doesn't compile fails startup, like a template; a variable it names that the model lacks fails
 the render, with an error naming the subject's key and locale.
 
