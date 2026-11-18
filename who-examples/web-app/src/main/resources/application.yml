@@ -34,6 +34,9 @@ spring:
             user-name-attribute: sub
 
 who:
+  email:
+    # The address every email who sends comes from.
+    from: who@example.com
   # who's tables. Fine on your machine; in production use Flyway or Liquibase (see the Database
   # guide) and set this to never.
   initialize-schema: always
@@ -50,8 +53,6 @@ who:
     link-base-url: http://localhost:8080/signin/link
     # Where the link confirming a new or changed address lands: a signed-in page.
     address-confirmation-url: http://localhost:8080/profile
-    from: who@example.com
-    subject: Sign in to Who Tasks
     # A development value. In production, at least 32 random characters from your secret store,
     # the same on every instance.
     code-secret: this-is-a-development-secret-change-it
@@ -66,8 +67,6 @@ who:
 
   passkey:
     rp-id: localhost
-    # Emails the owner when a passkey is added to their account (it lands in Mailpit).
-    from: who@example.com
     rp-name: Who Tasks
     # Browsers allow WebAuthn over plain http on localhost only.
     allowed-origins: http://localhost:8080

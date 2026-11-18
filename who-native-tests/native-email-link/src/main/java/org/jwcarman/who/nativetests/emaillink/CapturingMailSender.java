@@ -15,52 +15,30 @@
  */
 package org.jwcarman.who.nativetests.emaillink;
 
-import java.io.InputStream;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import jakarta.mail.internet.MimeMessage;
-
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.jwcarman.who.core.email.OutgoingEmail;
+import org.jwcarman.who.core.email.WhoEmailSender;
 import org.springframework.stereotype.Component;
 
 /**
- * Keeps the last plain-text email to each address in memory instead of sending it, so the test
- * reads sign-in links and codes without a mail server. who's own {@code MailWhoEmailSender} sends
- * through it, as it would through Spring Boot's.
+ * Keeps the text of the last email to each address in memory instead of delivering it, so the test
+ * reads sign-in links and codes without a mail server. Every who email reaches it rendered, so the
+ * native image renders who's built-in templates as an application would.
  */
 @Component
-class CapturingMailSender implements JavaMailSender {
+class CapturingMailSender implements WhoEmailSender {
 
   private final Map<String, String> lastByAddress = new ConcurrentHashMap<>();
 
   @Override
-  public void send(SimpleMailMessage... messages) {
-    for (SimpleMailMessage message : messages) {
-      for (String to : message.getTo()) {
-        lastByAddress.put(to, message.getText());
-      }
-    }
+  public void send(OutgoingEmail email) {
+    lastByAddress.put(email.to(), email.text());
   }
 
   Optional<String> lastTo(String address) {
     return Optional.ofNullable(lastByAddress.get(address));
-  }
-
-  @Override
-  public MimeMessage createMimeMessage() {
-    throw new UnsupportedOperationException("who sends sign-in emails as plain text");
-  }
-
-  @Override
-  public MimeMessage createMimeMessage(InputStream contentStream) {
-    throw new UnsupportedOperationException("who sends sign-in emails as plain text");
-  }
-
-  @Override
-  public void send(MimeMessage... mimeMessages) {
-    throw new UnsupportedOperationException("who sends sign-in emails as plain text");
   }
 }

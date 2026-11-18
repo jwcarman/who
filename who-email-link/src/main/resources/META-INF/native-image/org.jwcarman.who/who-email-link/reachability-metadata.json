@@ -1,6 +1,17 @@
 {
+  "reflection": [
+    {"type": "org.jwcarman.who.emaillink.EmailLinkMessage", "allPublicMethods": true},
+    {"type": "org.jwcarman.who.emaillink.InvitationMessage", "allPublicMethods": true},
+    {"type": "org.jwcarman.who.emaillink.EmailAddressConfirmationMessage", "allPublicMethods": true},
+    {"type": "org.jwcarman.who.emaillink.EmailAddressChangedMessage", "allPublicMethods": true}
+  ],
   "resources": [
     {"glob": "org/jwcarman/who/emaillink/db/*.xml"},
-    {"glob": "org/jwcarman/who/emaillink/who-*-schema.sql"}
+    {"glob": "org/jwcarman/who/emaillink/who-*-schema.sql"},
+    {"glob": "org/jwcarman/who/email/templates/sign-in.txt"},
+    {"glob": "org/jwcarman/who/email/templates/invitation.txt"},
+    {"glob": "org/jwcarman/who/email/templates/address-confirmation.txt"},
+    {"glob": "org/jwcarman/who/email/templates/address-changed.txt"},
+    {"glob": "org/jwcarman/who/emaillink/email-messages*.properties"}
   ]
 }

@@ -14,6 +14,9 @@ spring:
     port: 1025
 
 who:
+  email:
+    # The address every email who sends comes from.
+    from: who@example.com
   # who's tables. Fine on your machine; in production use Flyway or Liquibase and set this to never.
   initialize-schema: always
   security:
@@ -25,8 +28,6 @@ who:
       - /js/**
   email-link:
     link-base-url: http://localhost:8080/
-    from: who@example.com
-    subject: Your who code
     code-secret: this-is-a-development-secret-change-it
 
 management:

@@ -43,6 +43,9 @@ spring:
           audiences: who-tasks-api
 
 who:
+  email:
+    # The address every email who sends comes from.
+    from: who@example.com
   # who's tables. Fine on your machine; in production use Flyway or Liquibase (see the Database
   # guide) and set this to never.
   initialize-schema: always
@@ -55,8 +58,6 @@ who:
       - /js/**
   email-link:
     link-base-url: http://localhost:8080/signin/link
-    from: who@example.com
-    subject: Sign in to Who Tasks
     code-secret: this-is-a-development-secret-change-it
   oidc:
     success-url: /
