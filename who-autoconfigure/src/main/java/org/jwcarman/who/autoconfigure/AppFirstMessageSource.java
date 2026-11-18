@@ -17,6 +17,7 @@ package org.jwcarman.who.autoconfigure;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
@@ -26,7 +27,8 @@ import org.springframework.context.NoSuchMessageException;
 
 /**
  * The application's messages first, then who's: a message the application defines wins, and one it
- * lacks comes from who's bundles.
+ * lacks comes from who's bundles. An application message that is only its own code counts as
+ * lacking, since {@code spring.messages.use-code-as-default-message} answers every code that way.
  */
 final class AppFirstMessageSource implements MessageSource {
 
@@ -42,24 +44,35 @@ final class AppFirstMessageSource implements MessageSource {
   public @Nullable String getMessage(
       String code, Object @Nullable [] args, @Nullable String defaultMessage, Locale locale) {
     String message = app.getMessage(code, args, null, locale);
-    return message != null ? message : who.getMessage(code, args, defaultMessage, locale);
+    return message != null && !message.equals(code)
+        ? message
+        : who.getMessage(code, args, defaultMessage, locale);
   }
 
   @Override
   public String getMessage(String code, Object @Nullable [] args, Locale locale) {
     try {
-      return app.getMessage(code, args, locale);
+      String message = app.getMessage(code, args, locale);
+      if (!message.equals(code)) {
+        return message;
+      }
     } catch (NoSuchMessageException _) {
-      return who.getMessage(code, args, locale);
+      // the application lacks it: who's answers below
     }
+    return who.getMessage(code, args, locale);
   }
 
   @Override
   public String getMessage(MessageSourceResolvable resolvable, Locale locale) {
     try {
-      return app.getMessage(resolvable, locale);
+      String message = app.getMessage(resolvable, locale);
+      String[] codes = resolvable.getCodes();
+      if (codes == null || !Arrays.asList(codes).contains(message)) {
+        return message;
+      }
     } catch (NoSuchMessageException _) {
-      return who.getMessage(resolvable, locale);
+      // the application lacks it: who's answers below
     }
+    return who.getMessage(resolvable, locale);
   }
 }

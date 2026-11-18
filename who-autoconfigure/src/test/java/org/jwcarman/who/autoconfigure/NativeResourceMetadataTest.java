@@ -28,8 +28,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.core.email.WhoEmail;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.util.AntPathMatcher;
 
 class NativeResourceMetadataTest {
@@ -110,6 +114,60 @@ class NativeResourceMetadataTest {
       String path = url.substring(url.lastIndexOf("org/jwcarman/who/"));
       assertThat(globs).as("coverage of %s", path).anyMatch(glob -> matcher.match(glob, path));
     }
+  }
+
+  @Test
+  void everyBuiltInEmailTemplateAndSubjectBundleIsCovered() throws IOException {
+    List<String> globs = new ArrayList<>();
+    for (Resource json : resolver.getResources(METADATA_PATTERN)) {
+      globs.addAll(globsOf(json));
+    }
+    AntPathMatcher matcher = new AntPathMatcher();
+    List<Resource> candidates = new ArrayList<>();
+    candidates.addAll(
+        List.of(resolver.getResources("classpath*:org/jwcarman/who/email/templates/*")));
+    candidates.addAll(
+        List.of(
+            resolver.getResources("classpath*:org/jwcarman/who/**/email-messages*.properties")));
+    assertThat(candidates).isNotEmpty();
+    for (Resource candidate : candidates) {
+      String url = candidate.getURL().toString();
+      if (url.contains("/test-classes/")) {
+        continue;
+      }
+      String path = url.substring(url.lastIndexOf("org/jwcarman/who/"));
+      assertThat(globs).as("coverage of %s", path).anyMatch(glob -> matcher.match(glob, path));
+    }
+  }
+
+  @Test
+  void everyWhoEmailRecordCanBeReadReflectively() throws IOException {
+    // JMustache reads {{email.link}} through the record's accessors, which a native image allows
+    // only for registered types
+    ClassPathScanningCandidateComponentProvider scanner =
+        new ClassPathScanningCandidateComponentProvider(false);
+    scanner.addIncludeFilter(new AssignableTypeFilter(WhoEmail.class));
+    Set<String> records = new TreeSet<>();
+    for (BeanDefinition candidate : scanner.findCandidateComponents("org.jwcarman.who")) {
+      String className = candidate.getBeanClassName();
+      Resource source = resolver.getResource("classpath:" + className.replace('.', '/') + ".class");
+      if (!source.getURL().toString().contains("/test-classes/")) {
+        records.add(className);
+      }
+    }
+    String metadata = allMetadata();
+    assertThat(records).isNotEmpty();
+    for (String record : records) {
+      assertThat(metadata).as("reflection for %s", record).contains("\"" + record + "\"");
+    }
+  }
+
+  private String allMetadata() throws IOException {
+    StringBuilder all = new StringBuilder();
+    for (Resource json : resolver.getResources(METADATA_PATTERN)) {
+      all.append(new String(json.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+    }
+    return all.toString();
   }
 
   private static List<String> globsOf(Resource json) throws IOException {

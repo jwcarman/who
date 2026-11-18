@@ -68,6 +68,15 @@ versions:
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-email-link</artifactId>
 </dependency>
+<!-- email-link sign-in sends email: who-email renders it, who-email-smtp delivers it -->
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-email</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.jwcarman.who</groupId>
+    <artifactId>who-email-smtp</artifactId>
+</dependency>
 <dependency>
     <groupId>org.jwcarman.who</groupId>
     <artifactId>who-test</artifactId>
@@ -80,7 +89,7 @@ sign-in method is its own module, and adding its jar turns it on:
 
 | Sign-in method | Module | Guide |
 |---|---|---|
-| Emailed link or typed code | `who-email-link` | [Email Links](email-links.md) |
+| Emailed link or typed code | `who-email-link`, with `who-email` and a sender | [Email Links](email-links.md), [Email](email.md) |
 | Passkey | `who-passkey` | [Passkeys](passkeys.md) |
 | API key | `who-apikey` | [API Keys](api-keys.md) |
 | JWT from your authorization server | `who-jwt` | [JWT](jwt.md) |
