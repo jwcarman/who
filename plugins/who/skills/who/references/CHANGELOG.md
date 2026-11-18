@@ -54,9 +54,11 @@ All notable changes to this project are documented here. The format follows
 - **`OidcLoginMethod` no longer takes a `FederatedCredentialService` or a `LastCredentialGuard`.**
   Listing and unlinking accounts is the `LinkedAccountsController` bean's.
 - **who's resource endpoints are controllers.** `EmailAddressEndpoints`,
-  `LinkedAccountsEndpoints` and `ApiKeyEndpoints` are removed; `EmailAddressesController`,
-  `PasskeysController`, `LinkedAccountsController` and `ApiKeysController` are beans of their
-  modules' auto-configuration, on with the module.
+  `LinkedAccountsEndpoints`, `ApiKeyEndpoints`, `WhoAdminEndpoints` and `WhoInvitationEndpoints`
+  are removed; `EmailAddressesController`, `PasskeysController`, `LinkedAccountsController`,
+  `ApiKeysController`, `IdentitiesController`, `RolesController` and `InvitationsController` are
+  beans of their modules' auto-configuration, on with the module. The admin controllers share an
+  `AdminGate` bean.
   The application's `authorizeHttpRequests` rules now apply to these endpoints, as to any
   controller.
 

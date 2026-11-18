@@ -40,9 +40,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
@@ -68,7 +67,7 @@ import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -76,19 +75,21 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class IdentitiesFilterTest {
+class IdentitiesControllerTest {
 
   private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
   private static final JsonMapper JSON = new JsonMapper();
   private static final String READ = WhoAdminPermissions.IDENTITIES_READ;
   private static final String MANAGE = WhoAdminPermissions.IDENTITIES_MANAGE;
-  private static final String HEADER = WhoExceptionHandoff.HEADER;
+  private static final String HEADER = "Who-Error";
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
 
@@ -205,8 +206,6 @@ class IdentitiesFilterTest {
   private final Identities identities = new Identities();
   private final Emails emails = new Emails();
   private final RbacService rbac = mock(RbacService.class);
-  private final AtomicBoolean reachedChain = new AtomicBoolean();
-  private final FilterChain chain = (req, res) -> reachedChain.set(true);
   private final Map<UUID, Set<Role>> held = new LinkedHashMap<>();
   private final Role admin = new Role(UUID.randomUUID(), "admin");
   private final Role editor = new Role(UUID.randomUUID(), "editor");
@@ -237,7 +236,7 @@ class IdentitiesFilterTest {
               request.getHeader("X-API-Key") != null || request.getHeader("Authorization") != null);
   private Identity caller;
   private HttpSession browser;
-  private IdentitiesFilter filter;
+  private MockMvc mvc;
 
   private Identity identity(IdentityStatus status, Instant created) {
     return identities.save(new Identity(UUID.randomUUID(), status, created, created));
@@ -276,7 +275,7 @@ class IdentitiesFilterTest {
             })
         .when(rbac)
         .removeRoleFromIdentity(any(), any());
-    filter = filter(emails, guard());
+    mvc = mvc(emails, guard());
   }
 
   private LastCredentialGuard guard() {
@@ -296,17 +295,22 @@ class IdentitiesFilterTest {
         identities, List.of(passkeys), mock(PlatformTransactionManager.class));
   }
 
-  private IdentitiesFilter filter(IdentityEmails withEmails, LastCredentialGuard withGuard) {
-    return new IdentitiesFilter(
-        WhoPaths.defaults(),
-        identities,
-        whoService,
-        rbac,
-        withEmails,
-        withGuard,
-        new LastAdminGuard(mock(JdbcClient.class), mock(PlatformTransactionManager.class), false),
-        new AdminGate(sessions, new WhoExceptionHandoff(WhoPaths.defaults(), null), clock, RECENT),
-        JSON);
+  private MockMvc mvc(IdentityEmails withEmails, LastCredentialGuard withGuard) {
+    AdminGate gate = new AdminGate(sessions, clock, RECENT);
+    return MockMvcBuilders.standaloneSetup(
+            new IdentitiesController(
+                identities,
+                whoService,
+                rbac,
+                withEmails,
+                withGuard,
+                new LastAdminGuard(
+                    mock(JdbcClient.class), mock(PlatformTransactionManager.class), false),
+                gate,
+                JSON),
+            new RolesController(rbac, gate))
+        .setHandlerExceptionResolvers(new WhoErrorResolver(WhoPaths.defaults()))
+        .build();
   }
 
   @AfterEach
@@ -368,9 +372,8 @@ class IdentitiesFilterTest {
       request.setSession(browser);
       SecurityContextHolder.setContext(sessions.loadDeferredContext(request).get());
     }
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
-    return response;
+    // dispatched as built, with the security context already set for it
+    return mvc.perform(servletContext -> request).andReturn().getResponse();
   }
 
   private MockHttpServletResponse get(String uri) throws Exception {
@@ -385,6 +388,20 @@ class IdentitiesFilterTest {
     return page.get("items").valueStream().map(item -> item.get("id").asString()).toList();
   }
 
+  @Test
+  void the_answers_are_the_records() throws NoSuchMethodException {
+    // Spring registers a handler's return type for native images; a void handler hides it
+    assertThat(
+            IdentitiesController.class.getMethod("page", HttpServletRequest.class).getReturnType())
+        .isEqualTo(IdentityPage.class);
+    assertThat(
+            RolesController.class
+                .getMethod("roles", HttpServletRequest.class)
+                .getGenericReturnType()
+                .getTypeName())
+        .isEqualTo("java.util.List<" + RoleView.class.getName() + ">");
+  }
+
   @Nested
   class Signed_out {
 
@@ -394,7 +411,6 @@ class IdentitiesFilterTest {
 
       assertThat(response.getStatus()).isEqualTo(401);
       assertThat(response.getHeader(HEADER)).isEqualTo("not-signed-in");
-      assertThat(reachedChain).isFalse();
     }
   }
 
@@ -556,7 +572,7 @@ class IdentitiesFilterTest {
 
     @Test
     void searching_by_email_without_email_sign_in_is_a_bad_request() throws Exception {
-      filter = filter(null, guard());
+      mvc = mvc(null, guard());
 
       MockHttpServletResponse response = get("/who/identities?email=bob@example.com");
 
@@ -632,7 +648,7 @@ class IdentitiesFilterTest {
 
     @Test
     void without_email_sign_in_shows_no_addresses() throws Exception {
-      filter = filter(null, guard());
+      mvc = mvc(null, guard());
 
       JsonNode view = json(get("/who/identities/" + caller.id()));
 
@@ -641,7 +657,7 @@ class IdentitiesFilterTest {
 
     @Test
     void without_a_guard_shows_no_counts() throws Exception {
-      filter = filter(emails, null);
+      mvc = mvc(emails, null);
 
       JsonNode view = json(get("/who/identities/" + caller.id()));
 
@@ -1152,28 +1168,6 @@ class IdentitiesFilterTest {
           .isEqualTo(200);
       assertThat(send("PUT", "/who/identities/" + other.id() + "/roles/admin", null).getStatus())
           .isEqualTo(204);
-    }
-  }
-
-  @Nested
-  class Other_requests {
-
-    @Test
-    void pass_through() throws Exception {
-      signIn(READ, MANAGE);
-
-      for (String[] request :
-          List.of(
-              new String[] {"POST", "/who/identities"},
-              new String[] {"DELETE", "/who/identities/" + caller.id()},
-              new String[] {"GET", "/who/identities/" + caller.id() + "/roles"},
-              new String[] {"POST", "/who/roles"},
-              new String[] {"GET", "/who/me"},
-              new String[] {"GET", "/identities"})) {
-        reachedChain.set(false);
-        send(request[0], request[1], null);
-        assertThat(reachedChain).as(String.join(" ", request)).isTrue();
-      }
     }
   }
 }

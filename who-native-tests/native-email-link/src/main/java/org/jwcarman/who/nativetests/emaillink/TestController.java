@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import org.jwcarman.who.admin.WhoAdminPermissions;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
 import org.jwcarman.who.emaillink.EmailCredentialService;
@@ -128,6 +129,9 @@ class TestController {
             () -> {
               Role role = rbac.createRole(ADMIN_ROLE);
               rbac.addPermissionToRole(role, ApiController.ADMIN_PERMISSION);
+              // and who's own admin endpoints
+              rbac.addPermissionToRole(role, WhoAdminPermissions.IDENTITIES_READ);
+              rbac.addPermissionToRole(role, WhoAdminPermissions.IDENTITIES_MANAGE);
               return role;
             });
   }

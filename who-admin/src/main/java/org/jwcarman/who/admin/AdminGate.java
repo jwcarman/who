@@ -17,22 +17,18 @@ package org.jwcarman.who.admin;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Optional;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
+import org.jwcarman.who.core.domain.WhoPrincipal;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoCaller;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
 import org.jwcarman.who.spring.security.web.BrowserSessionRequiredException;
 import org.jwcarman.who.spring.security.web.NotSignedInException;
 import org.jwcarman.who.spring.security.web.ReauthenticationRequiredException;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -43,50 +39,44 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * session whose sign-in is no longer recent is {@code 401} and must sign in again; a session cookie
  * with an API key or bearer token beside it, which the session signed in and the header did not, is
  * {@code 403}, as is any sign-in that is neither a browser session nor a bearer token or an API
- * key. Only a bearer token or an API key that signed the request in needs no recent sign-in. Every
- * refusal goes through the application's exception handling.
+ * key. Only a bearer token or an API key that signed the request in needs no recent sign-in. Each
+ * refusal is thrown.
  */
-final class AdminGate {
+public final class AdminGate {
 
   private final WhoSessionSecurityContextRepository sessions;
-  private final WhoExceptionHandoff handoff;
   private final Clock clock;
   private final Duration recentSignIn;
 
-  AdminGate(
-      WhoSessionSecurityContextRepository sessions,
-      WhoExceptionHandoff handoff,
-      Clock clock,
-      Duration recentSignIn) {
+  /**
+   * Creates the gate.
+   *
+   * @param sessions tells a browser session from a key or a token
+   * @param clock the current time
+   * @param recentSignIn how recently a browser session must have signed in to change anything
+   */
+  public AdminGate(
+      WhoSessionSecurityContextRepository sessions, Clock clock, Duration recentSignIn) {
     this.sessions = requireNonNull(sessions, "sessions must not be null");
-    this.handoff = requireNonNull(handoff, "handoff must not be null");
     this.clock = requireNonNull(clock, "clock must not be null");
     this.recentSignIn = requireNonNull(recentSignIn, "recentSignIn must not be null");
   }
 
   /**
-   * Lets the request in, or answers it.
+   * Admits the caller, or throws why not.
    *
    * @param request the request
-   * @param response its response, answered when the request is refused
    * @param permission the permission the request needs
-   * @param changes whether the request changes anything, so a browser session must be recent and
-   *     only a browser session, a bearer token or an API key may make it
-   * @return the caller's authentication if admitted; empty if the response has been answered
-   * @throws IOException if answering fails
+   * @param changes whether the request changes something, so a browser needs a recent sign-in
+   * @return the caller
    */
-  Optional<WhoAuthenticationToken> admit(
-      HttpServletRequest request, HttpServletResponse response, String permission, boolean changes)
-      throws IOException {
+  public WhoPrincipal admit(HttpServletRequest request, String permission, boolean changes) {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (!(authentication instanceof WhoAuthenticationToken token)) {
-      handoff.handOff(request, response, new NotSignedInException(), HttpStatus.UNAUTHORIZED);
-      return Optional.empty();
+      throw new NotSignedInException();
     }
     if (!token.getPrincipal().permissions().contains(permission)) {
-      handoff.handOff(
-          request, response, new PermissionRequiredException(permission), HttpStatus.FORBIDDEN);
-      return Optional.empty();
+      throw new PermissionRequiredException(permission);
     }
     if (changes) {
       switch (sessions.caller(request, token)) {
@@ -95,53 +85,14 @@ final class AdminGate {
         }
         case WhoCaller.Session session -> {
           if (!session.isRecent(recentSignIn, clock.instant())) {
-            handoff.handOff(
-                request,
-                response,
-                new ReauthenticationRequiredException(),
-                HttpStatus.UNAUTHORIZED);
-            return Optional.empty();
+            throw new ReauthenticationRequiredException();
           }
         }
-        case WhoCaller.SessionWithForeignCredential _, WhoCaller.Other _, WhoCaller.SignedOut _ -> {
-          handoff.handOff(
-              request,
-              response,
-              new BrowserSessionRequiredException(
-                  "Only a browser session or a bearer token or API key on its own can change this"),
-              HttpStatus.FORBIDDEN);
-          return Optional.empty();
-        }
+        case WhoCaller.SessionWithForeignCredential _, WhoCaller.Other _, WhoCaller.SignedOut _ ->
+            throw new BrowserSessionRequiredException(
+                "Only a browser session or a bearer token or API key on its own can change this");
       }
     }
-    return Optional.of(token);
-  }
-
-  /**
-   * Answers a request refused after it was admitted, with the status its exception carries.
-   *
-   * @param request the request
-   * @param response its response
-   * @param exception why it is refused; {@code 400} if it carries no status
-   * @throws IOException if answering fails
-   */
-  void refuse(HttpServletRequest request, HttpServletResponse response, Exception exception)
-      throws IOException {
-    handoff.handOff(request, response, exception, HttpStatus.BAD_REQUEST);
-  }
-
-  /**
-   * Answers a request that failed after it was admitted, for a reason who does not name: the
-   * application's exception handling answers it, else the status the exception carries, else {@code
-   * 500}.
-   *
-   * @param request the request
-   * @param response its response
-   * @param exception what failed
-   * @throws IOException if answering fails
-   */
-  void fail(HttpServletRequest request, HttpServletResponse response, Exception exception)
-      throws IOException {
-    handoff.handOff(request, response, exception, HttpStatus.INTERNAL_SERVER_ERROR);
+    return token.getPrincipal();
   }
 }

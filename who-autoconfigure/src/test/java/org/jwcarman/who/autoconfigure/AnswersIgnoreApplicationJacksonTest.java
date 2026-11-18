@@ -31,6 +31,7 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.who.admin.WhoAdminPermissions;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.email.WhoEmailSender;
@@ -41,6 +42,7 @@ import org.jwcarman.who.passkey.JdbcWhoPasskeyCredentialRepository;
 import org.jwcarman.who.passkey.JdbcWhoPasskeyUserRepository;
 import org.jwcarman.who.passkey.TestPasskeys;
 import org.jwcarman.who.rbac.RbacService;
+import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.web.SessionNotFoundException;
 import org.jwcarman.who.test.StubOidcProvider;
 import org.jwcarman.who.test.WhoMockMvcBrowser;
@@ -344,6 +346,50 @@ class AnswersIgnoreApplicationJacksonTest {
           .containsExactlyInAnyOrder(
               "id", "name", "scopes", "createdAt", "expiresAt", "lastUsedAt");
       assertThat(first.get("lastUsedAt").isNull()).isTrue();
+    }
+  }
+
+  @Nested
+  class Admin {
+
+    @BeforeEach
+    void anAdmin() {
+      Role role = rbac.createRole("jackson-admin-" + identity.id());
+      rbac.addPermissionToRole(role, WhoAdminPermissions.IDENTITIES_READ);
+      rbac.addPermissionToRole(role, WhoAdminPermissions.IDENTITIES_MANAGE);
+      rbac.assignRoleToIdentity(identity, role);
+    }
+
+    @Test
+    void a_page_keeps_its_shape() throws Exception {
+      MvcResult result = browser.perform(get("/who/identities?size=1")).andReturn();
+
+      assertThat(result.getResponse().getStatus())
+          .as(result.getResponse().getContentAsString())
+          .isEqualTo(200);
+      assertThat(body(result).propertyNames())
+          .containsExactlyInAnyOrder("items", "page", "size", "total");
+      JsonNode first = body(result).get("items").get(0);
+      assertThat(first.propertyNames())
+          .containsExactlyInAnyOrder(
+              "id", "status", "createdAt", "roles", "emailAddresses", "credentials");
+      assertThat(first.get("createdAt").isString()).isTrue();
+    }
+
+    @Test
+    void an_invitation_keeps_its_shape() throws Exception {
+      MvcResult result =
+          browser
+              .perform(
+                  post("/who/invitations")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content("{\"email\":\"invitee-" + UUID.randomUUID() + "@example.com\"}"))
+              .andReturn();
+
+      assertThat(result.getResponse().getStatus())
+          .as(result.getResponse().getContentAsString())
+          .isEqualTo(201);
+      assertThat(body(result).propertyNames()).containsExactlyInAnyOrder("identityId", "linkSent");
     }
   }
 

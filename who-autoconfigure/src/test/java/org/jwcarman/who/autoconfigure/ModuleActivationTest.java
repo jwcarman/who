@@ -26,10 +26,10 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.who.admin.IdentitiesController;
 import org.jwcarman.who.admin.IdentityEmails;
+import org.jwcarman.who.admin.InvitationsController;
 import org.jwcarman.who.admin.LastAdminGuard;
-import org.jwcarman.who.admin.WhoAdminEndpoints;
-import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.apikey.ApiKeyAuthenticationFilter;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.service.LastCredentialGuard;
@@ -252,7 +252,7 @@ class ModuleActivationTest {
                 assertThat(context).hasNotFailed();
                 assertThat(context).hasSingleBean(InvitationService.class);
                 assertThat(context).doesNotHaveBean(InvitationRoles.class);
-                assertThat(context).doesNotHaveBean(WhoInvitationEndpoints.class);
+                assertThat(context).doesNotHaveBean(InvitationsController.class);
               });
     }
 
@@ -277,9 +277,9 @@ class ModuleActivationTest {
       configured.run(
           context -> {
             assertThat(context).hasNotFailed();
-            assertThat(context).hasSingleBean(WhoAdminEndpoints.class);
+            assertThat(context).hasSingleBean(IdentitiesController.class);
             assertThat(context).hasSingleBean(IdentityEmails.class);
-            assertThat(context).hasSingleBean(WhoInvitationEndpoints.class);
+            assertThat(context).hasSingleBean(InvitationsController.class);
           });
     }
 
@@ -290,9 +290,9 @@ class ModuleActivationTest {
           .run(
               context -> {
                 assertThat(context).hasNotFailed();
-                assertThat(context).hasSingleBean(WhoAdminEndpoints.class);
+                assertThat(context).hasSingleBean(IdentitiesController.class);
                 assertThat(context).doesNotHaveBean(IdentityEmails.class);
-                assertThat(context).doesNotHaveBean(WhoInvitationEndpoints.class);
+                assertThat(context).doesNotHaveBean(InvitationsController.class);
               });
     }
 
@@ -303,9 +303,9 @@ class ModuleActivationTest {
           .run(
               context -> {
                 assertThat(context).hasNotFailed();
-                assertThat(context).doesNotHaveBean(WhoAdminEndpoints.class);
+                assertThat(context).doesNotHaveBean(IdentitiesController.class);
                 assertThat(context).doesNotHaveBean(IdentityEmails.class);
-                assertThat(context).doesNotHaveBean(WhoInvitationEndpoints.class);
+                assertThat(context).doesNotHaveBean(InvitationsController.class);
                 assertThat(context).hasSingleBean(InvitationService.class);
               });
     }

@@ -18,21 +18,18 @@ package org.jwcarman.who.admin;
 import java.io.IOException;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
-import org.jwcarman.who.spring.security.web.WhoJson;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Reads the admin endpoints' JSON bodies and writes their JSON answers. */
-final class AdminJson {
+/** Reads the admin endpoints' JSON bodies, size-capped; anything who refuses is {@code 400}. */
+final class AdminBodies {
 
   /** The largest body read, in bytes. */
   static final int MAX_BODY_BYTES = 8192;
 
-  private AdminJson() {}
+  private AdminBodies() {}
 
   /**
    * Reads the body as a JSON object.
@@ -63,17 +60,5 @@ final class AdminJson {
       throw new InvalidAdminRequestException("The body must be a JSON object");
     }
     return node;
-  }
-
-  /**
-   * Answers with a JSON body, written by who's own mapper (see {@link WhoJson}).
-   *
-   * @param response the response
-   * @param status its status
-   * @param body what to write
-   * @throws IOException if writing fails
-   */
-  static void write(HttpServletResponse response, int status, Object body) throws IOException {
-    WhoJson.write(response, status, body);
   }
 }

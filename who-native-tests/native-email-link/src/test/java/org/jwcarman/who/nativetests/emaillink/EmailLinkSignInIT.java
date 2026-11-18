@@ -206,6 +206,55 @@ class EmailLinkSignInIT {
   }
 
   @Nested
+  class Admin {
+
+    @Test
+    void an_admin_lists_reads_and_invites() {
+      try (WhoClient client = client()) {
+        String address = newAddress();
+        String identityId = setUpIdentity(client, address, true);
+        signInByLink(client, address);
+
+        WhoClient.Response page = client.get("/who/identities?size=5");
+        assertThat(page.status()).as(page.body()).isEqualTo(200);
+        assertThat(page.json().propertyNames())
+            .containsExactlyInAnyOrder("items", "page", "size", "total");
+
+        WhoClient.Response one = client.get("/who/identities/" + identityId);
+        assertThat(one.status()).as(one.body()).isEqualTo(200);
+        assertThat(one.json().path("emailAddresses").get(0).asString()).isEqualTo(address);
+        assertThat(one.json().path("createdAt").isString()).isTrue();
+
+        WhoClient.Response roles = client.get("/who/roles");
+        assertThat(roles.status()).as(roles.body()).isEqualTo(200);
+        assertThat(roles.json().valueStream().map(r -> r.path("name").asString()))
+            .contains(TestController.ADMIN_ROLE);
+
+        String invitee = newAddress();
+        WhoClient.Response invited =
+            client.post("/who/invitations", WhoClient.json(Map.of("email", invitee)));
+        assertThat(invited.status()).as(invited.body()).isEqualTo(201);
+        assertThat(invited.json().path("linkSent").asBoolean()).isTrue();
+        assertThat(TestEndpoints.awaitMail(client, invitee)).contains("You have been invited");
+      }
+    }
+
+    @Test
+    void without_the_permission_it_is_whos_problem() {
+      try (WhoClient client = client()) {
+        String address = newAddress();
+        setUpIdentity(client, address, false);
+        signInByLink(client, address);
+
+        WhoClient.Response response = client.get("/who/identities");
+
+        assertThat(response.status()).isEqualTo(403);
+        assertThat(response.json().path("code").asString()).isEqualTo("permission-required");
+      }
+    }
+  }
+
+  @Nested
   class Links {
 
     @Test

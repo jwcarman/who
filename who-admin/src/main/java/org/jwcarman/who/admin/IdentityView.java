@@ -24,6 +24,12 @@ import java.util.UUID;
 
 import org.jwcarman.who.core.domain.IdentityStatus;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
+
 /**
  * An identity as who's admin endpoints show it.
  *
@@ -35,10 +41,12 @@ import org.jwcarman.who.core.domain.IdentityStatus;
  * @param credentials how many sign-in credentials it holds, by kind ({@code email}, {@code
  *     passkey}, {@code account}); empty when who cannot count them
  */
+@JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
+@JsonInclude(JsonInclude.Include.ALWAYS)
 public record IdentityView(
     UUID id,
     IdentityStatus status,
-    Instant createdAt,
+    @JsonFormat(shape = JsonFormat.Shape.STRING) Instant createdAt,
     List<String> roles,
     List<String> emailAddresses,
     Map<String, Long> credentials) {

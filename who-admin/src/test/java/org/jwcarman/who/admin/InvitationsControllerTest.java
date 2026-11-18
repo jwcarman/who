@@ -31,16 +31,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpSession;
 
 import org.junit.jupiter.api.AfterEach;
@@ -68,7 +64,7 @@ import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.spring.security.WhoAuthenticationToken;
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
+import org.jwcarman.who.spring.security.web.WhoErrorResolver;
 import org.jwcarman.who.test.InMemorySessionRecordRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -77,17 +73,19 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class InvitationsFilterTest {
+class InvitationsControllerTest {
 
   private static final JsonMapper JSON = new JsonMapper();
   private static final String MANAGE = WhoAdminPermissions.IDENTITIES_MANAGE;
-  private static final String HEADER = WhoExceptionHandoff.HEADER;
+  private static final String HEADER = "Who-Error";
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final Duration RECENT = Duration.ofMinutes(10);
   private static final String PATH = "/who/invitations";
@@ -116,8 +114,6 @@ class InvitationsFilterTest {
 
   private final InvitationService invitations = mock(InvitationService.class);
   private final RbacService rbac = mock(RbacService.class);
-  private final AtomicBoolean reachedChain = new AtomicBoolean();
-  private final FilterChain chain = (req, res) -> reachedChain.set(true);
   private final MutableClock clock = new MutableClock();
   private final IdentityRepository identities = mock(IdentityRepository.class);
   private final CredentialIdentityRepository links = mock(CredentialIdentityRepository.class);
@@ -136,7 +132,7 @@ class InvitationsFilterTest {
   private final UUID invited = UUID.randomUUID();
   private final Identity caller = Identity.create();
   private HttpSession browser;
-  private InvitationsFilter filter;
+  private MockMvc mvc;
 
   @BeforeEach
   void setUp() {
@@ -148,14 +144,12 @@ class InvitationsFilterTest {
     when(rbac.findRole("ghost")).thenReturn(Optional.empty());
     when(invitations.invite(anyString(), any()))
         .thenReturn(new Invitation(invited, EmailLinkOutcome.SENT));
-    WhoExceptionHandoff handoff = new WhoExceptionHandoff(WhoPaths.defaults(), null);
-    filter =
-        new InvitationsFilter(
-            WhoPaths.defaults(),
-            invitations,
-            rbac,
-            new AdminGate(sessions, handoff, clock, RECENT),
-            JSON);
+    mvc =
+        MockMvcBuilders.standaloneSetup(
+                new InvitationsController(
+                    invitations, rbac, new AdminGate(sessions, clock, RECENT), JSON))
+            .setHandlerExceptionResolvers(new WhoErrorResolver(WhoPaths.defaults()))
+            .build();
   }
 
   @AfterEach
@@ -208,9 +202,8 @@ class InvitationsFilterTest {
       request.setSession(browser);
       SecurityContextHolder.setContext(sessions.loadDeferredContext(request).get());
     }
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    filter.doFilter(request, response, chain);
-    return response;
+    // dispatched as built, with the security context already set for it
+    return mvc.perform(servletContext -> request).andReturn().getResponse();
   }
 
   private MockHttpServletResponse invite(String body) throws Exception {
@@ -243,7 +236,6 @@ class InvitationsFilterTest {
       assertThat(json(response).get("identityId").asString()).isEqualTo(invited.toString());
       assertThat(json(response).get("linkSent").asBoolean()).isTrue();
       verify(invitations).invite(ADDRESS, Set.of("editor"));
-      assertThat(reachedChain).isFalse();
     }
 
     @Test
@@ -303,26 +295,12 @@ class InvitationsFilterTest {
 
     @Test
     void any_other_failure_is_answered_by_who_as_a_server_error() throws Exception {
-      List<Exception> handedOff = new ArrayList<>();
-      filter =
-          new InvitationsFilter(
-              WhoPaths.defaults(),
-              invitations,
-              rbac,
-              new AdminGate(
-                  sessions,
-                  new WhoExceptionHandoff(WhoPaths.defaults(), (req, res, e) -> !handedOff.add(e)),
-                  clock,
-                  RECENT),
-              JSON);
       signIn(MANAGE);
       IllegalStateException failure = new IllegalStateException("the listener failed");
       when(invitations.invite(anyString(), any())).thenThrow(failure);
 
       MockHttpServletResponse response = invite(body(ADDRESS));
 
-      // under who's base path the application's handlers are not asked
-      assertThat(handedOff).isEmpty();
       assertThat(response.getStatus()).isEqualTo(500);
       assertThat(response.getHeader(HEADER)).isEqualTo("server-error");
       assertThat(response.getContentAsString()).doesNotContain("the listener failed");
@@ -507,25 +485,10 @@ class InvitationsFilterTest {
 
     @Test
     void an_oversized_body_is_bad_request() throws Exception {
-      String big = "{\"email\":\"" + "a".repeat(AdminJson.MAX_BODY_BYTES) + "\"}";
+      String big = "{\"email\":\"" + "a".repeat(AdminBodies.MAX_BODY_BYTES) + "\"}";
 
       assertThat(invite(big).getStatus()).isEqualTo(400);
       verifyNoInteractions(invitations);
     }
-  }
-
-  @Test
-  void other_requests_pass_through() throws Exception {
-    signIn(MANAGE);
-
-    for (String method : new String[] {"GET", "PUT", "DELETE"}) {
-      reachedChain.set(false);
-      send(method, PATH, null);
-      assertThat(reachedChain).as(method).isTrue();
-    }
-    reachedChain.set(false);
-    send("POST", "/invitations", body(ADDRESS));
-    assertThat(reachedChain).isTrue();
-    verifyNoInteractions(invitations);
   }
 }

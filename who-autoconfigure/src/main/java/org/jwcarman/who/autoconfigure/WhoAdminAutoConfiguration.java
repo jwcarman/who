@@ -17,12 +17,14 @@ package org.jwcarman.who.autoconfigure;
 
 import java.time.Clock;
 
+import org.jwcarman.who.admin.AdminGate;
 import org.jwcarman.who.admin.EmailLinkIdentityEmails;
+import org.jwcarman.who.admin.IdentitiesController;
 import org.jwcarman.who.admin.IdentityEmails;
+import org.jwcarman.who.admin.InvitationsController;
 import org.jwcarman.who.admin.LastAdminGuard;
-import org.jwcarman.who.admin.WhoAdminEndpoints;
+import org.jwcarman.who.admin.RolesController;
 import org.jwcarman.who.admin.WhoAdminPermissions;
-import org.jwcarman.who.admin.WhoInvitationEndpoints;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.LastCredentialGuard;
@@ -32,9 +34,7 @@ import org.jwcarman.who.emaillink.EmailCredentialService;
 import org.jwcarman.who.emaillink.InvitationService;
 import org.jwcarman.who.rbac.RbacPermissionsResolver;
 import org.jwcarman.who.rbac.RbacService;
-import org.jwcarman.who.spring.security.WhoPaths;
 import org.jwcarman.who.spring.security.WhoSessionSecurityContextRepository;
-import org.jwcarman.who.spring.security.web.WhoExceptionHandoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -67,7 +67,7 @@ import tools.jackson.databind.json.JsonMapper;
 // who-admin brings who-rbac; the second class is the one RbacService's registration keys on
 @ConditionalOnClass(
     name = {
-      "org.jwcarman.who.admin.WhoAdminEndpoints",
+      "org.jwcarman.who.admin.IdentitiesController",
       "org.jwcarman.who.rbac.RbacPermissionsResolver"
     })
 @ConditionalOnBooleanProperty(name = "who.admin.enabled", matchIfMissing = true)
@@ -112,51 +112,69 @@ public class WhoAdminAutoConfiguration {
   }
 
   /**
-   * The admin endpoints at {@code /identities} and {@code /roles} under {@code who.base-path}, on
-   * every browser chain and every stateless chain.
+   * The checks every admin endpoint makes first: signed in, the permission, and a recent sign-in
+   * for a browser that changes something.
    *
-   * @param paths where the endpoints live
+   * @param sessionRepository tells a browser session from a key or a token
+   * @param clock the current time
+   * @param properties {@code who.security.recent-sign-in}
+   * @return the gate
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public AdminGate whoAdminGate(
+      WhoSessionSecurityContextRepository sessionRepository,
+      Clock clock,
+      WhoProperties properties) {
+    return new AdminGate(sessionRepository, clock, properties.getSecurity().getRecentSignIn());
+  }
+
+  /**
+   * The identity admin endpoints at {@code /identities} under {@code who.base-path}.
+   *
    * @param identityRepository pages through and reads identities
    * @param whoService deactivates and reactivates identities
    * @param rbacService reads, assigns and removes roles
    * @param emails the identities' addresses, when email sign-in is on
    * @param guard counts each identity's sign-in credentials, if there is one
    * @param lastAdmin keeps the last identity that may manage identities
-   * @param sessionRepository tells a browser session from a key or a token
-   * @param handoff the application's exception handling, if it has who's handoff
-   * @param jsonMapper the application's JSON mapper, if it has one
-   * @param clock the current time
-   * @param properties {@code who.security.recent-sign-in}
-   * @return the endpoints
+   * @param gate admits the caller
+   * @param jsonMapper reads request bodies; a default one when the application has none
+   * @return the controller
    */
   @Bean
   @ConditionalOnMissingBean
-  public WhoAdminEndpoints whoAdminEndpoints(
-      WhoPaths paths,
+  public IdentitiesController whoIdentitiesController(
       IdentityRepository identityRepository,
       WhoService whoService,
       RbacService rbacService,
       ObjectProvider<IdentityEmails> emails,
       ObjectProvider<LastCredentialGuard> guard,
       LastAdminGuard lastAdmin,
-      WhoSessionSecurityContextRepository sessionRepository,
-      ObjectProvider<WhoExceptionHandoff> handoff,
-      ObjectProvider<JsonMapper> jsonMapper,
-      Clock clock,
-      WhoProperties properties) {
-    return new WhoAdminEndpoints(
-        paths,
+      AdminGate gate,
+      ObjectProvider<JsonMapper> jsonMapper) {
+    return new IdentitiesController(
         identityRepository,
         whoService,
         rbacService,
         emails.getIfAvailable(),
         guard.getIfAvailable(),
         lastAdmin,
-        sessionRepository,
-        handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
-        jsonMapper.getIfAvailable(JsonMapper::new),
-        clock,
-        properties.getSecurity().getRecentSignIn());
+        gate,
+        jsonMapper.getIfAvailable(JsonMapper::new));
+  }
+
+  /**
+   * {@code GET /roles} under {@code who.base-path}.
+   *
+   * @param rbacService lists the roles and their permissions
+   * @param gate admits the caller
+   * @return the controller
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public RolesController whoRolesController(RbacService rbacService, AdminGate gate) {
+    return new RolesController(rbacService, gate);
   }
 
   /** Finds identities by address when {@code who-email-link} is on the classpath and on. */
@@ -174,40 +192,25 @@ public class WhoAdminAutoConfiguration {
     }
 
     /**
-     * {@code POST /invitations} under {@code who.base-path}, on every browser chain and every
-     * stateless chain, when email sign-in's {@link InvitationService} is there.
+     * {@code POST /invitations} under {@code who.base-path}, when email sign-in's {@link
+     * InvitationService} is there.
      *
-     * @param paths where the endpoint lives
      * @param invitationService invites the address
      * @param rbacService finds the roles named and reads their permissions
-     * @param sessionRepository tells a browser session from a key or a token
-     * @param handoff the application's exception handling, if it has who's handoff
-     * @param jsonMapper the application's JSON mapper, if it has one
-     * @param clock the current time
-     * @param properties {@code who.security.recent-sign-in}
-     * @return the endpoint
+     * @param gate admits the caller
+     * @param jsonMapper reads request bodies; a default one when the application has none
+     * @return the controller
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(InvitationService.class)
-    public WhoInvitationEndpoints whoInvitationEndpoints(
-        WhoPaths paths,
+    public InvitationsController whoInvitationsController(
         InvitationService invitationService,
         RbacService rbacService,
-        WhoSessionSecurityContextRepository sessionRepository,
-        ObjectProvider<WhoExceptionHandoff> handoff,
-        ObjectProvider<JsonMapper> jsonMapper,
-        Clock clock,
-        WhoProperties properties) {
-      return new WhoInvitationEndpoints(
-          paths,
-          invitationService,
-          rbacService,
-          sessionRepository,
-          handoff.getIfAvailable(() -> new WhoExceptionHandoff(paths, null)),
-          jsonMapper.getIfAvailable(JsonMapper::new),
-          clock,
-          properties.getSecurity().getRecentSignIn());
+        AdminGate gate,
+        ObjectProvider<JsonMapper> jsonMapper) {
+      return new InvitationsController(
+          invitationService, rbacService, gate, jsonMapper.getIfAvailable(JsonMapper::new));
     }
   }
 }
