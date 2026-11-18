@@ -41,13 +41,23 @@ class MustacheWhoEmailRendererTest {
   private static final String LINK = "https://x/?a=1&b=2";
   private static final String APP_LOCATION = "classpath:/app-templates/";
   private static final String EMPTY_LOCATION = "classpath:/no-such-templates/";
+  private static final String LIB = "classpath:/lib-templates/";
+  private static final String LIB2 = "classpath:/lib2-templates/";
 
   private final StaticMessageSource messages = messages();
 
   private static StaticMessageSource messages() {
     StaticMessageSource source = new StaticMessageSource();
     for (String template :
-        List.of("greeting", "farewell", "nope", "nullish", "partial", "extra", "absent")) {
+        List.of(
+            "greeting",
+            "farewell",
+            "nope",
+            "nullish",
+            "partial",
+            "extra",
+            "absent",
+            "withfooter")) {
       source.addMessage("who.email." + template + ".subject", Locale.ENGLISH, "About " + template);
     }
     source.addMessage("who.email.greeting.subject", Locale.FRENCH, "Bonjour");
@@ -60,9 +70,18 @@ class MustacheWhoEmailRendererTest {
 
   private MustacheWhoEmailRenderer renderer(
       String location, List<WhoEmailModelContributor> contributors) {
+    return renderer(List.of(location), contributors);
+  }
+
+  private MustacheWhoEmailRenderer renderer(List<String> locations) {
+    return renderer(locations, List.of());
+  }
+
+  private MustacheWhoEmailRenderer renderer(
+      List<String> locations, List<WhoEmailModelContributor> contributors) {
     return new MustacheWhoEmailRenderer(
         new PathMatchingResourcePatternResolver(),
-        location,
+        locations,
         messages,
         Map.of("name", "Roux"),
         contributors);
@@ -144,6 +163,71 @@ class MustacheWhoEmailRendererTest {
       assertThatThrownBy(() -> renderer("classpath:/broken-templates/"))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("bad.txt");
+    }
+  }
+
+  @Nested
+  class Locations {
+
+    @Test
+    void a_library_template_beats_the_built_in() {
+      assertThat(
+              renderer(List.of(EMPTY_LOCATION, LIB))
+                  .render(email("greeting"), Locale.ENGLISH)
+                  .text())
+          .isEqualTo("Library hello Ann");
+    }
+
+    @Test
+    void the_application_beats_a_library() {
+      assertThat(
+              renderer(List.of(APP_LOCATION, LIB)).render(email("farewell"), Locale.ENGLISH).text())
+          .isEqualTo("See you Ann");
+    }
+
+    @Test
+    void the_first_library_wins() {
+      assertThat(
+              renderer(List.of(EMPTY_LOCATION, LIB2, LIB))
+                  .render(email("greeting"), Locale.ENGLISH)
+                  .text())
+          .isEqualTo("Second library hello");
+    }
+
+    @Test
+    void a_partial_comes_from_a_library_when_the_application_lacks_it() {
+      assertThat(
+              renderer(List.of(APP_LOCATION, LIB))
+                  .render(email("withfooter"), Locale.ENGLISH)
+                  .text())
+          .isEqualTo("Body and library footer");
+    }
+
+    @Test
+    void a_missing_library_location_is_skipped() {
+      assertThat(
+              renderer(List.of(EMPTY_LOCATION, "classpath:/no-such-library/"))
+                  .render(email("greeting"), Locale.ENGLISH)
+                  .text())
+          .isEqualTo("Hello Ann from Roux: https://x/?a=1&b=2");
+    }
+
+    @Test
+    void a_library_template_that_does_not_compile_fails_creation() {
+      List<String> locations = List.of(EMPTY_LOCATION, "classpath:/broken-lib-templates/");
+
+      assertThatThrownBy(() -> renderer(locations))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("bad.txt");
+    }
+
+    @Test
+    void a_location_without_a_trailing_slash_is_found() {
+      assertThat(
+              renderer(List.of(EMPTY_LOCATION, "classpath:/lib-templates"))
+                  .render(email("greeting"), Locale.ENGLISH)
+                  .text())
+          .isEqualTo("Library hello Ann");
     }
   }
 

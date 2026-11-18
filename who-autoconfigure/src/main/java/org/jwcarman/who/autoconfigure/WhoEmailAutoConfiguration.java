@@ -104,7 +104,7 @@ public class WhoEmailAutoConfiguration {
       WhoProperties.Email email = properties.getEmail();
       return new MustacheWhoEmailRenderer(
           resources,
-          email.getTemplates(),
+          List.of(email.getTemplates()),
           new AppFirstMessageSource(app, who),
           email.getModel(),
           List.copyOf(contributors.orderedStream().toList()));

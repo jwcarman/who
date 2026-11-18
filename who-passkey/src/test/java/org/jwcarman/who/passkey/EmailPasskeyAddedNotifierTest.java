@@ -54,7 +54,7 @@ class EmailPasskeyAddedNotifierTest {
   private final MustacheWhoEmailRenderer renderer =
       new MustacheWhoEmailRenderer(
           new PathMatchingResourcePatternResolver(),
-          "classpath:/no-app-templates/",
+          List.of("classpath:/no-app-templates/"),
           messages(),
           Map.of(),
           List.of());

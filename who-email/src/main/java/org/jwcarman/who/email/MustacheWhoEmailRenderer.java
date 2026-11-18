@@ -29,6 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 import org.jwcarman.who.core.email.OutgoingEmail;
 import org.jwcarman.who.core.email.WhoEmail;
@@ -45,10 +46,11 @@ import com.samskivert.mustache.Template;
  * Renders who's emails from Mustache templates.
  *
  * <p>An email whose {@link WhoEmail#template()} is {@code sign-in} renders {@code sign-in.txt} as
- * its text and, when it exists, {@code sign-in.html} as its HTML. Each file is looked for first in
- * the application's template location, then among who's built-in templates at {@link
- * #BUILT_IN_LOCATION}, so an application replaces one file without touching the others. Partials
- * ({@code {{> footer}}}) are found the same way, with the including template's extension.
+ * its text and, when it exists, {@code sign-in.html} as its HTML. Each file is looked for in the
+ * given template locations, in order, then among who's built-in templates at {@link
+ * #BUILT_IN_LOCATION}; the first that has it wins, so an application or a library replaces one file
+ * without touching the others. Partials ({@code {{> footer}}}) are found the same way, with the
+ * including template's extension.
  *
  * <p>A template sees three names: {@code email}, the email record itself; {@code app}, the
  * application-wide values; and {@code extra}, the values from {@link WhoEmailModelContributor}s. A
@@ -57,7 +59,7 @@ import com.samskivert.mustache.Template;
  *
  * <p>The subject is the message {@code who.email.<template>.subject} in the email's locale.
  *
- * <p>Every template in both locations is compiled when the renderer is created, so a template that
+ * <p>Every template in every location is compiled when the renderer is created, so a template that
  * does not compile fails startup rather than the first send.
  */
 public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
@@ -82,7 +84,8 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
    * Creates the renderer and compiles every template it can find.
    *
    * @param resources finds the templates
-   * @param templateLocation the application's template location, searched before who's own
+   * @param templateLocations the locations searched before who's own, in order: the application's,
+   *     then the libraries'; a missing trailing {@code /} is added
    * @param messages supplies the subjects
    * @param app the application-wide values, seen as {@code app}
    * @param contributors supply the values seen as {@code extra}, in order
@@ -90,14 +93,17 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
    */
   public MustacheWhoEmailRenderer(
       ResourcePatternResolver resources,
-      String templateLocation,
+      List<String> templateLocations,
       MessageSource messages,
       Map<String, String> app,
       List<WhoEmailModelContributor> contributors) {
     this.resources = requireNonNull(resources, "resources must not be null");
-    requireNonNull(templateLocation, "templateLocation must not be null");
-    String location = templateLocation.endsWith("/") ? templateLocation : templateLocation + "/";
-    this.locations = List.of(location, BUILT_IN_LOCATION);
+    requireNonNull(templateLocations, "templateLocations must not be null");
+    List<String> given =
+        templateLocations.stream()
+            .map(location -> location.endsWith("/") ? location : location + "/")
+            .toList();
+    this.locations = Stream.concat(given.stream(), Stream.of(BUILT_IN_LOCATION)).toList();
     this.messages = requireNonNull(messages, "messages must not be null");
     this.app = Map.copyOf(requireNonNull(app, "app must not be null"));
     this.contributors = List.copyOf(requireNonNull(contributors, "contributors must not be null"));
@@ -105,7 +111,7 @@ public final class MustacheWhoEmailRenderer implements WhoEmailRenderer {
     // HTML templates escape their values
     this.textCompiler = compiler(TEXT).escapeHTML(false);
     this.htmlCompiler = compiler(HTML);
-    verify(location);
+    given.forEach(this::verify);
     verify(BUILT_IN_PATTERN);
   }
 
