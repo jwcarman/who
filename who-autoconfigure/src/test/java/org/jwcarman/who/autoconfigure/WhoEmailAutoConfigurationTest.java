@@ -30,6 +30,7 @@ import org.jwcarman.who.core.email.WhoEmailRenderer;
 import org.jwcarman.who.core.email.WhoEmailSender;
 import org.jwcarman.who.core.email.WhoEmails;
 import org.jwcarman.who.email.MustacheWhoEmailRenderer;
+import org.jwcarman.who.email.WhoEmailMessages;
 import org.jwcarman.who.email.WhoEmailTemplates;
 import org.jwcarman.who.email.smtp.SmtpWhoEmailSender;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -173,6 +174,27 @@ class WhoEmailAutoConfigurationTest {
                 assertThat(out.text()).isEqualTo("From the library");
                 assertThat(out.subject()).isEqualTo("Library subject");
               });
+    }
+
+    @Test
+    void a_librarys_subject_beats_whos_own_for_the_same_key() {
+      runner
+          .withUserConfiguration(OneLibrary.class)
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .withBean(
+              WhoEmailMessages.class, () -> new WhoEmailMessages("who-email-test/who-messages"))
+          .run(
+              context -> assertThat(renderLibTest(context).subject()).isEqualTo("Library subject"));
+    }
+
+    @Test
+    void whos_own_subject_answers_without_a_library() {
+      runner
+          .withBean(WhoEmailSender.class, () -> email -> {})
+          .withBean(
+              WhoEmailMessages.class, () -> new WhoEmailMessages("who-email-test/who-messages"))
+          .withPropertyValues("who.email.templates=classpath:/lib-email/")
+          .run(context -> assertThat(renderLibTest(context).subject()).isEqualTo("Who subject"));
     }
 
     @Test
