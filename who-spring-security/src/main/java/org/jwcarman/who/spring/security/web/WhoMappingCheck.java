@@ -35,10 +35,11 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 /**
  * Fails startup when who's controllers would not answer where who's sign-in filters, logout, public
  * paths and error handling expect them: at {@link WhoPaths#of}. Each of who's own controller
- * mappings declared under {@link WhoPaths#ROOT} must resolve to one of its declared paths there (an
- * application's controller that uses the constant is not checked), so a path prefix the application
- * puts on its controllers, a {@code WhoPaths} bean whose root is not {@code who.base-path}, or a
- * {@code spring.mvc.servlet.path} other than {@code /} is refused, naming the mapping.
+ * mappings declared under {@link WhoPaths#MAPPING} must resolve to one of its declared paths there
+ * (an application's controller that uses the constant is not checked), so a path prefix the
+ * application puts on its controllers, a {@code WhoPaths} bean whose root is not {@code
+ * who.base-path}, or a {@code spring.mvc.servlet.path} other than {@code /} is refused, naming the
+ * mapping.
  */
 public final class WhoMappingCheck implements SmartInitializingSingleton {
 
@@ -96,7 +97,7 @@ public final class WhoMappingCheck implements SmartInitializingSingleton {
 
   private void check(RequestMappingInfo info, HandlerMethod method, List<String> wrong) {
     // who's own controllers, including methods an application's subclass inherits; an
-    // application's controller that uses WhoPaths.ROOT is its own business
+    // application's controller that uses WhoPaths.MAPPING is its own business
     if (!method.getMethod().getDeclaringClass().getPackageName().startsWith(WHO_PACKAGE)) {
       return;
     }
@@ -107,8 +108,8 @@ public final class WhoMappingCheck implements SmartInitializingSingleton {
     }
     Set<String> expected = new LinkedHashSet<>();
     for (String path : declared.path()) {
-      if (path.startsWith(WhoPaths.ROOT)) {
-        expected.add(paths.of(path.substring(WhoPaths.ROOT.length())));
+      if (path.startsWith(WhoPaths.MAPPING)) {
+        expected.add(paths.of(path.substring(WhoPaths.MAPPING.length())));
       }
     }
     if (expected.isEmpty()) {

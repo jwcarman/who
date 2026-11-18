@@ -63,7 +63,9 @@ class ApiKeyBodiesTest {
           }
         };
 
-    assertThatThrownBy(() -> ApiKeyBodies.read(new JsonMapper(), aborted))
+    JsonMapper jsonMapper = new JsonMapper();
+
+    assertThatThrownBy(() -> ApiKeyBodies.read(jsonMapper, aborted))
         .isInstanceOf(InvalidApiKeyRequestException.class)
         .hasMessage("The body could not be read");
   }

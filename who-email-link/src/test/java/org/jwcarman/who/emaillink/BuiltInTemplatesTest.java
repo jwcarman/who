@@ -119,11 +119,16 @@ class BuiltInTemplatesTest {
   class AddressConfirmation {
 
     private static final String TAIL =
-        "\n\nOr enter this code: K7F-2QM"
-            + "\n\nThe link and the code expire in 15 minutes and work once, while you are"
-            + " signed in."
-            + "\n\nIf you didn't ask to add this address, ignore this email and nothing changes."
-            + " Never share this code with anyone.";
+        """
+
+
+        Or enter this code: K7F-2QM
+
+        The link and the code expire in 15 minutes and work once, while you are \
+        signed in.
+
+        If you didn't ask to add this address, ignore this email and nothing changes. \
+        Never share this code with anyone.""";
 
     @Test
     void an_added_address_renders_todays_subject_and_text() {
@@ -160,10 +165,12 @@ class BuiltInTemplatesTest {
       assertThat(out.subject()).isEqualTo("Your email address was changed");
       assertThat(out.text())
           .isEqualTo(
-              "Your account's email address was changed to n***@example.com."
-                  + " This address no longer signs in."
-                  + "\n\nIf you didn't make this change, someone else may have access to your"
-                  + " account: contact the site right away.");
+              """
+              Your account's email address was changed to n***@example.com. \
+              This address no longer signs in.
+
+              If you didn't make this change, someone else may have access to your \
+              account: contact the site right away.""");
     }
   }
 }

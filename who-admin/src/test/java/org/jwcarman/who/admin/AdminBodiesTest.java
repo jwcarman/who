@@ -63,7 +63,9 @@ class AdminBodiesTest {
           }
         };
 
-    assertThatThrownBy(() -> AdminBodies.readObject(new JsonMapper(), aborted))
+    JsonMapper jsonMapper = new JsonMapper();
+
+    assertThatThrownBy(() -> AdminBodies.readObject(jsonMapper, aborted))
         .isInstanceOf(InvalidAdminRequestException.class)
         .hasMessage("The body could not be read");
   }

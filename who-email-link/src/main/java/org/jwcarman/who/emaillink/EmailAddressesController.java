@@ -115,7 +115,7 @@ public class EmailAddressesController {
    *
    * @return the addresses
    */
-  @GetMapping(WhoPaths.ROOT + "/me/email-addresses")
+  @GetMapping(WhoPaths.MAPPING + "/me/email-addresses")
   public List<EmailAddressView> list() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (!(authentication instanceof WhoAuthenticationToken token)) {
@@ -137,7 +137,7 @@ public class EmailAddressesController {
    *
    * @param request the request, whose body names the address
    */
-  @PostMapping(WhoPaths.ROOT + "/me/email-addresses")
+  @PostMapping(WhoPaths.MAPPING + "/me/email-addresses")
   @ResponseStatus(HttpStatus.ACCEPTED)
   public void request(HttpServletRequest request) {
     Identity identity = recentBrowser(request, "add or change");
@@ -161,7 +161,7 @@ public class EmailAddressesController {
    * @param request the request, whose body carries the token or the code
    * @return the confirmed address's credential id
    */
-  @PostMapping(WhoPaths.ROOT + "/me/email-addresses/confirmations")
+  @PostMapping(WhoPaths.MAPPING + "/me/email-addresses/confirmations")
   public AddedEmailAddress confirm(HttpServletRequest request) {
     Identity identity = recentBrowser(request, "add or change");
     Map<String, String> body = JsonBodies.readStrings(jsonMapper, request, "token", "code");
@@ -181,7 +181,7 @@ public class EmailAddressesController {
    * @param id the address's credential id, as the list shows it
    * @param request the request
    */
-  @DeleteMapping(WhoPaths.ROOT + "/me/email-addresses/{id}")
+  @DeleteMapping(WhoPaths.MAPPING + "/me/email-addresses/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void remove(@PathVariable("id") String id, HttpServletRequest request) {
     UUID identityId = recentBrowser(request, "remove").id();

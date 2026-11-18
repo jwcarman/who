@@ -99,8 +99,8 @@ public final class WhoProblems {
     if (problem.status() >= 500) {
       log.error(
           "{} {} failed; answering {}",
-          request.getMethod(),
-          request.getRequestURI(),
+          LogValues.printable(request.getMethod()),
+          LogValues.printable(request.getRequestURI()),
           problem.status(),
           exception);
     }
@@ -117,7 +117,7 @@ public final class WhoProblems {
     byte[] body = JSON.writeValueAsBytes(problem);
     try {
       response.getOutputStream().write(body);
-    } catch (IllegalStateException writerInUse) {
+    } catch (IllegalStateException _) {
       // something before the failure wrote through the writer; resetBuffer keeps that choice
       response.setCharacterEncoding(StandardCharsets.UTF_8);
       response.getWriter().write(new String(body, StandardCharsets.UTF_8));

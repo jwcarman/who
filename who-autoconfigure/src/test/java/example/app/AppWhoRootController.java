@@ -30,7 +30,7 @@ public class AppWhoRootController {
    *
    * @return a greeting
    */
-  @GetMapping({WhoPaths.ROOT + "/extra/a", WhoPaths.ROOT + "/extra/b"})
+  @GetMapping({WhoPaths.MAPPING + "/extra/a", WhoPaths.MAPPING + "/extra/b"})
   public String extra() {
     return "extra";
   }

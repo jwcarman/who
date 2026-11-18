@@ -92,8 +92,8 @@ public class IdentitiesController {
   /** The largest page size. */
   static final int MAX_SIZE = 100;
 
-  private static final String IDENTITIES = WhoPaths.ROOT + "/identities";
-  private static final String IDENTITY = IDENTITIES + "/{id}";
+  private static final String IDENTITIES_PATH = WhoPaths.MAPPING + "/identities";
+  private static final String IDENTITY = IDENTITIES_PATH + "/{id}";
   private static final String ROLE = IDENTITY + "/roles/{role}";
 
   private final IdentityRepository identities;
@@ -142,7 +142,7 @@ public class IdentitiesController {
    * @param request the request, whose query names the filters, the page and its size
    * @return the page
    */
-  @GetMapping(IDENTITIES)
+  @GetMapping(IDENTITIES_PATH)
   public IdentityPage page(HttpServletRequest request) {
     gate.admit(request, WhoAdminPermissions.IDENTITIES_READ, false);
     int page = intParameter(request, "page", 0);

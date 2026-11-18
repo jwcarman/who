@@ -53,7 +53,7 @@ public class RolesController {
    * @param request the request
    * @return the roles, each with its permissions sorted
    */
-  @GetMapping(WhoPaths.ROOT + "/roles")
+  @GetMapping(WhoPaths.MAPPING + "/roles")
   public List<RoleView> roles(HttpServletRequest request) {
     gate.admit(request, WhoAdminPermissions.IDENTITIES_READ, false);
     return rbac.listRoles().stream()

@@ -85,7 +85,7 @@ public class InvitationsController {
    * @param request the request, whose body is {@code {"email": "...", "roles": ["..."]}}
    * @return the invited identity and whether its sign-in link was sent
    */
-  @PostMapping(WhoPaths.ROOT + "/invitations")
+  @PostMapping(WhoPaths.MAPPING + "/invitations")
   @ResponseStatus(HttpStatus.CREATED)
   public CreatedInvitation invite(HttpServletRequest request) {
     WhoPrincipal caller = gate.admit(request, WhoAdminPermissions.IDENTITIES_MANAGE, true);

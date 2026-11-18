@@ -60,10 +60,11 @@ public class SmtpWhoEmailSender implements WhoEmailSender {
       helper.setFrom(from);
       helper.setTo(email.to());
       helper.setSubject(email.subject());
-      if (email.html() == null) {
+      String html = email.html();
+      if (html == null) {
         helper.setText(email.text());
       } else {
-        helper.setText(email.text(), email.html());
+        helper.setText(email.text(), html);
       }
     } catch (MessagingException e) {
       throw new MailPreparationException(

@@ -157,8 +157,8 @@ class NativeResourceMetadataTest {
     }
     String metadata = allMetadata();
     assertThat(records).isNotEmpty();
-    for (String record : records) {
-      assertThat(metadata).as("reflection for %s", record).contains("\"" + record + "\"");
+    for (String type : records) {
+      assertThat(metadata).as("reflection for %s", type).contains("\"" + type + "\"");
     }
   }
 

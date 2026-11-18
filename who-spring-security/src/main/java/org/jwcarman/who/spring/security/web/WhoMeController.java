@@ -107,12 +107,11 @@ public class WhoMeController {
    * its instants.
    *
    * @param request the request
-   * @param response answers {@code 200} with the identity
    * @param authentication the request's authentication, or {@code null} if there is none
-   * @throws NotSignedInException when no one is signed in; the application formats it
-   * @throws IOException if writing fails
+   * @return the identity, answered {@code 200}
+   * @throws NotSignedInException when no one is signed in; who answers it as its Problem Details
    */
-  @GetMapping(WhoPaths.ROOT + "/me")
+  @GetMapping(WhoPaths.MAPPING + "/me")
   public WhoMeResponse me(HttpServletRequest request, Authentication authentication) {
     return resolve(request, authentication);
   }

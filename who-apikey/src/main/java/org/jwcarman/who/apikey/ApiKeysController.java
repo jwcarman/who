@@ -79,7 +79,7 @@ import tools.jackson.databind.json.JsonMapper;
 @RestController
 public class ApiKeysController {
 
-  private static final String COLLECTION = WhoPaths.ROOT + "/me/api-keys";
+  private static final String COLLECTION = WhoPaths.MAPPING + "/me/api-keys";
 
   private final ApiKeyService keys;
   private final WhoSessionSecurityContextRepository sessions;

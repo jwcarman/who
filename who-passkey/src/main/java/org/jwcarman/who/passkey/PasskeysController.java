@@ -91,7 +91,7 @@ public class PasskeysController {
    * @param request the request
    * @return the passkeys
    */
-  @GetMapping(WhoPaths.ROOT + PasskeyFilters.CREDENTIALS)
+  @GetMapping(WhoPaths.MAPPING + PasskeyFilters.CREDENTIALS)
   public List<PasskeyView> list(HttpServletRequest request) {
     UUID identityId = identityOf(browser(request));
     return passkeys.list(identityId).stream().map(PasskeysController::view).toList();
@@ -103,7 +103,7 @@ public class PasskeysController {
    * @param credentialId the passkey's WebAuthn credential id
    * @param request the request
    */
-  @DeleteMapping(WhoPaths.ROOT + PasskeyFilters.CREDENTIALS + "/{credentialId}")
+  @DeleteMapping(WhoPaths.MAPPING + PasskeyFilters.CREDENTIALS + "/{credentialId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void remove(
       @PathVariable("credentialId") String credentialId, HttpServletRequest request) {

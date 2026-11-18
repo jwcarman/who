@@ -86,7 +86,7 @@ public class SessionsController {
    * @param request the request
    * @return the sessions
    */
-  @GetMapping(WhoPaths.ROOT + "/me/sessions")
+  @GetMapping(WhoPaths.MAPPING + "/me/sessions")
   public List<SessionView> list(HttpServletRequest request) {
     WhoCaller.Session current = browser(request);
     UUID currentId = current.session().sessionId();
@@ -100,7 +100,7 @@ public class SessionsController {
    * @param request the request
    * @return how many ended
    */
-  @DeleteMapping(WhoPaths.ROOT + "/me/sessions")
+  @DeleteMapping(WhoPaths.MAPPING + "/me/sessions")
   public EndedSessions endOthers(
       @RequestParam(name = "others", required = false) @Nullable String others,
       HttpServletRequest request) {
@@ -122,7 +122,7 @@ public class SessionsController {
    * @param request the request
    * @param response the response, which signing out may set cookies on
    */
-  @DeleteMapping(WhoPaths.ROOT + "/me/sessions/{id}")
+  @DeleteMapping(WhoPaths.MAPPING + "/me/sessions/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void endOne(
       @PathVariable("id") String id, HttpServletRequest request, HttpServletResponse response) {

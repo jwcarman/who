@@ -137,8 +137,8 @@ public final class WhoExceptionHandoff {
       // nothing else will: the application's handlers never saw it, and sendError logs nothing
       log.error(
           "{} {} failed and no exception handler of the application answered it; sending {}",
-          request.getMethod(),
-          request.getRequestURI(),
+          LogValues.printable(request.getMethod()),
+          LogValues.printable(request.getRequestURI()),
           status.value(),
           exception);
     }

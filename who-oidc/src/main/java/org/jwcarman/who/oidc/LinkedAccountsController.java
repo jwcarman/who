@@ -103,7 +103,7 @@ public class LinkedAccountsController {
    *
    * @return the accounts
    */
-  @GetMapping(WhoPaths.ROOT + LinkStartFilter.ACCOUNTS)
+  @GetMapping(WhoPaths.MAPPING + LinkStartFilter.ACCOUNTS)
   public List<LinkedAccountView> list() {
     UUID identityId = signedIn().getPrincipal().identity().id();
     return credentials.findAllFor(identityId).stream().map(this::view).toList();
@@ -115,7 +115,7 @@ public class LinkedAccountsController {
    * @param id the account's id
    * @param request the request
    */
-  @DeleteMapping(WhoPaths.ROOT + LinkStartFilter.ACCOUNTS + "/{id}")
+  @DeleteMapping(WhoPaths.MAPPING + LinkStartFilter.ACCOUNTS + "/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void unlink(@PathVariable("id") String id, HttpServletRequest request) {
     WhoAuthenticationToken token = signedIn();

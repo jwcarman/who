@@ -132,8 +132,9 @@ class MustacheWhoEmailRendererTest {
     @Test
     void a_missing_text_template_fails_with_its_name() {
       MustacheWhoEmailRenderer renderer = renderer(EMPTY_LOCATION);
+      WhoEmail absent = email("absent");
 
-      assertThatThrownBy(() -> renderer.render(email("absent"), Locale.ENGLISH))
+      assertThatThrownBy(() -> renderer.render(absent, Locale.ENGLISH))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("absent.txt");
     }
