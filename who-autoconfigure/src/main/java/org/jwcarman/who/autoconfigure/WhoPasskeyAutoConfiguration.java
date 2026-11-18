@@ -314,7 +314,7 @@ public class WhoPasskeyAutoConfiguration {
    */
   @Bean
   @ConditionalOnMissingBean
-  public PasskeysController passkeysController(
+  public PasskeysController whoPasskeysController(
       WhoSessionSecurityContextRepository sessionRepository,
       PasskeyService passkeyService,
       LastCredentialGuard lastCredentialGuard,

@@ -485,7 +485,7 @@ public class WhoEmailLinkAutoConfiguration {
    */
   @Bean
   @ConditionalOnMissingBean
-  public EmailAddressesController emailAddressesController(
+  public EmailAddressesController whoEmailAddressesController(
       EmailAddressChanges emailAddressChanges,
       EmailCredentialService emailCredentialService,
       LastCredentialGuard lastCredentialGuard,

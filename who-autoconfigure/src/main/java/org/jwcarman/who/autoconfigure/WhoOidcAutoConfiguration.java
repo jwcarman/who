@@ -277,7 +277,7 @@ public class WhoOidcAutoConfiguration {
    */
   @Bean
   @ConditionalOnMissingBean
-  public LinkedAccountsController linkedAccountsController(
+  public LinkedAccountsController whoLinkedAccountsController(
       SignInRegistrations registrations,
       FederatedCredentialService accounts,
       LastCredentialGuard lastCredentialGuard,

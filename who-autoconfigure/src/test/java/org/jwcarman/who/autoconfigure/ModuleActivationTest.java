@@ -67,6 +67,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * A module's jar turns it on; {@code who.<module>.enabled=false} is the only way to turn it off.
@@ -84,6 +85,19 @@ class ModuleActivationTest {
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class, Sender.class)
           .withPropertyValues(LINK, SECRET, RP_ID);
+
+  @Test
+  void whos_controllers_are_named_for_who() {
+    // an application class named ApiKeysController would otherwise take the same bean name
+    configured.run(
+        context -> {
+          String[] names = context.getBeanNamesForAnnotation(RestController.class);
+          assertThat(names)
+              .contains(
+                  "whoApiKeysController", "whoEmailAddressesController", "whoPasskeysController")
+              .allSatisfy(name -> assertThat(name).startsWith("who"));
+        });
+  }
 
   @Nested
   class Email_link {

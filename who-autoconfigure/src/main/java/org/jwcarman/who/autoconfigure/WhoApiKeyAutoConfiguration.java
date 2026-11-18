@@ -192,7 +192,7 @@ public class WhoApiKeyAutoConfiguration {
    */
   @Bean
   @ConditionalOnMissingBean
-  public ApiKeysController apiKeysController(
+  public ApiKeysController whoApiKeysController(
       ApiKeyService apiKeyService,
       WhoSessionSecurityContextRepository sessionRepository,
       ObjectProvider<JsonMapper> jsonMapper,
