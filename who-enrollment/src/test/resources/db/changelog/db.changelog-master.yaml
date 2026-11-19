@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: classpath:org/jwcarman/who/jdbc/db/who-jdbc-changelog.xml
+  - include:
+      file: classpath:org/jwcarman/who/enrollment/db/who-enrollment-changelog.xml
