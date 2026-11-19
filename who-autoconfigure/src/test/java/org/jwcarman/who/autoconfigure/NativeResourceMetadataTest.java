@@ -93,16 +93,14 @@ class NativeResourceMetadataTest {
   }
 
   @Test
-  void everyWhoChangelogAndSchemaIsCovered() throws IOException {
+  void everyWhoChangelogIsCovered() throws IOException {
     List<String> globs = new ArrayList<>();
     for (Resource json : resolver.getResources(METADATA_PATTERN)) {
       globs.addAll(globsOf(json));
     }
     AntPathMatcher matcher = new AntPathMatcher();
-    List<Resource> candidates = new ArrayList<>();
-    candidates.addAll(List.of(resolver.getResources("classpath*:org/jwcarman/who/**/db/*.xml")));
-    candidates.addAll(
-        List.of(resolver.getResources("classpath*:org/jwcarman/who/**/who-*-schema.sql")));
+    List<Resource> candidates =
+        List.of(resolver.getResources("classpath*:org/jwcarman/who/**/db/*.xml"));
     assertThat(candidates).isNotEmpty();
     for (Resource candidate : candidates) {
       String url = candidate.getURL().toString();

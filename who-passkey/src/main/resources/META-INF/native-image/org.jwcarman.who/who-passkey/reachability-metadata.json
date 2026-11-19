@@ -4,7 +4,6 @@
   ],
   "resources": [
     {"glob": "org/jwcarman/who/passkey/db/*.xml"},
-    {"glob": "org/jwcarman/who/passkey/who-*-schema.sql"},
     {"glob": "org/jwcarman/who/email/templates/passkey-added.txt"},
     {"glob": "org/jwcarman/who/passkey/email-messages*.properties"}
   ]

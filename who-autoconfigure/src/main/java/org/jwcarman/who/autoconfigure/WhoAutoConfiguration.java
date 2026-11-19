@@ -18,8 +18,6 @@ package org.jwcarman.who.autoconfigure;
 import java.time.Clock;
 import java.util.Set;
 
-import javax.sql.DataSource;
-
 import org.jwcarman.who.core.event.WhoEventPublisher;
 import org.jwcarman.who.core.repository.CredentialIdentityRepository;
 import org.jwcarman.who.core.repository.IdentityRepository;
@@ -55,9 +53,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import io.micrometer.observation.ObservationRegistry;
 
 /**
- * who's core autoconfiguration: {@link WhoService}, the clock, the event publisher, the schema
- * initializer, and the JDBC and RBAC beans when those modules are on the classpath. Each sign-in
- * module has its own autoconfiguration, ordered after this one.
+ * who's core autoconfiguration: {@link WhoService}, the clock, the event publisher, and the JDBC
+ * and RBAC beans when those modules are on the classpath. Each sign-in module has its own
+ * autoconfiguration, ordered after this one.
  *
  * <p>All beans are guarded with {@link ConditionalOnMissingBean} so applications can override any
  * of them.
@@ -75,21 +73,6 @@ public class WhoAutoConfiguration {
   /** Creates the autoconfiguration; Spring Boot calls it. */
   public WhoAutoConfiguration() {
     // nothing to set up: every bean is built by a method below
-  }
-
-  /**
-   * Initializes Who's bundled DDL schemas against the configured {@link DataSource}.
-   *
-   * @param dataSource the data source to initialize
-   * @param properties Who configuration properties
-   * @return the database initializer
-   */
-  @Bean
-  @ConditionalOnMissingBean
-  @ConditionalOnSingleCandidate(DataSource.class)
-  public WhoDataSourceScriptDatabaseInitializer whoDataSourceScriptDatabaseInitializer(
-      DataSource dataSource, WhoProperties properties) {
-    return new WhoDataSourceScriptDatabaseInitializer(dataSource, properties.getInitializeSchema());
   }
 
   /**

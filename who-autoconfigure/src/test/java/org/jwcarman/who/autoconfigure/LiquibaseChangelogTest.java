@@ -47,16 +47,6 @@ class LiquibaseChangelogTest {
 
   private static final String CHANGELOG_ALL = "org/jwcarman/who/db/who-changelog.xml";
 
-  private static final List<String> SCHEMA_FILES =
-      List.of(
-          "org/jwcarman/who/jdbc/who-jdbc-schema.sql",
-          "org/jwcarman/who/rbac/who-rbac-schema.sql",
-          "org/jwcarman/who/federated/who-federated-schema.sql",
-          "org/jwcarman/who/enrollment/who-enrollment-schema.sql",
-          "org/jwcarman/who/apikey/who-apikey-schema.sql",
-          "org/jwcarman/who/emaillink/who-email-link-schema.sql",
-          "org/jwcarman/who/passkey/who-passkey-schema.sql");
-
   private static final String EMAIL_LINK_CHANGELOG =
       "org/jwcarman/who/emaillink/db/who-email-link-changelog.xml";
 
@@ -79,27 +69,6 @@ class LiquibaseChangelogTest {
           "who_passkey_credential");
 
   @Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
-
-  @Test
-  void changelogsMatchSchemaSql() throws Exception {
-    createDatabase("who_liquibase");
-    createDatabase("who_sql");
-
-    runChangelog("who_liquibase", getClass().getClassLoader());
-    try (Connection connection = connect("who_sql");
-        Statement statement = connection.createStatement()) {
-      for (String schemaFile : SCHEMA_FILES) {
-        statement.execute(readResource(schemaFile));
-      }
-    }
-
-    List<String> fromLiquibase = describe("who_liquibase");
-    List<String> fromSql = describe("who_sql");
-
-    assertThat(tableNames(fromLiquibase)).containsExactlyInAnyOrderElementsOf(ALL_TABLES);
-    assertThat(fromSql).isNotEmpty();
-    assertThat(fromLiquibase).isEqualTo(fromSql);
-  }
 
   @Test
   void changelogAllSkipsAbsentModules() throws Exception {

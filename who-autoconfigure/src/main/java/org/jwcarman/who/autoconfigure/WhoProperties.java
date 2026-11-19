@@ -28,7 +28,6 @@ import java.util.Set;
 
 import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 /** Configuration properties for the Who identity framework. */
 @ConfigurationProperties(prefix = "who")
@@ -38,12 +37,6 @@ public class WhoProperties {
   public WhoProperties() {
     // defaults are set on the fields
   }
-
-  /**
-   * When to run Who's bundled DDL schema scripts: {@code always}, {@code embedded}, or {@code
-   * never}.
-   */
-  private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
   /**
    * The root every who endpoint lives under, such as {@code /who} (the default) or {@code /auth}.
@@ -63,24 +56,6 @@ public class WhoProperties {
   private Admin admin = new Admin();
   private Email email = new Email();
   private Migrations migrations = new Migrations();
-
-  /**
-   * Returns when to run Who's bundled DDL schema scripts.
-   *
-   * @return schema initialization mode
-   */
-  public DatabaseInitializationMode getInitializeSchema() {
-    return initializeSchema;
-  }
-
-  /**
-   * Sets when to run Who's bundled DDL schema scripts.
-   *
-   * @param initializeSchema schema initialization mode
-   */
-  public void setInitializeSchema(DatabaseInitializationMode initializeSchema) {
-    this.initializeSchema = initializeSchema;
-  }
 
   /**
    * Returns the root every who endpoint lives under.

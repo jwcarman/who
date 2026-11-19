@@ -1,6 +1,5 @@
 {
   "resources": [
-    {"glob": "org/jwcarman/who/jdbc/db/*.xml"},
-    {"glob": "org/jwcarman/who/jdbc/who-*-schema.sql"}
+    {"glob": "org/jwcarman/who/jdbc/db/*.xml"}
   ]
 }

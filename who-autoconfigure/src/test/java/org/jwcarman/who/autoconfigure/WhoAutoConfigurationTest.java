@@ -16,7 +16,6 @@
 package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,7 +59,6 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -375,26 +373,6 @@ class WhoAutoConfigurationTest {
                           .query(Integer.class)
                           .single())
                   .isZero();
-            });
-  }
-
-  @Test
-  void schemaInitializationSkippedWhenModeIsNever() {
-    new ApplicationContextRunner()
-        .withConfiguration(WhoTestAutoConfigurations.who())
-        .withPropertyValues(MIGRATIONS_OFF)
-        .withUserConfiguration(TestDataSourceConfig.class)
-        .withPropertyValues("who.initialize-schema=never")
-        .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
-        .run(
-            context -> {
-              assertThat(context).hasNotFailed();
-              JdbcClient.MappedQuerySpec<Integer> query =
-                  context
-                      .getBean(JdbcClient.class)
-                      .sql("SELECT COUNT(*) FROM who_identity")
-                      .query(Integer.class);
-              assertThatThrownBy(query::single).isInstanceOf(BadSqlGrammarException.class);
             });
   }
 

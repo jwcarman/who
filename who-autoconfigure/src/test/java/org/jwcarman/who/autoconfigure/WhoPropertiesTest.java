@@ -28,7 +28,6 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
-import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoPropertiesTest {
@@ -116,7 +115,7 @@ class WhoPropertiesTest {
   void defaultsArePopulated() {
     WhoProperties props = new WhoProperties();
 
-    assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.EMBEDDED);
+    assertThat(props.getMigrations().isEnabled()).isTrue();
     assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
     assertThat(props.getApiKey().getPrefix()).isEqualTo("who_");
@@ -139,9 +138,6 @@ class WhoPropertiesTest {
   @Test
   void settersRoundTrip() {
     WhoProperties props = new WhoProperties();
-
-    props.setInitializeSchema(DatabaseInitializationMode.ALWAYS);
-    assertThat(props.getInitializeSchema()).isEqualTo(DatabaseInitializationMode.ALWAYS);
 
     WhoProperties.Enrollment enrollment = new WhoProperties.Enrollment();
     enrollment.setTokenExpiration(Duration.ofHours(48));

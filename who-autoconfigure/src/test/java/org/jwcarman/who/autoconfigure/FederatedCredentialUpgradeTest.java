@@ -29,7 +29,6 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.who.federated.JdbcFederatedCredentialRepository;
-import org.springframework.boot.sql.init.DatabaseInitializationMode;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -47,56 +46,6 @@ class FederatedCredentialUpgradeTest {
   private static final String ISSUER = "https://issuer.example.com";
 
   @Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
-
-  @Nested
-  class Schema_script {
-
-    @Test
-    void renames_a_0_18_table_and_keeps_its_rows() throws SQLException {
-      String database = createDatabase();
-      execute(
-          database,
-          """
-          CREATE TABLE who_jwt_credential (
-              id      UUID         PRIMARY KEY,
-              issuer  VARCHAR(255) NOT NULL,
-              subject VARCHAR(255) NOT NULL,
-              UNIQUE (issuer, subject)
-          )
-          """);
-      UUID id = UUID.randomUUID();
-      execute(
-          database,
-          "INSERT INTO who_jwt_credential (id, issuer, subject) VALUES ('%s', '%s', 'sub-1')"
-              .formatted(id, ISSUER));
-
-      initializeWithScripts(database);
-
-      assertThat(tableExists(database, "who_jwt_credential")).isFalse();
-      assertThat(repository(database).findByIssuerAndSubject(ISSUER, "sub-1"))
-          .hasValueSatisfying(found -> assertThat(found.id()).isEqualTo(id));
-    }
-
-    @Test
-    void creates_the_table_on_an_empty_database() throws SQLException {
-      String database = createDatabase();
-
-      initializeWithScripts(database);
-
-      assertThat(tableExists(database, "who_federated_credential")).isTrue();
-      assertThat(tableExists(database, "who_jwt_credential")).isFalse();
-    }
-
-    @Test
-    void is_idempotent() throws SQLException {
-      String database = createDatabase();
-
-      initializeWithScripts(database);
-      initializeWithScripts(database);
-
-      assertThat(tableExists(database, "who_federated_credential")).isTrue();
-    }
-  }
 
   @Nested
   class Liquibase {
@@ -127,12 +76,6 @@ class FederatedCredentialUpgradeTest {
       assertThat(tableExists(database, "who_federated_credential")).isTrue();
       assertThat(tableExists(database, "who_jwt_credential")).isFalse();
     }
-  }
-
-  private static void initializeWithScripts(String database) {
-    new WhoDataSourceScriptDatabaseInitializer(
-            dataSource(database), DatabaseInitializationMode.ALWAYS)
-        .initializeDatabase();
   }
 
   private static void runChangelog(String database, String changelog) throws Exception {

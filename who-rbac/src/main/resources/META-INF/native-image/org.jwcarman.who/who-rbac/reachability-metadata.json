@@ -1,6 +1,5 @@
 {
   "resources": [
-    {"glob": "org/jwcarman/who/rbac/db/*.xml"},
-    {"glob": "org/jwcarman/who/rbac/who-*-schema.sql"}
+    {"glob": "org/jwcarman/who/rbac/db/*.xml"}
   ]
 }
