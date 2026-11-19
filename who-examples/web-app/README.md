@@ -81,7 +81,6 @@ the provider.
 ## For production
 
 - Serve it over HTTPS, and set `who.passkey.rp-id` and `allowed-origins` to your host.
-- Create who's tables with Flyway or Liquibase and set `who.initialize-schema: never`.
 - Take `who.email-link.code-secret` and the client secrets from your secret store.
 - Point `spring.mail` at a real mail service, and rate-limit `/who/email/send` and `/who/email/sign-in` at
   the ingress.

@@ -82,10 +82,17 @@ versions:
     <artifactId>who-test</artifactId>
     <scope>test</scope>
 </dependency>
+<!-- who creates and upgrades its own tables with Liquibase -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-liquibase</artifactId>
+</dependency>
 ```
 
-The starter brings the base: identities, sessions, permissions and the autoconfiguration. Each
-sign-in method is its own module, and adding its jar turns it on:
+The starter brings the base: identities, sessions, permissions and the autoconfiguration. who
+migrates its own tables with Liquibase at startup, and fails startup without it; see
+[Database Setup](database.md). Each sign-in method is its own module, and adding its jar turns it
+on:
 
 | Sign-in method | Module | Guide |
 |---|---|---|
@@ -264,7 +271,7 @@ the purge skip that module's rows unless your bean also implements
 
 ## Next steps
 
-1. [Database Setup](database.md): create Who's tables.
+1. [Database Setup](database.md): how who migrates its tables, and running its changelog yourself.
 2. [Email Links](email-links.md), [Passkeys](passkeys.md), [API Keys](api-keys.md) or
    [JWT](jwt.md): set up each sign-in method you added.
 3. [Enrollment](enrollment.md): link a user's credential to an identity.

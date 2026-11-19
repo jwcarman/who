@@ -6,7 +6,7 @@ Who's native support is proven against GraalVM 25 and Spring Boot 4.1 in who's o
 
 ## What who ships
 
-Every module that has database files ships GraalVM reachability metadata at `META-INF/native-image/org.jwcarman.who/<module>/reachability-metadata.json`. It registers that module's Liquibase changelogs (`org/jwcarman/who/<module>/db/*.xml`) and its schema script (`who-<module>-schema.sql`). `who-autoconfigure` registers the master changelog, `org/jwcarman/who/db/who-changelog.xml`. A module on the classpath therefore always brings its own files, and none of them is dropped silently from the image.
+Every module that has database files ships GraalVM reachability metadata at `META-INF/native-image/org.jwcarman.who/<module>/reachability-metadata.json`. It registers that module's Liquibase changelogs (`org/jwcarman/who/<module>/db/*.xml`). `who-autoconfigure` registers the master changelog, `org/jwcarman/who/db/who-changelog.xml`. A module on the classpath therefore always brings its own files, and none of them is dropped silently from the image.
 
 `who-passkey` also registers reflection hints with Spring AOT (`PasskeyRuntimeHints`, listed in `META-INF/spring/aot.factories`). Spring Security's WebAuthn JSON and webauthn4j's CBOR model are read reflectively, and neither library ships native hints for them yet. Which key type and attestation format arrive depends on the user's authenticator, so who registers whole families of types, not only the ones a test happens to use:
 
@@ -15,14 +15,9 @@ Every module that has database files ships GraalVM reachability metadata at `MET
 
 Sessions are covered too, including Spring Session JDBC, which stores session attributes with Java serialization. A native image needs a serialization hint for each class that is serialized, and who ships them. `who-spring-security` registers `WhoSession`, `UUID`, `Instant` and `java.time.Ser`. `who-passkey` registers every `Serializable` class in `org.springframework.security.web.webauthn.api`, because the session holds the creation or request options during a passkey ceremony, plus `Duration`, `Boolean`, `HashSet`, `Arrays$ArrayList` and `byte[]`. Your app needs no hints for sessions. See [Sessions](sessions.md).
 
-`who-autoconfigure` registers the one lookup by name in who's own code (`WhoSchemaRuntimeHints`): `who.initialize-schema` decides which modules' schema scripts to run by looking up a class from each module, and a native image finds a class by name only when it is registered.
-
 Otherwise who's own types need nothing: Spring AOT covers its configuration, beans, properties and `@Transactional` proxies.
 
-Two code choices keep who native-friendly:
-
-- Who's JDBC repositories are not annotated `@Repository`. Who's `@Bean` methods return them as interfaces, and Spring AOT cannot generate the class proxy that `@Repository` exception translation needs for a bean it only knows by its interface. Exceptions are still translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy.
-- With `who.initialize-schema: never`, who does not look up its schema scripts at all.
+Who's JDBC repositories are not annotated `@Repository`, which keeps who native-friendly. Who's `@Bean` methods return them as interfaces, and Spring AOT cannot generate the class proxy that `@Repository` exception translation needs for a bean it only knows by its interface. Exceptions are still translated: `JdbcClient` throws Spring's `DataAccessException` hierarchy.
 
 ## Set who's switches at build time
 
@@ -31,9 +26,10 @@ then, not when the binary starts:
 
 - **The jars on the classpath.** Each sign-in module the image is built with is on.
 - **The `enabled` flags.** `who.email-link.enabled`, `who.passkey.enabled`, `who.api-key.enabled`,
-  `who.jwt.enabled` and `who.enrollment.enabled` are read at build time. Passing
-  `--who.passkey.enabled=false` to the binary does not turn passkeys off; set it in
-  `application.yml` before building, or leave the module's jar out.
+  `who.jwt.enabled`, `who.enrollment.enabled` and `who.migrations.enabled` (with
+  `spring.liquibase.enabled`) are read at build time. Passing `--who.passkey.enabled=false` to the
+  binary does not turn passkeys off; set it in `application.yml` before building, or leave the
+  module's jar out.
 - **who's default chain.** Whether the application has a `SecurityFilterChain` of its own, and so
   whether who's chain exists, is decided at build time too.
 
@@ -56,7 +52,7 @@ whether Boot creates the `JwtDecoder` that who's JWT sign-in needs.
 
 ## Liquibase
 
-Run who's changelogs through Spring Boot's Liquibase integration (`spring-boot-starter-liquibase`), as the [Database Setup](database.md) guide describes. Liquibase itself is covered by its entry in GraalVM's reachability metadata repository, which `native-maven-plugin` adds when `add-reachability-metadata` runs. Spring Boot registers only `db/changelog/**` for your own changelogs; keep your app's changelogs there, or register their location yourself.
+who migrates its tables through Spring Boot's Liquibase integration (`spring-boot-starter-liquibase`) in a native image as on the JVM; see [Database Setup](database.md). Liquibase itself is covered by its entry in GraalVM's reachability metadata repository, which `native-maven-plugin` adds when `add-reachability-metadata` runs. Spring Boot registers only `db/changelog/**` for your own changelogs; keep your app's changelogs there, or register their location yourself.
 
 ## Your own `@Repository` beans
 

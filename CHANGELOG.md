@@ -12,6 +12,21 @@ All notable changes to this project are documented here. The format follows
   now `WhoEmailTemplatesContributor`, and `WhoEmailMessages` is now `WhoEmailMessagesContributor`,
   matching `WhoPublicPathContributor` and `WhoEmailModelContributor`. Their components are
   unchanged.
+- **who requires Liquibase and migrates its own tables.** With `who-jdbc` on the classpath and no
+  Liquibase, startup fails; add `spring-boot-starter-liquibase`. Drop any include of
+  `who-changelog.xml` from your own changelog, or set `who.migrations.enabled=false` and keep it.
+- **`who.initialize-schema` and the bundled `who-<module>-schema.sql` scripts are removed**, with
+  `WhoDataSourceScriptDatabaseInitializer` and `WhoSchemaRuntimeHints`. The Flyway copy of the
+  schema is gone from the database guide.
+- **who supports PostgreSQL only.** H2 is no longer supported.
+
+### Added
+
+- `WhoLiquibase` runs `classpath:org/jwcarman/who/db/who-changelog.xml` at startup, before every
+  `SpringLiquibase` bean, on the data source, schemas and history tables Spring Boot's Liquibase
+  uses. A library orders its own run after who's by depending on it.
+- `who.migrations.enabled` (default `true`): `false` turns who's run off, for an application that
+  runs `who-changelog.xml` itself.
 
 ## [0.24.0] - 2026-11-18
 

@@ -51,8 +51,8 @@ mounts them all. See [Getting Started](https://jwcarman.github.io/who/guides/get
 
 ### 2. Create the tables
 
-Who ships one schema file per module. Set `who.initialize-schema: always` for local
-development, or copy the schema into Flyway or Liquibase. See
+Add `spring-boot-starter-liquibase`. who creates and upgrades its own tables with Liquibase at
+startup, before your own migrations. See
 [Database Setup](https://jwcarman.github.io/who/guides/database/).
 
 ### 3. Check permissions

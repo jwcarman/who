@@ -17,8 +17,6 @@ spring:
           # the realm would sign in here; who refuses to start with JWTs and no audience.
           audiences: who-tasks-api
 
-who:
-
 example:
   # The issuer whose accounts Setup links: the same realm the tokens come from.
   issuer: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}

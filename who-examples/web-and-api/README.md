@@ -161,6 +161,4 @@ asking for a page is sent to sign in.
   screen. `Setup` links fixed accounts only because this is an example.
 - Show a new key once, keep lifetimes short, and rotate keys (`ApiKeyService.rotate`) before they
   expire.
-- Real mail delivery, TLS, your own `who.email-link.code-secret`, and `who.initialize-schema:
-  never` with Flyway or Liquibase (see the [Database](https://jwcarman.github.io/who/guides/database/)
-  guide).
+- Real mail delivery, TLS, and your own `who.email-link.code-secret`.

@@ -39,6 +39,28 @@ WhoEmailTemplatesContributor acmeEmailTemplates() {
 }
 ```
 
+### who migrates its own tables with Liquibase
+
+who now creates and upgrades its tables itself, with Liquibase, at startup and before your own
+migrations. The bundled `schema.sql` scripts and `who.initialize-schema` are gone, and who supports
+PostgreSQL only. See [Database Setup](database.md).
+
+1. **Add `spring-boot-starter-liquibase`.** Without Liquibase, startup fails:
+   `who cannot start: who.migrations.enabled is true, but Liquibase is not on the classpath.`
+2. **Delete `who.initialize-schema`** from your configuration. It no longer exists.
+3. **Drop any include of `who-changelog.xml`** from your master changelog; who runs it itself. To
+   keep running it from your own changelog (a schema per tenant, migrations outside the
+   application), set `who.migrations.enabled=false` and keep the include instead.
+4. **Flyway users:** delete the who SQL you pasted into a Flyway migration and add Liquibase as in
+   step 1. who ships no Flyway migrations.
+5. **Start from a fresh database** if the scripts or pasted SQL created who's tables. who's
+   changelog creates its tables and does not adopt ones Liquibase did not record; drop them and let
+   who create them again. A database where your own changelog already ran `who-changelog.xml` is
+   fine as it is: who's run finds the same rows in `DATABASECHANGELOG` and runs nothing again.
+
+An application with no tables of its own still needs a master changelog for Spring Boot's
+Liquibase; an empty one, `databaseChangeLog: []` in `db/changelog/db.changelog-master.yaml`, does.
+
 ## Upgrading to 0.24.0
 
 ### Email template locations are a list

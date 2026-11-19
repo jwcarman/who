@@ -182,5 +182,3 @@ signed in. Keycloak, Okta and Cognito include the claim in access tokens; the
   screen. `Setup` links fixed accounts only because this is an example.
 - Show a new key once, and tell people to keep it in a secret store. Pick lifetimes as short as
   the machine can live with, and rotate keys (`ApiKeyService.rotate`) before they expire.
-- Set `who.initialize-schema: never` and manage the schema with Flyway or Liquibase (see the
-  [Database](https://jwcarman.github.io/who/guides/database/) guide).

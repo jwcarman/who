@@ -2,26 +2,153 @@
 
 **Contents**
 
-- Auto-initialization
+- How who migrates its tables
+- Without Liquibase
+- Running who's changelog yourself
+- `spring.liquibase.drop-first` is not supported
+- Rules for who's changelogs
+- Liquibase extensions
+- Libraries built on who
 - Transactions and locks
-- Flyway
 - Passkey storage is PostgreSQL only
-- Liquibase
 
-Who ships its own schema files on the classpath, one per module. The autoconfiguration runs them automatically — only modules present on the classpath contribute scripts, and all scripts use `CREATE TABLE IF NOT EXISTS` so they are safe to run on every startup.
+who keeps its data in PostgreSQL (14+) and creates and upgrades its own tables with Liquibase at
+startup. Add Spring Boot's Liquibase starter beside who:
 
-## Auto-initialization
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-liquibase</artifactId>
+</dependency>
+```
 
-By default, schemas run automatically when the datasource is an embedded database (H2, HSQLDB, Derby). Control this with:
+Nothing else is needed for who's tables.
+
+## How who migrates its tables
+
+At startup, the `WhoLiquibase` bean runs who's changelog,
+`classpath:org/jwcarman/who/db/who-changelog.xml`. It includes the changelog of each who module on
+the classpath, `who-jdbc` first; modules that are not on the classpath are skipped. When a who
+release changes a table, it ships a new changeset, and the next startup applies it.
+
+who's run uses what Spring Boot's Liquibase uses for your own changelog:
+
+- **The same data source.** A `DataSource` bean marked `@LiquibaseDataSource`; otherwise one built
+  from `spring.liquibase.url`; otherwise the primary `DataSource`, with `spring.liquibase.user` and
+  `password` when they are set; otherwise the primary `DataSource` as it is.
+- **The same schemas.** `spring.liquibase.default-schema`, `liquibase-schema` and
+  `liquibase-tablespace`.
+- **The same history tables.** `DATABASECHANGELOG` and `DATABASECHANGELOGLOCK`, or the names in
+  `spring.liquibase.database-change-log-table` and `database-change-log-lock-table`. Liquibase
+  identifies a changeset by its id, author and file path, so who's rows never collide with yours.
+
+who's run comes first. Every `SpringLiquibase` bean waits for it, whether Spring Boot made it or
+you declared your own, so your changesets can reference who's tables, for example with a foreign
+key to `who_identity`. JPA and every bean that depends on database initialization wait for it too.
+
+With `spring.liquibase.enabled=false`, who's run is off as well: the application has turned
+Liquibase off and migrates some other way.
+
+### Your own changelog
+
+Spring Boot's Liquibase needs a master changelog of your own, at
+`db/changelog/db.changelog-master.yaml` unless `spring.liquibase.change-log` names another. An
+application with no tables of its own still needs one; an empty one does:
+
+```yaml
+databaseChangeLog: []
+```
+
+Do not include `who-changelog.xml` from it; who runs it already.
+
+## Without Liquibase
+
+With `who-jdbc` on the classpath (the starter brings it) and no Liquibase, startup fails:
+
+```text
+Description:
+
+who cannot start: who.migrations.enabled is true, but Liquibase is not on the classpath.
+
+Action:
+
+Add spring-boot-starter-liquibase, or set who.migrations.enabled=false and run classpath:org/jwcarman/who/db/who-changelog.xml yourself.
+```
+
+## Running who's changelog yourself
+
+Turn who's run off when the application runs its migrations in a way who cannot follow: a schema
+per tenant, migrations run outside the application, or who's tables in a data source other than
+the one Liquibase migrates:
 
 ```yaml
 who:
-  initialize-schema: embedded  # always | embedded | never (default: embedded)
+  migrations:
+    enabled: false
 ```
 
-PostgreSQL is not an embedded database, so with the default the scripts do not run. Set `who.initialize-schema: always` for local development, or manage the schema with Flyway or Liquibase. For production, set `who.initialize-schema: never` and use Flyway or Liquibase.
+Then include who's changelog from your own, before any changeset that references who's tables:
 
-The `who-rbac` schema requires the `who_identity` table from `who-jdbc` (`who_identity_role.identity_id` references it). Run the `who-jdbc` schema first. The passkey tables reference `who_identity` too. The Flyway and Liquibase copies below are already in that order.
+```yaml
+databaseChangeLog:
+  - include:
+      file: classpath:org/jwcarman/who/db/who-changelog.xml
+```
+
+A multi-tenant application includes it in each tenant's run.
+
+Including it records the same rows in `DATABASECHANGELOG` as `WhoLiquibase` does, so an
+application can move from one to the other without anything running twice, as long as both use
+the same history table.
+
+The `classpath:` includes inside `who-changelog.xml` need Spring's Liquibase integration
+(`SpringLiquibase`). The Liquibase CLI and the Liquibase Maven plugin may skip them without a
+warning, so run the changelog through Spring.
+
+## `spring.liquibase.drop-first` is not supported
+
+`drop-first` drops the schema when Spring Boot's Liquibase runs, which is after who migrated it,
+so who's tables are gone. An application that needs it turns who's run off and includes
+`who-changelog.xml` itself, as above.
+
+## Rules for who's changelogs
+
+An application can rely on these from one who release to the next:
+
+- **A released changeset is never edited.** A change is a new changeset. Liquibase checks each
+  changeset's checksum and fails startup when one changes, so do not edit who's either.
+- **A changelog file never moves or is renamed.** Its path is part of each changeset's identity; a
+  moved file would make Liquibase run its changesets again.
+- **Changes only add:** new tables, new nullable columns, new indexes, unless a release's
+  [upgrading notes](upgrading.md) say otherwise. An older instance still running during a rolling
+  deploy keeps working.
+
+## Liquibase extensions
+
+Liquibase extensions on the classpath apply to who's run as they do to yours: Liquibase finds them
+through its service loader. who adds none. For example, `liquibase-sessionlock` replaces the row in
+`DATABASECHANGELOGLOCK` with a lock held by the database session, so an instance killed in the
+middle of a migration does not leave the lock taken; with it on the classpath, who's run uses it
+too.
+
+## Libraries built on who
+
+A library whose changesets reference who's tables runs its own changelog after who's by depending
+on the `WhoLiquibase` bean. The bean is absent when the application turned who's run off, so take
+it through an `ObjectProvider`:
+
+```java
+@Bean
+AcmeLiquibase acmeLiquibase(ObjectProvider<WhoLiquibase> whoLiquibase, DataSource dataSource) {
+    whoLiquibase.getIfAvailable(); // who's tables first
+    return new AcmeLiquibase(dataSource);
+}
+```
+
+Do not declare a `SpringLiquibase` bean for it: Spring Boot's Liquibase stands down when one
+exists, and the application's own changelog stops running. Making the application's run wait for
+the library's is the library's to do, the way who does it (a `DatabaseInitializerDetector` listed
+in `spring.factories`).
 
 ## Transactions and locks
 
@@ -46,165 +173,7 @@ They need:
   inside one, it joins your transaction at your transaction's isolation, and under
   `REPEATABLE READ` the count can be stale. The same holds for `LastAdminGuard`.
 
-## Flyway
-
-Copy the following file to `src/main/resources/db/migration/V1__who.sql` in your application. If the application already has migrations, give the file the next free version number instead of `V1`:
-
-```sql
-CREATE TABLE IF NOT EXISTS who_identity (
-    id         UUID PRIMARY KEY,
-    status     VARCHAR(20)  NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS who_credential_identity (
-    credential_id UUID PRIMARY KEY,
-    identity_id   UUID NOT NULL,
-    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS who_session (
-    id             UUID PRIMARY KEY,
-    identity_id    UUID NOT NULL,
-    credential_id  UUID NOT NULL,
-    sign_in_method VARCHAR(30) NOT NULL,
-    signed_in_at   TIMESTAMP WITH TIME ZONE NOT NULL,
-    last_seen_at   TIMESTAMP WITH TIME ZONE NOT NULL,
-    user_agent     VARCHAR(512),
-    ended_at       TIMESTAMP WITH TIME ZONE,
-    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS who_session_identity_idx ON who_session (identity_id);
-CREATE INDEX IF NOT EXISTS who_session_last_seen_idx ON who_session (last_seen_at);
-CREATE INDEX IF NOT EXISTS who_session_ended_idx ON who_session (ended_at);
-
-CREATE TABLE IF NOT EXISTS who_role (
-    id   UUID        PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE
-);
-
-CREATE TABLE IF NOT EXISTS who_role_permission (
-    role_id    UUID         NOT NULL,
-    permission VARCHAR(255) NOT NULL,
-    PRIMARY KEY (role_id, permission),
-    FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS who_identity_role (
-    identity_id UUID NOT NULL,
-    role_id     UUID NOT NULL,
-    PRIMARY KEY (identity_id, role_id),
-    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE,
-    FOREIGN KEY (role_id) REFERENCES who_role(id) ON DELETE CASCADE
-);
-
-ALTER TABLE IF EXISTS who_jwt_credential RENAME TO who_federated_credential;
-
-CREATE TABLE IF NOT EXISTS who_federated_credential (
-    id      UUID         PRIMARY KEY,
-    issuer  VARCHAR(255) NOT NULL,
-    subject VARCHAR(255) NOT NULL,
-    UNIQUE (issuer, subject)
-);
-
-CREATE TABLE IF NOT EXISTS who_enrollment_token (
-    id          UUID         PRIMARY KEY,
-    identity_id UUID         NOT NULL,
-    token_value VARCHAR(255) NOT NULL UNIQUE,
-    status      VARCHAR(20)  NOT NULL,
-    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
-    expires_at  TIMESTAMP WITH TIME ZONE NOT NULL,
-    redeemed_at TIMESTAMP WITH TIME ZONE,
-    FOREIGN KEY (identity_id) REFERENCES who_identity(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS who_api_key_credential (
-    id           UUID                     PRIMARY KEY,
-    name         VARCHAR(255)             NOT NULL,
-    key_hash     VARCHAR(64)              NOT NULL UNIQUE,
-    created_at   TIMESTAMP WITH TIME ZONE NOT NULL,
-    expires_at   TIMESTAMP WITH TIME ZONE NOT NULL,
-    last_used_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE TABLE IF NOT EXISTS who_api_key_scope (
-    credential_id UUID         NOT NULL REFERENCES who_api_key_credential (id) ON DELETE CASCADE,
-    permission    VARCHAR(255) NOT NULL,
-    PRIMARY KEY (credential_id, permission)
-);
-
-CREATE TABLE IF NOT EXISTS who_email_credential (
-    id      UUID         PRIMARY KEY,
-    address VARCHAR(320) NOT NULL UNIQUE
-);
-
-CREATE TABLE IF NOT EXISTS who_email_link_token (
-    credential_id UUID                     PRIMARY KEY REFERENCES who_email_credential (id) ON DELETE CASCADE,
-    token_hash    VARCHAR(64)              NOT NULL UNIQUE,
-    created_at    TIMESTAMP WITH TIME ZONE NOT NULL,
-    expires_at    TIMESTAMP WITH TIME ZONE NOT NULL,
-    code_hash     VARCHAR(64)              NOT NULL,
-    code_attempts INTEGER                  NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS who_email_address_request (
-    id                     UUID                     PRIMARY KEY,
-    identity_id            UUID                     NOT NULL UNIQUE REFERENCES who_identity (id) ON DELETE CASCADE,
-    address                VARCHAR(320)             NOT NULL,
-    replaces_credential_id UUID,
-    token_hash             VARCHAR(64)              NOT NULL UNIQUE,
-    code_hash              VARCHAR(64)              NOT NULL,
-    code_attempts          INTEGER                  NOT NULL,
-    created_at             TIMESTAMP WITH TIME ZONE NOT NULL,
-    expires_at             TIMESTAMP WITH TIME ZONE NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS ix_who_email_address_request_address ON who_email_address_request (address);
-
-CREATE TABLE IF NOT EXISTS who_passkey_user (
-    id           VARCHAR(1000) PRIMARY KEY,
-    identity_id  UUID          NOT NULL UNIQUE REFERENCES who_identity (id) ON DELETE CASCADE,
-    name         VARCHAR(320)  NOT NULL,
-    display_name VARCHAR(320)
-);
-
-CREATE TABLE IF NOT EXISTS who_passkey_credential (
-    credential_id                VARCHAR(1000)            PRIMARY KEY,
-    user_entity_user_id          VARCHAR(1000)            NOT NULL REFERENCES who_passkey_user (id) ON DELETE CASCADE,
-    public_key                   BYTEA                    NOT NULL,
-    signature_count              BIGINT,
-    uv_initialized               BOOLEAN,
-    backup_eligible              BOOLEAN                  NOT NULL,
-    authenticator_transports     VARCHAR(1000),
-    public_key_credential_type   VARCHAR(100),
-    backup_state                 BOOLEAN                  NOT NULL,
-    attestation_object           BYTEA,
-    attestation_client_data_json BYTEA,
-    created                      TIMESTAMP WITH TIME ZONE NOT NULL,
-    last_used                    TIMESTAMP WITH TIME ZONE,
-    label                        VARCHAR(1000)            NOT NULL,
-    credential_uuid              UUID                     NOT NULL UNIQUE
-);
-```
-
 ## Passkey storage is PostgreSQL only
 
-The `who-passkey` repositories use `ON CONFLICT`, so passkey storage works on PostgreSQL 14+ only. The other modules also run on H2. The tables are used only when `who-passkey` is on the classpath. See [Passkeys](passkeys.md).
-
-## Liquibase
-
-Every module ships a changelog that matches its bundled `who-<module>-schema.sql`. `who-autoconfigure` ships `org/jwcarman/who/db/who-changelog.xml`, which includes the changelog of each module on the classpath, `who-jdbc` first. Include that one file from your master changelog:
-
-```yaml
-databaseChangeLog:
-  - include:
-      file: classpath:org/jwcarman/who/db/who-changelog.xml
-```
-
-Then set `who.initialize-schema: never`. Modules that are not on the classpath are skipped.
-
-The `classpath:` includes inside `who-changelog.xml` need Spring Boot's Liquibase integration. The Liquibase CLI and the Liquibase Maven plugin may skip them without a warning, so run the changelog through Spring Boot.
-
-The changelogs have no preconditions, except the one that renames `who_jwt_credential` to `who_federated_credential` and runs only when the old table exists. Use them on a fresh schema. If the tables already exist because the bundled schema files created them, run Liquibase `changelog-sync` once before the first update, so Liquibase records the change sets as applied and does not try to create the tables again.
+The `who-passkey` repositories use `ON CONFLICT`, so passkey storage needs PostgreSQL 14+. The
+tables are used only when `who-passkey` is on the classpath. See [Passkeys](passkeys.md).

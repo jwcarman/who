@@ -87,9 +87,11 @@ To work on the docs site, run `pip install --require-hashes -r docs/requirements
   The agent skill carries copies of the guides and the changelog in
   `plugins/who/skills/who/references`; a build from the root refreshes them (`./mvnw -N
   generate-resources` is enough), so commit them with the change.
-- **Schema changes:** a new Liquibase changeSet (never edit a released one), the same change in
-  the module's `who-<module>-schema.sql`, and the SQL for Flyway and script users in the
-  upgrading guide.
+- **Schema changes:** a new Liquibase changeSet in the module's changelog, and nothing else. Never
+  edit a released changeSet: Liquibase fails startup when a checksum changes. Never move or rename
+  a changelog file: its path is part of each changeSet's identity, and `LiquibaseChangelogTest`
+  pins it. Changes only add (new tables, nullable columns, indexes), so an older instance keeps
+  working during a rolling deploy; anything else needs steps in the upgrading guide.
 - **Commits:** a short, conventional summary such as `feat(email-link): ...`,
   `fix(passkey): ...`, `test: ...`, `docs: ...` or `build: ...`.
 
