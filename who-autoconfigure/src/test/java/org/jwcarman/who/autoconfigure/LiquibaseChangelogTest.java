@@ -108,6 +108,8 @@ class LiquibaseChangelogTest {
     List<Migration> migrations = Migrations.load(getClass().getClassLoader());
 
     assertThat(migrations.getFirst().name()).isEqualTo("who-jdbc");
+    assertThat(migrations.subList(1, migrations.size()))
+        .allSatisfy(migration -> assertThat(migration.after()).containsExactly("who-jdbc"));
     assertThat(migrations)
         .extracting(Migration::name)
         .containsExactlyInAnyOrderElementsOf(MIGRATION_NAMES);

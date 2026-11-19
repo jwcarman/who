@@ -61,6 +61,14 @@ PostgreSQL only. See [Database Setup](database.md).
    who create them again. A database where your own changelog already ran `who-changelog.xml` is
    fine as it is: migratory finds the same rows in `DATABASECHANGELOG` and runs nothing again.
 
+6. **`spring.liquibase.enabled=false` no longer stops who's tables.** It turns off only Spring
+   Boot's run of your changelog. A profile that turned it off to keep Liquibase away from the
+   database (tests, or a database user without DDL rights) sets `migratory.enabled=false` too.
+7. **`spring.liquibase.drop-first=true` fails startup** while migratory runs; a test profile that
+   uses it sets `migratory.enabled=false` and includes who's changelogs itself.
+8. **Without `who-jdbc`**, set `migratory.enabled=false`; see
+   [Without who-jdbc](database.md#without-who-jdbc).
+
 An application with no tables of its own still needs a master changelog for Spring Boot's
 Liquibase; an empty one, `databaseChangeLog: []` in `db/changelog/db.changelog-master.yaml`, does.
 

@@ -16,6 +16,9 @@ All notable changes to this project are documented here. The format follows
   the classpath and no Liquibase, startup fails; add `spring-boot-starter-liquibase`. Drop any
   include of `who-changelog.xml` from your own changelog: the file is gone. To keep running who's
   changelogs yourself, set `migratory.enabled=false` and include each module's changelog instead.
+- **`spring.liquibase.enabled=false` no longer stops who's tables**, and
+  `spring.liquibase.drop-first=true` fails startup; `migratory.enabled=false` is the switch. An
+  application without `who-jdbc` sets it too.
 - **`who.initialize-schema` and the bundled `who-<module>-schema.sql` scripts are removed**, with
   `WhoDataSourceScriptDatabaseInitializer` and `WhoSchemaRuntimeHints`. The Flyway copy of the
   schema is gone from the database guide.

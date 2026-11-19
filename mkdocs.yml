@@ -95,7 +95,7 @@ plugins:
           - index.md: what who is and which module does what
           - guides/getting-started.md: adding who to a project, the default chain, chains of your own, creating and deleting identities
           - guides/configuration.md: the exact name and default of any who.* property, and every endpoint path
-          - guides/database.md: who migrating its tables with Liquibase, running its changelog yourself, ordering a library's migrations after who's, transactions and locks
+          - guides/database.md: who migrating its tables with Liquibase, running its changelogs yourself, ordering a library's migrations after who's, transactions and locks
         Signing in:
           - guides/email-links.md: sign-in by emailed link or code, adding or changing an address, the Turnstile human check, rate limiting
           - guides/email.md: who's emails, the who-email and who-email-smtp modules, overriding templates, HTML, subjects, languages, a sender of your own

@@ -237,7 +237,7 @@ sections you need.
 - `getting-started.md`: adding who to a project, the default chain, chains of your own, creating
   and deleting identities.
 - `configuration.md`: the exact name and default of any `who.*` property, and every endpoint path.
-- `database.md`: who migrating its tables with Liquibase, running its changelog yourself,
+- `database.md`: who migrating its tables with Liquibase, running its changelogs yourself,
   ordering a library's migrations after who's, transactions and locks.
 - `email-links.md`: sign-in by emailed link or code, sending mail, adding or changing an address,
   the Turnstile human check, rate limiting.

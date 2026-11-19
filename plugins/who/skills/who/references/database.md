@@ -5,6 +5,7 @@
 - How who migrates its tables
 - Without Liquibase
 - Running who's changelogs yourself
+- Without `who-jdbc`
 - `spring.liquibase.drop-first` is not supported
 - Rules for who's changelogs
 - Liquibase extensions
@@ -40,8 +41,8 @@ brings. Each who module that has tables declares its changelog in its jar's
 | `who-email-link` | `classpath:org/jwcarman/who/emaillink/db/who-email-link-changelog.xml` | `who-jdbc` |
 | `who-passkey` | `classpath:org/jwcarman/who/passkey/db/who-passkey-changelog.xml` | `who-jdbc` |
 
-At startup migratory runs the changelog of each module on the classpath, in that order; a module
-that is not on the classpath declares nothing. When a who release changes a table, it ships a new
+At startup migratory runs the changelog of each module on the classpath: `who-jdbc` first, then
+the rest in name order. A module that is not on the classpath declares nothing. When a who release changes a table, it ships a new
 changeset, and the next startup applies it.
 
 migratory runs them with what Spring Boot's Liquibase uses for your own changelog: the same data
@@ -110,12 +111,20 @@ databaseChangeLog:
   # ...and the rest from the table above, for the modules on your classpath
 ```
 
-A multi-tenant application includes them in each tenant's run. `migratory.enabled=false` turns off
+A multi-tenant application includes them in each tenant's run. Adding a who module later means
+adding its include too: nothing fails at startup without it, only the module's first query. `migratory.enabled=false` turns off
 every library's migrations, not only who's, so include those libraries' changelogs too.
 
 Including them records the same rows in `DATABASECHANGELOG` as migratory does, so an application
 can move from one to the other without anything running twice, as long as both use the same
 history table.
+
+## Without `who-jdbc`
+
+An application that keeps identities in a repository of its own, without `who-jdbc`, has no
+`who_identity` table, and the other modules' tables reference it. Such an application sets
+`migratory.enabled=false` and creates the tables it needs itself; otherwise the first module
+changelog with a foreign key to `who_identity` fails startup.
 
 ## `spring.liquibase.drop-first` is not supported
 

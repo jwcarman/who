@@ -271,7 +271,7 @@ the purge skip that module's rows unless your bean also implements
 
 ## Next steps
 
-1. [Database Setup](database.md): how who migrates its tables, and running its changelog yourself.
+1. [Database Setup](database.md): how who migrates its tables, and running its changelogs yourself.
 2. [Email Links](email-links.md), [Passkeys](passkeys.md), [API Keys](api-keys.md) or
    [JWT](jwt.md): set up each sign-in method you added.
 3. [Enrollment](enrollment.md): link a user's credential to an identity.
