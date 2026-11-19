@@ -1,0 +1,3 @@
+databaseChangeLog:
+  - include:
+      file: classpath:org/jwcarman/who/db/who-changelog.xml

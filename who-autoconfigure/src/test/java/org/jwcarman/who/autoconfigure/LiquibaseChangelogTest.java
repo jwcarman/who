@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -29,11 +28,13 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.liquibase.autoconfigure.LiquibaseProperties;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.junit.jupiter.Container;
@@ -68,13 +69,26 @@ class LiquibaseChangelogTest {
           "who_passkey_user",
           "who_passkey_credential");
 
+  // Liquibase records the includes without their classpath: prefix. who-federated's file keeps
+  // its pre-0.18 who-jwt identity through logicalFilePath, with the prefix.
+  private static final List<String> PINNED_CHANGELOG_PATHS =
+      List.of(
+          "org/jwcarman/who/jdbc/db/who-jdbc-changelog.xml",
+          "org/jwcarman/who/rbac/db/who-rbac-changelog.xml",
+          "classpath:org/jwcarman/who/jwt/db/who-jwt-changelog.xml",
+          "org/jwcarman/who/enrollment/db/who-enrollment-changelog.xml",
+          "org/jwcarman/who/apikey/db/who-apikey-changelog.xml",
+          "org/jwcarman/who/emaillink/db/who-email-link-changelog.xml",
+          "org/jwcarman/who/passkey/db/who-passkey-changelog.xml");
+
   @Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
   @Test
   void changelogAllSkipsAbsentModules() throws Exception {
     createDatabase("who_skip");
 
-    runChangelog("who_skip", new HidingClassLoader(EMAIL_LINK_CHANGELOG));
+    runChangelog(
+        "who_skip", new HidingClassLoader(EMAIL_LINK_CHANGELOG), "classpath:" + CHANGELOG_ALL);
 
     List<String> description = describe("who_skip");
     assertThat(tableNames(description))
@@ -86,7 +100,7 @@ class LiquibaseChangelogTest {
   void changeSetTwoUpgradesATableWithRows() throws Exception {
     createDatabase("who_upgrade");
     createDatabase("who_fresh");
-    runChangelog("who_upgrade", getClass().getClassLoader());
+    runChangelog("who_upgrade", getClass().getClassLoader(), "classpath:" + CHANGELOG_ALL);
 
     try (Connection connection = connect("who_upgrade");
         Statement statement = connection.createStatement()) {
@@ -106,8 +120,8 @@ class LiquibaseChangelogTest {
           """);
     }
 
-    runChangelog("who_upgrade", getClass().getClassLoader());
-    runChangelog("who_fresh", getClass().getClassLoader());
+    runChangelog("who_upgrade", getClass().getClassLoader(), "classpath:" + CHANGELOG_ALL);
+    runChangelog("who_fresh", getClass().getClassLoader(), "classpath:" + CHANGELOG_ALL);
 
     try (Connection connection = connect("who_upgrade");
         Statement statement = connection.createStatement();
@@ -122,14 +136,66 @@ class LiquibaseChangelogTest {
         .isEqualTo(describe("who_fresh"));
   }
 
-  private static void runChangelog(String database, ClassLoader classLoader) throws Exception {
+  @Test
+  void whoLiquibaseRecordsThePinnedPaths() throws Exception {
+    createDatabase("who_pinned");
+    runWhoLiquibase("who_pinned");
+
+    assertThat(distinctFilenames("who_pinned"))
+        .containsExactlyInAnyOrderElementsOf(PINNED_CHANGELOG_PATHS);
+  }
+
+  @Test
+  void anApplicationIncludingWhosChangelogRunsNothingAgain() throws Exception {
+    createDatabase("who_switch");
+    runWhoLiquibase("who_switch");
+    long before = changeSetCount("who_switch");
+
+    runChangelog(
+        "who_switch", getClass().getClassLoader(), "classpath:app-changelog/includes-who.yaml");
+
+    assertThat(changeSetCount("who_switch")).isEqualTo(before);
+  }
+
+  private static void runWhoLiquibase(String database) throws Exception {
+    new WhoLiquibase(
+            new DriverManagerDataSource(
+                jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword()),
+            new LiquibaseProperties(),
+            new DefaultResourceLoader())
+        .afterPropertiesSet();
+  }
+
+  private static long changeSetCount(String database) throws SQLException {
+    try (Connection connection = connect(database);
+        Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery("SELECT count(*) FROM databasechangelog")) {
+      assertThat(rs.next()).isTrue();
+      return rs.getLong(1);
+    }
+  }
+
+  private static Set<String> distinctFilenames(String database) throws SQLException {
+    Set<String> filenames = new HashSet<>();
+    try (Connection connection = connect(database);
+        Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery("SELECT DISTINCT filename FROM databasechangelog")) {
+      while (rs.next()) {
+        filenames.add(rs.getString(1));
+      }
+    }
+    return filenames;
+  }
+
+  private static void runChangelog(String database, ClassLoader classLoader, String changelog)
+      throws Exception {
     DriverManagerDataSource dataSource =
         new DriverManagerDataSource(
             jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword());
     SpringLiquibase liquibase = new SpringLiquibase();
     liquibase.setResourceLoader(new DefaultResourceLoader(classLoader));
     liquibase.setDataSource(dataSource);
-    liquibase.setChangeLog("classpath:" + CHANGELOG_ALL);
+    liquibase.setChangeLog(changelog);
     liquibase.afterPropertiesSet();
   }
 
@@ -204,13 +270,6 @@ class LiquibaseChangelogTest {
   private static Connection connect(String database) throws SQLException {
     return DriverManager.getConnection(
         jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword());
-  }
-
-  private String readResource(String path) throws IOException {
-    try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
-      assertThat(in).as(path).isNotNull();
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
   }
 
   private static final class HidingClassLoader extends ClassLoader {
