@@ -78,7 +78,7 @@ class ModuleActivationTest {
   private static final String RP_ID = "who.passkey.rp-id=app.example.com";
 
   /** These contexts only check beans: no Liquibase run, so no who tables. */
-  private static final String MIGRATIONS_OFF = "who.migrations.enabled=false";
+  private static final String MIGRATIONS_OFF = "migratory.enabled=false";
 
   /** Every module on the classpath, each with what it needs. */
   private final ApplicationContextRunner configured =

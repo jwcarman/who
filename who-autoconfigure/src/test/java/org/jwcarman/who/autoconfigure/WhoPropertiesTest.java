@@ -115,7 +115,6 @@ class WhoPropertiesTest {
   void defaultsArePopulated() {
     WhoProperties props = new WhoProperties();
 
-    assertThat(props.getMigrations().isEnabled()).isTrue();
     assertThat(props.getEnrollment().getTokenExpiration()).isEqualTo(Duration.ofHours(24));
     assertThat(props.getApiKey().getHeaderName()).isEqualTo("X-API-Key");
     assertThat(props.getApiKey().getPrefix()).isEqualTo("who_");

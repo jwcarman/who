@@ -129,7 +129,13 @@
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
-        <!-- who migrates its own tables with Liquibase when the application brings it -->
+        <!-- migratory runs who's modules' changelogs, before the application's, when the
+             application brings Liquibase -->
+        <dependency>
+            <groupId>org.jwcarman.migratory</groupId>
+            <artifactId>migratory-autoconfigure</artifactId>
+            <version>${migratory.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-liquibase</artifactId>

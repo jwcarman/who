@@ -61,8 +61,7 @@ class NativeResourceMetadataTest {
             "who-enrollment",
             "who-apikey",
             "who-email-link",
-            "who-passkey",
-            "who-autoconfigure");
+            "who-passkey");
   }
 
   @Test

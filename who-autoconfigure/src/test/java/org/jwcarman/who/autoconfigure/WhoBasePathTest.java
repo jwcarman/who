@@ -52,7 +52,7 @@ class WhoBasePathTest {
               "who.email-link.enabled=false",
               "who.passkey.enabled=false",
               "who.admin.enabled=false",
-              "who.migrations.enabled=false");
+              "migratory.enabled=false");
 
   @Test
   void the_default_root_is_who() {

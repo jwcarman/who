@@ -1,4 +1,2 @@
 org.springframework.boot.diagnostics.FailureAnalyzer=\
 org.jwcarman.who.autoconfigure.WhoConfigurationFailureAnalyzer
-org.springframework.boot.sql.init.dependency.DatabaseInitializerDetector=\
-org.jwcarman.who.autoconfigure.WhoLiquibaseDatabaseInitializerDetector

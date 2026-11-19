@@ -118,7 +118,7 @@ class PasskeyAutoConfigurationTest {
   void passkeysOffMeansNoPasskeyBeans() {
     // passkeys and email links off, and only beans to check: no who tables needed
     postgresRunner()
-        .withPropertyValues(PASSKEYS_OFF, EMAIL_LINKS_OFF, "who.migrations.enabled=false")
+        .withPropertyValues(PASSKEYS_OFF, EMAIL_LINKS_OFF, "migratory.enabled=false")
         .run(
             context -> {
               assertThat(context).hasNotFailed();

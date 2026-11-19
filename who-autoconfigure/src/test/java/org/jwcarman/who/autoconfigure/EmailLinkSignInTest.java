@@ -635,7 +635,7 @@ class EmailLinkSignInTest {
             "spring.datasource.username=" + WhoTestPostgres.username(),
             "spring.datasource.password=" + WhoTestPostgres.password())
         // the same database as this class's context, whose who tables are already there
-        .withPropertyValues("who.passkey.enabled=false", "who.migrations.enabled=false")
+        .withPropertyValues("who.passkey.enabled=false", "migratory.enabled=false")
         .run(
             other -> {
               assertThat(other).hasNotFailed();
@@ -756,14 +756,14 @@ class EmailLinkSignInTest {
 
   private final ApplicationContextRunner startupRunner =
       new ApplicationContextRunner()
-          .withPropertyValues("who.migrations.enabled=false")
+          .withPropertyValues("migratory.enabled=false")
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(StartupConfig.class);
 
   @Test
   void emailLinksOffMeansNoEmailLinkSignIn() {
     new ApplicationContextRunner()
-        .withPropertyValues("who.migrations.enabled=false")
+        .withPropertyValues("migratory.enabled=false")
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
         .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
@@ -779,7 +779,7 @@ class EmailLinkSignInTest {
   @Test
   void linkBaseUrlWithoutASenderFailsStartup() {
     new ApplicationContextRunner()
-        .withPropertyValues("who.migrations.enabled=false")
+        .withPropertyValues("migratory.enabled=false")
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
         .withPropertyValues(

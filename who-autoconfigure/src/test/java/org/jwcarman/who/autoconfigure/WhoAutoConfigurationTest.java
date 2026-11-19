@@ -92,7 +92,7 @@ class WhoAutoConfigurationTest {
   }
 
   /** For contexts that only check beans: no Liquibase run, so no who tables. */
-  private static final String MIGRATIONS_OFF = "who.migrations.enabled=false";
+  private static final String MIGRATIONS_OFF = "migratory.enabled=false";
 
   /** Opts in to email-link sign-in. */
   private static final String LINK_BASE_URL =

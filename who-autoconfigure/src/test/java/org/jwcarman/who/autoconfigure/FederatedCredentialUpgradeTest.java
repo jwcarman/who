@@ -60,7 +60,7 @@ class FederatedCredentialUpgradeTest {
           "INSERT INTO who_jwt_credential (id, issuer, subject) VALUES ('%s', '%s', 'sub-1')"
               .formatted(id, ISSUER));
 
-      runChangelog(database, "classpath:org/jwcarman/who/db/who-changelog.xml");
+      runChangelog(database, "classpath:app-changelog/includes-who.yaml");
 
       assertThat(tableExists(database, "who_jwt_credential")).isFalse();
       assertThat(repository(database).findByIssuerAndSubject(ISSUER, "sub-1"))
@@ -71,7 +71,7 @@ class FederatedCredentialUpgradeTest {
     void creates_the_table_on_an_empty_database() throws Exception {
       String database = createDatabase();
 
-      runChangelog(database, "classpath:org/jwcarman/who/db/who-changelog.xml");
+      runChangelog(database, "classpath:app-changelog/includes-who.yaml");
 
       assertThat(tableExists(database, "who_federated_credential")).isTrue();
       assertThat(tableExists(database, "who_jwt_credential")).isFalse();

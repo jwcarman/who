@@ -32,7 +32,7 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @JdbcTest(properties = "spring.liquibase.change-log=classpath:app-changelog/references-who.yaml")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class WhoLiquibaseSliceTest {
+class WhoMigrationsSliceTest {
 
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) {

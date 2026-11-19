@@ -18,7 +18,6 @@ package org.jwcarman.who.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -34,6 +33,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
+import org.jwcarman.migratory.autoconfigure.Migrations;
+import org.jwcarman.migratory.autoconfigure.MigratoryLiquibase;
+import org.jwcarman.migratory.autoconfigure.MigratoryProperties;
+import org.jwcarman.migratory.core.Migration;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseProperties;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -46,10 +49,27 @@ import liquibase.integration.spring.SpringLiquibase;
 @Testcontainers
 class LiquibaseChangelogTest {
 
-  private static final String CHANGELOG_ALL = "org/jwcarman/who/db/who-changelog.xml";
+  private static final String DECLARATION = "META-INF/migratory.properties";
 
-  private static final String EMAIL_LINK_CHANGELOG =
-      "org/jwcarman/who/emaillink/db/who-email-link-changelog.xml";
+  private static final List<String> MIGRATION_NAMES =
+      List.of(
+          "who-jdbc",
+          "who-rbac",
+          "who-federated",
+          "who-enrollment",
+          "who-apikey",
+          "who-email-link",
+          "who-passkey");
+
+  private static final List<String> CHANGELOGS =
+      List.of(
+          "classpath:org/jwcarman/who/jdbc/db/who-jdbc-changelog.xml",
+          "classpath:org/jwcarman/who/rbac/db/who-rbac-changelog.xml",
+          "classpath:org/jwcarman/who/federated/db/who-federated-changelog.xml",
+          "classpath:org/jwcarman/who/enrollment/db/who-enrollment-changelog.xml",
+          "classpath:org/jwcarman/who/apikey/db/who-apikey-changelog.xml",
+          "classpath:org/jwcarman/who/emaillink/db/who-email-link-changelog.xml",
+          "classpath:org/jwcarman/who/passkey/db/who-passkey-changelog.xml");
 
   private static final List<String> ALL_TABLES =
       List.of(
@@ -84,11 +104,23 @@ class LiquibaseChangelogTest {
   @Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
 
   @Test
-  void changelogAllSkipsAbsentModules() throws Exception {
+  void whoDeclaresEachModuleAfterWhoJdbc() {
+    List<Migration> migrations = Migrations.load(getClass().getClassLoader());
+
+    assertThat(migrations.getFirst().name()).isEqualTo("who-jdbc");
+    assertThat(migrations)
+        .extracting(Migration::name)
+        .containsExactlyInAnyOrderElementsOf(MIGRATION_NAMES);
+    assertThat(migrations)
+        .extracting(Migration::changelog)
+        .containsExactlyInAnyOrderElementsOf(CHANGELOGS);
+  }
+
+  @Test
+  void anAbsentModuleCreatesNoTables() throws Exception {
     createDatabase("who_skip");
 
-    runChangelog(
-        "who_skip", new HidingClassLoader(EMAIL_LINK_CHANGELOG), "classpath:" + CHANGELOG_ALL);
+    runMigratory("who_skip", new HidingClassLoader("/who-email-link/"));
 
     List<String> description = describe("who_skip");
     assertThat(tableNames(description))
@@ -100,7 +132,7 @@ class LiquibaseChangelogTest {
   void changeSetTwoUpgradesATableWithRows() throws Exception {
     createDatabase("who_upgrade");
     createDatabase("who_fresh");
-    runChangelog("who_upgrade", getClass().getClassLoader(), "classpath:" + CHANGELOG_ALL);
+    runMigratory("who_upgrade", getClass().getClassLoader());
 
     try (Connection connection = connect("who_upgrade");
         Statement statement = connection.createStatement()) {
@@ -120,8 +152,8 @@ class LiquibaseChangelogTest {
           """);
     }
 
-    runChangelog("who_upgrade", getClass().getClassLoader(), "classpath:" + CHANGELOG_ALL);
-    runChangelog("who_fresh", getClass().getClassLoader(), "classpath:" + CHANGELOG_ALL);
+    runMigratory("who_upgrade", getClass().getClassLoader());
+    runMigratory("who_fresh", getClass().getClassLoader());
 
     try (Connection connection = connect("who_upgrade");
         Statement statement = connection.createStatement();
@@ -137,18 +169,18 @@ class LiquibaseChangelogTest {
   }
 
   @Test
-  void whoLiquibaseRecordsThePinnedPaths() throws Exception {
+  void migratoryRecordsThePinnedPaths() throws Exception {
     createDatabase("who_pinned");
-    runWhoLiquibase("who_pinned");
+    runMigratory("who_pinned", getClass().getClassLoader());
 
     assertThat(distinctFilenames("who_pinned"))
         .containsExactlyInAnyOrderElementsOf(PINNED_CHANGELOG_PATHS);
   }
 
   @Test
-  void anApplicationIncludingWhosChangelogRunsNothingAgain() throws Exception {
+  void anApplicationIncludingWhosChangelogsRunsNothingAgain() throws Exception {
     createDatabase("who_switch");
-    runWhoLiquibase("who_switch");
+    runMigratory("who_switch", getClass().getClassLoader());
     long before = changeSetCount("who_switch");
 
     runChangelog(
@@ -157,12 +189,14 @@ class LiquibaseChangelogTest {
     assertThat(changeSetCount("who_switch")).isEqualTo(before);
   }
 
-  private static void runWhoLiquibase(String database) throws Exception {
-    new WhoLiquibase(
+  private static void runMigratory(String database, ClassLoader classLoader) throws Exception {
+    new MigratoryLiquibase(
+            Migrations.load(classLoader),
             new DriverManagerDataSource(
                 jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword()),
             new LiquibaseProperties(),
-            new DefaultResourceLoader())
+            new MigratoryProperties(),
+            new DefaultResourceLoader(classLoader))
         .afterPropertiesSet();
   }
 
@@ -272,27 +306,25 @@ class LiquibaseChangelogTest {
         jdbcUrl(database), POSTGRES.getUsername(), POSTGRES.getPassword());
   }
 
+  /** Hides the migratory declaration of the module whose class-path location contains a text. */
   private static final class HidingClassLoader extends ClassLoader {
-    private final String hidden;
+    private final String hiddenModule;
 
-    HidingClassLoader(String hidden) {
+    HidingClassLoader(String hiddenModule) {
       super(LiquibaseChangelogTest.class.getClassLoader());
-      this.hidden = hidden;
-    }
-
-    @Override
-    public URL getResource(String name) {
-      return hidden.equals(name) ? null : super.getResource(name);
+      this.hiddenModule = hiddenModule;
     }
 
     @Override
     public Enumeration<URL> getResources(String name) throws IOException {
-      return hidden.equals(name) ? Collections.emptyEnumeration() : super.getResources(name);
-    }
-
-    @Override
-    public InputStream getResourceAsStream(String name) {
-      return hidden.equals(name) ? null : super.getResourceAsStream(name);
+      Enumeration<URL> resources = super.getResources(name);
+      if (!DECLARATION.equals(name)) {
+        return resources;
+      }
+      return Collections.enumeration(
+          Collections.list(resources).stream()
+              .filter(url -> !url.toString().contains(hiddenModule))
+              .toList());
     }
   }
 }

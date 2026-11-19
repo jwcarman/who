@@ -18,6 +18,7 @@ package org.jwcarman.who.autoconfigure;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jwcarman.migratory.autoconfigure.MigratoryAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration;
@@ -33,7 +34,7 @@ final class WhoTestAutoConfigurations {
           SecurityAutoConfiguration.class,
           ServletWebSecurityAutoConfiguration.class,
           WhoAutoConfiguration.class,
-          WhoMigrationsAutoConfiguration.class,
+          MigratoryAutoConfiguration.class,
           WhoSpringSecurityAutoConfiguration.class,
           WhoEnrollmentAutoConfiguration.class,
           WhoFederatedAutoConfiguration.class,

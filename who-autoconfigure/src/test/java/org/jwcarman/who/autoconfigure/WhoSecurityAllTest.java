@@ -509,7 +509,7 @@ class WhoSecurityAllTest {
     @Test
     void mounting_jwt_fails_startup_naming_the_issuer_property() {
       new WebApplicationContextRunner()
-          .withPropertyValues("who.migrations.enabled=false")
+          .withPropertyValues("migratory.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -532,7 +532,7 @@ class WhoSecurityAllTest {
     @Test
     void with_jwt_turned_off_the_chain_starts() {
       new WebApplicationContextRunner()
-          .withPropertyValues("who.migrations.enabled=false")
+          .withPropertyValues("migratory.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -549,7 +549,7 @@ class WhoSecurityAllTest {
 
     private final WebApplicationContextRunner runner =
         new WebApplicationContextRunner()
-            .withPropertyValues("who.migrations.enabled=false")
+            .withPropertyValues("migratory.enabled=false")
             .withConfiguration(
                 WhoTestAutoConfigurations.who(
                     SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))

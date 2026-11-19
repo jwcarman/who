@@ -77,7 +77,7 @@ class WhoDefaultChainTest {
     all[1] = ServletWebSecurityAutoConfiguration.class;
     System.arraycopy(boot, 0, all, 2, boot.length);
     return new WebApplicationContextRunner()
-        .withPropertyValues("who.migrations.enabled=false")
+        .withPropertyValues("migratory.enabled=false")
         .withConfiguration(WhoTestAutoConfigurations.who(all))
         .withUserConfiguration(WhoSecurityAllTest.Database.class)
         .withPropertyValues(

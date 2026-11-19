@@ -150,7 +150,7 @@ class WhoRecentSignInMethodTest {
               "who.email-link.enabled=false",
               "who.passkey.enabled=false",
               "who.admin.enabled=false",
-              "who.migrations.enabled=false");
+              "migratory.enabled=false");
 
   @AfterEach
   void clear() {

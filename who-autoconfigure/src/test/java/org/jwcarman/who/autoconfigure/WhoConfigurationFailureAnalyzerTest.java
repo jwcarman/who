@@ -62,23 +62,6 @@ class WhoConfigurationFailureAnalyzerTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
-  @Test
-  void says_when_migrations_are_enabled_but_liquibase_is_missing() {
-    FailureAnalysis analysis =
-        new WhoConfigurationFailureAnalyzer()
-            .analyze(
-                new WhoConfigurationException(
-                    "who.migrations.enabled",
-                    "is true, but Liquibase is not on the classpath",
-                    "Add spring-boot-starter-liquibase, or set who.migrations.enabled=false and run"
-                        + " classpath:org/jwcarman/who/db/who-changelog.xml yourself."));
-
-    assertThat(analysis.getDescription())
-        .startsWith(
-            "who cannot start: who.migrations.enabled is true, but Liquibase is not on the"
-                + " classpath.");
-  }
-
   @Nested
   class Startup_fails_with_the_property_for {
 
@@ -86,7 +69,7 @@ class WhoConfigurationFailureAnalyzerTest {
         new ApplicationContextRunner()
             .withConfiguration(WhoTestAutoConfigurations.who())
             .withUserConfiguration(Database.class)
-            .withPropertyValues("who.migrations.enabled=false");
+            .withPropertyValues("migratory.enabled=false");
 
     @Test
     void a_blank_link_base_url() {

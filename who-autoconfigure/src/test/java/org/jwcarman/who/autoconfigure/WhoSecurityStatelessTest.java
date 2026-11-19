@@ -439,7 +439,7 @@ class WhoSecurityStatelessTest {
 
   private static WebApplicationContextRunner apiOnly() {
     return new WebApplicationContextRunner()
-        .withPropertyValues("who.migrations.enabled=false")
+        .withPropertyValues("migratory.enabled=false")
         .withConfiguration(
             WhoTestAutoConfigurations.who(
                 SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -507,7 +507,7 @@ class WhoSecurityStatelessTest {
     @Test
     void startup_fails() {
       new WebApplicationContextRunner()
-          .withPropertyValues("who.migrations.enabled=false")
+          .withPropertyValues("migratory.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -531,7 +531,7 @@ class WhoSecurityStatelessTest {
     @Test
     void the_signed_out_401_challenges_with_bearer() {
       new WebApplicationContextRunner()
-          .withPropertyValues("who.migrations.enabled=false")
+          .withPropertyValues("migratory.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))

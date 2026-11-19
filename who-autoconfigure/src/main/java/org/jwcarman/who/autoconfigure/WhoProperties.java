@@ -55,7 +55,6 @@ public class WhoProperties {
   private Sessions sessions = new Sessions();
   private Admin admin = new Admin();
   private Email email = new Email();
-  private Migrations migrations = new Migrations();
 
   /**
    * Returns the root every who endpoint lives under.
@@ -1009,58 +1008,6 @@ public class WhoProperties {
    */
   public void setAdmin(Admin admin) {
     this.admin = admin;
-  }
-
-  /**
-   * Returns the properties of who's own Liquibase migrations.
-   *
-   * @return migrations properties
-   */
-  public Migrations getMigrations() {
-    return migrations;
-  }
-
-  /**
-   * Sets the properties of who's own Liquibase migrations.
-   *
-   * @param migrations migrations properties
-   */
-  public void setMigrations(Migrations migrations) {
-    this.migrations = migrations;
-  }
-
-  /** Properties for who's own Liquibase migrations of its tables. */
-  public static class Migrations {
-
-    /** Creates the settings with their defaults. */
-    public Migrations() {
-      // defaults are set on the fields
-    }
-
-    /**
-     * Whether who migrates its own tables with Liquibase at startup, before the application's
-     * migrations. Turn it off to run {@code classpath:org/jwcarman/who/db/who-changelog.xml} from
-     * the application's own migrations instead.
-     */
-    private boolean enabled = true;
-
-    /**
-     * Returns whether who migrates its own tables.
-     *
-     * @return true unless turned off
-     */
-    public boolean isEnabled() {
-      return enabled;
-    }
-
-    /**
-     * Turns who's own migrations off with {@code false}.
-     *
-     * @param enabled false to turn them off
-     */
-    public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-    }
   }
 
   /** Properties for the {@code who-admin} module. */

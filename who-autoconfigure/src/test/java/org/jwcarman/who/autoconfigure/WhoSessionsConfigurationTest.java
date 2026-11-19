@@ -69,7 +69,7 @@ class WhoSessionsConfigurationTest {
               "who.email-link.enabled=false",
               "who.passkey.enabled=false",
               "who.admin.enabled=false",
-              "who.migrations.enabled=false");
+              "migratory.enabled=false");
 
   @Test
   void the_default_timeout_is_thirty_minutes() {
@@ -189,7 +189,7 @@ class WhoSessionsConfigurationTest {
   @Test
   void a_destroyed_servlet_session_closes_its_row() {
     runner
-        .withPropertyValues("who.migrations.enabled=true")
+        .withPropertyValues("migratory.enabled=true")
         .run(
             context -> {
               assertThat(context).hasSingleBean(WhoSessionSecurityContextRepository.class);
