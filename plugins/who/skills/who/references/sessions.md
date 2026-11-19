@@ -49,9 +49,9 @@ Spring Boot configures it from the `DataSource` it already has. Nothing in who c
 
 ### Create the tables
 
-For a quick start, let Spring Boot create the tables: `spring.session.jdbc.initialize-schema: embedded` (the default) does this for an embedded database, and `always` does it for any other.
+For a quick start, let Spring Boot create the tables on PostgreSQL with `spring.session.jdbc.initialize-schema: always`. The default, `embedded`, creates them only in an embedded database, so on PostgreSQL it creates nothing.
 
-An application with who already runs Liquibase (see [Database Setup](database.md)), so you can turn that off and put the tables in your own changelog instead:
+An application with who already runs Liquibase (see [Database Setup](database.md)), so you can instead set it to `never` and put the tables in your own changelog:
 
 ```yaml
 spring:

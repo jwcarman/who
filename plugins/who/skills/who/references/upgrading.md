@@ -564,7 +564,7 @@ provider sign-in can share it.
   switches over the three; see [Email Links](email-links.md#turn-it-on).
 - **A new table, `who_email_address_request`,** for [adding or changing an
   address](email-links.md#adding-or-changing-an-address). The bundled schema and the Liquibase
-  changelog create it; Flyway users copy it from [Database Setup](database.md#flyway).
+  changelog create it; Flyway users copy it from [Database Setup](database.md).
 - **API keys need a lifetime and scopes.** `ApiKeyService.create(identity, name)` is now
   `create(identity, name, lifetime, scopes)` and answers a `NewApiKey`; the raw key is its
   `key()`. The lifetime is required and at most `who.api-key.max-lifetime` (default `365d`), and
@@ -587,7 +587,7 @@ provider sign-in can share it.
   key's scopes. Keys made before have no lifetime or scopes, so the Liquibase changelog deletes
   them before adding the columns; issue new ones. With the bundled schema, drop
   `who_api_key_credential` and let who create both tables again. Flyway users delete the rows and
-  copy the new columns and table from [Database Setup](database.md#flyway).
+  copy the new columns and table from [Database Setup](database.md).
 - **The "passkey added" startup warning moved logger.** It is now logged by
   `org.jwcarman.who.autoconfigure.WhoPasskeyAutoConfiguration`, not `WhoAutoConfiguration`.
 
@@ -727,8 +727,8 @@ Replace `UTC` with the zone of the JVM (for example `Europe/Berlin`) if it was n
 
 ### Other changes
 
-- **New tables.** Email-link sign-in adds `who_email_credential` and `who_email_link_token`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md#flyway).
-- **Passkeys are opt-in.** The new `who-passkey` module adds the tables `who_passkey_user` and `who_passkey_credential`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md#flyway). Passkey storage is PostgreSQL only. Nothing changes until you set `who.passkey.rp-id`. See [Passkeys](passkeys.md).
+- **New tables.** Email-link sign-in adds `who_email_credential` and `who_email_link_token`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md).
+- **Passkeys are opt-in.** The new `who-passkey` module adds the tables `who_passkey_user` and `who_passkey_credential`. The bundled schema creates them. If you manage the schema with Flyway, copy them from [Database Setup](database.md). Passkey storage is PostgreSQL only. Nothing changes until you set `who.passkey.rp-id`. See [Passkeys](passkeys.md).
 - **Schema files renamed.** Each bundled schema file now starts with its module name. If you point `spring.sql.init.schema-locations` or your own tooling at them, update the paths:
     - `org/jwcarman/who/jdbc/who-jdbc-schema.sql`
     - `org/jwcarman/who/rbac/who-rbac-schema.sql`
@@ -737,7 +737,7 @@ Replace `UTC` with the zone of the JVM (for example `Europe/Berlin`) if it was n
     - `org/jwcarman/who/apikey/who-apikey-schema.sql`
     - `org/jwcarman/who/emaillink/who-email-link-schema.sql`
     - `org/jwcarman/who/passkey/who-passkey-schema.sql` (new)
-- **Liquibase.** The long YAML changelog in the old guide is gone. Include `classpath:org/jwcarman/who/db/who-changelog.xml` instead. See [Liquibase](database.md#liquibase). Do not run it over tables that were created by hand without `changelog-sync` first.
+- **Liquibase.** The long YAML changelog in the old guide is gone. Include `classpath:org/jwcarman/who/db/who-changelog.xml` instead. See [Liquibase](database.md#running-whos-changelog-yourself). Do not run it over tables that were created by hand without `changelog-sync` first.
 - **Email links are opt-in.** Nothing changes for an application that uses only JWT or API keys. To turn them on, see [Email Links](email-links.md).
 - **Sessions.** `WhoWebSecurity.passwordless()` is new and applies only to chains that call it. Other chains are unchanged.
 
