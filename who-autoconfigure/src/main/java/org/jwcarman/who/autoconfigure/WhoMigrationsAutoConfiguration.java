@@ -24,13 +24,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProp
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.boot.liquibase.autoconfigure.LiquibaseConnectionDetails;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseDataSource;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseProperties;
 import org.springframework.boot.sql.init.dependency.DatabaseInitializationDependencyConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.util.StringUtils;
@@ -69,48 +69,90 @@ public class WhoMigrationsAutoConfiguration {
     WhoLiquibase whoLiquibase(
         ObjectProvider<DataSource> dataSource,
         @LiquibaseDataSource ObjectProvider<DataSource> liquibaseDataSource,
+        ObjectProvider<LiquibaseConnectionDetails> connectionDetails,
         LiquibaseProperties properties,
-        Environment environment,
         ResourceLoader resourceLoader) {
       return new WhoLiquibase(
-          migrationDataSource(dataSource, liquibaseDataSource, properties, environment),
+          migrationDataSource(
+              liquibaseDataSource.getIfAvailable(),
+              dataSource,
+              connectionDetails.getIfAvailable(() -> new PropertiesConnectionDetails(properties))),
           properties,
           resourceLoader);
     }
 
-    /** The data source Spring Boot's Liquibase would migrate the application's tables in. */
+    /**
+     * The data source Spring Boot's Liquibase migrates the application's tables in, chosen in the
+     * same order as Boot's {@code LiquibaseAutoConfiguration}.
+     */
     private static DataSource migrationDataSource(
+        DataSource liquibaseDataSource,
         ObjectProvider<DataSource> dataSource,
-        ObjectProvider<DataSource> liquibaseDataSource,
-        LiquibaseProperties properties,
-        Environment environment) {
-      DataSource own = liquibaseDataSource.getIfAvailable();
-      if (own != null) {
-        return own;
+        LiquibaseConnectionDetails connectionDetails) {
+      if (liquibaseDataSource != null) {
+        return liquibaseDataSource;
       }
-      String url = properties.getUrl();
-      if (url == null) {
-        return dataSource.getObject();
+      String url = connectionDetails.getJdbcUrl();
+      if (url != null) {
+        DataSourceBuilder<?> builder =
+            DataSourceBuilder.create().type(SimpleDriverDataSource.class).url(url);
+        applyConnectionDetails(connectionDetails, builder);
+        return builder.build();
       }
-      DataSourceBuilder<?> builder =
-          DataSourceBuilder.create()
-              .type(SimpleDriverDataSource.class)
-              .url(url)
-              .username(
-                  orElse(
-                      properties.getUser(), environment.getProperty("spring.datasource.username")))
-              .password(
-                  orElse(
-                      properties.getPassword(),
-                      environment.getProperty("spring.datasource.password")));
-      if (StringUtils.hasText(properties.getDriverClassName())) {
-        builder.driverClassName(properties.getDriverClassName());
+      DataSource primary = dataSource.getObject();
+      if (connectionDetails.getUsername() != null) {
+        DataSourceBuilder<?> builder =
+            DataSourceBuilder.derivedFrom(primary).type(SimpleDriverDataSource.class);
+        applyConnectionDetails(connectionDetails, builder);
+        return builder.build();
       }
-      return builder.build();
+      return primary;
     }
 
-    private static String orElse(String value, String fallback) {
-      return value != null ? value : fallback;
+    private static void applyConnectionDetails(
+        LiquibaseConnectionDetails connectionDetails, DataSourceBuilder<?> builder) {
+      builder.username(connectionDetails.getUsername());
+      builder.password(connectionDetails.getPassword());
+      String driverClassName = connectionDetails.getDriverClassName();
+      if (StringUtils.hasText(driverClassName)) {
+        builder.driverClassName(driverClassName);
+      }
+    }
+  }
+
+  /**
+   * {@code spring.liquibase.*} as connection details, as Spring Boot reads them, for when Boot's
+   * Liquibase configuration stood down and registered none.
+   */
+  private static final class PropertiesConnectionDetails implements LiquibaseConnectionDetails {
+
+    private final LiquibaseProperties properties;
+
+    private PropertiesConnectionDetails(LiquibaseProperties properties) {
+      this.properties = properties;
+    }
+
+    @Override
+    public String getUsername() {
+      return properties.getUser();
+    }
+
+    @Override
+    public String getPassword() {
+      return properties.getPassword();
+    }
+
+    @Override
+    public String getJdbcUrl() {
+      return properties.getUrl();
+    }
+
+    @Override
+    public String getDriverClassName() {
+      String driverClassName = properties.getDriverClassName();
+      return driverClassName != null
+          ? driverClassName
+          : LiquibaseConnectionDetails.super.getDriverClassName();
     }
   }
 }

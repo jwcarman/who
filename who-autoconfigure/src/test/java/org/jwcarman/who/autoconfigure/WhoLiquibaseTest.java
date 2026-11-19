@@ -31,12 +31,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
+import org.springframework.boot.liquibase.autoconfigure.LiquibaseDataSource;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import liquibase.integration.spring.SpringLiquibase;
 
@@ -128,6 +132,42 @@ class WhoLiquibaseTest {
   }
 
   @Test
+  void usesTheLiquibaseDataSourceWhenThereIsOne() {
+    String other = WhoTestPostgres.newDatabaseUrl();
+    runner
+        .withUserConfiguration(OwnLiquibaseDataSource.class)
+        .withPropertyValues("test.liquibase-url=" + other)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(tablesAt(other)).contains("who_identity");
+              assertThat(tables(context)).doesNotContain("who_identity");
+            });
+  }
+
+  @Test
+  void usesSpringLiquibaseUserOnThePrimaryDatabaseWhenNoUrlIsSet() throws SQLException {
+    String url = WhoTestPostgres.newDatabaseUrl();
+    execute(url, "CREATE ROLE who_migrator LOGIN PASSWORD 'migrator'");
+    execute(url, "GRANT ALL ON SCHEMA public TO who_migrator");
+    runner
+        .withPropertyValues(
+            "spring.datasource.url=" + url,
+            "spring.liquibase.user=who_migrator",
+            "spring.liquibase.password=migrator")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(
+                      new JdbcTemplate(context.getBean(DataSource.class))
+                          .queryForObject(
+                              "SELECT tableowner FROM pg_tables WHERE tablename = 'who_identity'",
+                              String.class))
+                  .isEqualTo("who_migrator");
+            });
+  }
+
+  @Test
   void doesNotRunWhenSpringLiquibaseIsDisabled() {
     runner
         .withPropertyValues("spring.liquibase.enabled=false")
@@ -196,6 +236,28 @@ class WhoLiquibaseTest {
                 url, WhoTestPostgres.username(), WhoTestPostgres.password());
         Statement statement = connection.createStatement()) {
       statement.execute(sql);
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class OwnLiquibaseDataSource {
+
+    @Bean
+    @Primary
+    DataSource dataSource(Environment environment) {
+      return new DriverManagerDataSource(
+          environment.getRequiredProperty("spring.datasource.url"),
+          WhoTestPostgres.username(),
+          WhoTestPostgres.password());
+    }
+
+    @Bean
+    @LiquibaseDataSource
+    DataSource liquibaseDataSource(Environment environment) {
+      return new DriverManagerDataSource(
+          environment.getRequiredProperty("test.liquibase-url"),
+          WhoTestPostgres.username(),
+          WhoTestPostgres.password());
     }
   }
 
