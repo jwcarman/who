@@ -18,5 +18,3 @@ who:
     public-paths:
       - "/api/open"
       - "/test/**"
-  # who's own schema scripts, not Liquibase: the other path native.md documents
-  initialize-schema: always

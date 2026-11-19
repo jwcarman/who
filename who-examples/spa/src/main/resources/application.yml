@@ -2,11 +2,6 @@ spring:
   application:
     name: who-example-spa
 
-  # The app's own table. Postgres itself comes from compose.yaml, through Boot's service connection.
-  sql:
-    init:
-      mode: always
-
   # Mailpit, from compose.yaml. Every email lands at http://localhost:8025.
   mail:
     host: localhost
@@ -37,9 +32,6 @@ who:
   email:
     # The address every email who sends comes from.
     from: who@example.com
-  # who's tables. Fine on your machine; in production use Flyway or Liquibase (see the Database
-  # guide) and set this to never.
-  initialize-schema: always
 
   security:
     # The front end's pages and files are public: they are the same for everyone, and hold no data.

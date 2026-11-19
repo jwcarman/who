@@ -12,7 +12,6 @@ who:
     public-paths:
       - "/api/open"
       - "/test/**"
-  initialize-schema: never
   email-link:
     # Set here, not only as an argument: Spring AOT builds the beans at build time, and email-link
     # sign-in fails startup without it.

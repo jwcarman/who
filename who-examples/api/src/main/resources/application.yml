@@ -7,11 +7,6 @@ spring:
     problemdetails:
       enabled: true
 
-  # The app's own table. Postgres itself comes from compose.yaml, through Boot's service connection.
-  sql:
-    init:
-      mode: always
-
   security:
     oauth2:
       resourceserver:
@@ -23,9 +18,6 @@ spring:
           audiences: who-tasks-api
 
 who:
-  # who's tables. Fine on your machine; in production use Flyway or Liquibase (see the Database
-  # guide) and set this to never.
-  initialize-schema: always
 
 example:
   # The issuer whose accounts Setup links: the same realm the tokens come from.

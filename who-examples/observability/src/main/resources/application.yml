@@ -17,8 +17,6 @@ who:
   email:
     # The address every email who sends comes from.
     from: who@example.com
-  # who's tables. Fine on your machine; in production use Flyway or Liquibase and set this to never.
-  initialize-schema: always
   security:
     public-paths:
       - /
