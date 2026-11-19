@@ -59,12 +59,9 @@ class DeleteIdentityTest {
                   JdbcTemplateAutoConfiguration.class,
                   JdbcClientAutoConfiguration.class))
           .withPropertyValues(
-              "who.initialize-schema=always",
               "who.email-link.link-base-url=https://app.example.com/signin",
-              "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
-              "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
-              "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
-              "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword())
+              "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij")
+          .withPropertyValues(WhoTestPostgres.freshDatabaseProperties())
           .withBean(WhoEmailSender.class, () -> message -> {})
           .withPropertyValues("who.passkey.enabled=false");
 

@@ -84,7 +84,6 @@ import org.springframework.test.context.DynamicPropertySource;
     classes = WhoMeOnEveryChainTest.App.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=localhost",
@@ -109,9 +108,7 @@ class WhoMeOnEveryChainTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
-    registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
     registry.add("spring.security.oauth2.client.provider.stub.issuer-uri", PROVIDER::issuer);
   }
 

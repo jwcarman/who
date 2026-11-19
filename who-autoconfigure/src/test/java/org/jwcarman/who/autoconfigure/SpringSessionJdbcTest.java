@@ -78,8 +78,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Sessions stored by Spring Session JDBC on PostgreSQL, after a real email-link sign-in: the
@@ -88,14 +86,12 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest(
     classes = SpringSessionJdbcTest.App.class,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "spring.session.jdbc.initialize-schema=never",
       "who.passkey.enabled=false"
     })
 @AutoConfigureMockMvc
-@Testcontainers
 class SpringSessionJdbcTest {
 
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
@@ -103,18 +99,9 @@ class SpringSessionJdbcTest {
   private static final String XSRF_COOKIE = "XSRF-TOKEN";
   private static final String SESSION_COOKIE = "SESSION";
 
-  // Singleton container — started once per JVM and shared across all test classes.
-  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
-
-  static {
-    POSTGRES.start();
-  }
-
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   @Configuration(proxyBeanMethods = false)

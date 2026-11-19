@@ -72,7 +72,6 @@ import org.springframework.web.context.WebApplicationContext;
 @SpringBootTest(
     classes = EmailAddressChangeTest.App.class,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
       "who.email-link.address-confirmation-url=" + EmailAddressChangeTest.PROFILE_URL,
       "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,
@@ -87,9 +86,7 @@ class EmailAddressChangeTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
-    registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   @Configuration(proxyBeanMethods = false)

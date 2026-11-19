@@ -93,7 +93,6 @@ import ch.qos.logback.core.read.ListAppender;
 @SpringBootTest(
     classes = EmailSignInEventsTest.App.class,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
       "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,
       "who.passkey.enabled=false"
@@ -106,9 +105,7 @@ class EmailSignInEventsTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
-    registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   // ---------------------------------------------------------------- test application

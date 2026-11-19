@@ -45,7 +45,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "who.base-path=/auth",
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=localhost",

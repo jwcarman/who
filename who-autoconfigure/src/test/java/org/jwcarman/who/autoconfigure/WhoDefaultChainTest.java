@@ -77,6 +77,7 @@ class WhoDefaultChainTest {
     all[1] = ServletWebSecurityAutoConfiguration.class;
     System.arraycopy(boot, 0, all, 2, boot.length);
     return new WebApplicationContextRunner()
+        .withPropertyValues("who.migrations.enabled=false")
         .withConfiguration(WhoTestAutoConfigurations.who(all))
         .withUserConfiguration(WhoSecurityAllTest.Database.class)
         .withPropertyValues(
@@ -214,7 +215,8 @@ class WhoDefaultChainTest {
       properties = {
         "who.email-link.enabled=false",
         "who.passkey.enabled=false",
-        "who.jwt.enabled=false"
+        "who.jwt.enabled=false",
+        "spring.session.jdbc.initialize-schema=always"
       })
   class In_a_running_application_with_actuator {
 

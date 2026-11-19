@@ -50,8 +50,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -111,7 +109,7 @@ class WhoRecentSignInMethodTest {
   static class AppConfig {
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean
@@ -151,7 +149,8 @@ class WhoRecentSignInMethodTest {
           .withPropertyValues(
               "who.email-link.enabled=false",
               "who.passkey.enabled=false",
-              "who.admin.enabled=false");
+              "who.admin.enabled=false",
+              "who.migrations.enabled=false");
 
   @AfterEach
   void clear() {

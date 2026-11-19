@@ -56,7 +56,6 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest(
     classes = EmailAddressChangeTest.App.class,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
       "who.email-link.address-confirmation-url=" + EmailAddressChangeTest.PROFILE_URL,
       "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,
@@ -71,9 +70,7 @@ class WhoEmailAddressesEndpointsTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
-    registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   @Autowired private WebApplicationContext context;

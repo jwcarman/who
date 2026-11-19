@@ -36,7 +36,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
     classes = ErrorHandoffScenarios.App.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=app.example.com"

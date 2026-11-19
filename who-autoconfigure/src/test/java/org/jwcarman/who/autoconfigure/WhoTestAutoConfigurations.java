@@ -33,6 +33,7 @@ final class WhoTestAutoConfigurations {
           SecurityAutoConfiguration.class,
           ServletWebSecurityAutoConfiguration.class,
           WhoAutoConfiguration.class,
+          WhoMigrationsAutoConfiguration.class,
           WhoSpringSecurityAutoConfiguration.class,
           WhoEnrollmentAutoConfiguration.class,
           WhoFederatedAutoConfiguration.class,

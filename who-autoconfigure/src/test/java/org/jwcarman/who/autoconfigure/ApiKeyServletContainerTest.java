@@ -39,8 +39,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -66,7 +64,7 @@ class ApiKeyServletContainerTest {
 
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean
@@ -101,7 +99,7 @@ class ApiKeyServletContainerTest {
 
   @Test
   void keyDoesNotAuthenticateOnAChainWithoutTheApiKeyFilter() throws Exception {
-    // Plain INSERTs: the repositories' upserts are PostgreSQL-specific and this test runs on H2.
+    // Plain INSERTs: the key goes straight into who's tables, past every service.
     UUID identityId = UUID.randomUUID();
     UUID credentialId = UUID.randomUUID();
     String key = "who_" + Secrets.token();

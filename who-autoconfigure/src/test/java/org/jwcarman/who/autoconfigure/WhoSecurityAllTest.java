@@ -64,8 +64,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -92,7 +90,6 @@ import ch.qos.logback.core.read.ListAppender;
     classes = WhoSecurityAllTest.App.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=localhost",
@@ -112,9 +109,7 @@ class WhoSecurityAllTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
-    registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -514,6 +509,7 @@ class WhoSecurityAllTest {
     @Test
     void mounting_jwt_fails_startup_naming_the_issuer_property() {
       new WebApplicationContextRunner()
+          .withPropertyValues("who.migrations.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -536,6 +532,7 @@ class WhoSecurityAllTest {
     @Test
     void with_jwt_turned_off_the_chain_starts() {
       new WebApplicationContextRunner()
+          .withPropertyValues("who.migrations.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -552,6 +549,7 @@ class WhoSecurityAllTest {
 
     private final WebApplicationContextRunner runner =
         new WebApplicationContextRunner()
+            .withPropertyValues("who.migrations.enabled=false")
             .withConfiguration(
                 WhoTestAutoConfigurations.who(
                     SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -638,7 +636,7 @@ class WhoSecurityAllTest {
   static class Database {
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean

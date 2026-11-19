@@ -75,13 +75,8 @@ class ApiKeyEventsAutoConfigurationTest {
                   TransactionAutoConfiguration.class,
                   JdbcTemplateAutoConfiguration.class,
                   JdbcClientAutoConfiguration.class))
-          .withPropertyValues(
-              "who.initialize-schema=always",
-              "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
-              "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
-              "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword(),
-              "who.email-link.enabled=false",
-              "who.passkey.enabled=false")
+          .withPropertyValues(WhoTestPostgres.freshDatabaseProperties())
+          .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
           .withBean(WhoEmailSender.class, () -> message -> {})
           .withBean(WhoEventPublisher.class, () -> events::add)
           .withBean(Clock.class, () -> Clock.fixed(NOW, ZoneOffset.UTC));

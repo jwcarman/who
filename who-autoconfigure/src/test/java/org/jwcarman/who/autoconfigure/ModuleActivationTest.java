@@ -64,8 +64,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -79,9 +77,13 @@ class ModuleActivationTest {
   private static final String SECRET = "who.email-link.code-secret=" + "s".repeat(32);
   private static final String RP_ID = "who.passkey.rp-id=app.example.com";
 
+  /** These contexts only check beans: no Liquibase run, so no who tables. */
+  private static final String MIGRATIONS_OFF = "who.migrations.enabled=false";
+
   /** Every module on the classpath, each with what it needs. */
   private final ApplicationContextRunner configured =
       new ApplicationContextRunner()
+          .withPropertyValues(MIGRATIONS_OFF)
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class, Sender.class)
           .withPropertyValues(LINK, SECRET, RP_ID);
@@ -128,6 +130,7 @@ class ModuleActivationTest {
     @Test
     void fails_without_link_base_url() {
       new ApplicationContextRunner()
+          .withPropertyValues(MIGRATIONS_OFF)
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class, Sender.class)
           .withPropertyValues(SECRET, RP_ID)
@@ -137,6 +140,7 @@ class ModuleActivationTest {
     @Test
     void fails_without_code_secret() {
       new ApplicationContextRunner()
+          .withPropertyValues(MIGRATIONS_OFF)
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class, Sender.class)
           .withPropertyValues(LINK, RP_ID)
@@ -146,6 +150,7 @@ class ModuleActivationTest {
     @Test
     void fails_without_a_sender() {
       new ApplicationContextRunner()
+          .withPropertyValues(MIGRATIONS_OFF)
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class)
           .withPropertyValues(LINK, SECRET, RP_ID)
@@ -155,6 +160,7 @@ class ModuleActivationTest {
     @Test
     void without_spring_mail_the_failure_names_who_email_smtp() {
       new ApplicationContextRunner()
+          .withPropertyValues(MIGRATIONS_OFF)
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withClassLoader(new FilteredClassLoader("org.springframework.mail"))
           .withUserConfiguration(Database.class)
@@ -204,6 +210,7 @@ class ModuleActivationTest {
     @Test
     void fails_without_rp_id() {
       new ApplicationContextRunner()
+          .withPropertyValues(MIGRATIONS_OFF)
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(Database.class, Sender.class)
           .withPropertyValues(LINK, SECRET)
@@ -610,7 +617,7 @@ class ModuleActivationTest {
   static class Database {
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean

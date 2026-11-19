@@ -53,7 +53,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest(
     classes = {EmailLinkSignInTest.App.class, EmailLinkHumanCheckTest.Check.class},
     properties = {
-      "who.initialize-schema=always",
       "who.base-path=/auth",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
       "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,

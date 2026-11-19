@@ -107,45 +107,33 @@ class PasskeyAutoConfigurationTest {
           JdbcClientAutoConfiguration.class,
           MailSenderAutoConfiguration.class);
 
-  /** Passkeys and email links off: the embedded H2 database is enough. */
-  private final ApplicationContextRunner h2Runner =
-      new ApplicationContextRunner()
-          .withConfiguration(AUTO_CONFIGURATIONS)
-          .withPropertyValues(PASSKEYS_OFF, EMAIL_LINKS_OFF);
-
-  /** For passkeys on: PostgreSQL, with who's schema. */
+  /** A fresh PostgreSQL database, with who's tables. */
   private static ApplicationContextRunner postgresRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AUTO_CONFIGURATIONS)
-        .withPropertyValues(postgresProperties());
-  }
-
-  private static String[] postgresProperties() {
-    return new String[] {
-      "who.initialize-schema=always",
-      "spring.datasource.url=" + EmailLinkSignInTest.POSTGRES.getJdbcUrl(),
-      "spring.datasource.username=" + EmailLinkSignInTest.POSTGRES.getUsername(),
-      "spring.datasource.password=" + EmailLinkSignInTest.POSTGRES.getPassword()
-    };
+        .withPropertyValues(WhoTestPostgres.freshDatabaseProperties());
   }
 
   @Test
   void passkeysOffMeansNoPasskeyBeans() {
-    h2Runner.run(
-        context -> {
-          assertThat(context).hasNotFailed();
-          assertThat(context).doesNotHaveBean(PasskeySettings.class);
-          assertThat(context).doesNotHaveBean(JdbcWhoPasskeyUserRepository.class);
-          assertThat(context).doesNotHaveBean(JdbcWhoPasskeyCredentialRepository.class);
-          assertThat(context).doesNotHaveBean(PasskeyService.class);
-          assertThat(context).doesNotHaveBean(PasskeyCredentialRemover.class);
-          assertThat(context).doesNotHaveBean(PasskeyNameResolver.class);
-          assertThat(context).doesNotHaveBean(WebAuthnRelyingPartyOperations.class);
-          assertThat(context).doesNotHaveBean(PasskeyLoginMethod.class);
-          assertThat(context).doesNotHaveBean(PasskeyAddedNotifier.class);
-          assertThat(context).doesNotHaveBean(PasskeyRegistrationGuardFilter.class);
-          assertThat(context).doesNotHaveBean(AuthenticationProvider.class);
-        });
+    // passkeys and email links off, and only beans to check: no who tables needed
+    postgresRunner()
+        .withPropertyValues(PASSKEYS_OFF, EMAIL_LINKS_OFF, "who.migrations.enabled=false")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context).doesNotHaveBean(PasskeySettings.class);
+              assertThat(context).doesNotHaveBean(JdbcWhoPasskeyUserRepository.class);
+              assertThat(context).doesNotHaveBean(JdbcWhoPasskeyCredentialRepository.class);
+              assertThat(context).doesNotHaveBean(PasskeyService.class);
+              assertThat(context).doesNotHaveBean(PasskeyCredentialRemover.class);
+              assertThat(context).doesNotHaveBean(PasskeyNameResolver.class);
+              assertThat(context).doesNotHaveBean(WebAuthnRelyingPartyOperations.class);
+              assertThat(context).doesNotHaveBean(PasskeyLoginMethod.class);
+              assertThat(context).doesNotHaveBean(PasskeyAddedNotifier.class);
+              assertThat(context).doesNotHaveBean(PasskeyRegistrationGuardFilter.class);
+              assertThat(context).doesNotHaveBean(AuthenticationProvider.class);
+            });
   }
 
   @Test
@@ -372,7 +360,7 @@ class PasskeyAutoConfigurationTest {
   void appWithItsOwnUserDetailsServiceKeepsIt() {
     new WebApplicationContextRunner()
         .withConfiguration(AUTO_CONFIGURATIONS)
-        .withPropertyValues(postgresProperties())
+        .withPropertyValues(WhoTestPostgres.freshDatabaseProperties())
         .withPropertyValues(RP_ID)
         .withUserConfiguration(OwnUserDetailsApp.class)
         .withPropertyValues("who.email-link.enabled=false")

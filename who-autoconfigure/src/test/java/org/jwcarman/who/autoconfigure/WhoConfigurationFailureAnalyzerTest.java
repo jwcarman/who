@@ -31,8 +31,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -87,7 +85,8 @@ class WhoConfigurationFailureAnalyzerTest {
     private final ApplicationContextRunner runner =
         new ApplicationContextRunner()
             .withConfiguration(WhoTestAutoConfigurations.who())
-            .withUserConfiguration(Database.class);
+            .withUserConfiguration(Database.class)
+            .withPropertyValues("who.migrations.enabled=false");
 
     @Test
     void a_blank_link_base_url() {
@@ -166,7 +165,7 @@ class WhoConfigurationFailureAnalyzerTest {
   static class Database {
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean

@@ -21,6 +21,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.sql.DataSource;
+
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.test.context.DynamicPropertyRegistry;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
@@ -30,8 +34,11 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 final class WhoTestPostgres {
 
   // Singleton container: started once per JVM. @Container is intentionally omitted, because
-  // Testcontainers stops @Container static fields between test classes.
-  private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
+  // Testcontainers stops @Container static fields between test classes. Spring caches up to 32
+  // contexts, each with its own connection pool of up to 10, beyond Postgres's default of 100
+  // connections.
+  private static final PostgreSQLContainer POSTGRES =
+      new PostgreSQLContainer("postgres:16").withCommand("postgres", "-c", "max_connections=400");
 
   private static final AtomicInteger DATABASES = new AtomicInteger();
 
@@ -87,5 +94,29 @@ final class WhoTestPostgres {
       "spring.datasource.username=" + username(),
       "spring.datasource.password=" + password()
     };
+  }
+
+  /**
+   * Points a {@code @SpringBootTest}'s data source at a new, empty database. Call it from a {@code
+   * DynamicPropertySource} method, which Spring runs once for each context it loads.
+   *
+   * @param registry the registry to add {@code spring.datasource.url}, {@code username} and {@code
+   *     password} to
+   */
+  static void registerFreshDatabase(DynamicPropertyRegistry registry) {
+    String url = newDatabaseUrl();
+    registry.add("spring.datasource.url", () -> url);
+    registry.add("spring.datasource.username", WhoTestPostgres::username);
+    registry.add("spring.datasource.password", WhoTestPostgres::password);
+  }
+
+  /**
+   * Returns a data source on a new, empty database, for a test configuration that declares its own
+   * {@code DataSource} bean.
+   *
+   * @return the data source
+   */
+  static DataSource newDataSource() {
+    return new DriverManagerDataSource(newDatabaseUrl(), username(), password());
   }
 }

@@ -24,15 +24,16 @@ import javax.sql.DataSource;
 
 import jakarta.servlet.http.HttpSessionEvent;
 
-import org.h2.Driver;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
+import org.jwcarman.who.core.domain.IdentityStatus;
 import org.jwcarman.who.core.domain.SessionRecord;
 import org.jwcarman.who.core.event.SignInMethod;
+import org.jwcarman.who.core.repository.IdentityRepository;
 import org.jwcarman.who.core.service.WhoSessions;
 import org.jwcarman.who.spring.security.WhoSession;
 import org.jwcarman.who.spring.security.WhoSessionEndListener;
@@ -41,10 +42,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.datasource.SimpleDriverDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.mock.web.MockHttpSession;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -54,18 +52,11 @@ class WhoSessionsConfigurationTest {
   static class Database {
     @Bean
     DataSource dataSource() {
-      return new SimpleDriverDataSource(
-          new Driver(),
-          "jdbc:h2:mem:"
-              + UUID.randomUUID()
-              + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean
     JdbcClient jdbcClient(DataSource dataSource) {
-      new ResourceDatabasePopulator(
-              new ClassPathResource("org/jwcarman/who/jdbc/who-jdbc-schema.sql"))
-          .execute(dataSource);
       return JdbcClient.create(dataSource);
     }
   }
@@ -77,7 +68,8 @@ class WhoSessionsConfigurationTest {
           .withPropertyValues(
               "who.email-link.enabled=false",
               "who.passkey.enabled=false",
-              "who.admin.enabled=false");
+              "who.admin.enabled=false",
+              "who.migrations.enabled=false");
 
   @Test
   void the_default_timeout_is_thirty_minutes() {
@@ -196,32 +188,29 @@ class WhoSessionsConfigurationTest {
 
   @Test
   void a_destroyed_servlet_session_closes_its_row() {
-    runner.run(
-        context -> {
-          assertThat(context).hasSingleBean(WhoSessionSecurityContextRepository.class);
-          WhoSessions sessions = context.getBean(WhoSessions.class);
-          Identity identity = Identity.create();
-          // H2 cannot run the identity upsert, so the row goes in directly
-          context
-              .getBean(JdbcClient.class)
-              .sql(
-                  "INSERT INTO who_identity (id, status, created_at, updated_at)"
-                      + " VALUES (?, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
-              .param(identity.id())
-              .update();
-          UUID credentialId = UUID.randomUUID();
-          SessionRecord row =
-              sessions.start(identity.id(), credentialId, SignInMethod.PASSKEY, null);
-          MockHttpSession session = new MockHttpSession();
-          session.setAttribute(
-              WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
-              new WhoSession(identity.id(), credentialId, row.signedInAt(), null, row.id()));
+    runner
+        .withPropertyValues("who.migrations.enabled=true")
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(WhoSessionSecurityContextRepository.class);
+              WhoSessions sessions = context.getBean(WhoSessions.class);
+              Identity identity =
+                  context
+                      .getBean(IdentityRepository.class)
+                      .save(Identity.create(IdentityStatus.ACTIVE));
+              UUID credentialId = UUID.randomUUID();
+              SessionRecord row =
+                  sessions.start(identity.id(), credentialId, SignInMethod.PASSKEY, null);
+              MockHttpSession session = new MockHttpSession();
+              session.setAttribute(
+                  WhoSessionSecurityContextRepository.SESSION_ATTRIBUTE,
+                  new WhoSession(identity.id(), credentialId, row.signedInAt(), null, row.id()));
 
-          context
-              .getBean(WhoSessionEndListener.class)
-              .sessionDestroyed(new HttpSessionEvent(session));
+              context
+                  .getBean(WhoSessionEndListener.class)
+                  .sessionDestroyed(new HttpSessionEvent(session));
 
-          assertThat(sessions.findLive(row.id())).isEmpty();
-        });
+              assertThat(sessions.findLive(row.id())).isEmpty();
+            });
   }
 }

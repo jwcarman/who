@@ -101,7 +101,6 @@ import org.springframework.web.context.WebApplicationContext;
     classes = WhoSecurityStatelessTest.App.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=localhost",
@@ -124,9 +123,7 @@ class WhoSecurityStatelessTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", EmailLinkSignInTest.POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", EmailLinkSignInTest.POSTGRES::getUsername);
-    registry.add("spring.datasource.password", EmailLinkSignInTest.POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -442,6 +439,7 @@ class WhoSecurityStatelessTest {
 
   private static WebApplicationContextRunner apiOnly() {
     return new WebApplicationContextRunner()
+        .withPropertyValues("who.migrations.enabled=false")
         .withConfiguration(
             WhoTestAutoConfigurations.who(
                 SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -509,6 +507,7 @@ class WhoSecurityStatelessTest {
     @Test
     void startup_fails() {
       new WebApplicationContextRunner()
+          .withPropertyValues("who.migrations.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))
@@ -532,6 +531,7 @@ class WhoSecurityStatelessTest {
     @Test
     void the_signed_out_401_challenges_with_bearer() {
       new WebApplicationContextRunner()
+          .withPropertyValues("who.migrations.enabled=false")
           .withConfiguration(
               WhoTestAutoConfigurations.who(
                   SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class))

@@ -62,6 +62,7 @@ import org.jwcarman.who.emaillink.EmailLinkMessage;
 import org.jwcarman.who.emaillink.EmailLinkSettings;
 import org.jwcarman.who.spring.security.WhoWebSecurity;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -75,8 +76,6 @@ import org.springframework.core.task.TaskDecorator;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
-import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -89,8 +88,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.context.WebApplicationContext;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The whole email-link sign-in flow, through who's autoconfiguration, a browser chain that applies
@@ -99,12 +96,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest(
     classes = EmailLinkSignInTest.App.class,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=" + EmailLinkSignInTest.LINK_BASE_URL,
       "who.email-link.code-secret=" + EmailLinkSignInTest.CODE_SECRET,
       "who.passkey.enabled=false"
     })
-@Testcontainers
 class EmailLinkSignInTest {
 
   static final String LINK_BASE_URL = "https://app.example.com/signin";
@@ -114,21 +109,9 @@ class EmailLinkSignInTest {
   static final String XSRF_COOKIE = "XSRF-TOKEN";
   static final String XSRF_HEADER = "X-XSRF-TOKEN";
 
-  // Singleton container — started once per JVM and shared across all test classes. Spring caches
-  // up to 32 contexts, each with its own connection pool of up to 10, beyond Postgres's default
-  // of 100 connections.
-  static final PostgreSQLContainer POSTGRES =
-      new PostgreSQLContainer("postgres:16").withCommand("postgres", "-c", "max_connections=400");
-
-  static {
-    POSTGRES.start();
-  }
-
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
   }
 
   // ---------------------------------------------------------------- test application
@@ -283,6 +266,9 @@ class EmailLinkSignInTest {
   @Autowired private RecordingSender sender;
   @Autowired private IdentityRepository identityRepository;
   @Autowired private EmailCredentialService emailCredentialService;
+
+  @Value("${spring.datasource.url}")
+  private String databaseUrl;
 
   private MockMvc mvc;
   private Identity identity;
@@ -643,13 +629,13 @@ class EmailLinkSignInTest {
     new WebApplicationContextRunner()
         .withUserConfiguration(App.class)
         .withPropertyValues(
-            "who.initialize-schema=always",
             "who.email-link.link-base-url=" + LINK_BASE_URL,
             "who.email-link.code-secret=" + CODE_SECRET,
-            "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
-            "spring.datasource.username=" + POSTGRES.getUsername(),
-            "spring.datasource.password=" + POSTGRES.getPassword())
-        .withPropertyValues("who.passkey.enabled=false")
+            "spring.datasource.url=" + databaseUrl,
+            "spring.datasource.username=" + WhoTestPostgres.username(),
+            "spring.datasource.password=" + WhoTestPostgres.password())
+        // the same database as this class's context, whose who tables are already there
+        .withPropertyValues("who.passkey.enabled=false", "who.migrations.enabled=false")
         .run(
             other -> {
               assertThat(other).hasNotFailed();
@@ -698,7 +684,7 @@ class EmailLinkSignInTest {
   static class StartupConfig {
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean
@@ -770,12 +756,14 @@ class EmailLinkSignInTest {
 
   private final ApplicationContextRunner startupRunner =
       new ApplicationContextRunner()
+          .withPropertyValues("who.migrations.enabled=false")
           .withConfiguration(WhoTestAutoConfigurations.who())
           .withUserConfiguration(StartupConfig.class);
 
   @Test
   void emailLinksOffMeansNoEmailLinkSignIn() {
     new ApplicationContextRunner()
+        .withPropertyValues("who.migrations.enabled=false")
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
         .withPropertyValues("who.email-link.enabled=false", "who.passkey.enabled=false")
@@ -791,6 +779,7 @@ class EmailLinkSignInTest {
   @Test
   void linkBaseUrlWithoutASenderFailsStartup() {
     new ApplicationContextRunner()
+        .withPropertyValues("who.migrations.enabled=false")
         .withConfiguration(WhoTestAutoConfigurations.who())
         .withUserConfiguration(NoSenderConfig.class)
         .withPropertyValues(
@@ -826,7 +815,7 @@ class EmailLinkSignInTest {
   static class NoSenderConfig {
     @Bean
     DataSource dataSource() {
-      return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).build();
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean

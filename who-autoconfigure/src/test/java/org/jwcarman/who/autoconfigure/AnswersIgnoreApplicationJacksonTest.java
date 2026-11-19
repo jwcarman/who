@@ -65,7 +65,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -77,7 +76,6 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest(
     classes = AnswersIgnoreApplicationJacksonTest.App.class,
     properties = {
-      "who.initialize-schema=always",
       "who.email-link.link-base-url=https://app.example.com/signin",
       "who.email-link.code-secret=test-code-secret-0123456789-abcdefghij",
       "who.passkey.rp-id=localhost",
@@ -102,18 +100,11 @@ class AnswersIgnoreApplicationJacksonTest {
   private static final Instant NOW = Instant.parse("2026-11-07T10:00:00Z");
   private static final JsonMapper READER = JsonMapper.builder().build();
 
-  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16");
   static final StubOidcProvider PROVIDER = StubOidcProvider.start();
-
-  static {
-    POSTGRES.start();
-  }
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    WhoTestPostgres.registerFreshDatabase(registry);
     registry.add("spring.security.oauth2.client.provider.stub.issuer-uri", PROVIDER::issuer);
   }
 

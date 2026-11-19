@@ -17,11 +17,8 @@ package org.jwcarman.who.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.UUID;
-
 import javax.sql.DataSource;
 
-import org.h2.Driver;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -29,10 +26,7 @@ import org.jwcarman.who.spring.security.WhoPaths;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.datasource.SimpleDriverDataSource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class WhoBasePathTest {
@@ -41,16 +35,7 @@ class WhoBasePathTest {
   static class Database {
     @Bean
     DataSource dataSource() {
-      DataSource dataSource =
-          new SimpleDriverDataSource(
-              new Driver(),
-              "jdbc:h2:mem:"
-                  + UUID.randomUUID()
-                  + ";DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
-      new ResourceDatabasePopulator(
-              new ClassPathResource("org/jwcarman/who/jdbc/who-jdbc-schema.sql"))
-          .execute(dataSource);
-      return dataSource;
+      return WhoTestPostgres.newDataSource();
     }
 
     @Bean
@@ -66,7 +51,8 @@ class WhoBasePathTest {
           .withPropertyValues(
               "who.email-link.enabled=false",
               "who.passkey.enabled=false",
-              "who.admin.enabled=false");
+              "who.admin.enabled=false",
+              "who.migrations.enabled=false");
 
   @Test
   void the_default_root_is_who() {
