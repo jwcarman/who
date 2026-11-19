@@ -28,6 +28,7 @@ import java.util.List;
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
@@ -41,8 +42,10 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 
 import liquibase.integration.spring.SpringLiquibase;
+import liquibase.ui.UIServiceEnum;
 
 /** who's own Liquibase run, and its place ahead of the application's, on PostgreSQL. */
 class WhoLiquibaseTest {
@@ -67,6 +70,8 @@ class WhoLiquibaseTest {
         context -> {
           assertThat(context).hasNotFailed().hasSingleBean(WhoLiquibase.class);
           assertThat(tables(context)).contains("who_identity", "who_role", "app_note");
+          assertThat(context.getBean(WhoLiquibase.class).getDataSource())
+              .isSameAs(context.getBean(DataSource.class));
         });
   }
 
@@ -94,6 +99,21 @@ class WhoLiquibaseTest {
   }
 
   @Test
+  void runsUnderLazyInitialization() {
+    // what spring.main.lazy-initialization=true does; SpringApplication, not the runner, reads it
+    runner
+        .withInitializer(
+            context ->
+                context.addBeanFactoryPostProcessor(
+                    new LazyInitializationBeanFactoryPostProcessor()))
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(tables(context)).contains("who_identity");
+            });
+  }
+
+  @Test
   void recordsInTheApplicationsChangelogTable() {
     runner
         .withPropertyValues("spring.liquibase.database-change-log-table=app_changelog")
@@ -105,6 +125,22 @@ class WhoLiquibaseTest {
                             "SELECT count(*) FROM app_changelog"
                                 + " WHERE filename LIKE '%who-jdbc-changelog.xml'"))
                     .isPositive());
+  }
+
+  @Test
+  void appliesSpringLiquibaseRunnerSettings() {
+    runner
+        .withPropertyValues(
+            "spring.liquibase.analytics-enabled=false",
+            "spring.liquibase.ui-service=console",
+            "spring.liquibase.license-key=who-test-key")
+        .run(
+            context -> {
+              SpringLiquibase liquibase = context.getBean(WhoLiquibase.class).springLiquibase();
+              assertThat(liquibase.getAnalyticsEnabled()).isFalse();
+              assertThat(liquibase.getUiService()).isEqualTo(UIServiceEnum.CONSOLE);
+              assertThat(liquibase.getLicenseKey()).isEqualTo("who-test-key");
+            });
   }
 
   @Test
@@ -128,6 +164,11 @@ class WhoLiquibaseTest {
             context -> {
               assertThat(tablesAt(other)).contains("who_identity");
               assertThat(tables(context)).doesNotContain("who_identity");
+              assertThat(context.getBean(WhoLiquibase.class).getDataSource())
+                  .isNotSameAs(context.getBean(DataSource.class))
+                  .isInstanceOfSatisfying(
+                      SimpleDriverDataSource.class,
+                      dataSource -> assertThat(dataSource.getUrl()).isEqualTo(other));
             });
   }
 
@@ -142,6 +183,8 @@ class WhoLiquibaseTest {
               assertThat(context).hasNotFailed();
               assertThat(tablesAt(other)).contains("who_identity");
               assertThat(tables(context)).doesNotContain("who_identity");
+              assertThat(context.getBean(WhoLiquibase.class).getDataSource())
+                  .isSameAs(context.getBean("liquibaseDataSource"));
             });
   }
 

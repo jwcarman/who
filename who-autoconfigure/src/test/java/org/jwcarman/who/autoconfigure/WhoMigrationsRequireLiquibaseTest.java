@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -49,6 +50,24 @@ class WhoMigrationsRequireLiquibaseTest {
                         "who.migrations.enabled is true, but Liquibase is not on the classpath. "
                             + "Add spring-boot-starter-liquibase, or set who.migrations.enabled=false and run "
                             + "classpath:org/jwcarman/who/db/who-changelog.xml yourself."));
+  }
+
+  @Test
+  void failsWithoutLiquibaseUnderLazyInitialization() {
+    // what spring.main.lazy-initialization=true does; SpringApplication, not the runner, reads it
+    runner
+        .withInitializer(
+            context ->
+                context.addBeanFactoryPostProcessor(
+                    new LazyInitializationBeanFactoryPostProcessor()))
+        .withClassLoader(
+            new FilteredClassLoader("liquibase.", "org.springframework.boot.liquibase."))
+        .run(
+            context ->
+                assertThat(context)
+                    .getFailure()
+                    .rootCause()
+                    .isInstanceOf(WhoConfigurationException.class));
   }
 
   @Test

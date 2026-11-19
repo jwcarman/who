@@ -49,6 +49,16 @@ key to `who_identity`. JPA and every bean that depends on database initializatio
 With `spring.liquibase.enabled=false`, who's run is off as well: the application has turned
 Liquibase off and migrates some other way.
 
+who's run is created at startup even with `spring.main.lazy-initialization=true`, so who's tables
+exist before its first query; Spring Boot's own run stays lazy.
+
+### Test slices
+
+`@JdbcTest`, `@DataJdbcTest` and `@DataJpaTest` run who's changelog before the application's, as
+an application does. who's tables are PostgreSQL only, so keep the slice on PostgreSQL rather than
+the embedded database it uses by default: `@AutoConfigureTestDatabase(replace = Replace.NONE)`, or
+a `@ServiceConnection` container.
+
 ### Your own changelog
 
 Spring Boot's Liquibase needs a master changelog of your own, at
@@ -133,22 +143,50 @@ too.
 
 ## Libraries built on who
 
-A library whose changesets reference who's tables runs its own changelog after who's by depending
-on the `WhoLiquibase` bean. The bean is absent when the application turned who's run off, so take
-it through an `ObjectProvider`:
+A library whose changesets reference who's tables runs its changelog after who's, and before the
+application's, by registering a `DatabaseInitializerDetector` for its own runner, ordered just
+after who's:
 
 ```java
-@Bean
-AcmeLiquibase acmeLiquibase(ObjectProvider<WhoLiquibase> whoLiquibase, DataSource dataSource) {
-    whoLiquibase.getIfAvailable(); // who's tables first
-    return new AcmeLiquibase(dataSource);
+public final class AcmeLiquibaseDetector extends AbstractBeansOfTypeDatabaseInitializerDetector {
+
+    @Override
+    protected Set<Class<?>> getDatabaseInitializerBeanTypes() {
+        return Set.of(AcmeLiquibase.class);
+    }
+
+    @Override
+    public int getOrder() {
+        return WhoLiquibase.INITIALIZER_ORDER + 1;
+    }
 }
 ```
 
-Do not declare a `SpringLiquibase` bean for it: Spring Boot's Liquibase stands down when one
-exists, and the application's own changelog stops running. Making the application's run wait for
-the library's is the library's to do, the way who does it (a `DatabaseInitializerDetector` listed
-in `spring.factories`).
+```properties
+# META-INF/spring.factories
+org.springframework.boot.sql.init.dependency.DatabaseInitializerDetector=\
+com.acme.AcmeLiquibaseDetector
+```
+
+Spring Boot makes each detector's initializers depend on those of the detector before it. who's
+detector comes first, the library's next, and Spring Boot's own Liquibase detector (order `0`)
+after both, so the library's run waits for who's and every `SpringLiquibase` bean waits for the
+library's.
+
+The runner migrates the data source who migrated, so the library's tables land beside who's:
+
+```java
+@Bean
+@ConditionalOnBean(WhoLiquibase.class)
+AcmeLiquibase acmeLiquibase(WhoLiquibase whoLiquibase) {
+    return new AcmeLiquibase(whoLiquibase.getDataSource());
+}
+```
+
+Declare it in an autoconfiguration that runs after `WhoMigrationsAutoConfiguration`. `AcmeLiquibase`
+is the library's own type that runs its changelog when initialized, as `WhoLiquibase` does, not a
+`SpringLiquibase`: Spring Boot's Liquibase stands down when a `SpringLiquibase` bean exists, and the
+application's own changelog stops running.
 
 ## Transactions and locks
 

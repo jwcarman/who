@@ -34,6 +34,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.util.StringUtils;
@@ -68,7 +69,10 @@ public class WhoMigrationsAutoConfiguration {
   @Import(DatabaseInitializationDependencyConfigurer.class)
   static class LiquibaseMigrationsConfiguration {
 
+    // eager under spring.main.lazy-initialization too: Spring Boot leaves its own Liquibase lazy,
+    // but who's tables are created at startup, so that who's first query finds them
     @Bean
+    @Lazy(false)
     WhoLiquibase whoLiquibase(
         ObjectProvider<DataSource> dataSource,
         @LiquibaseDataSource ObjectProvider<DataSource> liquibaseDataSource,
@@ -133,7 +137,9 @@ public class WhoMigrationsAutoConfiguration {
   @Conditional(LiquibaseMissingCondition.class)
   static class LiquibaseRequiredConfiguration {
 
+    // exists only to fail startup, so it must be created even under lazy initialization
     @Bean
+    @Lazy(false)
     Object whoLiquibaseRequired() {
       throw new WhoConfigurationException(
           "who.migrations.enabled",

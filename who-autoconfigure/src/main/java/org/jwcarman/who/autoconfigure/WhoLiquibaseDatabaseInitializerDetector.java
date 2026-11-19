@@ -18,7 +18,6 @@ package org.jwcarman.who.autoconfigure;
 import java.util.Set;
 
 import org.springframework.boot.sql.init.dependency.AbstractBeansOfTypeDatabaseInitializerDetector;
-import org.springframework.core.Ordered;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -59,12 +58,13 @@ public final class WhoLiquibaseDatabaseInitializerDetector
   }
 
   /**
-   * Returns the highest precedence, so who's run comes before every other initializer.
+   * Returns {@link WhoLiquibase#INITIALIZER_ORDER}, so who's run comes before every other
+   * initializer.
    *
-   * @return {@link Ordered#HIGHEST_PRECEDENCE}
+   * @return {@link WhoLiquibase#INITIALIZER_ORDER}
    */
   @Override
   public int getOrder() {
-    return Ordered.HIGHEST_PRECEDENCE;
+    return WhoLiquibase.INITIALIZER_ORDER;
   }
 }
