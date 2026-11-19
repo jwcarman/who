@@ -19,9 +19,11 @@ import javax.sql.DataSource;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseConnectionDetails;
@@ -29,6 +31,7 @@ import org.springframework.boot.liquibase.autoconfigure.LiquibaseDataSource;
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseProperties;
 import org.springframework.boot.sql.init.dependency.DatabaseInitializationDependencyConfigurer;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ResourceLoader;
@@ -44,7 +47,6 @@ import org.springframework.util.StringUtils;
  */
 @AutoConfiguration(
     afterName = "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration")
-@Import(DatabaseInitializationDependencyConfigurer.class)
 public class WhoMigrationsAutoConfiguration {
 
   /** Creates the autoconfiguration; Spring Boot instantiates it. */
@@ -63,6 +65,7 @@ public class WhoMigrationsAutoConfiguration {
   @ConditionalOnBooleanProperty(name = "who.migrations.enabled", matchIfMissing = true)
   @ConditionalOnBean(DataSource.class)
   @EnableConfigurationProperties(LiquibaseProperties.class)
+  @Import(DatabaseInitializationDependencyConfigurer.class)
   static class LiquibaseMigrationsConfiguration {
 
     @Bean
@@ -118,6 +121,42 @@ public class WhoMigrationsAutoConfiguration {
         builder.driverClassName(driverClassName);
       }
     }
+  }
+
+  /**
+   * Fails startup when who-jdbc is on the classpath, migrations are enabled, and Liquibase is not,
+   * since who's tables would never be created.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(name = "org.jwcarman.who.jdbc.JdbcIdentityRepository")
+  @ConditionalOnBooleanProperty(name = "who.migrations.enabled", matchIfMissing = true)
+  @Conditional(LiquibaseMissingCondition.class)
+  static class LiquibaseRequiredConfiguration {
+
+    @Bean
+    Object whoLiquibaseRequired() {
+      throw new WhoConfigurationException(
+          "who.migrations.enabled",
+          "is true, but Liquibase is not on the classpath",
+          "Add spring-boot-starter-liquibase, or set who.migrations.enabled=false and run "
+              + WhoLiquibase.CHANGELOG
+              + " yourself.");
+    }
+  }
+
+  /** Matches when Liquibase, or Spring Boot's support for it, is missing. */
+  static final class LiquibaseMissingCondition extends AnyNestedCondition {
+
+    LiquibaseMissingCondition() {
+      super(ConfigurationPhase.PARSE_CONFIGURATION);
+    }
+
+    @ConditionalOnMissingClass("liquibase.integration.spring.SpringLiquibase")
+    static class LiquibaseCoreMissing {}
+
+    @ConditionalOnMissingClass(
+        "org.springframework.boot.liquibase.autoconfigure.LiquibaseProperties")
+    static class BootSupportMissing {}
   }
 
   /**

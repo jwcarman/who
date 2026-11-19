@@ -33,9 +33,15 @@ public final class WhoLiquibaseDatabaseInitializerDetector
 
   private static final String SPRING_LIQUIBASE = "liquibase.integration.spring.SpringLiquibase";
 
+  private final ClassLoader classLoader;
+
   /** Creates the detector; Spring Boot loads it from {@code spring.factories}. */
   public WhoLiquibaseDatabaseInitializerDetector() {
-    // nothing to set up
+    this(WhoLiquibaseDatabaseInitializerDetector.class.getClassLoader());
+  }
+
+  WhoLiquibaseDatabaseInitializerDetector(ClassLoader classLoader) {
+    this.classLoader = classLoader;
   }
 
   /**
@@ -46,7 +52,7 @@ public final class WhoLiquibaseDatabaseInitializerDetector
    */
   @Override
   protected Set<Class<?>> getDatabaseInitializerBeanTypes() {
-    if (ClassUtils.isPresent(SPRING_LIQUIBASE, getClass().getClassLoader())) {
+    if (ClassUtils.isPresent(SPRING_LIQUIBASE, classLoader)) {
       return Set.of(WhoLiquibase.class);
     }
     return Set.of();
