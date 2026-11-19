@@ -4,7 +4,7 @@
 
 - How who migrates its tables
 - Without Liquibase
-- Running who's changelog yourself
+- Running who's changelogs yourself
 - `spring.liquibase.drop-first` is not supported
 - Rules for who's changelogs
 - Liquibase extensions
@@ -13,7 +13,7 @@
 - Passkey storage is PostgreSQL only
 
 who keeps its data in PostgreSQL (14+) and creates and upgrades its own tables with Liquibase at
-startup. Add Spring Boot's Liquibase starter beside who:
+startup, through [migratory](https://jwcarman.github.io/migratory/). Add Spring Boot's Liquibase starter beside who:
 
 ```xml
 <dependency>
@@ -26,38 +26,45 @@ Nothing else is needed for who's tables.
 
 ## How who migrates its tables
 
-At startup, the `WhoLiquibase` bean runs who's changelog,
-`classpath:org/jwcarman/who/db/who-changelog.xml`. It includes the changelog of each who module on
-the classpath, `who-jdbc` first; modules that are not on the classpath are skipped. When a who
-release changes a table, it ships a new changeset, and the next startup applies it.
+who's tables are created by [migratory](https://jwcarman.github.io/migratory/), which the starter
+brings. Each who module that has tables declares its changelog in its jar's
+`META-INF/migratory.properties`:
 
-who's run uses what Spring Boot's Liquibase uses for your own changelog:
+| Migration | Changelog | Runs after |
+|---|---|---|
+| `who-jdbc` | `classpath:org/jwcarman/who/jdbc/db/who-jdbc-changelog.xml` | |
+| `who-rbac` | `classpath:org/jwcarman/who/rbac/db/who-rbac-changelog.xml` | `who-jdbc` |
+| `who-federated` | `classpath:org/jwcarman/who/federated/db/who-federated-changelog.xml` | `who-jdbc` |
+| `who-enrollment` | `classpath:org/jwcarman/who/enrollment/db/who-enrollment-changelog.xml` | `who-jdbc` |
+| `who-apikey` | `classpath:org/jwcarman/who/apikey/db/who-apikey-changelog.xml` | `who-jdbc` |
+| `who-email-link` | `classpath:org/jwcarman/who/emaillink/db/who-email-link-changelog.xml` | `who-jdbc` |
+| `who-passkey` | `classpath:org/jwcarman/who/passkey/db/who-passkey-changelog.xml` | `who-jdbc` |
 
-- **The same data source.** A `DataSource` bean marked `@LiquibaseDataSource`; otherwise one built
-  from `spring.liquibase.url`; otherwise the primary `DataSource`, with `spring.liquibase.user` and
-  `password` when they are set; otherwise the primary `DataSource` as it is.
-- **The same schemas.** `spring.liquibase.default-schema`, `liquibase-schema` and
-  `liquibase-tablespace`.
-- **The same history tables.** `DATABASECHANGELOG` and `DATABASECHANGELOGLOCK`, or the names in
-  `spring.liquibase.database-change-log-table` and `database-change-log-lock-table`. Liquibase
-  identifies a changeset by its id, author and file path, so who's rows never collide with yours.
+At startup migratory runs the changelog of each module on the classpath, in that order; a module
+that is not on the classpath declares nothing. When a who release changes a table, it ships a new
+changeset, and the next startup applies it.
 
-who's run comes first. Every `SpringLiquibase` bean waits for it, whether Spring Boot made it or
-you declared your own, so your changesets can reference who's tables, for example with a foreign
-key to `who_identity`. JPA and every bean that depends on database initialization wait for it too.
+migratory runs them with what Spring Boot's Liquibase uses for your own changelog: the same data
+source (`@LiquibaseDataSource`, `spring.liquibase.url` and `user`, or the primary `DataSource`), the
+same schemas, and the same `DATABASECHANGELOG` and `DATABASECHANGELOGLOCK` tables. Liquibase
+identifies a changeset by its id, author and file path, so who's rows never collide with yours.
 
-With `spring.liquibase.enabled=false`, who's run is off as well: the application has turned
-Liquibase off and migrates some other way.
+who's tables come first. Every `SpringLiquibase` bean waits for them, whether Spring Boot made it
+or you declared your own, so your changesets can reference who's tables, for example with a
+foreign key to `who_identity`. JPA and every bean that depends on database initialization wait
+too. The run happens at startup even with `spring.main.lazy-initialization=true`, and in native
+images. migratory's [guides](https://jwcarman.github.io/migratory/) have the details.
 
-who's run is created at startup even with `spring.main.lazy-initialization=true`, so who's tables
-exist before its first query; Spring Boot's own run stays lazy.
+`spring.liquibase.enabled=false` turns off only Spring Boot's run of your changelog; who's tables
+are still created. `migratory.enabled=false` turns who's run off (see
+[below](#running-whos-changelogs-yourself)).
 
 ### Test slices
 
-`@JdbcTest`, `@DataJdbcTest` and `@DataJpaTest` run who's changelog before the application's, as
-an application does. who's tables are PostgreSQL only, so keep the slice on PostgreSQL rather than
-the embedded database it uses by default: `@AutoConfigureTestDatabase(replace = Replace.NONE)`, or
-a `@ServiceConnection` container.
+`@JdbcTest`, `@DataJdbcTest` and `@DataJpaTest` create who's tables before the application's
+changelog runs, as an application does. who's tables are PostgreSQL only, so keep the slice on
+PostgreSQL rather than the embedded database it uses by default:
+`@AutoConfigureTestDatabase(replace = Replace.NONE)`, or a `@ServiceConnection` container.
 
 ### Your own changelog
 
@@ -69,57 +76,52 @@ application with no tables of its own still needs one; an empty one does:
 databaseChangeLog: []
 ```
 
-Do not include `who-changelog.xml` from it; who runs it already.
+Do not include who's changelogs from it; migratory runs them already.
 
 ## Without Liquibase
 
-With `who-jdbc` on the classpath (the starter brings it) and no Liquibase, startup fails:
+With who's modules on the classpath (the starter brings them) and no Liquibase, startup fails:
 
 ```text
-Description:
-
-who cannot start: who.migrations.enabled is true, but Liquibase is not on the classpath.
-
-Action:
-
-Add spring-boot-starter-liquibase, or set who.migrations.enabled=false and run classpath:org/jwcarman/who/db/who-changelog.xml yourself.
+migratory found migrations (who-jdbc, who-rbac, ...) but Liquibase is not on the classpath: add
+spring-boot-starter-liquibase, or set migratory.enabled=false and include their changelogs yourself.
 ```
 
-## Running who's changelog yourself
+## Running who's changelogs yourself
 
-Turn who's run off when the application runs its migrations in a way who cannot follow: a schema
-per tenant, migrations run outside the application, or who's tables in a data source other than
-the one Liquibase migrates:
+Turn migratory's run off when the application runs its migrations in a way it cannot follow: a
+schema per tenant, migrations run outside the application, or who's tables in a data source other
+than the one Liquibase migrates:
 
 ```yaml
-who:
-  migrations:
-    enabled: false
+migratory:
+  enabled: false
 ```
 
-Then include who's changelog from your own, before any changeset that references who's tables:
+Then include the changelog of each who module you use from your own, `who-jdbc` first, before any
+changeset that references who's tables:
 
 ```yaml
 databaseChangeLog:
   - include:
-      file: classpath:org/jwcarman/who/db/who-changelog.xml
+      file: classpath:org/jwcarman/who/jdbc/db/who-jdbc-changelog.xml
+  - include:
+      file: classpath:org/jwcarman/who/rbac/db/who-rbac-changelog.xml
+  # ...and the rest from the table above, for the modules on your classpath
 ```
 
-A multi-tenant application includes it in each tenant's run.
+A multi-tenant application includes them in each tenant's run. `migratory.enabled=false` turns off
+every library's migrations, not only who's, so include those libraries' changelogs too.
 
-Including it records the same rows in `DATABASECHANGELOG` as `WhoLiquibase` does, so an
-application can move from one to the other without anything running twice, as long as both use
-the same history table.
-
-The `classpath:` includes inside `who-changelog.xml` need Spring's Liquibase integration
-(`SpringLiquibase`). The Liquibase CLI and the Liquibase Maven plugin may skip them without a
-warning, so run the changelog through Spring.
+Including them records the same rows in `DATABASECHANGELOG` as migratory does, so an application
+can move from one to the other without anything running twice, as long as both use the same
+history table.
 
 ## `spring.liquibase.drop-first` is not supported
 
-`drop-first` drops the schema when Spring Boot's Liquibase runs, which is after who migrated it,
-so who's tables are gone. An application that needs it turns who's run off and includes
-`who-changelog.xml` itself, as above.
+`drop-first` would drop the schema after who's tables were created, so migratory fails startup
+when it is set. An application that needs it turns migratory off and includes who's changelogs
+itself, as above.
 
 ## Rules for who's changelogs
 
@@ -143,50 +145,19 @@ too.
 
 ## Libraries built on who
 
-A library whose changesets reference who's tables runs its changelog after who's, and before the
-application's, by registering a `DatabaseInitializerDetector` for its own runner, ordered just
-after who's:
-
-```java
-public final class AcmeLiquibaseDetector extends AbstractBeansOfTypeDatabaseInitializerDetector {
-
-    @Override
-    protected Set<Class<?>> getDatabaseInitializerBeanTypes() {
-        return Set.of(AcmeLiquibase.class);
-    }
-
-    @Override
-    public int getOrder() {
-        return WhoLiquibase.INITIALIZER_ORDER + 1;
-    }
-}
-```
+A library whose changesets reference who's tables declares its own migration to migratory, after
+the who module whose tables it references:
 
 ```properties
-# META-INF/spring.factories
-org.springframework.boot.sql.init.dependency.DatabaseInitializerDetector=\
-com.acme.AcmeLiquibaseDetector
+# META-INF/migratory.properties in the library's jar
+name=acme
+changelog=classpath:com/acme/db/acme-changelog.xml
+after=who-jdbc
 ```
 
-Spring Boot makes each detector's initializers depend on those of the detector before it. who's
-detector comes first, the library's next, and Spring Boot's own Liquibase detector (order `0`)
-after both, so the library's run waits for who's and every `SpringLiquibase` bean waits for the
-library's.
-
-The runner migrates the data source who migrated, so the library's tables land beside who's:
-
-```java
-@Bean
-@ConditionalOnBean(WhoLiquibase.class)
-AcmeLiquibase acmeLiquibase(WhoLiquibase whoLiquibase) {
-    return new AcmeLiquibase(whoLiquibase.getDataSource());
-}
-```
-
-Declare it in an autoconfiguration that runs after `WhoMigrationsAutoConfiguration`. `AcmeLiquibase`
-is the library's own type that runs its changelog when initialized, as `WhoLiquibase` does, not a
-`SpringLiquibase`: Spring Boot's Liquibase stands down when a `SpringLiquibase` bean exists, and the
-application's own changelog stops running.
+migratory runs it after `who-jdbc` and before the application's changelog, on the same data source.
+A library that references roles names `who-rbac` instead (`after=who-rbac`). See migratory's
+[ordering guide](https://jwcarman.github.io/migratory/guides/ordering/).
 
 ## Transactions and locks
 

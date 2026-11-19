@@ -40,8 +40,8 @@ Before changing anything, find out what is already there:
 - The build file: is `who-bom` imported, which version, which `who-*` modules are present?
 - `application.yml` / `application.properties`: which `who.*` settings exist.
 - Any `SecurityFilterChain` bean. Its presence changes how who is wired (see below).
-- Whether `spring-boot-starter-liquibase` is present, and any include of `who-changelog.xml` in
-  the project's own changelog.
+- Whether `spring-boot-starter-liquibase` is present, and any include of who's changelogs
+  (`who-changelog.xml` from older releases, or a module's) in the project's own changelog.
 
 ## Adding who
 
@@ -85,11 +85,12 @@ Before changing anything, find out what is already there:
    `(issuer, subject)` is linked to an identity, which is what `who-enrollment`'s tokens are for.
 
 3. Add `spring-boot-starter-liquibase`. who creates and upgrades its own tables with Liquibase at
-   startup, before the application's migrations; without Liquibase, startup fails. Spring Boot's
-   Liquibase needs the application's own `db/changelog/db.changelog-master.yaml`
-   (`databaseChangeLog: []` when it has no tables). Don't include `who-changelog.xml` from it; to
-   run who's changelog itself (schema per tenant, external migrations), the application sets
-   `who.migrations.enabled=false`. who ships no Flyway migrations. See `references/database.md`.
+   startup, through migratory, before the application's migrations; without Liquibase, startup
+   fails. Spring Boot's Liquibase needs the application's own `db/changelog/db.changelog-master.yaml`
+   (`databaseChangeLog: []` when it has no tables). Don't include who's changelogs from it; to run
+   them itself (schema per tenant, external migrations), the application sets
+   `migratory.enabled=false` and includes each module's changelog. who ships no Flyway migrations.
+   See `references/database.md`.
 
 4. Set the module's required properties. Every module that needs settings refuses to start
    without them and says what to set, so a startup failure naming a `who.*` property is who

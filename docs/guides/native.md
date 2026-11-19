@@ -6,7 +6,7 @@ Who's native support is proven against GraalVM 25 and Spring Boot 4.1 in who's o
 
 ## What who ships
 
-Every module that has database files ships GraalVM reachability metadata at `META-INF/native-image/org.jwcarman.who/<module>/reachability-metadata.json`. It registers that module's Liquibase changelogs (`org/jwcarman/who/<module>/db/*.xml`). `who-autoconfigure` registers the master changelog, `org/jwcarman/who/db/who-changelog.xml`. A module on the classpath therefore always brings its own files, and none of them is dropped silently from the image.
+Every module that has database files ships GraalVM reachability metadata at `META-INF/native-image/org.jwcarman.who/<module>/reachability-metadata.json`. It registers that module's Liquibase changelogs (`org/jwcarman/who/<module>/db/*.xml`); migratory's own AOT processing registers them too, along with its ordered list of migrations. A module on the classpath therefore always brings its own files, and none of them is dropped silently from the image.
 
 `who-passkey` also registers reflection hints with Spring AOT (`PasskeyRuntimeHints`, listed in `META-INF/spring/aot.factories`). Spring Security's WebAuthn JSON and webauthn4j's CBOR model are read reflectively, and neither library ships native hints for them yet. Which key type and attestation format arrive depends on the user's authenticator, so who registers whole families of types, not only the ones a test happens to use:
 
@@ -26,8 +26,8 @@ then, not when the binary starts:
 
 - **The jars on the classpath.** Each sign-in module the image is built with is on.
 - **The `enabled` flags.** `who.email-link.enabled`, `who.passkey.enabled`, `who.api-key.enabled`,
-  `who.jwt.enabled`, `who.enrollment.enabled` and `who.migrations.enabled` (with
-  `spring.liquibase.enabled`) are read at build time. Passing `--who.passkey.enabled=false` to the
+  `who.jwt.enabled` and `who.enrollment.enabled` are read at build time (`migratory.enabled` is
+  read when the binary starts). Passing `--who.passkey.enabled=false` to the
   binary does not turn passkeys off; set it in `application.yml` before building, or leave the
   module's jar out.
 - **who's default chain.** Whether the application has a `SecurityFilterChain` of its own, and so
