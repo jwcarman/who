@@ -1,4 +1,5 @@
 org.jwcarman.who.autoconfigure.WhoAutoConfiguration
+org.jwcarman.who.autoconfigure.WhoMigrationsAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoSpringSecurityAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoEnrollmentAutoConfiguration
 org.jwcarman.who.autoconfigure.WhoFederatedAutoConfiguration

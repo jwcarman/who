@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: app-note-1
+      author: who-tests
+      changes:
+        - createTable:
+            tableName: app_note
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: identity_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_app_note_identity
+                    references: who_identity(id)
