@@ -46,8 +46,8 @@ PostgreSQL only. See [Database Setup](database.md).
 6. **`spring.liquibase.enabled=false` no longer stops who's tables.** It turns off only Spring
    Boot's run of your changelog. A profile that turned it off to keep Liquibase away from the
    database (tests, or a database user without DDL rights) sets `migratory.enabled=false` too.
-7. **`spring.liquibase.drop-first=true` fails startup** while migratory runs; a test profile that
-   uses it sets `migratory.enabled=false` and includes who's changelogs itself.
+7. **`spring.liquibase.drop-first=true` fails startup** while migratory runs; a profile that
+   uses it sets `migratory.drop-first=true` instead.
 8. **Without `who-jdbc`**, set `migratory.enabled=false`; see
    [Without who-jdbc](database.md#without-who-jdbc).
 

@@ -6,7 +6,7 @@
 - Without Liquibase
 - Running who's changelogs yourself
 - Without `who-jdbc`
-- `spring.liquibase.drop-first` is not supported
+- Rebuilding the database on every start
 - Rules for who's changelogs
 - Liquibase extensions
 - Libraries built on who
@@ -126,11 +126,14 @@ An application that keeps identities in a repository of its own, without `who-jd
 `migratory.enabled=false` and creates the tables it needs itself; otherwise the first module
 changelog with a foreign key to `who_identity` fails startup.
 
-## `spring.liquibase.drop-first` is not supported
+## Rebuilding the database on every start
 
-`drop-first` would drop the schema after who's tables were created, so migratory fails startup
-when it is set. An application that needs it turns migratory off and includes who's changelogs
-itself, as above.
+`spring.liquibase.drop-first` would drop the schema after who's tables were created, so migratory
+fails startup when it is set. Set `migratory.drop-first=true` instead, in a development profile
+only: migratory's run drops the default schema first, the application's tables and the history
+table included, then builds who's tables, and Spring Boot's run builds the application's. See
+migratory's
+[Rebuilding the schema on every start](https://jwcarman.github.io/migratory/guides/changelog-rules/#rebuilding-the-schema-on-every-start).
 
 ## Rules for who's changelogs
 
