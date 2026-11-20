@@ -16,6 +16,7 @@
 package org.jwcarman.who.emaillink;
 
 import java.util.Set;
+import java.util.UUID;
 
 import org.jwcarman.who.core.domain.Identity;
 
@@ -36,4 +37,15 @@ public interface InvitationRoles {
    * @throws InvalidInvitationException if a name names no role
    */
   void assign(Identity identity, Set<String> roleNames);
+
+  /**
+   * Names the roles the identity holds now, for an invitation sent again ({@link
+   * InvitationService#resend(UUID)}). Roles that can only assign name none.
+   *
+   * @param identityId the invited identity's id
+   * @return the names of its roles; empty for none
+   */
+  default Set<String> namesOf(UUID identityId) {
+    return Set.of();
+  }
 }

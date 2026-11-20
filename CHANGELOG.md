@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `InvitationService.resend(identityId)` sends an identity's invitation again, to its oldest
+  address, naming the roles it holds now. The new link replaces the outstanding one, and the resend
+  interval applies. `InvitationRoles` gains `namesOf(identityId)` (a default that names none;
+  `RbacInvitationRoles` names the identity's roles). See the admin guide.
+
 ## [0.25.0] - 2026-11-19
 
 ### Breaking changes

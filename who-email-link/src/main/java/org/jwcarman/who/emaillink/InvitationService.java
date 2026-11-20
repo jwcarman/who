@@ -57,6 +57,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       link that is not sent is logged at WARN without the address or the token.
  * </ol>
  *
+ * <p>An invitation not yet accepted can be sent again with {@link #resend(UUID)}.
+ *
  * <p>This service applies no policy about who may grant which roles: it is for trusted application
  * code. {@code who-admin}'s endpoint applies its own.
  */
@@ -185,6 +187,40 @@ public class InvitationService {
     Invited invited =
         requireNonNull(invitation.execute(_ -> register(email, names, inTransaction)), "invited");
     return new Invitation(invited.identityId(), sendLink(invited, names));
+  }
+
+  /**
+   * Sends the identity's invitation again: a new {@link InvitationMessage} to its oldest email
+   * address ({@link EmailCredentialService#findOldestFor(UUID)}), naming the roles it holds now.
+   * The new link replaces the identity's outstanding one, which stops working, and who's resend
+   * interval applies as it does to any sign-in link ({@link EmailLinkOutcome#RESEND_SUPPRESSED}).
+   * Nothing else changes and no event of this service's is published.
+   *
+   * <p>who does not know whether an invitation was accepted (accepting it is signing in): offering
+   * this only for people who have not signed in yet is the caller's to decide. Call it outside any
+   * transaction, as {@link #invite(String, Set)}.
+   *
+   * @param identityId the invited identity's id
+   * @return what became of the new link; {@link EmailLinkOutcome#INACTIVE_IDENTITY} for an identity
+   *     that is not active, and {@link EmailLinkOutcome#SEND_FAILED} if sending threw
+   * @throws NullPointerException if {@code identityId} is null
+   * @throws InvalidInvitationException if the identity has no email address (or does not exist);
+   *     nothing is sent
+   * @throws IllegalStateException if called inside a transaction
+   */
+  public EmailLinkOutcome resend(UUID identityId) {
+    requireNonNull(identityId, "identityId must not be null");
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "resend must be called outside a transaction, as the link is sent with none open");
+    }
+    EmailCredential credential =
+        emailCredentials
+            .findOldestFor(identityId)
+            .orElseThrow(
+                () -> new InvalidInvitationException("No email address to send the invitation to"));
+    Set<String> names = roles == null ? Set.of() : roles.namesOf(identityId);
+    return sendLink(new Invited(identityId, credential.address()), names);
   }
 
   private Invited register(String email, Set<String> names, Consumer<Identity> inTransaction) {

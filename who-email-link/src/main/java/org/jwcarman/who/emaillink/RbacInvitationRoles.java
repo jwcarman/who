@@ -18,15 +18,18 @@ package org.jwcarman.who.emaillink;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.rbac.RbacService;
+import org.jwcarman.who.rbac.Role;
 import org.jwcarman.who.rbac.RoleNotFoundException;
 
 /**
  * The {@link InvitationRoles} of {@code who-rbac}: assigns each role by name with {@link
- * RbacService#assignRoleByName(Identity, String)}. Loaded only when {@code who-rbac} is on the
- * classpath.
+ * RbacService#assignRoleByName(Identity, String)}, and names an identity's roles with {@link
+ * RbacService#findRolesForIdentity(UUID)}. Loaded only when {@code who-rbac} is on the classpath.
  */
 public final class RbacInvitationRoles implements InvitationRoles {
 
@@ -50,5 +53,12 @@ public final class RbacInvitationRoles implements InvitationRoles {
         throw new InvalidInvitationException("No such role");
       }
     }
+  }
+
+  @Override
+  public Set<String> namesOf(UUID identityId) {
+    return rbac.findRolesForIdentity(identityId).stream()
+        .map(Role::name)
+        .collect(Collectors.toUnmodifiableSet());
   }
 }

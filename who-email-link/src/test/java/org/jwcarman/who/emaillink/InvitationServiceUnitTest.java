@@ -30,11 +30,13 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,6 +53,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.jwcarman.who.core.domain.Identity;
 import org.jwcarman.who.core.service.WhoService;
+import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DuplicateKeyException;
@@ -64,6 +67,7 @@ class InvitationServiceUnitTest {
 
   private static final Instant NOW = Instant.parse("2026-11-17T10:00:00Z");
   private static final String ADDRESS = "Carol@Example.com";
+  private static final String LINK = "https://app.example.com/signin#token";
 
   private final WhoService whoService = mock(WhoService.class);
   private final EmailCredentialService credentials = mock(EmailCredentialService.class);
@@ -436,5 +440,107 @@ class InvitationServiceUnitTest {
     held.add("admin");
 
     assertThat(event.roles()).containsExactly("editor");
+  }
+
+  @Nested
+  class Resending {
+
+    private final UUID dana = UUID.randomUUID();
+
+    @BeforeEach
+    void dana_was_invited() {
+      when(credentials.findOldestFor(dana))
+          .thenReturn(Optional.of(EmailCredential.create("dana@example.com")));
+      when(roles.namesOf(dana)).thenReturn(Set.of("editor"));
+    }
+
+    private InvitationMessage messageBuiltBy(EmailLinkIssuer.LinkEmail email) {
+      return (InvitationMessage)
+          email.build("dana@example.com", LINK, "123456", NOW, Duration.ofMinutes(15));
+    }
+
+    @Test
+    void sends_the_invitation_again_to_the_oldest_address_with_the_current_roles() {
+      ArgumentCaptor<EmailLinkIssuer.LinkEmail> email =
+          ArgumentCaptor.forClass(EmailLinkIssuer.LinkEmail.class);
+
+      EmailLinkOutcome outcome = service(roles).resend(dana);
+
+      assertThat(outcome).isEqualTo(EmailLinkOutcome.SENT);
+      verify(issuer).issue(eq("dana@example.com"), anyString(), email.capture());
+      assertThat(messageBuiltBy(email.getValue()))
+          .isEqualTo(
+              new InvitationMessage(
+                  "dana@example.com",
+                  LINK,
+                  "123456",
+                  NOW,
+                  Duration.ofMinutes(15),
+                  Set.of("editor")));
+      assertThat(published).isEmpty();
+    }
+
+    @Test
+    void reports_what_the_issuer_says() {
+      when(issuer.issue(anyString(), anyString(), any()))
+          .thenReturn(EmailLinkOutcome.RESEND_SUPPRESSED);
+
+      assertThat(service(roles).resend(dana)).isEqualTo(EmailLinkOutcome.RESEND_SUPPRESSED);
+    }
+
+    @Test
+    void without_who_rbac_names_no_roles() {
+      ArgumentCaptor<EmailLinkIssuer.LinkEmail> email =
+          ArgumentCaptor.forClass(EmailLinkIssuer.LinkEmail.class);
+
+      service(null).resend(dana);
+
+      verify(issuer).issue(eq("dana@example.com"), anyString(), email.capture());
+      assertThat(messageBuiltBy(email.getValue()).roles()).isEmpty();
+    }
+
+    @Test
+    void an_identity_with_no_address_is_refused_and_nothing_is_sent() {
+      UUID nobody = UUID.randomUUID();
+      when(credentials.findOldestFor(nobody)).thenReturn(Optional.empty());
+      InvitationService service = service(roles);
+
+      assertThatThrownBy(() -> service.resend(nobody))
+          .isInstanceOf(InvalidInvitationException.class)
+          .hasMessage("No email address to send the invitation to");
+      verifyNoInteractions(issuer);
+    }
+
+    @Test
+    void a_send_that_throws_is_reported_as_failed(CapturedOutput output) {
+      when(issuer.issue(anyString(), anyString(), any()))
+          .thenThrow(new IllegalStateException("smtp down for dana@example.com"));
+
+      assertThat(service(roles).resend(dana)).isEqualTo(EmailLinkOutcome.SEND_FAILED);
+      assertThat(output)
+          .contains("Failed to send the invitation link for identity " + dana)
+          .doesNotContain("dana@example.com");
+    }
+
+    @Test
+    void a_null_identity_is_refused() {
+      InvitationService service = service(roles);
+
+      assertThatThrownBy(() -> service.resend(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("identityId must not be null");
+    }
+
+    @Test
+    void inside_a_transaction_is_refused_and_nothing_is_sent() {
+      InvitationService service = service(roles);
+      TransactionSynchronizationManager.setActualTransactionActive(true);
+      try {
+        assertThatThrownBy(() -> service.resend(dana)).isInstanceOf(IllegalStateException.class);
+      } finally {
+        TransactionSynchronizationManager.setActualTransactionActive(false);
+      }
+      verifyNoInteractions(issuer);
+    }
   }
 }

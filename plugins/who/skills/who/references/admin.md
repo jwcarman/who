@@ -288,6 +288,23 @@ order:
 the link must go after the invitation commits, and a transaction of yours would hold the
 invitation back while the link went out.
 
+#### Sending an invitation again
+
+`resend(identityId)` sends the invitation again: a new invitation email to the identity's oldest
+address, naming the roles it holds now. The new link replaces the identity's outstanding one, which
+stops working, and the [resend interval](email-links.md#the-resend-interval) applies as it does to
+every sign-in email:
+
+```java
+EmailLinkOutcome outcome = invitationService.resend(identityId);
+// SENT, RESEND_SUPPRESSED (inside the interval), INACTIVE_IDENTITY or SEND_FAILED
+```
+
+who does not record whether an invitation was accepted (accepting it is signing in), so offering
+this only to people who have not signed in yet is up to your application. An identity with no
+email address is refused with `InvalidInvitationException`, and nothing is sent. Call it outside any
+transaction, as `invite`.
+
 #### Attaching your own data
 
 To store your own data for the new person, such as a profile or a team membership, pass a

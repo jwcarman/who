@@ -627,4 +627,53 @@ class InvitationServiceTest {
       assertThat(registered(CAROL)).isFalse();
     }
   }
+
+  @Nested
+  class Resending {
+
+    private UUID carol;
+
+    @BeforeEach
+    void carol_was_invited() {
+      carol = invitationService.invite("Carol@Example.com", Set.of(EDITOR_ROLE)).identityId();
+    }
+
+    private String tokenHash() {
+      return jdbcClient
+          .sql("SELECT token_hash FROM who_email_link_token")
+          .query(String.class)
+          .single();
+    }
+
+    @Test
+    void right_away_is_suppressed_by_the_resend_interval() {
+      assertThat(invitationService.resend(carol)).isEqualTo(EmailLinkOutcome.RESEND_SUPPRESSED);
+      assertThat(SENT).hasSize(1);
+    }
+
+    @Test
+    void later_sends_a_new_invitation_that_replaces_the_first_link() {
+      String first = tokenHash();
+      jdbcClient
+          .sql("UPDATE who_email_link_token SET created_at = created_at - INTERVAL '1 day'")
+          .update();
+
+      assertThat(invitationService.resend(carol)).isEqualTo(EmailLinkOutcome.SENT);
+
+      assertThat(SENT).hasSize(2);
+      InvitationMessage again = SENT.get(1).message();
+      assertThat(again.address()).isEqualTo(CAROL);
+      assertThat(again.roles()).containsExactly(EDITOR_ROLE);
+      assertThat(again.link()).isNotEqualTo(SENT.get(0).message().link());
+      assertThat(tokenHash()).isNotEqualTo(first);
+    }
+
+    @Test
+    void an_identity_without_an_address_is_refused() {
+      UUID nobody = whoService.createIdentity().id();
+
+      assertThatThrownBy(() -> invitationService.resend(nobody))
+          .isInstanceOf(InvalidInvitationException.class);
+    }
+  }
 }
