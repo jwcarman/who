@@ -45,7 +45,7 @@
         <!-- Dependency Versions -->
         <jazzer.version>0.30.0</jazzer.version>
         <java-uuid-generator.version>5.2.0</java-uuid-generator.version>
-        <spring-boot.version>4.1.2</spring-boot.version>
+        <spring-boot.version>4.2.0</spring-boot.version>
         <migratory.version>0.1.0</migratory.version>
         <webauthn4j.version>0.32.0.RELEASE</webauthn4j.version>
 
