@@ -27,6 +27,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The provenance attached to each release now covers the CycloneDX SBOMs as well as the jars. The
+  SBOMs were written as `bom.json`, so the attestation's `*-cyclonedx.json` pattern never matched
+  them; they now carry their published name.
+- The `url` and `scm` of every published pom point at the repository. Modules inherited them with
+  the module name appended, which gave links that didn't exist.
+- The published `who-bom` no longer carries who-parent's properties.
+
 ## [0.26.0] - 2026-11-20
 
 ### Added
