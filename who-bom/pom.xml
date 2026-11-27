@@ -149,6 +149,10 @@
                 <artifactId>flatten-maven-plugin</artifactId>
                 <configuration>
                     <flattenMode>bom</flattenMode>
+                    <pomElements>
+                        <!-- Inherited from who-parent, and nothing a consumer of a BOM should see. -->
+                        <properties>remove</properties>
+                    </pomElements>
                 </configuration>
                 <executions>
                     <execution>
