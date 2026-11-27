@@ -53,7 +53,7 @@
         <sonar.skip>true</sonar.skip>
         <!-- Spring Boot 4.1.2's native-build-tools-plugin.version; who-parent imports Boot's BOM,
              which manages dependencies only, so the plugin version is pinned here. -->
-        <native-build-tools.version>1.1.18</native-build-tools.version>
+        <native-build-tools.version>1.1.19</native-build-tools.version>
         <!-- Off here and in native-test-support, which have no main class; each app turns both on. -->
         <spring-boot.aot.skip>true</spring-boot.aot.skip>
         <skipNativeBuild>true</skipNativeBuild>
